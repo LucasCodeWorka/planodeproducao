@@ -1,0 +1,187 @@
+###
+# Exemplos de Requisições HTTP para testar a API de Estoque Mínimo
+# Use a extensão REST Client no VSCode ou Postman/Insomnia
+###
+
+@baseUrl = http://localhost:8000
+
+### Health Check
+GET {{baseUrl}}/health
+
+### ==========================================
+### TESTES DE CÁLCULO DE ESTOQUE MÍNIMO
+### ==========================================
+
+### REGRA 1 - Crescimento Acentuado (variação = 50%)
+# Esperado: estoqueMinimo = 150 (usa média trimestral)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{
+  "mediaSemestral": 100,
+  "mediaTrimestral": 150
+}
+
+### REGRA 1 - Queda Acentuada (variação = -55%)
+# Esperado: estoqueMinimo = 45 (usa média trimestral)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{
+  "mediaSemestral": 100,
+  "mediaTrimestral": 45
+}
+
+### REGRA 2 - Sem Histórico Semestral
+# Esperado: estoqueMinimo = 80 (usa média trimestral)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{
+  "mediaTrimestral": 80
+}
+
+### REGRA 3 - Cenário Estável (variação = 10%)
+# Esperado: estoqueMinimo = 105 (média entre 100 e 110)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{
+  "mediaSemestral": 100,
+  "mediaTrimestral": 110
+}
+
+### REGRA 3 - Cenário Estável (variação = -10%)
+# Esperado: estoqueMinimo = 95 (média entre 100 e 90)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{
+  "mediaSemestral": 100,
+  "mediaTrimestral": 90
+}
+
+### LIMITE INFERIOR REGRA 1 - Variação exatamente 49%
+# Esperado: estoqueMinimo = 149 (usa média trimestral)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{
+  "mediaSemestral": 100,
+  "mediaTrimestral": 149
+}
+
+### LIMITE SUPERIOR REGRA 3 - Variação 48.99%
+# Esperado: estoqueMinimo = 124.495 (média entre 100 e 148.99)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{
+  "mediaSemestral": 100,
+  "mediaTrimestral": 148.99
+}
+
+### LIMITE INFERIOR REGRA 1 NEGATIVO - Variação exatamente -50%
+# Esperado: estoqueMinimo = 50 (usa média trimestral)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{
+  "mediaSemestral": 100,
+  "mediaTrimestral": 50
+}
+
+### LIMITE SUPERIOR REGRA 3 NEGATIVO - Variação -49.99%
+# Esperado: estoqueMinimo = 75.005 (média entre 100 e 50.01)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{
+  "mediaSemestral": 100,
+  "mediaTrimestral": 50.01
+}
+
+### ==========================================
+### CÁLCULO EM LOTE
+### ==========================================
+
+### Calcular múltiplos produtos
+POST {{baseUrl}}/api/estoque-minimo/calcular-lote
+Content-Type: application/json
+
+{
+  "produtos": [
+    {
+      "id": "PROD001",
+      "nome": "Produto A - Crescimento Acentuado",
+      "mediaSemestral": 100,
+      "mediaTrimestral": 160
+    },
+    {
+      "id": "PROD002",
+      "nome": "Produto B - Queda Acentuada",
+      "mediaSemestral": 200,
+      "mediaTrimestral": 80
+    },
+    {
+      "id": "PROD003",
+      "nome": "Produto C - Cenário Estável",
+      "mediaSemestral": 150,
+      "mediaTrimestral": 165
+    },
+    {
+      "id": "PROD004",
+      "nome": "Produto D - Sem Histórico",
+      "mediaTrimestral": 90
+    }
+  ]
+}
+
+### ==========================================
+### CONSULTAS DE VENDAS
+### ==========================================
+
+### Listar vendas básicas
+GET {{baseUrl}}/api/vendas?limit=10&offset=0
+
+### Listar vendas com estoque mínimo calculado
+GET {{baseUrl}}/api/vendas/com-estoque-minimo?limit=10&offset=0
+
+### Consultar estoque mínimo de um produto específico
+# Substitua PROD001 pelo ID real do produto
+GET {{baseUrl}}/api/vendas/PROD001/estoque-minimo
+
+### ==========================================
+### VALIDAÇÃO DE ERROS
+### ==========================================
+
+### Teste com valor negativo (deve retornar erro 400)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{
+  "mediaSemestral": -100,
+  "mediaTrimestral": 150
+}
+
+### Teste com valor não numérico (deve retornar erro 400)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{
+  "mediaSemestral": "cem",
+  "mediaTrimestral": 150
+}
+
+### Teste sem corpo (deve retornar cálculo com valores null)
+POST {{baseUrl}}/api/estoque-minimo/calcular
+Content-Type: application/json
+
+{}
+
+### ==========================================
+### ROTA LEGADA
+### ==========================================
+
+### Consultar view original (compatibilidade)
+GET {{baseUrl}}/api/vr-vendas-qtd?limit=5

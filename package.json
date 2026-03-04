@@ -1,0 +1,17 @@
+{
+  "name": "plano-producao-backend",
+  "version": "1.0.0",
+  "description": "Backend Node.js para consulta da view vr_vendas_qtd",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}
