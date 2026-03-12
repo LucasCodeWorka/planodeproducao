@@ -1,5 +1,19 @@
 import type { Metadata } from "next";
+import { Inter, Lato } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const lato = Lato({
+  subsets: ["latin"],
+  weight: ["300", "400", "700"],
+  variable: "--font-lato",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Planejamento de Produção - Liebe",
@@ -13,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className="antialiased">
+      <body className={`${inter.variable} ${lato.variable} antialiased`}>
         {children}
       </body>
     </html>

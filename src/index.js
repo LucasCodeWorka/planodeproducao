@@ -3,10 +3,17 @@ const cors = require("cors");
 const { Pool } = require("pg");
 require("dotenv").config();
 
-const estoqueRoutes = require("./routes/estoque");
-const vendasRoutes = require("./routes/vendas");
-const producaoRoutes = require("./routes/producao");
-const filtrosRoutes = require("./routes/filtros");
+const estoqueRoutes   = require("./routes/estoque");
+const vendasRoutes    = require("./routes/vendas");
+const producaoRoutes  = require("./routes/producao");
+const filtrosRoutes   = require("./routes/filtros");
+const adminRoutes     = require("./routes/admin");
+const projecoesRoutes = require("./routes/projecoes");
+const analisesRoutes  = require("./routes/analises");
+const openaiRoutes    = require("./routes/openai");
+const configuracoesRoutes = require("./routes/configuracoes");
+const consumoMpRoutes = require("./routes/consumoMp");
+const capacidadeRoutes = require("./routes/capacidade");
 
 const app = express();
 
@@ -23,7 +30,8 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
+app.use(express.text({ type: 'text/plain', limit: '10mb' }));
 
 const {
   DB_HOST,
@@ -69,9 +77,16 @@ app.get("/health", async (_req, res) => {
 
 // Rotas
 app.use("/api/estoque-minimo", estoqueRoutes);
-app.use("/api/vendas", vendasRoutes);
-app.use("/api/producao", producaoRoutes);
-app.use("/api/filtros", filtrosRoutes);
+app.use("/api/vendas",         vendasRoutes);
+app.use("/api/producao",       producaoRoutes);
+app.use("/api/filtros",        filtrosRoutes);
+app.use("/api/admin",          adminRoutes);
+app.use("/api/projecoes",      projecoesRoutes);
+app.use("/api/analises",       analisesRoutes);
+app.use("/api/openai",         openaiRoutes);
+app.use("/api/configuracoes",  configuracoesRoutes);
+app.use("/api/consumo-mp",     consumoMpRoutes);
+app.use("/api/capacidade",     capacidadeRoutes);
 
 // Rota legada mantida para compatibilidade
 app.get("/api/vr-vendas-qtd", async (req, res) => {
@@ -131,6 +146,32 @@ app.listen(Number(API_PORT), API_HOST, () => {
   console.log(`    GET  /api/filtros/status`);
   console.log(`    GET  /api/filtros/familias`);
   console.log(`    GET  /api/filtros/continuidade`);
+  console.log(`\n  Analises:`);
+  console.log(`    GET    /api/analises`);
+  console.log(`    POST   /api/analises`);
+  console.log(`    DELETE /api/analises/:id`);
+  console.log(`\n  OpenAI:`);
+  console.log(`    POST   /api/openai/test`);
+  console.log(`    POST   /api/openai/analyser`);
+  console.log(`    POST   /api/openai/diagnostico`);
+  console.log(`\n  Configuracoes:`);
+  console.log(`    GET    /api/configuracoes/corte-minimos`);
+  console.log(`    POST   /api/configuracoes/corte-minimos`);
+  console.log(`    GET    /api/configuracoes/sugestao-plano`);
+  console.log(`    POST   /api/configuracoes/sugestao-plano`);
+  console.log(`\n  Consumo MP:`);
+  console.log(`    GET    /api/consumo-mp/estrutura`);
+  console.log(`    GET    /api/consumo-mp/estoque`);
+  console.log(`    POST   /api/consumo-mp/analise`);
+  console.log(`\n  Capacidade:`);
+  console.log(`    GET    /api/capacidade/config`);
+  console.log(`    GET    /api/capacidade/grupos`);
+  console.log(`    POST   /api/capacidade/grupos`);
+  console.log(`    GET    /api/capacidade/grupo-refs`);
+  console.log(`    POST   /api/capacidade/grupo-refs`);
+  console.log(`    GET    /api/capacidade/dias`);
+  console.log(`    POST   /api/capacidade/dias`);
+  console.log(`    GET    /api/capacidade/tempos-ref`);
   console.log(`\n  Legado:`);
   console.log(`    GET  /api/vr-vendas-qtd`);
 });

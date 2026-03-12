@@ -5,8 +5,10 @@ const {
   buscarPedidosPendentes,
   buscarCatalogoProdutos,
   buscarPlanejamentoProduto,
-  buscarProdutosElegiveisMatriz
+  buscarMatrizPlanejamentoRapida
 } = require("../services/producaoService");
+
+const { readCache, filterCache } = require("../cache/matrizCache");
 
 const router = express.Router();
 const catalogoCache = new Map();
@@ -356,79 +358,94 @@ router.get("/planejamento", async (req, res) => {
 
 /**
  * GET /api/producao/matriz
- * Matriz enxuta para dashboard:
- * - Produtos com venda nos ultimos 12 meses
- * - OU status EM LINHA
- * - OU estoque minimo > 0 (avaliado apos calcular planejamento)
+ * Matriz de planejamento em query única (CTE agregada, sem N+1).
+ *
+ * Query params:
+ * - limit: máximo de produtos (padrão: 200, máximo: 1000)
+ * - offset: paginação
+ * - cd_empresa: código da empresa (padrão: 1)
+ * - marca: filtrar por marca (ex: "Liebe") — usa classificação 20 DS
+ * - status: filtrar por status (ex: "EM LINHA")
  */
 router.get("/matriz", async (req, res) => {
   try {
-    const pool = req.app.get("pool");
-    const limit = Math.min(Number(req.query.limit) || 200, 1000);
-    const offset = Math.max(Number(req.query.offset) || 0, 0);
-    const cdEmpresa = Number(req.query.cd_empresa) || 1;
-    const concorrencia = Math.min(Math.max(Number(req.query.concorrencia) || 20, 1), 30);
+    const limit  = Math.min(Number(req.query.limit)  || 500, 5000);
+    const offset = Math.max(Number(req.query.offset) || 0,   0);
+    const marca  = req.query.marca ? String(req.query.marca).trim() : null;
+    const status = req.query.status ? String(req.query.status).trim() : null;
+    const referencias = req.query.referencias
+      ? String(req.query.referencias).split(',').map((r) => r.trim()).filter(Boolean)
+      : [];
 
-    const candidatos = await buscarProdutosElegiveisMatriz(pool, {
-      limit,
-      offset,
-      cdEmpresa
-    });
-
-    const resultados = [];
-    let cursor = 0;
-
-    const worker = async () => {
-      while (cursor < candidatos.length) {
-        const idx = cursor++;
-        const cand = candidatos[idx];
-
-        try {
-          const planejamento = await buscarPlanejamentoProduto(
-            pool,
-            Number(cand.idproduto),
-            cdEmpresa
+    // ── tenta servir do cache ───────────────────────────────────────────────
+    const cached = readCache();
+    const cacheMarca = cached?.meta?.marca ? String(cached.meta.marca).trim().toUpperCase() : null;
+    const cacheStatus = cached?.meta?.status ? String(cached.meta.status).trim().toUpperCase() : null;
+    const reqMarca   = marca ? marca.toUpperCase() : null;
+    const reqStatus  = status ? status.toUpperCase() : null;
+    const cacheAtendeMarca =
+      !cached
+        ? false
+        : (
+            // cache global (sem marca) atende qualquer filtro de marca
+            !cacheMarca ||
+            // cache por marca só atende mesma marca
+            cacheMarca === reqMarca
+          );
+    const cacheAtendeStatus =
+      !cached
+        ? false
+        : (
+            // cache global (sem status) atende qualquer filtro de status
+            !cacheStatus ||
+            // cache por status só atende mesmo status
+            cacheStatus === reqStatus
           );
 
-          if (!planejamento) continue;
+    if (cached && cached.fresh && cacheAtendeMarca && cacheAtendeStatus) {
+      const filtrado = filterCache(cached.data, { referencias, marca, status });
+      const pagina   = filtrado.slice(offset, offset + limit);
 
-          const status = (planejamento.produto.status || "").trim().toUpperCase();
-          const emLinha = status.startsWith("EM LINHA");
-          const teveVenda12m = cand.teve_venda_12m === true;
-          const estoqueMinimoPositivo = (planejamento.estoques.estoque_minimo || 0) > 0;
+      res.set('X-Cache', 'HIT');
+      res.set('X-Cache-Age', String(cached.ageHours.toFixed(1)) + 'h');
+      return res.status(200).json({
+        success: true,
+        total:   pagina.length,
+        totalAll: filtrado.length,
+        fromCache: true,
+        cacheUpdatedAt: new Date(cached.timestamp).toLocaleString('pt-BR'),
+        limit,
+        offset,
+        data: pagina
+      });
+    }
 
-          if (teveVenda12m || emLinha || estoqueMinimoPositivo) {
-            resultados.push({
-              ...planejamento,
-              criterios: {
-                teve_venda_12m: teveVenda12m,
-                status_em_linha: emLinha,
-                estoque_minimo_positivo: estoqueMinimoPositivo
-              }
-            });
-          }
-        } catch (error) {
-          console.log(`Erro ao montar matriz para ${cand.idproduto}:`, error.message);
-        }
-      }
-    };
+    // ── fallback: consulta direta ao banco ──────────────────────────────────
+    const pool      = req.app.get("pool");
+    const cdEmpresa = Number(req.query.cd_empresa) || 1;
 
-    await Promise.all(Array.from({ length: Math.min(concorrencia, candidatos.length || 1) }, worker));
-    resultados.sort((a, b) => Number(a.produto.idproduto) - Number(b.produto.idproduto));
-
-    return res.status(200).json({
-      success: true,
-      total: resultados.length,
+    const resultados = await buscarMatrizPlanejamentoRapida(pool, {
       limit,
       offset,
-      filtro_status: "EM LINHA",
+      cdEmpresa,
+      marca,
+      status,
+      referencias
+    });
+
+    res.set('X-Cache', 'MISS');
+    return res.status(200).json({
+      success: true,
+      total:   resultados.length,
+      fromCache: false,
+      limit,
+      offset,
       data: resultados
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      error: "Erro ao consultar matriz",
-      details: error.message
+      error: "Erro ao consultar matriz"
     });
   }
 });

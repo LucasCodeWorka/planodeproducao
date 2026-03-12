@@ -1,0 +1,10 @@
+{
+  "timestamp": 1773321510895,
+  "data": {
+    "cobertura_top30": 1,
+    "cobertura_demais": 0.5,
+    "cobertura_kissme": 1.2,
+    "usar_corte_minimo": true,
+    "usar_op_minima_ref": true
+  }
+}

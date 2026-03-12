@@ -9,6 +9,9 @@ export interface Produto {
   status: string;
   idfamilia: string;
   continuidade: string;
+  linha?: string;
+  grupo?: string;
+  marca: string;
   cd_empresa: number;
 }
 
@@ -41,10 +44,36 @@ export interface CalculoEstoqueMinimo {
   descricaoRegra: string;
 }
 
+export interface Plano {
+  ma: number;  // mês atual (março)
+  px: number;  // próximo mês (abril)
+  ul: number;  // mês seguinte (maio)
+}
+
 export interface Planejamento {
   produto: Produto;
   estoques: Estoques;
   demanda: Demanda;
+  plano: Plano;
   planejamento: PlanejamentoInfo;
   calculo_estoque_minimo: CalculoEstoqueMinimo | null;
+}
+
+/**
+ * Projeção de venda por produto: chave = número do mês ("1"–"12").
+ * Ex: { "1": 500, "2": 450, "3": 612, "4": 700, "5": 800 }
+ */
+export interface ProjecaoSku {
+  [mes: string]: number;
+}
+
+export interface ProjecoesMap {
+  [idproduto: string]: ProjecaoSku;
+}
+
+/** Mapeamento dos períodos do plano para número de mês */
+export interface PeriodosPlano {
+  MA: number;  // mês atual (ex: 3 para março)
+  PX: number;  // próximo mês
+  UL: number;  // último mês do plano
 }

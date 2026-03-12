@@ -1,0 +1,96 @@
+{
+  "timestamp": 1773143953122,
+  "total": 18,
+  "data": [
+    {
+      "grupo": "03 - ALEGRIA SU LUXE MODA",
+      "tipo": "LINHA NOITE",
+      "capacidade_diaria": 3201
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "tipo": "SUTIA",
+      "capacidade_diaria": 3841
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "tipo": "SUTIA",
+      "capacidade_diaria": 3411
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "tipo": "LINHA NOITE",
+      "capacidade_diaria": 2438
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "tipo": "SUTIA",
+      "capacidade_diaria": 3841
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "tipo": "SUTIA",
+      "capacidade_diaria": 3944
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "tipo": "SUTIA",
+      "capacidade_diaria": 3841
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "tipo": "SUTIA",
+      "capacidade_diaria": 3918
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "tipo": "SUTIA",
+      "capacidade_diaria": 4148
+    },
+    {
+      "grupo": "06 - UNIAO CA LUXE",
+      "tipo": "CALCA",
+      "capacidade_diaria": 3047
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "tipo": "CALCA",
+      "capacidade_diaria": 3047
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "tipo": "CALCA",
+      "capacidade_diaria": 2940
+    },
+    {
+      "grupo": "08 - CONQUISTA CA BASICO/FASHION",
+      "tipo": "CALCA",
+      "capacidade_diaria": 3191
+    },
+    {
+      "grupo": "08 - OBJETIVO CA BASICO",
+      "tipo": "SUTIA",
+      "capacidade_diaria": 2868
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "tipo": "SUTIA",
+      "capacidade_diaria": 3457
+    },
+    {
+      "grupo": "09 - LIDERANCA ANATOMIC",
+      "tipo": "ANATOMIC",
+      "capacidade_diaria": 3401
+    },
+    {
+      "grupo": "NOVO OFICINA",
+      "tipo": "SUTIA",
+      "capacidade_diaria": 1024
+    },
+    {
+      "grupo": "OFICINA",
+      "tipo": "CALCA",
+      "capacidade_diaria": 8042
+    }
+  ]
+}

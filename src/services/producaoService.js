@@ -2,6 +2,9 @@
  * Serviço para consultas relacionadas ao planejamento de produção
  */
 
+const { buscarProdutoComMedias } = require('./vendasService');
+const { calcularEstoqueMinimo } = require('./estoqueMinimo');
+
 /**
  * Busca estoque atual de produtos na fábrica
  * @param {Object} pool - Pool de conexão PostgreSQL
@@ -170,6 +173,7 @@ async function buscarCatalogoProdutos(pool, options = {}) {
         f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint) AS status
       FROM vr_prd_prdgrade a
       WHERE 1=1
+        AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
     `
     : `
       SELECT
@@ -185,6 +189,7 @@ async function buscarCatalogoProdutos(pool, options = {}) {
         f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) AS continuidade
       FROM vr_prd_prdgrade a
       WHERE 1=1
+        AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
     `;
 
   let query = `
@@ -263,6 +268,7 @@ async function buscarPlanejamentoProduto(pool, cdProduto, cdEmpresa = 1) {
       f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) AS continuidade
     FROM vr_prd_prdgrade a
     WHERE a.cd_produto = $1
+      AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
     LIMIT 1
   `;
 
@@ -305,10 +311,7 @@ async function buscarPlanejamentoProduto(pool, cdProduto, cdEmpresa = 1) {
   // 4. Buscar pedidos pendentes
   const pedidosPendentes = await buscarPedidosPendentes(pool, cdProduto, cdEmpresa);
 
-  // 5. Calcular médias de vendas (importar do vendasService)
-  const { buscarProdutoComMedias } = require('./vendasService');
-  const { calcularEstoqueMinimo } = require('./estoqueMinimo');
-
+  // 5. Calcular médias de vendas
   let dadosVendas = null;
   let estoqueMinimo = null;
 
@@ -406,186 +409,334 @@ async function buscarProdutosElegiveisMatriz(pool, options = {}) {
 }
 
 /**
- * Busca matriz de planejamento em consulta agregada (sem N+1).
+ * Busca matriz de planejamento usando consultas paralelas.
+ *
+ * Estratégia em 2 fases:
+ *   Fase 1 (paralelas): filtro de marca/refs (lento, ~28s) + em_processo + pedidos (rápidos)
+ *   Fase 2 (paralelas): classificações e estoque apenas para os IDs filtrados (rápidos)
+ *
  * @param {Object} pool
  * @param {Object} options
  * @returns {Promise<Array>}
  */
 async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   const {
-    limit = 200,
-    offset = 0,
-    cdEmpresa = 1
+    cdEmpresa = 1,
+    marca     = null,
+    status    = null,
+    referencias = []
   } = options;
 
-  const query = `
-    WITH sales_daily AS (
-      SELECT
-        v.idproduto::BIGINT AS idproduto,
-        DATE(v.data) AS dia,
-        SUM(v.qt_liquida)::DOUBLE PRECISION AS qtd_dia
-      FROM vr_vendas_qtd v
-      WHERE
-        v.idempresa = $1
-        AND v.data >= (CURRENT_DATE - INTERVAL '12 months')
-      GROUP BY v.idproduto, DATE(v.data)
-    ),
-    sales_stats AS (
-      SELECT
-        sd.idproduto,
-        COUNT(*)::BIGINT AS dias_venda_12m,
-        COALESCE(AVG(CASE WHEN sd.dia >= (CURRENT_DATE - INTERVAL '6 months') THEN sd.qtd_dia END), 0)::DOUBLE PRECISION AS media_6m,
-        COALESCE(AVG(CASE WHEN sd.dia >= (CURRENT_DATE - INTERVAL '3 months') THEN sd.qtd_dia END), 0)::DOUBLE PRECISION AS media_3m
-      FROM sales_daily sd
-      GROUP BY sd.idproduto
-    ),
-    base AS (
-      SELECT
-        a.cd_seqgrupo,
-        a.cd_produto::BIGINT AS idproduto,
-        a.nm_produto AS apresentacao,
-        a.ds_cor AS cor,
-        a.ds_tamanho AS tamanho,
-        f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
-        f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar) AS produto,
-        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint) AS status,
-        f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 24::bigint) AS idfamilia,
-        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) AS continuidade
-      FROM vr_prd_prdgrade a
-      WHERE a.cd_produto < 1000000
-    ),
-    candidatos AS (
-      SELECT
-        b.*,
-        COALESCE(ss.dias_venda_12m, 0) AS dias_venda_12m,
-        COALESCE(ss.media_6m, 0) AS media_6m,
-        COALESCE(ss.media_3m, 0) AS media_3m
-      FROM base b
-      LEFT JOIN sales_stats ss ON ss.idproduto = b.idproduto
-      WHERE
-        COALESCE(ss.dias_venda_12m, 0) > 0
-        OR UPPER(TRIM(COALESCE(b.status, ''))) LIKE 'EM LINHA%'
-      ORDER BY b.idproduto
-      LIMIT $2 OFFSET $3
-    ),
-    em_processo AS (
-      SELECT
-        aa.cd_produto::BIGINT AS cd_produto,
-        COALESCE(SUM(
-          COALESCE(aa.qt_real, 0)::DOUBLE PRECISION
-          - COALESCE(aa.qt_finalizada, 0)::DOUBLE PRECISION
-        ), 0)::DOUBLE PRECISION AS qt_em_processo
-      FROM vr_pcp_opi aa
-      JOIN vr_pcp_opc bb
-        ON aa.cd_empresa = bb.cd_empresa
-       AND aa.nr_ciclo = bb.nr_ciclo
-       AND aa.nr_op = bb.nr_op
-      WHERE
-        aa.cd_empresa = $1
-        AND COALESCE(bb.cd_categoria, 0)::BIGINT <> 15
-        AND aa.tp_situacao = ANY(ARRAY[5, 10, 15, 20]::BIGINT[])
-      GROUP BY aa.cd_produto
-    ),
-    pedidos AS (
-      SELECT
-        p.cd_produto::BIGINT AS cd_produto,
-        COALESCE(SUM(p.qt_pendente), 0)::DOUBLE PRECISION AS qt_pendente
-      FROM vr_ped_pedidoi p
-      WHERE
-        p.cd_empresa = $1
-        AND p.cd_operacao <> 44::BIGINT
-        AND p.tp_situacao <> 6::BIGINT
-      GROUP BY p.cd_produto
-    )
-    SELECT
-      c.*,
-      f_dic_sld_prd_produto(
-        $1::TEXT,
-        '1'::TEXT,
-        c.idproduto,
-        NULL::TIMESTAMP WITHOUT TIME ZONE
-      )::DOUBLE PRECISION AS estoque_atual,
-      COALESCE(ep.qt_em_processo, 0)::DOUBLE PRECISION AS em_processo,
-      (
-        COALESCE(p.qt_pendente, 0)::DOUBLE PRECISION
-        + COALESCE(
-          f_prd_saldo_produto(
-            $1::BIGINT,
-            7::BIGINT,
-            c.idproduto,
-            NULL::TIMESTAMP WITHOUT TIME ZONE
-          )::DOUBLE PRECISION,
-          0
-        )
-      )::DOUBLE PRECISION AS pedidos_pendentes
-    FROM candidatos c
-    LEFT JOIN em_processo ep ON ep.cd_produto = c.idproduto
-    LEFT JOIN pedidos p ON p.cd_produto = c.idproduto
-    ORDER BY c.idproduto
-  `;
+  const t0 = Date.now();
 
-  const result = await pool.query(query, [cdEmpresa, limit, offset]);
-  const { calcularEstoqueMinimo } = require('./estoqueMinimo');
+  // ── Fase 1: filtrar produtos (lento) + agregações independentes (rápido) ──
+  const paramsF1 = [];
+  let   whereF1  = `WHERE a.cd_produto < 1000000
+    AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'`;
 
-  return result.rows.map((row) => {
-    const media6m = parseFloat(row.media_6m) || 0;
-    const media3m = parseFloat(row.media_3m) || 0;
-    const estoqueAtual = parseFloat(row.estoque_atual) || 0;
-    const emProcesso = parseFloat(row.em_processo) || 0;
-    const pedidosPendentes = parseFloat(row.pedidos_pendentes) || 0;
-    const diasVenda12m = Number(row.dias_venda_12m) || 0;
+  if (marca) {
+    paramsF1.push(marca);
+    whereF1 += ` AND f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint) = $${paramsF1.length}`;
+  }
+  if (status) {
+    paramsF1.push(status);
+    whereF1 += ` AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) LIKE UPPER(TRIM($${paramsF1.length})) || '%'`;
+  }
+  if (Array.isArray(referencias) && referencias.length > 0) {
+    paramsF1.push(referencias);
+    whereF1 += ` AND f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) = ANY($${paramsF1.length})`;
+  }
 
-    const calculo = calcularEstoqueMinimo(media6m, media3m);
-    const estoqueMinimo = calculo.estoqueMinimo || 0;
+  console.log(`[matriz/paralela] Fase 1 — filtro: marca=${marca}, status=${status}, refs=${referencias}`);
+
+  const [rProdutos, rEmProcesso, rPedidos, rPlano] = await Promise.all([
+    // Q1 – Produtos filtrados (1 função por linha — lento)
+    pool.query(
+      `SELECT a.cd_produto::BIGINT AS idproduto, a.cd_seqgrupo,
+              a.nm_produto AS apresentacao, a.ds_cor AS cor, a.ds_tamanho AS tamanho
+       FROM vr_prd_prdgrade a ${whereF1}
+       ORDER BY a.cd_produto`,
+      paramsF1
+    ),
+    // Q2 – Em processo (sem função — rápido)
+    pool.query(
+      `SELECT aa.cd_produto::BIGINT AS idproduto,
+              COALESCE(SUM(
+                COALESCE(aa.qt_real,0)::FLOAT - COALESCE(aa.qt_finalizada,0)::FLOAT
+              ), 0)::FLOAT AS qt_em_processo
+       FROM vr_pcp_opi aa
+       JOIN vr_pcp_opc bb
+         ON aa.cd_empresa=bb.cd_empresa AND aa.nr_ciclo=bb.nr_ciclo AND aa.nr_op=bb.nr_op
+       WHERE aa.cd_empresa=$1
+         AND COALESCE(bb.cd_categoria,0)::BIGINT <> 15
+         AND aa.tp_situacao = ANY(ARRAY[5,10,15,20]::BIGINT[])
+       GROUP BY aa.cd_produto`,
+      [cdEmpresa]
+    ),
+    // Q3 – Pedidos qt_pendente (sem função — rápido)
+    pool.query(
+      `SELECT p.cd_produto::BIGINT AS idproduto,
+              COALESCE(SUM(p.qt_pendente), 0)::FLOAT AS qt_pendente
+       FROM vr_ped_pedidoi p
+       WHERE p.cd_empresa=$1
+         AND p.cd_operacao <> 44
+         AND p.tp_situacao <> 6
+       GROUP BY p.cd_produto`,
+      [cdEmpresa]
+    ),
+    // Q4_ph1 – Plano de produção futuro (MA=mês atual, PX=próximo, UL=seguinte)
+    pool.query(
+      `SELECT a.cd_produto::BIGINT AS idproduto,
+              p.cd_auxiliar,
+              COALESCE(SUM(GREATEST(a.qt_lote - a.qt_gerouop, 0)), 0)::FLOAT AS plano
+       FROM vr_pcp_lotepl2 a
+       LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
+       WHERE p.tp_situacao = 1
+         AND p.cd_auxiliar IN ('MA', 'PX', 'UL')
+       GROUP BY a.cd_produto, p.cd_auxiliar`,
+      []
+    ),
+  ]);
+
+  const ids = rProdutos.rows.map(r => Number(r.idproduto));
+  console.log(`[matriz/paralela] Fase 1 concluída em ${((Date.now()-t0)/1000).toFixed(1)}s — ${ids.length} produtos`);
+
+  if (ids.length === 0) return [];
+
+  // ── Períodos fixos para cálculo de estoque mínimo ────────────────────────
+  // Semestral: mesmo semestre do ANO ANTERIOR (ex: março/2026 → H1 2025 = jan–jun/2025)
+  // 3M: últimos 3 meses FECHADOS, sem o mês corrente (ex: março/2026 → dez/jan/fev)
+  const hoje      = new Date();
+  const anoAtual  = hoje.getFullYear();
+  const mesAtual  = hoje.getMonth();           // 0=jan … 11=dez
+
+  const ehH1      = mesAtual < 6;              // jan–jun = H1, jul–dez = H2
+  const anoSem    = anoAtual - 1;
+  const inicioSem = new Date(anoSem, ehH1 ? 0 : 6,  1);  // jan ou jul do ano anterior
+  const fimSem    = new Date(anoSem, ehH1 ? 6 : 12, 1);  // jul ou jan do ano anterior + 6 meses
+
+  const inicio3m  = new Date(anoAtual, mesAtual - 3, 1);  // 3 meses atrás, dia 1 (JS corrige mês negativo)
+  const fim3m     = new Date(anoAtual, mesAtual,     1);  // início do mês corrente (exclusive)
+
+  const inicio12m = new Date(anoAtual, mesAtual - 12, 1); // para filtro "teve vendas nos últimos 12m"
+
+  // A query de vendas precisa cobrir o período mais antigo entre semestral e 12m
+  const inicioVendasQuery = new Date(Math.min(inicioSem.getTime(), inicio12m.getTime()));
+
+  console.log(`[períodos] Semestral : ${inicioSem.toISOString().slice(0,10)} → ${new Date(fimSem - 1).toISOString().slice(0,10)}`);
+  console.log(`[períodos] 3M fechado: ${inicio3m.toISOString().slice(0,10)} → ${new Date(fim3m - 1).toISOString().slice(0,10)}`);
+
+  // ── Fase 2: classificações + estoque + vendas em paralelo (só para os IDs) ─
+  const t1 = Date.now();
+  console.log(`[matriz/paralela] Fase 2 — ${ids.length} IDs, 8 consultas paralelas`);
+
+  const [rRef, rProd, rStatus, rFamilia, rCont, rLinha, rGrupo, rEstoque, rSaldo, rVendas] =
+    await Promise.all([
+      // Q4 – referencia
+      pool.query(
+        `SELECT cd_produto::BIGINT AS idproduto,
+                f_dic_prd_nivel(cd_produto,'CD'::bpchar) AS referencia
+         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+        [ids]
+      ),
+      // Q5 – nome do produto
+      pool.query(
+        `SELECT cd_produto::BIGINT AS idproduto,
+                f_dic_prd_nivel(cd_produto,'DS'::bpchar) AS produto
+         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+        [ids]
+      ),
+      // Q6 – status
+      pool.query(
+        `SELECT cd_produto::BIGINT AS idproduto,
+                f_dic_prd_classificacao(cd_produto,'DS'::text,27::bigint) AS status
+         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+        [ids]
+      ),
+      // Q7 – idfamilia
+      pool.query(
+        `SELECT cd_produto::BIGINT AS idproduto,
+                f_dic_prd_classificacao(cd_produto,'DS'::text,24::bigint) AS idfamilia
+         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+        [ids]
+      ),
+      // Q8 – continuidade
+      pool.query(
+        `SELECT cd_produto::BIGINT AS idproduto,
+                f_dic_prd_classificacao(cd_produto,'DS'::text,802::bigint) AS continuidade
+         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+        [ids]
+      ),
+      // Q8.1 – linha
+      pool.query(
+        `SELECT cd_produto::BIGINT AS idproduto,
+                f_dic_prd_classificacao(cd_produto,'DS'::text,23::bigint) AS linha
+         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+        [ids]
+      ),
+      // Q8.2 – grupo
+      pool.query(
+        `SELECT cd_produto::BIGINT AS idproduto,
+                f_dic_prd_classificacao(cd_produto,'DS'::text,25::bigint) AS grupo
+         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+        [ids]
+      ),
+      // Q9 – estoque atual
+      pool.query(
+        `SELECT cd_produto::BIGINT AS idproduto,
+                COALESCE(f_dic_sld_prd_produto(
+                  $1::TEXT,'1'::TEXT,cd_produto,NULL::TIMESTAMP WITHOUT TIME ZONE
+                )::FLOAT, 0) AS estoque
+         FROM vr_prd_prdgrade WHERE cd_produto = ANY($2)`,
+        [String(cdEmpresa), ids]
+      ),
+      // Q10 – saldo adicional pedidos
+      pool.query(
+        `SELECT cd_produto::BIGINT AS idproduto,
+                COALESCE(f_prd_saldo_produto(
+                  $1::BIGINT,7::BIGINT,cd_produto,NULL::TIMESTAMP WITHOUT TIME ZONE
+                )::FLOAT, 0) AS saldo
+         FROM vr_prd_prdgrade WHERE cd_produto = ANY($2)`,
+        [cdEmpresa, ids]
+      ),
+      // Q11 – vendas cobrindo semestral + 3m + 12m (filtradas pelos IDs, todas as empresas)
+      pool.query(
+        `SELECT v.idproduto::BIGINT AS idproduto,
+                DATE(v.data) AS dia,
+                SUM(v.qt_liquida)::FLOAT AS qtd
+         FROM vr_vendas_qtd v
+         WHERE v.data >= $2
+           AND v.idproduto = ANY($1)
+         GROUP BY v.idproduto, DATE(v.data)`,
+        [ids, inicioVendasQuery]
+      ),
+    ]);
+
+  console.log(`[matriz/paralela] Fase 2 concluída em ${((Date.now()-t1)/1000).toFixed(1)}s`);
+
+  // ── Maps de lookup ────────────────────────────────────────────────────────
+  const refMap    = new Map(rRef.rows.map(r    => [Number(r.idproduto), r.referencia]));
+  const prodMap   = new Map(rProd.rows.map(r   => [Number(r.idproduto), r.produto]));
+  const statusMap = new Map(rStatus.rows.map(r => [Number(r.idproduto), r.status]));
+  const famMap    = new Map(rFamilia.rows.map(r=> [Number(r.idproduto), r.idfamilia]));
+  const contMap   = new Map(rCont.rows.map(r   => [Number(r.idproduto), r.continuidade]));
+  const linhaMap  = new Map(rLinha.rows.map(r  => [Number(r.idproduto), r.linha]));
+  const grupoMap  = new Map(rGrupo.rows.map(r  => [Number(r.idproduto), r.grupo]));
+  const estMap    = new Map(rEstoque.rows.map(r=> [Number(r.idproduto), parseFloat(r.estoque) || 0]));
+  const saldoMap  = new Map(rSaldo.rows.map(r  => [Number(r.idproduto), parseFloat(r.saldo)  || 0]));
+  const emprocMap = new Map(rEmProcesso.rows.map(r => [Number(r.idproduto), parseFloat(r.qt_em_processo) || 0]));
+  const pedMap    = new Map(rPedidos.rows.map(r    => [Number(r.idproduto), parseFloat(r.qt_pendente)    || 0]));
+
+  // Plano de produção: { MA, PX, UL } por produto
+  const planoMap  = new Map();
+  for (const row of rPlano.rows) {
+    const id  = Number(row.idproduto);
+    const per = String(row.cd_auxiliar || '').trim().toUpperCase();
+    if (!planoMap.has(id)) planoMap.set(id, { MA: 0, PX: 0, UL: 0 });
+    if (per === 'MA' || per === 'PX' || per === 'UL') {
+      planoMap.get(id)[per] = parseFloat(row.plano) || 0;
+    }
+  }
+
+  // ── Vendas: stats por produto com períodos fixos ─────────────────────────
+  const tInicioSem = inicioSem.getTime();
+  const tFimSem    = fimSem.getTime();
+  const tInicio3m  = inicio3m.getTime();
+  const tFim3m     = fim3m.getTime();
+  const tInicio12m = inicio12m.getTime();
+
+  const salesMap = new Map();
+  for (const row of rVendas.rows) {
+    const id  = Number(row.idproduto);
+    const dia = new Date(row.dia).getTime();
+    const qtd = parseFloat(row.qtd) || 0;
+    let s = salesMap.get(id);
+    if (!s) { s = { total12m: 0, sumSem: 0, cntSem: 0, sum3m: 0, cnt3m: 0 }; salesMap.set(id, s); }
+    if (dia >= tInicio12m)                          s.total12m++;
+    if (dia >= tInicioSem && dia < tFimSem)  { s.sumSem += qtd; s.cntSem++; }
+    if (dia >= tInicio3m  && dia < tFim3m)   { s.sum3m  += qtd; s.cnt3m++;  }
+  }
+
+  // ── Montar resultado ──────────────────────────────────────────────────────
+  const resultado = [];
+
+  for (const row of rProdutos.rows) {
+    const id     = Number(row.idproduto);
+    const status = (statusMap.get(id) || '').trim().toUpperCase();
+    const emLinha = status.startsWith('EM LINHA');
+
+    const s              = salesMap.get(id);
+    const diasVenda12m   = s ? s.total12m : 0;
+    const mediaSemestral = s ? s.sumSem / 6 : 0;  // média mensal do semestre (total ÷ 6 meses)
+    const media3m        = s ? s.sum3m  / 3 : 0;  // média mensal dos 3 meses fechados (total ÷ 3 meses)
+
+    // Filtro: precisa ter vendas nos últimos 12m OU estar em linha
+    if (!diasVenda12m && !emLinha) continue;
+
+    const estoqueAtual     = estMap.get(id)    || 0;
+    const emProcesso       = emprocMap.get(id) || 0;
+    const qtPendente       = pedMap.get(id)    || 0;
+    const saldoAdicional   = saldoMap.get(id)  || 0;
+    const pedidosPendentes = qtPendente + saldoAdicional;
     const estoqueDisponivel = estoqueAtual + emProcesso;
-    const necessidadeTotal = estoqueMinimo + pedidosPendentes;
-    const necessidadeProducao = Math.max(0, necessidadeTotal - estoqueDisponivel);
-    const status = (row.status || "").trim().toUpperCase();
-    const emLinha = status.startsWith("EM LINHA");
-    const teveVenda12m = diasVenda12m > 0;
-    const estoqueMinimoPositivo = estoqueMinimo > 0;
 
-    return {
+    const calculo             = calcularEstoqueMinimo(mediaSemestral, media3m);
+    const estoqueMinimo       = calculo.estoqueMinimo || 0;
+    const necessidadeTotal    = estoqueMinimo + pedidosPendentes;
+    const necessidadeProducao = Math.max(0, necessidadeTotal - estoqueDisponivel);
+
+    resultado.push({
       produto: {
-        cd_seqgrupo: row.cd_seqgrupo,
-        idproduto: String(row.idproduto),
+        cd_seqgrupo:  row.cd_seqgrupo,
+        idproduto:    String(id),
         apresentacao: row.apresentacao,
-        cor: row.cor,
-        tamanho: row.tamanho,
-        referencia: row.referencia,
-        produto: row.produto,
-        status: row.status,
-        idfamilia: row.idfamilia,
-        continuidade: row.continuidade,
-        cd_empresa: cdEmpresa
+        cor:          row.cor,
+        tamanho:      row.tamanho,
+        referencia:   refMap.get(id)  || null,
+        produto:      prodMap.get(id) || null,
+        status:       statusMap.get(id) || null,
+        idfamilia:    famMap.get(id)  || null,
+        continuidade: contMap.get(id) || null,
+        linha:        linhaMap.get(id) || null,
+        grupo:        grupoMap.get(id) || null,
+        marca:        marca           || null,
+        cd_empresa:   cdEmpresa
       },
       estoques: {
-        estoque_atual: estoqueAtual,
-        em_processo: emProcesso,
+        estoque_atual:      estoqueAtual,
+        em_processo:        emProcesso,
         estoque_disponivel: estoqueDisponivel,
-        estoque_minimo: estoqueMinimo
+        estoque_minimo:     estoqueMinimo
       },
       demanda: {
-        pedidos_pendentes: pedidosPendentes,
-        media_vendas_6m: media6m,
-        media_vendas_3m: media3m
+        pedidos_pendentes:   pedidosPendentes,
+        media_vendas_6m:     mediaSemestral,   // semestre fixo do ano anterior
+        media_vendas_3m:     media3m           // últimos 3 meses fechados
+      },
+      plano: {
+        ma: planoMap.get(id)?.MA || 0,   // mês atual
+        px: planoMap.get(id)?.PX || 0,   // próximo mês
+        ul: planoMap.get(id)?.UL || 0    // mês seguinte
       },
       planejamento: {
-        necessidade_total: necessidadeTotal,
+        necessidade_total:    necessidadeTotal,
         necessidade_producao: necessidadeProducao,
-        situacao: necessidadeProducao > 0 ? 'PRODUZIR' : 'ESTOQUE_OK',
+        situacao:   necessidadeProducao > 0 ? 'PRODUZIR' : 'ESTOQUE_OK',
         prioridade: necessidadeProducao > 0
           ? (estoqueAtual < estoqueMinimo ? 'ALTA' : 'MEDIA')
           : 'BAIXA'
       },
       calculo_estoque_minimo: calculo,
       criterios: {
-        teve_venda_12m: teveVenda12m,
-        status_em_linha: emLinha,
-        estoque_minimo_positivo: estoqueMinimoPositivo
+        teve_venda_12m:          diasVenda12m > 0,
+        status_em_linha:         emLinha,
+        estoque_minimo_positivo: estoqueMinimo > 0
       }
-    };
-  });
+    });
+  }
+
+  console.log(`[matriz/paralela] Total: ${((Date.now()-t0)/1000).toFixed(1)}s — ${resultado.length} produtos retornados`);
+  return resultado;
 }
 
 module.exports = {
