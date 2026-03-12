@@ -10,7 +10,8 @@
       "Bash(xargs kill:*)",
       "Bash(curl:*)",
       "Bash(python3:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

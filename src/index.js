@@ -39,6 +39,7 @@ const {
   DB_NAME,
   DB_USER,
   DB_PASSWORD,
+  PORT,
   API_PORT = 8000,
   API_HOST = "0.0.0.0"
 } = process.env;
@@ -120,9 +121,11 @@ app.use((_req, res) => {
   return res.status(404).json({ message: "Rota nao encontrada" });
 });
 
+const listenPort = Number(PORT || API_PORT || 8000);
+
 // Iniciar servidor
-app.listen(Number(API_PORT), API_HOST, () => {
-  console.log(`API ouvindo em http://${API_HOST}:${API_PORT}`);
+app.listen(listenPort, API_HOST, () => {
+  console.log(`API ouvindo em http://${API_HOST}:${listenPort}`);
   console.log(`\nEndpoints disponiveis:`);
   console.log(`\n  Sistema:`);
   console.log(`    GET  /health`);
