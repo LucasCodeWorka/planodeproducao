@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -145,6 +145,14 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             </div>
           )}
           <div className="space-y-1">
+            <button
+              onClick={() => router.push('/analise-consumo-mp')}
+              className={`${navItemBase} ${pathname === '/analise-consumo-mp' ? navActive : navInactive}`}
+            >
+              <Boxes size={20} className="shrink-0" />
+              {!collapsed && <span>Análise Consumo MP</span>}
+            </button>
+
             <button
               onClick={() => router.push('/laboratorio')}
               className={`${navItemBase} ${pathname === '/laboratorio' ? navActive : navInactive}`}
