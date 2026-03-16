@@ -3,6 +3,7 @@ const cors = require("cors");
 const { Pool } = require("pg");
 require("dotenv").config();
 
+const { initCache }   = require("./cache/matrizCache");
 const estoqueRoutes   = require("./routes/estoque");
 const vendasRoutes    = require("./routes/vendas");
 const producaoRoutes  = require("./routes/producao");
@@ -135,8 +136,9 @@ app.use((_req, res) => {
 
 const listenPort = Number(PORT || API_PORT || 8000);
 
-// Iniciar servidor
-app.listen(listenPort, API_HOST, () => {
+// Iniciar servidor após inicializar o cache no banco
+initCache(pool).then(() => {
+  app.listen(listenPort, API_HOST, () => {
   console.log(`API ouvindo em http://${API_HOST}:${listenPort}`);
   console.log(`\nEndpoints disponiveis:`);
   console.log(`\n  Sistema:`);
@@ -189,4 +191,8 @@ app.listen(listenPort, API_HOST, () => {
   console.log(`    GET    /api/capacidade/tempos-ref`);
   console.log(`\n  Legado:`);
   console.log(`    GET  /api/vr-vendas-qtd`);
+  });
+}).catch((err) => {
+  console.error('[startup] Falha ao inicializar cache:', err.message);
+  process.exit(1);
 });

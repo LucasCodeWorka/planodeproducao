@@ -1,60 +1,93 @@
-const fs   = require('fs');
-const path = require('path');
-
-const CACHE_FILE     = path.join(__dirname, '../../data/matriz_cache.json');
 const CACHE_TTL_HOURS = Number(process.env.CACHE_TTL_HOURS) || 24;
+const CACHE_KEY = 'matriz_planejamento';
 
-function readCache() {
+let _pool = null;
+
+async function initCache(pool) {
+  _pool = pool;
   try {
-    const raw   = fs.readFileSync(CACHE_FILE, 'utf-8');
-    const cache = JSON.parse(raw);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS app_cache (
+        key       TEXT    PRIMARY KEY,
+        timestamp BIGINT  NOT NULL,
+        data      TEXT    NOT NULL
+      )
+    `);
+    console.log('[matrizCache] Tabela app_cache pronta');
+  } catch (err) {
+    console.error('[matrizCache] Erro ao criar tabela app_cache:', err.message);
+  }
+}
+
+async function readCache() {
+  if (!_pool) return null;
+  try {
+    const res = await _pool.query(
+      'SELECT timestamp, data FROM app_cache WHERE key = $1',
+      [CACHE_KEY]
+    );
+    if (res.rows.length === 0) return null;
+    const { timestamp, data } = res.rows[0];
+    const cache = JSON.parse(data);
     if (!Array.isArray(cache.data) || cache.data.length === 0) return null;
-    const ageMs = Date.now() - cache.timestamp;
+    const ageMs = Date.now() - Number(timestamp);
     return {
       data:      cache.data,
-      timestamp: cache.timestamp,
+      timestamp: Number(timestamp),
       ageHours:  ageMs / 3_600_000,
       fresh:     ageMs < CACHE_TTL_HOURS * 3_600_000,
       meta:      cache.meta || {}
     };
-  } catch {
+  } catch (err) {
+    console.error('[matrizCache] readCache erro:', err.message);
     return null;
   }
 }
 
-function writeCache(data, meta = {}) {
-  const dir = path.dirname(CACHE_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(
-    CACHE_FILE,
-    JSON.stringify({ timestamp: Date.now(), count: data.length, meta, data })
+async function writeCache(data, meta = {}) {
+  if (!_pool) return;
+  const timestamp = Date.now();
+  const json = JSON.stringify({ timestamp, count: data.length, meta, data });
+  await _pool.query(
+    `INSERT INTO app_cache (key, timestamp, data)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (key) DO UPDATE
+       SET timestamp = EXCLUDED.timestamp,
+           data      = EXCLUDED.data`,
+    [CACHE_KEY, timestamp, json]
   );
 }
 
-function getCacheStatus() {
+async function getCacheStatus() {
+  if (!_pool) return { exists: false, fresh: false };
   try {
-    const raw   = fs.readFileSync(CACHE_FILE, 'utf-8');
-    const cache = JSON.parse(raw);
-    const ageMs = Date.now() - cache.timestamp;
+    const res = await _pool.query(
+      'SELECT timestamp, data FROM app_cache WHERE key = $1',
+      [CACHE_KEY]
+    );
+    if (res.rows.length === 0) return { exists: false, fresh: false };
+    const { timestamp, data } = res.rows[0];
+    const cache  = JSON.parse(data);
+    const ageMs  = Date.now() - Number(timestamp);
     return {
       exists:    true,
-      timestamp: cache.timestamp,
-      updatedAt: new Date(cache.timestamp).toLocaleString('pt-BR'),
+      timestamp: Number(timestamp),
+      updatedAt: new Date(Number(timestamp)).toLocaleString('pt-BR'),
       ageHours:  +(ageMs / 3_600_000).toFixed(1),
       count:     cache.count || (Array.isArray(cache.data) ? cache.data.length : 0),
       fresh:     ageMs < CACHE_TTL_HOURS * 3_600_000,
       meta:      cache.meta || {}
     };
-  } catch {
+  } catch (err) {
+    console.error('[matrizCache] getCacheStatus erro:', err.message);
     return { exists: false, fresh: false };
   }
 }
 
-// Aplica filtros em memória no cache (evita query ao banco)
 function filterCache(cacheData, { referencias = [], marca = null, status = null } = {}) {
   let result = cacheData.filter((r) => {
     const apresentacao = String(r?.produto?.apresentacao || '').toUpperCase();
-    const produto = String(r?.produto?.produto || '').toUpperCase();
+    const produto      = String(r?.produto?.produto      || '').toUpperCase();
     return !apresentacao.includes('MEIA DE SEDA') && !produto.includes('MEIA DE SEDA');
   });
   if (marca) {
@@ -75,4 +108,4 @@ function filterCache(cacheData, { referencias = [], marca = null, status = null 
   return result;
 }
 
-module.exports = { readCache, writeCache, getCacheStatus, filterCache };
+module.exports = { initCache, readCache, writeCache, getCacheStatus, filterCache };

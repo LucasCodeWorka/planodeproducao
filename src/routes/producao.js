@@ -378,7 +378,7 @@ router.get("/matriz", async (req, res) => {
       : [];
 
     // ── tenta servir do cache ───────────────────────────────────────────────
-    const cached = readCache();
+    const cached = await readCache();
     const cacheMarca = cached?.meta?.marca ? String(cached.meta.marca).trim().toUpperCase() : null;
     const cacheStatus = cached?.meta?.status ? String(cached.meta.status).trim().toUpperCase() : null;
     const reqMarca   = marca ? marca.toUpperCase() : null;

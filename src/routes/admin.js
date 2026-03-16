@@ -24,7 +24,7 @@ function auth(req, res, next) {
 }
 
 // ── POST /api/admin/login ─────────────────────────────────────────────────────
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { password } = req.body || {};
   const expected     = (process.env.ADMIN_PASSWORD || '').trim();
 
@@ -35,25 +35,22 @@ router.post('/login', (req, res) => {
 
   return res.json({
     success: true,
-    token:   expected,               // token = a própria senha (simples e suficiente para uso interno)
-    cache:   getCacheStatus()
+    token:   expected,
+    cache:   await getCacheStatus()
   });
 });
 
 // ── GET /api/admin/status ─────────────────────────────────────────────────────
-router.get('/status', auth, (req, res) => {
-  return res.json({ success: true, cache: getCacheStatus() });
+router.get('/status', auth, async (req, res) => {
+  return res.json({ success: true, cache: await getCacheStatus() });
 });
 
 // ── GET /api/admin/build-status ───────────────────────────────────────────────
-// Retorna o estado atual do build (para polling no frontend).
-router.get('/build-status', auth, (req, res) => {
-  return res.json({ success: true, buildState, cache: getCacheStatus() });
+router.get('/build-status', auth, async (req, res) => {
+  return res.json({ success: true, buildState, cache: await getCacheStatus() });
 });
 
 // ── POST /api/admin/refresh ───────────────────────────────────────────────────
-// Inicia rebuild do cache em background (fire-and-forget) e retorna imediatamente.
-// O frontend faz polling em /build-status para acompanhar o progresso.
 router.post('/refresh', auth, (req, res) => {
   if (buildState.running) {
     return res.json({ success: true, started: false, alreadyRunning: true });
@@ -80,12 +77,11 @@ router.post('/refresh', auth, (req, res) => {
 
   console.log(`[admin/refresh] Iniciando rebuild em background — marca: ${marca}, status: ${status}`);
 
-  // Fire-and-forget: não aguarda conclusão
   (async () => {
     try {
       const data = await buscarMatrizPlanejamentoRapida(pool, { marca, status });
       if (data.length === 0) throw new Error('Rebuild retornou 0 produtos — cache não gravado');
-      writeCache(data, { marca, status, geradoPor: 'admin/refresh' });
+      await writeCache(data, { marca, status, geradoPor: 'admin/refresh' });
 
       const ms = Date.now() - buildState.startedAt;
       console.log(`[admin/refresh] Cache reconstruído: ${data.length} produtos em ${ms}ms`);

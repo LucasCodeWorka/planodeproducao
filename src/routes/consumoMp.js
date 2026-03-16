@@ -1,13 +1,12 @@
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
 const crypto = require("crypto");
 
 const router = express.Router();
-const DATA_DIR = path.join(__dirname, "../../data");
-const CACHE_FILE = path.join(DATA_DIR, "consumo_mp_cache.json");
 const CACHE_TTL_MS = (Number(process.env.CONSUMO_MP_CACHE_TTL_SECONDS) || 900) * 1000;
 const CACHE_SCHEMA_VERSION = "v3_filtro_artigo_mp";
+
+// Cache em memória (TTL 15min — não precisa persistir entre deploys)
+const _memCache = new Map();
 const EXCLUDED_MP_ARTIGO_TERMS = String(process.env.MP_EXCLUIR_ARTIGOS || "SACOLA,SACO PP,ETIQUETA COMPOSICAO,EMBALAGEM,JOIA")
   .split(",")
   .map((s) => s.trim().toUpperCase())
@@ -24,18 +23,20 @@ const EXCLUDED_MP_IDS = new Set(
 );
 
 function readCache() {
-  try {
-    const raw = fs.readFileSync(CACHE_FILE, "utf-8");
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : { items: {} };
-  } catch {
-    return { items: {} };
-  }
+  return { items: Object.fromEntries(_memCache) };
 }
 
 function writeCache(cache) {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2), "utf-8");
+  if (cache && typeof cache.items === 'object') {
+    for (const [k, v] of Object.entries(cache.items)) {
+      _memCache.set(k, v);
+    }
+    // Limpa entradas expiradas
+    const now = Date.now();
+    for (const [k, v] of _memCache) {
+      if (now - Number(v?.timestamp || 0) > CACHE_TTL_MS) _memCache.delete(k);
+    }
+  }
 }
 
 function buildCacheKey(planos, options = {}) {
