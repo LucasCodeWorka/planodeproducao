@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import { PeriodosPlano, Planejamento, ProjecoesMap } from '../types';
 import { authHeaders, getToken } from '../lib/auth';
+import { fetchNoCache } from '../lib/api';
 import { OP_MIN_REGRAS_FIXAS, RegraOpMinRow } from '../lib/opMinRules';
 import { projecaoMesPlanejamento } from '../lib/projecao';
 
@@ -74,6 +75,8 @@ type Row = {
   coberturaPos: number;
   regraOpMin?: RegraOpMinRow | null;
   rateioOpMinExtra?: number;
+  opMinNaoAtendida?: boolean;
+  opMinFaltante?: number;
   tempoRef: number;
   grupoRateios: Array<{ grupo: string; rateio: number }>;
 };
@@ -373,14 +376,14 @@ export default function SugestaoPlanoPage() {
     try {
       const params = new URLSearchParams({ limit: '5000', marca: MARCA_FIXA, status: STATUS_FIXO });
       const [rMatriz, rProj, rTop30, rCortes, rCfg, rCapConfig, rCapTempos, rReproj] = await Promise.all([
-        fetch(`${API_URL}/api/producao/matriz?${params}`),
-        fetch(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/analises/top30-produtos`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/configuracoes/sugestao-plano`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/capacidade/tempos-ref`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/projecoes/reprojecao-fechada`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/producao/matriz?${params}`),
+        fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/analises/top30-produtos`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/configuracoes/sugestao-plano`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/capacidade/tempos-ref`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/projecoes/reprojecao-fechada`, { headers: authHeaders() }),
       ]);
       if (!rMatriz.ok || !rProj.ok || !rTop30.ok || !rCortes.ok || !rCfg.ok || !rCapConfig.ok || !rCapTempos.ok || !rReproj.ok) {
         throw new Error('Erro ao carregar dados da sugestão de plano');
@@ -429,7 +432,7 @@ export default function SugestaoPlanoPage() {
         .slice(0, 5000);
       if (ids.length) {
         try {
-          const rReal = await fetch(`${API_URL}/api/analises/projecao-vs-venda`, {
+          const rReal = await fetchNoCache(`${API_URL}/api/analises/projecao-vs-venda`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...authHeaders() },
             body: JSON.stringify({ ano: new Date().getFullYear(), ids }),
@@ -662,6 +665,8 @@ export default function SugestaoPlanoPage() {
         coberturaPos,
         regraOpMin: findRegraOpMin(OP_MIN_REGRAS_FIXAS, item.produto.continuidade || '', item.produto.linha || '', item.produto.grupo || ''),
         rateioOpMinExtra: 0,
+        opMinNaoAtendida: false,
+        opMinFaltante: 0,
         tempoRef: Number(tempoByIdRef.get(String(item.produto.cd_seqgrupo || '')) || 0),
         grupoRateios,
       };
@@ -690,6 +695,7 @@ export default function SugestaoPlanoPage() {
       }
 
       let restante = Math.max(0, Number(regra.op_min_ref || 0) - totalRef);
+      const extrasAplicados = new Map<Row, number>();
       const ordenadas = [...rowsRef].sort((a, b) => {
         const diffProj = Number(b.projMes || 0) - Number(a.projMes || 0);
         if (diffProj !== 0) return diffProj;
@@ -708,10 +714,27 @@ export default function SugestaoPlanoPage() {
         const extra = Math.min(restante, folga);
         row.planoSugerido = Number(row.planoSugerido || 0) + extra;
         row.rateioOpMinExtra = extra;
+        extrasAplicados.set(row, Number(extrasAplicados.get(row) || 0) + extra);
         row.deltaPlano = row.planoSugerido - row.planoAtual;
         row.dispPos = row.dispAnterior + row.planoSugerido - row.projMes;
         row.coberturaPos = min > 0 ? row.dispPos / min : 0;
         restante -= extra;
+      }
+
+      if (restante > 0) {
+        ordenadas.forEach((row) => {
+          const extraAplicado = Number(extrasAplicados.get(row) || 0);
+          if (extraAplicado > 0) {
+            const min = Number(row.estoqueMin || 0);
+            row.planoSugerido = Number(row.planoSugerido || 0) - extraAplicado;
+            row.rateioOpMinExtra = 0;
+            row.deltaPlano = row.planoSugerido - row.planoAtual;
+            row.dispPos = row.dispAnterior + row.planoSugerido - row.projMes;
+            row.coberturaPos = min > 0 ? row.dispPos / min : 0;
+          }
+          row.opMinNaoAtendida = true;
+          row.opMinFaltante = Math.max(0, Number(regra.op_min_ref || 0) - totalRef);
+        });
       }
 
       ajustadas.push(...ordenadas);
@@ -1274,7 +1297,7 @@ export default function SugestaoPlanoPage() {
 
       setMpViab((prev) => ({ ...prev, loading: true, erro: null, aumentoMA }));
       try {
-        const r = await fetch(`${API_URL}/api/consumo-mp/analise`, {
+        const r = await fetchNoCache(`${API_URL}/api/consumo-mp/analise`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ planos, multinivel: true }),
@@ -1412,7 +1435,7 @@ export default function SugestaoPlanoPage() {
         observacoes: `Gerado na Sugestão de Plano. Filtros: cont=${filtroCont}, viab=${filtroViabilidade}.`,
       };
 
-      const res = await fetch(`${API_URL}/api/analises`, {
+      const res = await fetchNoCache(`${API_URL}/api/analises`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(payload),
@@ -2156,6 +2179,8 @@ export default function SugestaoPlanoPage() {
                       {contOpen && cont.referencias.map((refGroup) => {
                         const refKey = `${cont.continuidade}__${refGroup.referencia}`;
                         const refOpen = expandedRefs.has(refKey);
+                        const refOpMinNaoAtendida = refGroup.itens.some((r) => Boolean(r.opMinNaoAtendida));
+                        const refOpMinFaltante = refGroup.itens.reduce((max, r) => Math.max(max, Number(r.opMinFaltante || 0)), 0);
                         const refTotais = refGroup.itens.reduce((acc, r) => ({
                           estoqueAtual: acc.estoqueAtual + Number(r.estoqueAtual || 0),
                           emProcesso: acc.emProcesso + Number(r.emProcesso || 0),
@@ -2191,8 +2216,8 @@ export default function SugestaoPlanoPage() {
                               : 'OK';
                         return (
                           <Fragment key={refKey}>
-                                <tr className="bg-slate-100 text-slate-800 border-t border-slate-200">
-                              <td className="sticky left-0 z-20 px-2 py-2 bg-slate-100 shadow-[1px_0_0_0_rgba(148,163,184,0.22)]">
+                                <tr className={`${refOpMinNaoAtendida ? 'bg-rose-100 text-rose-950 border-rose-200' : 'bg-slate-100 text-slate-800 border-slate-200'} border-t`}>
+                              <td className={`sticky left-0 z-20 px-2 py-2 shadow-[1px_0_0_0_rgba(148,163,184,0.22)] ${refOpMinNaoAtendida ? 'bg-rose-100' : 'bg-slate-100'}`}>
                                 <button type="button" className="mr-2" onClick={() => setExpandedRefs((prev) => {
                                   const next = new Set(prev);
                                   if (next.has(refKey)) next.delete(refKey); else next.add(refKey);
@@ -2201,6 +2226,11 @@ export default function SugestaoPlanoPage() {
                                   {refOpen ? '▼' : '▶'}
                                 </button>
                                 <span className="font-semibold">{refGroup.referencia}</span>
+                                {refOpMinNaoAtendida && (
+                                  <span className="ml-2 inline-flex items-center rounded-full bg-rose-200 px-2 py-0.5 text-[10px] font-semibold text-rose-900">
+                                    OP min bloqueada · faltam {fmt(refOpMinFaltante)}
+                                  </span>
+                                )}
                               </td>
                               <td className="px-2 py-2">-</td>
                               <td className="px-2 py-2">-</td>
@@ -2234,8 +2264,11 @@ export default function SugestaoPlanoPage() {
                               const isActive = activeRowKey === rowKey;
                               const st = statusViabilidadeRow(r);
                               const aumentoPlano = Number(r.deltaPlano || 0) > 0;
+                              const opMinBloqueada = Boolean(r.opMinNaoAtendida);
                               const rowBgClass = isActive
                                 ? 'bg-blue-50'
+                                : opMinBloqueada
+                                  ? 'bg-rose-50'
                                 : aumentoPlano
                                   ? 'bg-emerald-50'
                                   : (idx % 2 === 0 ? 'bg-white' : 'bg-slate-50');
@@ -2263,7 +2296,13 @@ export default function SugestaoPlanoPage() {
                                   <td className="px-2 py-1.5 text-right bg-indigo-50">{fmt(r.dispAnterior)}</td>
                                   <td className="px-2 py-1.5 text-right bg-indigo-50">{fmt(r.projMes)}</td>
                                   <td className="px-2 py-1.5 text-right bg-indigo-50">{fmt(r.planoAtual)}</td>
-                                  <td className={`px-2 py-1.5 text-right font-semibold ${aumentoPlano ? 'text-emerald-800 bg-emerald-100/70' : 'text-brand-dark bg-indigo-50'}`}>{fmt(r.planoSugerido)}</td>
+                                  <td className={`px-2 py-1.5 text-right font-semibold ${
+                                    opMinBloqueada
+                                      ? 'text-rose-900 bg-rose-100/80'
+                                      : aumentoPlano
+                                        ? 'text-emerald-800 bg-emerald-100/70'
+                                        : 'text-brand-dark bg-indigo-50'
+                                  }`}>{fmt(r.planoSugerido)}</td>
                                   <td className={`px-2 py-1.5 text-right font-semibold bg-indigo-50 ${r.deltaPlano >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmt(r.deltaPlano)}</td>
                                   <td className={`px-2 py-1.5 text-right font-semibold bg-indigo-50 ${r.dispPos < 0 ? 'text-red-700' : 'text-gray-800'}`}>{fmt(r.dispPos)}</td>
                                   <td className="px-2 py-1.5 text-right bg-indigo-50">{r.coberturaPos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</td>

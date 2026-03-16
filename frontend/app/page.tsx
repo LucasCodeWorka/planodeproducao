@@ -6,6 +6,7 @@ import MatrizPlanejamentoTable from './components/MatrizPlanejamentoTable';
 import Sidebar from './components/Sidebar';
 import { Planejamento, ProjecoesMap, PeriodosPlano } from './types';
 import { getToken, authHeaders } from './lib/auth';
+import { fetchNoCache } from './lib/api';
 import { projecaoMesPlanejamento } from './lib/projecao';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -107,7 +108,7 @@ export default function Home() {
 
   async function buscarStatusCache() {
     try {
-      const res = await fetch(`${API_URL}/api/admin/status`, { headers: authHeaders() });
+      const res = await fetchNoCache(`${API_URL}/api/admin/status`, { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       if (data.success) setCacheStatus(data.cache);
@@ -116,7 +117,7 @@ export default function Home() {
 
   async function buscarProjecoes() {
     try {
-      const res  = await fetch(`${API_URL}/api/projecoes`, { headers: authHeaders() });
+      const res  = await fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       if (data.success) {
@@ -128,7 +129,7 @@ export default function Home() {
 
   async function buscarTop30() {
     try {
-      const res = await fetch(`${API_URL}/api/analises/top30-produtos`, { headers: authHeaders() });
+      const res = await fetchNoCache(`${API_URL}/api/analises/top30-produtos`, { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       setTop30Ids(new Set(((data && data.ids) || []).map((v: string) => String(v))));
@@ -138,7 +139,7 @@ export default function Home() {
 
   async function buscarReprojecaoFechada() {
     try {
-      const res = await fetch(`${API_URL}/api/projecoes/reprojecao-fechada`, { headers: authHeaders() });
+      const res = await fetchNoCache(`${API_URL}/api/projecoes/reprojecao-fechada`, { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       if (data.success) {
@@ -151,7 +152,7 @@ export default function Home() {
 
   async function buscarAprovadas() {
     try {
-      const res = await fetch(`${API_URL}/api/analises`, { headers: authHeaders() });
+      const res = await fetchNoCache(`${API_URL}/api/analises`, { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       const lista = (Array.isArray(data?.data) ? data.data : []) as AnaliseAprovada[];
@@ -174,7 +175,7 @@ export default function Home() {
       return;
     }
     try {
-      const rReal = await fetch(`${API_URL}/api/analises/projecao-vs-venda`, {
+      const rReal = await fetchNoCache(`${API_URL}/api/analises/projecao-vs-venda`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ ano: new Date().getFullYear(), ids }),
@@ -196,7 +197,7 @@ export default function Home() {
         marca: MARCA_FIXA,
         status: STATUS_FIXO
       });
-      const res    = await fetch(`${API_URL}/api/producao/matriz?${params}`);
+      const res    = await fetchNoCache(`${API_URL}/api/producao/matriz?${params}`);
       if (!res.ok) throw new Error(`Erro ${res.status}`);
       const payload = await res.json();
       if (!payload.success) throw new Error(payload.error || 'Erro no servidor');
@@ -221,7 +222,7 @@ export default function Home() {
     pollRef.current = setInterval(async () => {
       setBuildElapsed(Math.round((Date.now() - startedAt) / 1000));
       try {
-        const res  = await fetch(`${API_URL}/api/admin/build-status`, { headers: authHeaders() });
+        const res  = await fetchNoCache(`${API_URL}/api/admin/build-status`, { headers: authHeaders() });
         if (!res.ok) return;
         const data = await res.json();
         if (!data.buildState.running) {
@@ -257,7 +258,7 @@ export default function Home() {
     setRefreshMsg('Iniciando atualização em background...');
     setError(null);
     try {
-      const res  = await fetch(`${API_URL}/api/admin/refresh`, {
+      const res  = await fetchNoCache(`${API_URL}/api/admin/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ marca: MARCA_FIXA, status: STATUS_FIXO }),

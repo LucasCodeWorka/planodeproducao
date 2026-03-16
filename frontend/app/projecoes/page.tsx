@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import { getToken, authHeaders } from '../lib/auth';
+import { fetchNoCache } from '../lib/api';
 import { ProjecoesMap, PeriodosPlano } from '../types';
 import { REPROJECAO_REGRAS_FIXAS } from '../lib/reprojecaoFechada';
 
@@ -72,7 +73,7 @@ export default function ProjecoesPage() {
   async function buscarProjecoes() {
     setLoading(true);
     try {
-      const res  = await fetch(`${API_URL}/api/projecoes`, { headers: authHeaders() });
+      const res  = await fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() });
       const data = await res.json();
       if (data.success) {
         // Deriva os meses únicos presentes em todos os registros
@@ -99,7 +100,7 @@ export default function ProjecoesPage() {
   async function buscarReprojecaoFechada() {
     setReprojecao((prev) => ({ ...prev, loading: true }));
     try {
-      const res = await fetch(`${API_URL}/api/projecoes/reprojecao-fechada`, { headers: authHeaders() });
+      const res = await fetchNoCache(`${API_URL}/api/projecoes/reprojecao-fechada`, { headers: authHeaders() });
       const data = await res.json();
       if (data.success) {
         setReprojecao({
@@ -125,7 +126,7 @@ export default function ProjecoesPage() {
 
     try {
       const texto = await file.text();
-      const res   = await fetch(`${API_URL}/api/projecoes/upload`, {
+      const res   = await fetchNoCache(`${API_URL}/api/projecoes/upload`, {
         method:  'POST',
         headers: { 'Content-Type': 'text/plain', ...authHeaders() },
         body:    texto,
@@ -152,7 +153,7 @@ export default function ProjecoesPage() {
   async function handleLimpar() {
     if (!confirm('Remover TODAS as projeções salvas?')) return;
     try {
-      await fetch(`${API_URL}/api/projecoes`, { method: 'DELETE', headers: authHeaders() });
+      await fetchNoCache(`${API_URL}/api/projecoes`, { method: 'DELETE', headers: authHeaders() });
       setProjecoes({ timestamp: null, count: 0, data: {}, meses: [], periodos: defaultPeriodos });
       setMsg({ type: 'ok', text: 'Projeções removidas.' });
     } catch {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import { authHeaders, getToken } from '../lib/auth';
+import { fetchNoCache } from '../lib/api';
 import { PeriodosPlano, Planejamento } from '../types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -249,11 +250,11 @@ export default function CapacidadePage() {
     setError(null);
     try {
       const [rConfig, rTempos, rMatriz, rProj, rAnalises] = await Promise.all([
-        fetch(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/capacidade/tempos-ref`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/producao/matriz?limit=5000&marca=${encodeURIComponent(MARCA_FIXA)}&status=${encodeURIComponent(STATUS_FIXO)}`),
-        fetch(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/analises`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/capacidade/tempos-ref`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/producao/matriz?limit=5000&marca=${encodeURIComponent(MARCA_FIXA)}&status=${encodeURIComponent(STATUS_FIXO)}`),
+        fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/analises`, { headers: authHeaders() }),
       ]);
       const pConfig = await rConfig.json();
       const pTempos = await rTempos.json();
@@ -314,7 +315,7 @@ export default function CapacidadePage() {
     setError(null);
     setOkMsg(null);
     try {
-      const res = await fetch(`${API_URL}/api/capacidade/grupos`, {
+      const res = await fetchNoCache(`${API_URL}/api/capacidade/grupos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ data: previewGrupos }),
@@ -337,7 +338,7 @@ export default function CapacidadePage() {
     setError(null);
     setOkMsg(null);
     try {
-      const res = await fetch(`${API_URL}/api/capacidade/grupo-refs`, {
+      const res = await fetchNoCache(`${API_URL}/api/capacidade/grupo-refs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ data: previewGrupoRefs }),
@@ -359,7 +360,7 @@ export default function CapacidadePage() {
     setError(null);
     setOkMsg(null);
     try {
-      const res = await fetch(`${API_URL}/api/capacidade/dias`, {
+      const res = await fetchNoCache(`${API_URL}/api/capacidade/dias`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(dias),
@@ -386,7 +387,7 @@ export default function CapacidadePage() {
     setDebugLoading(true);
     setDebugRef(ref);
     try {
-      const res = await fetch(`${API_URL}/api/capacidade/tempo-debug?referencia=${encodeURIComponent(ref)}`, { headers: authHeaders() });
+      const res = await fetchNoCache(`${API_URL}/api/capacidade/tempo-debug?referencia=${encodeURIComponent(ref)}`, { headers: authHeaders() });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao carregar depuração do tempo');
       setDebugRows(Array.isArray(data.data) ? data.data : []);
