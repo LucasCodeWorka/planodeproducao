@@ -36,3 +36,9 @@ build/
 # Temporary files
 *.tmp
 *.temp
+
+# Cache de dados (gerado em runtime)
+data/*.json
+
+# TypeScript build info
+frontend/tsconfig.tsbuildinfo

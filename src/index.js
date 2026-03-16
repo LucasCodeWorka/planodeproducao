@@ -39,10 +39,18 @@ const {
   DB_NAME,
   DB_USER,
   DB_PASSWORD,
+  DB_SSL,
+  DB_SSL_REJECT_UNAUTHORIZED,
+  DB_CONNECTION_TIMEOUT_MS,
+  DB_IDLE_TIMEOUT_MS,
+  DB_QUERY_TIMEOUT_MS,
   PORT,
   API_PORT = 8000,
   API_HOST = "0.0.0.0"
 } = process.env;
+
+const useSsl = String(DB_SSL || '').trim().toLowerCase() === 'true';
+const rejectUnauthorized = String(DB_SSL_REJECT_UNAUTHORIZED || '').trim().toLowerCase() === 'true';
 
 const pool = new Pool({
   host: DB_HOST,
@@ -51,8 +59,10 @@ const pool = new Pool({
   user: DB_USER,
   password: DB_PASSWORD,
   max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000
+  idleTimeoutMillis: Number(DB_IDLE_TIMEOUT_MS) || 30000,
+  connectionTimeoutMillis: Number(DB_CONNECTION_TIMEOUT_MS) || 30000,
+  query_timeout: Number(DB_QUERY_TIMEOUT_MS) || 0,
+  ssl: useSsl ? { rejectUnauthorized } : undefined
 });
 
 // Disponibilizar pool para as rotas
