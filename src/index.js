@@ -62,7 +62,9 @@ const pool = new Pool({
   idleTimeoutMillis: Number(DB_IDLE_TIMEOUT_MS) || 30000,
   connectionTimeoutMillis: Number(DB_CONNECTION_TIMEOUT_MS) || 30000,
   query_timeout: Number(DB_QUERY_TIMEOUT_MS) || 0,
-  ssl: useSsl ? { rejectUnauthorized } : undefined
+  ssl: useSsl ? { rejectUnauthorized } : undefined,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000
 });
 
 // Disponibilizar pool para as rotas
