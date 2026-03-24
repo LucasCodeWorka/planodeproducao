@@ -504,6 +504,85 @@ export default function MatrizPlanejamentoTable({
 
   // th style helpers
   const thBase = 'px-3 py-3.5 text-right font-semibold text-[10px] uppercase tracking-wide';
+  const fmtTaxaCsv = (venda: number, proj: number) => (proj > 0 ? Number(((venda / proj) * 100).toFixed(1)) : null);
+
+  function exportarCsvMatriz() {
+    const toCsv = (v: string | number | null | undefined) => {
+      const s = v === null || v === undefined ? '' : String(v);
+      return `"${s.replaceAll('"', '""')}"`;
+    };
+    const header = [
+      'continuidade', 'referencia', 'produto', 'idproduto', 'cor', 'tamanho',
+      'estoque', 'em_processo', 'estoque_minimo', 'pedidos', 'disponivel_atual', 'negativo_atual', 'cobertura_atual',
+      'taxa_jan_pct', 'taxa_fev_pct', 'taxa_mar_pct',
+      `proj_${mNomes[0]}`, `plano_${mNomes[0]}`, `disp_${mNomes[0]}`, `neg_${mNomes[0]}`, `cob_${mNomes[0]}`,
+      `proj_${mNomes[1]}`, `plano_${mNomes[1]}`, `disp_${mNomes[1]}`, `neg_${mNomes[1]}`, `cob_${mNomes[1]}`,
+      `proj_${mNomes[2]}`, `plano_${mNomes[2]}`, `disp_${mNomes[2]}`, `neg_${mNomes[2]}`, `cob_${mNomes[2]}`,
+      `proj_${mNomes[3]}`, `plano_${mNomes[3]}`, `disp_${mNomes[3]}`, `neg_${mNomes[3]}`, `cob_${mNomes[3]}`,
+    ];
+    const rows = grupos.flatMap((g) => g.referencias.flatMap((r) => r.itens.map((item) => {
+      const dispAtual = (item.estoques.estoque_atual || 0) - (item.demanda.pedidos_pendentes || 0);
+      const proj = projecoes[item.produto.idproduto] ?? null;
+      const real = vendasReais[item.produto.idproduto] ?? null;
+      const emP = item.estoques.em_processo || 0;
+      const min = item.estoques.estoque_minimo || 0;
+      const pMA = item.plano?.ma || 0;
+      const pPX = item.plano?.px || 0;
+      const pUL = item.plano?.ul || 0;
+      const pQT = item.plano?.qt || 0;
+      const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
+      const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
+      const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
+      const prQT = proj ? (proj[String(mesQT)] ?? 0) : 0;
+      const dMA = dispAtual + emP + pMA - prMA;
+      const dPX = dMA + pPX - prPX;
+      const dUL = dPX + pUL - prUL;
+      const dQT = dUL + pQT - prQT;
+      const vendaJan = real ? (real['1'] ?? 0) : 0;
+      const vendaFev = real ? (real['2'] ?? 0) : 0;
+      const vendaMar = real ? (real['3'] ?? 0) : 0;
+      const projJan = proj ? (proj['1'] ?? 0) : 0;
+      const projFev = proj ? (proj['2'] ?? 0) : 0;
+      const projMar = proj ? (proj['3'] ?? 0) * marFactor : 0;
+      const cobAtual = min > 0 ? Number((dispAtual / min).toFixed(2)) : null;
+      const cobMA = min > 0 ? Number((dMA / min).toFixed(2)) : null;
+      const cobPX = min > 0 ? Number((dPX / min).toFixed(2)) : null;
+      const cobUL = min > 0 ? Number((dUL / min).toFixed(2)) : null;
+      const cobQT = min > 0 ? Number((dQT / min).toFixed(2)) : null;
+
+      return [
+        g.continuidade,
+        item.produto.referencia || '',
+        item.produto.produto || '',
+        item.produto.idproduto || '',
+        item.produto.cor || '',
+        item.produto.tamanho || '',
+        Number(item.estoques.estoque_atual || 0),
+        Number(emP),
+        Number(min),
+        Number(item.demanda.pedidos_pendentes || 0),
+        Number(dispAtual),
+        dispAtual < 0 ? Math.abs(dispAtual) : 0,
+        cobAtual,
+        fmtTaxaCsv(vendaJan, projJan),
+        fmtTaxaCsv(vendaFev, projFev),
+        fmtTaxaCsv(vendaMar, projMar),
+        Number(prMA), Number(pMA), Number(dMA), dMA < 0 ? Math.abs(dMA) : 0, cobMA,
+        Number(prPX), Number(pPX), Number(dPX), dPX < 0 ? Math.abs(dPX) : 0, cobPX,
+        Number(prUL), Number(pUL), Number(dUL), dUL < 0 ? Math.abs(dUL) : 0, cobUL,
+        Number(prQT), Number(pQT), Number(dQT), dQT < 0 ? Math.abs(dQT) : 0, cobQT,
+      ];
+    })));
+
+    const csv = [header, ...rows].map((line) => line.map(toCsv).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `matriz_plano_producao_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full min-w-0">
@@ -512,6 +591,7 @@ export default function MatrizPlanejamentoTable({
       <div className="flex items-center justify-between px-3 py-3.5 border-b border-gray-100 bg-gray-50/80 text-xs text-gray-500">
         <span className="font-medium">{totalItens.toLocaleString('pt-BR')} itens · {grupos.length} continuidades</span>
         <div className="flex gap-4">
+          <button onClick={exportarCsvMatriz} className="text-emerald-700 hover:text-emerald-900 font-medium">Exportar CSV</button>
           <button onClick={() => {
             setExpandedConts(new Set(grupos.map(g => g.continuidade)));
             setExpandedRefs(new Set(grupos.flatMap(g => g.referencias.map(r => `${g.continuidade}|${r.referencia}`))));
