@@ -18,7 +18,7 @@ const COB_SAUDAVEL_UL_TOP30 = 0.8;
 const COB_SAUDAVEL_UL_KISSME = 0.8;
 const COB_SAUDAVEL_UL_DEMAIS = 0.6;
 
-type PeriodoAlvo = 'MA' | 'PX' | 'UL';
+type PeriodoAlvo = 'MA' | 'PX' | 'UL' | 'QT';
 type MAModo = 'CORRECAO_NEGATIVOS' | 'RETIRADA';
 type SugestaoCfg = {
   cobertura_top30: number;
@@ -61,11 +61,13 @@ type Row = {
   dispMA: number;
   dispPX: number;
   dispUL: number;
+  dispQT: number;
   dispMesAlvo: number;
   coberturaMA: number;
   planoMA: number;
   planoPX: number;
   planoUL: number;
+  planoQT: number;
   planoAtual: number;
   planoSugerido: number;
   planoBaseSemOpMin: number;
@@ -101,6 +103,9 @@ type MpViabilidade = {
         idmateriaprima: string;
         nome_materiaprima?: string;
         estoquetotal?: number;
+        entrada_ma?: number;
+        entrada_px?: number;
+        entrada_ul?: number;
         consumo_ma?: number;
         consumo_px?: number;
         consumo_ul?: number;
@@ -115,6 +120,9 @@ type MpViabilidade = {
         idmateriaprima: string;
         nome_materiaprima?: string;
         estoquetotal?: number;
+        entrada_ma?: number;
+        entrada_px?: number;
+        entrada_ul?: number;
         consumo_ma?: number;
         consumo_px?: number;
         consumo_ul?: number;
@@ -135,6 +143,9 @@ type MpViabilidade = {
         idmateriaprima: string;
         nome_materiaprima?: string;
         estoquetotal?: number;
+        entrada_ma?: number;
+        entrada_px?: number;
+        entrada_ul?: number;
         consumo_ma?: number;
         consumo_px?: number;
         consumo_ul?: number;
@@ -149,6 +160,9 @@ type MpViabilidade = {
         idmateriaprima: string;
         nome_materiaprima?: string;
         estoquetotal?: number;
+        entrada_ma?: number;
+        entrada_px?: number;
+        entrada_ul?: number;
         consumo_ma?: number;
         consumo_px?: number;
         consumo_ul?: number;
@@ -169,6 +183,9 @@ type MpViabilidade = {
         idmateriaprima: string;
         nome_materiaprima?: string;
         estoquetotal?: number;
+        entrada_ma?: number;
+        entrada_px?: number;
+        entrada_ul?: number;
         consumo_ma?: number;
         consumo_px?: number;
         consumo_ul?: number;
@@ -183,6 +200,9 @@ type MpViabilidade = {
         idmateriaprima: string;
         nome_materiaprima?: string;
         estoquetotal?: number;
+        entrada_ma?: number;
+        entrada_px?: number;
+        entrada_ul?: number;
         consumo_ma?: number;
         consumo_px?: number;
         consumo_ul?: number;
@@ -230,6 +250,12 @@ function roundDownByLot(qtd: number, lot: number) {
   const l = Math.max(1, Math.round(Number(lot || 0)));
   const q = Math.max(0, Number(qtd || 0));
   return Math.floor(q / l) * l;
+}
+
+function mesSeguinte(mes: number) {
+  const m = Number(mes || 0);
+  if (!Number.isFinite(m) || m <= 0) return 1;
+  return (m % 12) + 1;
 }
 
 function healthyCoverageTarget(classe: Row['classe']) {
@@ -307,6 +333,7 @@ export default function SugestaoPlanoPage() {
   const [resultadoReprojecaoMsg, setResultadoReprojecaoMsg] = useState<string | null>(null);
   const [margemCobMA, setMargemCobMA] = useState<number>(MARGEM_COB_MA_NEGATIVO_PADRAO);
   const [filtroCont, setFiltroCont] = useState<'TODAS' | 'PERMANENTE' | 'PERMANENTE COR NOVA'>('TODAS');
+  const [filtroOpMin, setFiltroOpMin] = useState<'TODOS' | 'BLOQUEADA'>('TODOS');
   const [filtroViabilidade, setFiltroViabilidade] = useState<'TODOS' | 'PRODUTIVEL' | 'BLOQUEADO' | 'OK' | 'SOLICITAR_COMPRA'>('TODOS');
   const [activeRowKey, setActiveRowKey] = useState<string | null>(null);
   const [expandedConts, setExpandedConts] = useState<Set<string>>(new Set());
@@ -336,17 +363,35 @@ export default function SugestaoPlanoPage() {
       idmateriaprima: string;
       nome_materiaprima?: string;
       estoquetotal?: number;
+      entrada_ma?: number;
+      entrada_px?: number;
+      entrada_ul?: number;
       consumo_ma?: number;
+      consumo_px?: number;
+      consumo_ul?: number;
       saldo_ma: number;
+      saldo_px?: number;
+      saldo_ul?: number;
       deficit_ma: number;
+      deficit_px?: number;
+      deficit_ul?: number;
     }>;
     materiasprimas_todas_detalhe?: Array<{
       idmateriaprima: string;
       nome_materiaprima?: string;
       estoquetotal?: number;
+      entrada_ma?: number;
+      entrada_px?: number;
+      entrada_ul?: number;
       consumo_ma?: number;
+      consumo_px?: number;
+      consumo_ul?: number;
       saldo_ma: number;
+      saldo_px?: number;
+      saldo_ul?: number;
       deficit_ma: number;
+      deficit_px?: number;
+      deficit_ul?: number;
       critica?: boolean;
     }>;
   } | null>(null);
@@ -472,7 +517,8 @@ export default function SugestaoPlanoPage() {
   }, [considerarProjecaoNova, reprojecaoPreview, projecoes, periodos]);
 
   const resumoMudancaProjecao = useMemo(() => {
-    const targetMes = String(periodos[periodoAlvo]);
+    const mesQT = mesSeguinte(Number(periodos.UL || 0));
+    const targetMes = String(periodoAlvo === 'QT' ? mesQT : periodos[periodoAlvo]);
     let alterados = 0;
     let originalTotal = 0;
     let novoTotal = 0;
@@ -518,6 +564,8 @@ export default function SugestaoPlanoPage() {
   }, [considerarProjecaoNova, reprojecaoPreview, resumoMudancaProjecao, periodoAlvo]);
 
   const rows = useMemo<Row[]>(() => {
+    const mesQT = mesSeguinte(Number(periodos.UL || 0));
+    const alvoComOpMinECapacidade = periodoAlvo === 'UL' || periodoAlvo === 'QT';
     const capacidadeDiariaByGrupo = new Map<string, number>();
     capacidadeGrupos.forEach((g) => {
       const key = normRef(g.grupo);
@@ -584,16 +632,20 @@ export default function SugestaoPlanoPage() {
       const pMA = Number(item.plano?.ma || 0);
       const pPX = Number(item.plano?.px || 0);
       const pUL = Number(item.plano?.ul || 0);
+      const pQT = Number((item.plano as { qt?: number } | undefined)?.qt || 0);
       const prMA = projecaoMesPlanejamento(Number(projecoesAtivas[id]?.[String(periodos.MA)] || 0), periodos.MA);
       const prPX = Number(projecoesAtivas[id]?.[String(periodos.PX)] || 0);
       const prUL = Number(projecoesAtivas[id]?.[String(periodos.UL)] || 0);
+      const prQT = Number(projecoesAtivas[id]?.[String(mesQT)] || 0);
       const dispMA = dispAtual + emP + pMA - prMA;
       const dispPX = dispMA + pPX - prPX;
       const dispUL = dispPX + pUL - prUL;
+      const dispQT = dispUL + pQT - prQT;
 
-      const projMes = Number(projecoesAtivas[id]?.[String(periodos[periodoAlvo])] || 0);
-      const dispAnterior = periodoAlvo === 'MA' ? dispAtualComProcesso : (periodoAlvo === 'PX' ? dispMA : dispPX);
-      const dispMesAlvo = periodoAlvo === 'MA' ? dispMA : (periodoAlvo === 'PX' ? dispPX : dispUL);
+      const mesAlvo = periodoAlvo === 'QT' ? mesQT : periodos[periodoAlvo];
+      const projMes = Number(projecoesAtivas[id]?.[String(mesAlvo)] || 0);
+      const dispAnterior = periodoAlvo === 'MA' ? dispAtualComProcesso : (periodoAlvo === 'PX' ? dispMA : (periodoAlvo === 'UL' ? dispPX : dispUL));
+      const dispMesAlvo = periodoAlvo === 'MA' ? dispMA : (periodoAlvo === 'PX' ? dispPX : (periodoAlvo === 'UL' ? dispUL : dispQT));
       const cobAlvo = (periodoAlvo === 'MA' && maModo === 'CORRECAO_NEGATIVOS' && dispMA < 0)
         ? COB_ALVO_MA_NEGATIVO
         : cobAlvoBase;
@@ -612,7 +664,7 @@ export default function SugestaoPlanoPage() {
           }
         }
       }
-      const planoAtual = periodoAlvo === 'MA' ? pMA : (periodoAlvo === 'PX' ? pPX : pUL);
+      const planoAtual = periodoAlvo === 'MA' ? pMA : (periodoAlvo === 'PX' ? pPX : (periodoAlvo === 'UL' ? pUL : pQT));
       const dispPos = dispAnterior + planoSugerido - projMes;
       const coberturaMA = min > 0 ? dispMA / min : 0;
       const coberturaPos = min > 0 ? dispPos / min : 0;
@@ -651,11 +703,13 @@ export default function SugestaoPlanoPage() {
         dispMA,
         dispPX,
         dispUL,
+        dispQT,
         dispMesAlvo,
         coberturaMA,
         planoMA: pMA,
         planoPX: pPX,
         planoUL: pUL,
+        planoQT: pQT,
         planoAtual,
         planoSugerido,
         planoBaseSemOpMin: planoSugerido,
@@ -671,7 +725,7 @@ export default function SugestaoPlanoPage() {
         grupoRateios,
       };
     });
-    if (periodoAlvo !== 'UL') return baseRows;
+    if (!alvoComOpMinECapacidade) return baseRows;
 
     const byRef = new Map<string, Row[]>();
     for (const row of baseRows) {
@@ -745,6 +799,7 @@ export default function SugestaoPlanoPage() {
     const diasMA = Number(capacidadeDias[String(periodos.MA)] || 0);
     const diasPX = Number(capacidadeDias[String(periodos.PX)] || 0);
     const diasUL = Number(capacidadeDias[String(periodos.UL)] || 0);
+    const diasQT = Number(capacidadeDias[String(mesQT)] || 0);
     const extraCargaPorGrupo = new Map<string, number>();
 
     capacidadeGrupos.forEach((grupo) => {
@@ -753,11 +808,13 @@ export default function SugestaoPlanoPage() {
       const capMA = capDiaria * diasMA;
       const capPX = capDiaria * diasPX;
       const capUL = capDiaria * diasUL;
+      const capQT = capDiaria * diasQT;
 
       let processoCarga = 0;
       let cargaMA = 0;
       let cargaPX = 0;
-      let cargaULTotalDisponivel = 0;
+      let cargaUL = 0;
+      let cargaAlvoTotalDisponivel = 0;
 
       ajustadas.forEach((row) => {
         const rateio = row.grupoRateios.find((g) => g.grupo === grupoKey)?.rateio || 0;
@@ -765,22 +822,27 @@ export default function SugestaoPlanoPage() {
         processoCarga += row.emProcesso * row.tempoRef * rateio;
         cargaMA += row.planoMA * row.tempoRef * rateio;
         cargaPX += row.planoPX * row.tempoRef * rateio;
+        cargaUL += row.planoUL * row.tempoRef * rateio;
       });
 
       const saldoAcumPX = (capMA - (processoCarga + cargaMA)) + (capPX - cargaPX);
-      cargaULTotalDisponivel = Math.max(0, saldoAcumPX + capUL);
-      extraCargaPorGrupo.set(grupoKey, cargaULTotalDisponivel);
+      const saldoAcumUL = saldoAcumPX + (capUL - cargaUL);
+      cargaAlvoTotalDisponivel = periodoAlvo === 'UL'
+        ? Math.max(0, saldoAcumPX + capUL)
+        : Math.max(0, saldoAcumUL + capQT);
+      extraCargaPorGrupo.set(grupoKey, cargaAlvoTotalDisponivel);
     });
 
+    const planoCampoAlvo: 'planoUL' | 'planoQT' = periodoAlvo === 'UL' ? 'planoUL' : 'planoQT';
     const rowsCap = ajustadas.map((r) => ({
       ...r,
-      planoSugerido: Number(r.planoUL || 0),
+      planoSugerido: Number(r[planoCampoAlvo] || 0),
       planoBaseSemOpMin: Number(r.planoBaseSemOpMin || 0),
       planoAntesCapacidade: Number(r.planoSugerido || 0),
-      deltaPlano: Number(r.planoUL || 0) - Number(r.planoAtual || 0),
-      dispPos: Number(r.dispAnterior || 0) + Number(r.planoUL || 0) - Number(r.projMes || 0),
+      deltaPlano: Number(r[planoCampoAlvo] || 0) - Number(r.planoAtual || 0),
+      dispPos: Number(r.dispAnterior || 0) + Number(r[planoCampoAlvo] || 0) - Number(r.projMes || 0),
       coberturaPos: Number(r.estoqueMin || 0) > 0
-        ? (Number(r.dispAnterior || 0) + Number(r.planoUL || 0) - Number(r.projMes || 0)) / Number(r.estoqueMin || 0)
+        ? (Number(r.dispAnterior || 0) + Number(r[planoCampoAlvo] || 0) - Number(r.projMes || 0)) / Number(r.estoqueMin || 0)
         : 0,
     }));
 
@@ -792,7 +854,11 @@ export default function SugestaoPlanoPage() {
     }
 
     const prioridadeClasse = (classe: Row['classe']) => (classe === 'TOP30' ? 3 : classe === 'KISS ME' ? 2 : 1);
-    const coberturaAtual = (row: Row) => Number(row.estoqueMin || 0) > 0 ? Number(row.dispUL || 0) / Number(row.estoqueMin || 0) : 0;
+    const coberturaAtual = (row: Row) => {
+      if (!(Number(row.estoqueMin || 0) > 0)) return 0;
+      const dispBase = periodoAlvo === 'UL' ? Number(row.dispUL || 0) : Number(row.dispQT || 0);
+      return dispBase / Number(row.estoqueMin || 0);
+    };
 
     const candidatosCorteSemNegativo = rowsCap
       .filter((r) => Number(r.planoSugerido || 0) > 0 && Number(r.tempoRef || 0) > 0 && r.grupoRateios.length > 0)
@@ -926,9 +992,10 @@ export default function SugestaoPlanoPage() {
       if (somenteDeltaNegativo && !(r.deltaPlano < 0)) return false;
       if (somenteNegativoMA && !(r.dispMesAlvo < 0)) return false;
       if (filtroCont !== 'TODAS' && String(r.continuidade || '').trim().toUpperCase() !== filtroCont) return false;
+      if (filtroOpMin === 'BLOQUEADA' && !Boolean(r.opMinNaoAtendida)) return false;
       return true;
     });
-  }, [rows, periodoAlvo, maModo, somenteDeltaNegativo, somenteNegativoMA, filtroCont]);
+  }, [rows, periodoAlvo, maModo, somenteDeltaNegativo, somenteNegativoMA, filtroCont, filtroOpMin]);
 
   const refEscopoStatusMap = useMemo(() => {
     const m = new Map<string, boolean>(); // true = bloqueada
@@ -1009,7 +1076,7 @@ export default function SugestaoPlanoPage() {
   }, [rowsVisiveisTela]);
 
   const resumoOpMin = useMemo(() => {
-    if (periodoAlvo !== 'UL') return { semOpMin: 0, extraOpMin: 0, comOpMinBase: 0 };
+    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT')) return { semOpMin: 0, extraOpMin: 0, comOpMinBase: 0 };
     let semOpMin = 0;
     let extraOpMin = 0;
     rowsVisiveisTela.forEach((r) => {
@@ -1017,6 +1084,11 @@ export default function SugestaoPlanoPage() {
       extraOpMin += Number(r.rateioOpMinExtra || 0);
     });
     return { semOpMin, extraOpMin, comOpMinBase: semOpMin + extraOpMin };
+  }, [rowsVisiveisTela, periodoAlvo]);
+
+  const resumoSkuOpMinBloqueada = useMemo(() => {
+    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT')) return 0;
+    return rowsVisiveisTela.filter((r) => Boolean(r.opMinNaoAtendida)).length;
   }, [rowsVisiveisTela, periodoAlvo]);
 
   const resumoNegativos = useMemo(() => {
@@ -1038,7 +1110,7 @@ export default function SugestaoPlanoPage() {
   }, [rowsVisiveisTela]);
 
   const resumoCapacidadeUL = useMemo(() => {
-    if (periodoAlvo !== 'UL') {
+    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT')) {
       return { ligado: false, cortados: 0, qtdCortada: 0, qtdMantida: 0, itensNegativos: 0, pecasNegativas: 0 };
     }
     let cortados = 0;
@@ -1048,7 +1120,7 @@ export default function SugestaoPlanoPage() {
     let pecasNegativas = 0;
     rowsVisiveisTela.forEach((r) => {
       const base = Math.max(0, Number(r.planoSugerido || 0));
-      const atual = Math.max(0, Number(r.planoUL || 0));
+      const atual = Math.max(0, Number((periodoAlvo === 'UL' ? r.planoUL : r.planoQT) || 0));
       if (base > 0) qtdMantida += base;
       if (considerarCapacidade && base < atual) {
         cortados += 1;
@@ -1070,7 +1142,7 @@ export default function SugestaoPlanoPage() {
   }, [periodoAlvo, rowsVisiveisTela, considerarCapacidade]);
 
   const diagnosticoCapacidadeUL = useMemo(() => {
-    if (periodoAlvo !== 'UL') {
+    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT')) {
       return {
         cargaDisponivelUL: 0,
         cargaSugeridaUL: 0,
@@ -1085,6 +1157,7 @@ export default function SugestaoPlanoPage() {
     const diasMA = Number(capacidadeDias[String(periodos.MA)] || 0);
     const diasPX = Number(capacidadeDias[String(periodos.PX)] || 0);
     const diasUL = Number(capacidadeDias[String(periodos.UL)] || 0);
+    const diasQT = Number(capacidadeDias[String(mesSeguinte(Number(periodos.UL || 0)))] || 0);
     let cargaDisponivelUL = 0;
     let cargaSugeridaUL = 0;
     const gruposEstourados: Array<{ grupo: string; saldo: number; diasFaltantes: number; cargaUL: number; capacidadeUL: number }> = [];
@@ -1095,11 +1168,13 @@ export default function SugestaoPlanoPage() {
       const capMA = capDiaria * diasMA;
       const capPX = capDiaria * diasPX;
       const capUL = capDiaria * diasUL;
+      const capQT = capDiaria * diasQT;
 
       let processoCarga = 0;
       let cargaMA = 0;
       let cargaPX = 0;
       let cargaUL = 0;
+      let cargaQT = 0;
 
       rows.forEach((row) => {
         const rateio = row.grupoRateios.find((g) => g.grupo === grupoKey)?.rateio || 0;
@@ -1107,21 +1182,29 @@ export default function SugestaoPlanoPage() {
         processoCarga += Number(row.emProcesso || 0) * Number(row.tempoRef || 0) * rateio;
         cargaMA += Number(row.planoMA || 0) * Number(row.tempoRef || 0) * rateio;
         cargaPX += Number(row.planoPX || 0) * Number(row.tempoRef || 0) * rateio;
-        cargaUL += Number((considerarCapacidade ? row.planoAntesCapacidade : row.planoSugerido) || 0) * Number(row.tempoRef || 0) * rateio;
+        cargaUL += Number((periodoAlvo === 'UL'
+          ? (considerarCapacidade ? row.planoAntesCapacidade : row.planoSugerido)
+          : row.planoUL) || 0) * Number(row.tempoRef || 0) * rateio;
+        cargaQT += Number((periodoAlvo === 'QT'
+          ? (considerarCapacidade ? row.planoAntesCapacidade : row.planoSugerido)
+          : row.planoQT) || 0) * Number(row.tempoRef || 0) * rateio;
       });
 
       const disponivelUL = Math.max(0, (capMA - (processoCarga + cargaMA)) + (capPX - cargaPX) + capUL);
-      const saldoFinal = disponivelUL - cargaUL;
-      cargaDisponivelUL += disponivelUL;
-      cargaSugeridaUL += cargaUL;
+      const disponivelQT = Math.max(0, disponivelUL - cargaUL + capQT);
+      const disponibilidadeAlvo = periodoAlvo === 'UL' ? disponivelUL : disponivelQT;
+      const cargaAlvo = periodoAlvo === 'UL' ? cargaUL : cargaQT;
+      const saldoFinal = disponibilidadeAlvo - cargaAlvo;
+      cargaDisponivelUL += disponibilidadeAlvo;
+      cargaSugeridaUL += cargaAlvo;
 
       if (saldoFinal < 0) {
         gruposEstourados.push({
           grupo: String(grupo.grupo || '-'),
           saldo: saldoFinal,
           diasFaltantes: capDiaria > 0 ? Math.abs(saldoFinal) / capDiaria : 0,
-          cargaUL,
-          capacidadeUL: disponivelUL,
+          cargaUL: cargaAlvo,
+          capacidadeUL: disponibilidadeAlvo,
         });
       }
     });
@@ -1138,10 +1221,10 @@ export default function SugestaoPlanoPage() {
       kissEstimado: Number(cfg.cobertura_kissme || 0) * fatorCobertura,
       gruposEstourados,
     };
-  }, [periodoAlvo, capacidadeDias, periodos, capacidadeGrupos, rows, cfg]);
+  }, [periodoAlvo, capacidadeDias, periodos, capacidadeGrupos, rows, cfg, considerarCapacidade]);
 
   const coberturaSugeridaAutomatica = useMemo(() => {
-    if (periodoAlvo !== 'UL') {
+    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT')) {
       return {
         top30: Number(cfg.cobertura_top30 || 0),
         demais: Number(cfg.cobertura_demais || 0),
@@ -1270,21 +1353,24 @@ export default function SugestaoPlanoPage() {
           const maAjustado = periodoAlvo === 'MA' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoMA || 0));
           const pxAjustado = periodoAlvo === 'PX' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoPX || 0));
           const ulAjustado = periodoAlvo === 'UL' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoUL || 0));
+          const qtAjustado = periodoAlvo === 'QT' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoQT || 0));
           return {
             idproduto: String(r.idproduto || '').trim(),
             idreferencia: String(r.idreferencia || '').trim(),
             ma: maAjustado,
             px: pxAjustado,
             ul: ulAjustado,
+            qt: qtAjustado,
             ma_scope: periodoAlvo === 'MA' && inScope ? Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoMA || 0)) : 0,
           };
         })
-        .filter((p) => p.idproduto && (p.ma > 0 || p.px > 0 || p.ul > 0));
+        .filter((p) => p.idproduto && (p.ma > 0 || p.px > 0 || p.ul > 0 || p.qt > 0));
 
       const aumentoMA = rowsVisiveis.reduce((acc, r) => {
         if (periodoAlvo === 'MA') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoMA || 0));
         if (periodoAlvo === 'PX') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoPX || 0));
-        return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoUL || 0));
+        if (periodoAlvo === 'UL') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoUL || 0));
+        return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoQT || 0));
       }, 0);
       if (!planos.length) {
         setMpViab({
@@ -1405,14 +1491,43 @@ export default function SugestaoPlanoPage() {
           : rowsVisiveisTela;
 
       const alterados = candidatosSalvar.filter((r) => Math.round(r.planoSugerido || 0) !== Math.round(r.planoAtual || 0));
-      if (!alterados.length) throw new Error('Nenhum item alterado para salvar.');
-
-      const planos = alterados.map((r) => ({
+      const alteradosKeys = new Set(alterados.map((r) => String(r.chave || '').trim()).filter(Boolean));
+      const isPlanoCompletoCont = (cont: string) => {
+        const norm = String(cont || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .trim()
+          .toUpperCase();
+        return norm === 'PERMANENTE' || norm === 'PERMANENTE COR NOVA';
+      };
+      const buildPlano = (r: Row, aplicarSugestao: boolean) => ({
         chave: r.chave,
-        ma: Math.round(periodoAlvo === 'MA' ? r.planoSugerido : r.planoMA),
-        px: Math.round(periodoAlvo === 'PX' ? r.planoSugerido : r.planoPX),
-        ul: Math.round(periodoAlvo === 'UL' ? r.planoSugerido : r.planoUL),
-      }));
+        ma: Math.round(periodoAlvo === 'MA' && aplicarSugestao ? r.planoSugerido : r.planoMA),
+        px: Math.round(periodoAlvo === 'PX' && aplicarSugestao ? r.planoSugerido : r.planoPX),
+        ul: Math.round(periodoAlvo === 'UL' && aplicarSugestao ? r.planoSugerido : r.planoUL),
+        qt: Math.round(periodoAlvo === 'QT' && aplicarSugestao ? r.planoSugerido : r.planoQT),
+      });
+
+      const planosMap = new Map<string, { chave: string; ma: number; px: number; ul: number; qt: number }>();
+
+      // Sempre levar plano completo de PERMANENTE e PERMANENTE COR NOVA.
+      rows
+        .filter((r) => isPlanoCompletoCont(String(r.continuidade || '')))
+        .forEach((r) => {
+          const chave = String(r.chave || '').trim();
+          if (!chave) return;
+          planosMap.set(chave, buildPlano(r, alteradosKeys.has(chave)));
+        });
+
+      // Mantém também alterações de outros grupos/continuidade.
+      alterados.forEach((r) => {
+        const chave = String(r.chave || '').trim();
+        if (!chave) return;
+        planosMap.set(chave, buildPlano(r, true));
+      });
+
+      const planos = Array.from(planosMap.values());
+      if (!planos.length) throw new Error('Nenhum item elegível para salvar.');
 
       const deltaTotal = alterados.reduce((acc, r) => acc + Math.round(r.deltaPlano || 0), 0);
       const payload = {
@@ -1435,7 +1550,7 @@ export default function SugestaoPlanoPage() {
         observacoes: `Gerado na Sugestão de Plano. Filtros: cont=${filtroCont}, viab=${filtroViabilidade}.`,
       };
 
-      const res = await fetchNoCache(`${API_URL}/api/analises`, {
+      const res = await fetchNoCache(`${API_URL}/api/simulacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(payload),
@@ -1448,8 +1563,8 @@ export default function SugestaoPlanoPage() {
           : 0;
       setOkMsg(
         bloqueadosIgnorados > 0
-          ? `Sugestão salva com ${alterados.length} itens alterados (${bloqueadosIgnorados} bloqueados ignorados).`
-          : `Sugestão salva com ${alterados.length} itens alterados.`
+          ? `Sugestão salva com ${alterados.length} itens alterados e ${planos.length} itens no plano completo (${bloqueadosIgnorados} bloqueados ignorados).`
+          : `Sugestão salva com ${alterados.length} itens alterados e ${planos.length} itens no plano completo.`
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar sugestão');
@@ -1479,6 +1594,7 @@ export default function SugestaoPlanoPage() {
                 <option value="MA">MA</option>
                 <option value="PX">PX</option>
                 <option value="UL">UL</option>
+                <option value="QT">QT</option>
               </select>
             </label>
             {periodoAlvo === 'MA' && (
@@ -1544,6 +1660,19 @@ export default function SugestaoPlanoPage() {
                 <option value="PERMANENTE COR NOVA">PERMANENTE COR NOVA</option>
               </select>
             </label>
+            {(periodoAlvo === 'UL' || periodoAlvo === 'QT') && (
+              <label className="text-xs text-gray-600">
+                OP Min
+                <select
+                  value={filtroOpMin}
+                  onChange={(e) => setFiltroOpMin(e.target.value as typeof filtroOpMin)}
+                  className="mt-1 border border-gray-300 rounded px-2 py-1.5"
+                >
+                  <option value="TODOS">Todos</option>
+                  <option value="BLOQUEADA">Só bloqueada</option>
+                </select>
+              </label>
+            )}
             <label className="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
               <input
                 type="checkbox"
@@ -1553,7 +1682,7 @@ export default function SugestaoPlanoPage() {
               />
               Considerar projeção nova
             </label>
-            {periodoAlvo === 'UL' && (
+            {(periodoAlvo === 'UL' || periodoAlvo === 'QT') && (
               <label className="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
                 <input
                   type="checkbox"
@@ -1655,8 +1784,8 @@ export default function SugestaoPlanoPage() {
               </div>
             </div>
 
-            {periodoAlvo === 'UL' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {(periodoAlvo === 'UL' || periodoAlvo === 'QT') && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
                   <div className="text-[11px] text-gray-500">Plano UL sem OP mínima</div>
                   <div className="text-xl font-bold text-gray-900 leading-tight">{fmt(resumoOpMin.semOpMin)}</div>
@@ -1668,6 +1797,10 @@ export default function SugestaoPlanoPage() {
                 <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
                   <div className="text-[11px] text-gray-500">Plano UL com OP mínima</div>
                   <div className="text-xl font-bold text-brand-dark leading-tight">{fmt(resumoOpMin.comOpMinBase)}</div>
+                </div>
+                <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2.5">
+                  <div className="text-[11px] text-rose-700">SKUs OP Min bloqueada</div>
+                  <div className="text-xl font-bold text-rose-700 leading-tight">{fmt(resumoSkuOpMinBloqueada)}</div>
                 </div>
               </div>
             )}
@@ -1776,15 +1909,15 @@ export default function SugestaoPlanoPage() {
                     </div>
                   </div>
                 </div>
-                {periodoAlvo === 'UL' && (
+                {(periodoAlvo === 'UL' || periodoAlvo === 'QT') && (
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                     <div className={`rounded-md border px-3 py-2.5 ${considerarCapacidade ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
-                      <div className="text-[11px] text-gray-500">Capacidade de maio</div>
+                      <div className="text-[11px] text-gray-500">Capacidade ativa ({periodoAlvo})</div>
                       <div className={`text-xl font-bold leading-tight ${considerarCapacidade ? 'text-amber-700' : 'text-gray-700'}`}>
                         {considerarCapacidade ? 'ATIVA' : 'DESLIGADA'}
                       </div>
                       <div className="text-[11px] text-gray-500 mt-0.5">
-                        {considerarCapacidade ? 'Maio recalculado pelo saldo após MA + PX.' : 'Usando somente a lógica saudável do plano.'}
+                        {considerarCapacidade ? `${periodoAlvo} recalculado pelo saldo acumulado dos meses anteriores.` : 'Usando somente a lógica saudável do plano.'}
                       </div>
                     </div>
                     <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
@@ -1809,7 +1942,7 @@ export default function SugestaoPlanoPage() {
                     </div>
                   </div>
                 )}
-                {periodoAlvo === 'UL' && (
+                {(periodoAlvo === 'UL' || periodoAlvo === 'QT') && (
                   <>
                     <div className="pt-1 text-xs font-semibold text-gray-600 uppercase tracking-wide">Ajuste estimado pela capacidade</div>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -1957,11 +2090,13 @@ export default function SugestaoPlanoPage() {
                               dispMA: 0,
                               dispPX: 0,
                               dispUL: 0,
+                              dispQT: 0,
                               dispMesAlvo: 0,
                               coberturaMA: 0,
                               planoMA: 0,
                               planoPX: 0,
                               planoUL: 0,
+                              planoQT: 0,
                               planoAtual: 0,
                               planoSugerido: 0,
                               planoBaseSemOpMin: 0,
@@ -2015,9 +2150,18 @@ export default function SugestaoPlanoPage() {
                         <th className="text-left px-2 py-1 whitespace-nowrap">MP</th>
                         <th className="text-left px-2 py-1 whitespace-nowrap">Produto</th>
                         <th className="text-right px-2 py-1 whitespace-nowrap">Estoque MP</th>
+                        <th className="text-right px-2 py-1 whitespace-nowrap">Entr. MA</th>
                         <th className="text-right px-2 py-1 whitespace-nowrap">Consumo MA</th>
                         <th className="text-right px-2 py-1 whitespace-nowrap">Saldo MA</th>
                         <th className="text-right px-2 py-1 whitespace-nowrap">Déficit MA</th>
+                        <th className="text-right px-2 py-1 whitespace-nowrap">Entr. PX</th>
+                        <th className="text-right px-2 py-1 whitespace-nowrap">Consumo PX</th>
+                        <th className="text-right px-2 py-1 whitespace-nowrap">Saldo PX</th>
+                        <th className="text-right px-2 py-1 whitespace-nowrap">Déficit PX</th>
+                        <th className="text-right px-2 py-1 whitespace-nowrap">Entr. UL</th>
+                        <th className="text-right px-2 py-1 whitespace-nowrap">Consumo UL</th>
+                        <th className="text-right px-2 py-1 whitespace-nowrap">Saldo UL</th>
+                        <th className="text-right px-2 py-1 whitespace-nowrap">Déficit UL</th>
                         <th className="text-left px-2 py-1 whitespace-nowrap">Status</th>
                         <th className="text-left px-2 py-1 whitespace-nowrap">Motivo</th>
                       </tr>
@@ -2035,14 +2179,27 @@ export default function SugestaoPlanoPage() {
                             <td className="px-2 py-1 font-semibold whitespace-nowrap">{m.idmateriaprima}</td>
                             <td className="px-2 py-1 whitespace-nowrap">{String(m.nome_materiaprima || '-')}</td>
                             <td className="px-2 py-1 text-right whitespace-nowrap">{fmt(Number(m.estoquetotal || 0))}</td>
+                            <td className="px-2 py-1 text-right whitespace-nowrap text-sky-700">{fmt(Number(m.entrada_ma || 0))}</td>
                             <td className="px-2 py-1 text-right whitespace-nowrap">{fmt(Number(m.consumo_ma || 0))}</td>
                             <td className={`px-2 py-1 text-right whitespace-nowrap ${Number(m.saldo_ma || 0) < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{fmt(m.saldo_ma)}</td>
                             <td className={`px-2 py-1 text-right font-semibold whitespace-nowrap ${Number(m.deficit_ma || 0) > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{fmt(m.deficit_ma)}</td>
+                            <td className="px-2 py-1 text-right whitespace-nowrap text-sky-700">{fmt(Number(m.entrada_px || 0))}</td>
+                            <td className="px-2 py-1 text-right whitespace-nowrap">{fmt(Number(m.consumo_px || 0))}</td>
+                            <td className={`px-2 py-1 text-right whitespace-nowrap ${Number(m.saldo_px || 0) < 0 ? 'text-amber-700' : 'text-emerald-700'}`}>{fmt(Number(m.saldo_px || 0))}</td>
+                            <td className={`px-2 py-1 text-right font-semibold whitespace-nowrap ${Number(m.deficit_px || 0) > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>{fmt(Number(m.deficit_px || 0))}</td>
+                            <td className="px-2 py-1 text-right whitespace-nowrap text-sky-700">{fmt(Number(m.entrada_ul || 0))}</td>
+                            <td className="px-2 py-1 text-right whitespace-nowrap">{fmt(Number(m.consumo_ul || 0))}</td>
+                            <td className={`px-2 py-1 text-right whitespace-nowrap ${Number(m.saldo_ul || 0) < 0 ? 'text-amber-700' : 'text-emerald-700'}`}>{fmt(Number(m.saldo_ul || 0))}</td>
+                            <td className={`px-2 py-1 text-right font-semibold whitespace-nowrap ${Number(m.deficit_ul || 0) > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>{fmt(Number(m.deficit_ul || 0))}</td>
                             <td className={`px-2 py-1 whitespace-nowrap font-semibold ${Number(m.saldo_ma || 0) < 0 ? 'text-red-700' : 'text-emerald-700'}`}>
-                              {Number(m.saldo_ma || 0) < 0 ? 'Crítica' : 'OK'}
+                              {Number(m.saldo_ma || 0) < 0 ? 'Bloqueado MA' : (Number(m.saldo_px || 0) < 0 || Number(m.saldo_ul || 0) < 0) ? 'Solicitar compra' : 'OK'}
                             </td>
-                            <td className={`px-2 py-1 whitespace-nowrap ${Number(m.deficit_ma || 0) > 0 ? 'text-red-700' : 'text-gray-600'}`}>
-                              {Number(m.deficit_ma || 0) > 0 ? `Consumo MA maior que estoque em ${fmt(Number(m.deficit_ma || 0))}` : '-'}
+                            <td className={`px-2 py-1 whitespace-nowrap ${Number(m.deficit_ma || 0) > 0 ? 'text-red-700' : (Number(m.deficit_px || 0) > 0 || Number(m.deficit_ul || 0) > 0) ? 'text-amber-700' : 'text-gray-600'}`}>
+                              {Number(m.deficit_ma || 0) > 0
+                                ? `Consumo MA maior que estoque em ${fmt(Number(m.deficit_ma || 0))}`
+                                : (Number(m.deficit_px || 0) > 0 || Number(m.deficit_ul || 0) > 0)
+                                  ? 'Compra prevista necessária em PX/UL'
+                                  : '-'}
                             </td>
                           </tr>
                         ))

@@ -163,13 +163,13 @@ export default function AnalisePage() {
       const [rMatriz, rProj, rSaved, rTop30] = await Promise.all([
         fetch(`${API_URL}/api/producao/matriz?${params}`),
         fetch(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/analises`, { headers: authHeaders() }),
+        fetch(`${API_URL}/api/simulacoes`, { headers: authHeaders() }),
         fetch(`${API_URL}/api/analises/top30-produtos`, { headers: authHeaders() }),
       ]);
 
       if (!rMatriz.ok) throw new Error(`Matriz erro ${rMatriz.status}`);
       if (!rProj.ok) throw new Error(`Projeções erro ${rProj.status}`);
-      if (!rSaved.ok) throw new Error(`Análises erro ${rSaved.status}`);
+      if (!rSaved.ok) throw new Error(`Simulações erro ${rSaved.status}`);
       if (!rTop30.ok) throw new Error(`Top30 erro ${rTop30.status}`);
 
       const pMatriz = await rMatriz.json();
@@ -965,20 +965,20 @@ export default function AnalisePage() {
         observacoes,
       };
 
-      const res = await fetch(`${API_URL}/api/analises`, {
+      const res = await fetch(`${API_URL}/api/simulacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao salvar análise');
+      if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao salvar simulação');
 
-      setOkMsg('Análise salva com sucesso.');
+      setOkMsg('Simulação salva com sucesso.');
       setNomeAnalise('');
       setObservacoes('');
       await carregarTudo();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar análise');
+      setErro(e instanceof Error ? e.message : 'Erro ao salvar simulação');
     } finally {
       setSaving(false);
     }
@@ -986,7 +986,7 @@ export default function AnalisePage() {
 
   async function removerAnalise(id: string) {
     try {
-      const res = await fetch(`${API_URL}/api/analises/${id}`, {
+      const res = await fetch(`${API_URL}/api/simulacoes/${id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
@@ -994,7 +994,7 @@ export default function AnalisePage() {
       if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao remover');
       await carregarTudo();
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao remover análise');
+      setErro(e instanceof Error ? e.message : 'Erro ao remover simulação');
     }
   }
 

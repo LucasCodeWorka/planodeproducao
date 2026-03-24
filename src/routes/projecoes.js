@@ -132,7 +132,7 @@ router.get('/', auth, (req, res) => {
 
   // Informa os meses atuais do plano (MA/PX/UL) para o frontend
   const mesAtual = new Date().getMonth() + 1;
-  const periodos = { MA: mesAtual, PX: mesAtual + 1, UL: mesAtual + 2 };
+  const periodos = { MA: mesAtual, PX: mesAtual + 1, UL: mesAtual + 2, QT: mesAtual + 3 };
 
   return res.json({
     success:   true,
@@ -154,7 +154,7 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
     const anoAtual = agora.getFullYear();
     const mesBase = mesAtual === 1 ? 12 : mesAtual - 1;
     const anoBase = mesAtual === 1 ? anoAtual - 1 : anoAtual;
-    const periodos = { MA: mesAtual, PX: mesAtual + 1, UL: mesAtual + 2 };
+    const periodos = { MA: mesAtual, PX: mesAtual + 1, UL: mesAtual + 2, QT: mesAtual + 3 };
 
     if (!ids.length) {
       return res.json({
@@ -207,6 +207,7 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
       const ma = aplicarReprojecaoMes(Number(proj[String(periodos.MA)] || 0), percentualAtendido);
       const px = aplicarReprojecaoMes(Number(proj[String(periodos.PX)] || 0), percentualAtendido);
       const ul = aplicarReprojecaoMes(Number(proj[String(periodos.UL)] || 0), percentualAtendido);
+      const qt = aplicarReprojecaoMes(Number(proj[String(periodos.QT)] || 0), percentualAtendido);
 
       if (ma.regra.acao === 'AUMENTO_CHEIO') resumo.aumentoForte += 1;
       else if (ma.regra.acao === 'MEDIA_ENTRE_ORIGINAL_E_CORRIGIDA') resumo.media += 1;
@@ -236,11 +237,13 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
           ma: Math.round(Number(proj[String(periodos.MA)] || 0)),
           px: Math.round(Number(proj[String(periodos.PX)] || 0)),
           ul: Math.round(Number(proj[String(periodos.UL)] || 0)),
+          qt: Math.round(Number(proj[String(periodos.QT)] || 0)),
         },
         recalculada: {
           ma: ma.valor,
           px: px.valor,
           ul: ul.valor,
+          qt: qt.valor,
         },
       });
     }

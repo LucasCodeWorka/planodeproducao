@@ -16,6 +16,7 @@ router.get("/status", async (req, res) => {
       FROM vr_prd_prdgrade a
       WHERE f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint) IS NOT NULL
         AND f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint) != ''
+        AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
       ORDER BY status
     `;
 
@@ -51,6 +52,7 @@ router.get("/familias", async (req, res) => {
       FROM vr_prd_prdgrade a
       WHERE f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 24::bigint) IS NOT NULL
         AND f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 24::bigint) != ''
+        AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
       ORDER BY idfamilia
     `;
 
@@ -85,6 +87,7 @@ router.get("/continuidade", async (req, res) => {
       FROM vr_prd_prdgrade a
       WHERE f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) IS NOT NULL
         AND f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) != ''
+        AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
       ORDER BY continuidade
     `;
 

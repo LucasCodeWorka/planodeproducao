@@ -271,7 +271,7 @@ export default function LaboratorioPage() {
       const [rMatriz, rProj, rSaved, rTop30, rCortes, rCfgSugestao] = await Promise.all([
         fetch(`${API_URL}/api/producao/matriz?${params}`),
         fetch(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/analises`, { headers: authHeaders() }),
+        fetch(`${API_URL}/api/simulacoes`, { headers: authHeaders() }),
         fetch(`${API_URL}/api/analises/top30-produtos`, { headers: authHeaders() }),
         fetch(`${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() }),
         fetch(`${API_URL}/api/configuracoes/sugestao-plano`, { headers: authHeaders() }),
@@ -772,7 +772,7 @@ export default function LaboratorioPage() {
       observacoes: 'Gerada automaticamente pelo Laboratório',
     };
 
-    const res = await fetch(`${API_URL}/api/analises`, {
+    const res = await fetch(`${API_URL}/api/simulacoes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(payload),
@@ -831,7 +831,7 @@ export default function LaboratorioPage() {
         observacoes: obsSimulacao.trim(),
       };
 
-      const res = await fetch(`${API_URL}/api/analises`, {
+      const res = await fetch(`${API_URL}/api/simulacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(payload),
@@ -891,7 +891,7 @@ export default function LaboratorioPage() {
     setError(null);
     setOkMsg(null);
     try {
-      const res = await fetch(`${API_URL}/api/analises/${id}`, {
+      const res = await fetch(`${API_URL}/api/simulacoes/${id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });

@@ -24,12 +24,12 @@ function situacao(estoque: number, pedidos: number, estoqueMin: number): Situaca
 interface GrupoTotais {
   estoque: number; emProcesso: number; estoqueMin: number;
   pedidos: number; disponivel: number; deficit: number; abaixo: number;
-  planoMA: number; planoPX: number; planoUL: number;
-  projMA:  number; projPX:  number; projUL:  number;
+  planoMA: number; planoPX: number; planoUL: number; planoQT: number;
+  projMA:  number; projPX:  number; projUL:  number; projQT: number;
   projJan: number; projFev: number; projMarProp: number;
   vendaJan: number; vendaFev: number; vendaMar: number;
-  dispFutMar: number; dispFutAbr: number; dispFutMai: number;
-  negFutMar: number; negFutAbr: number; negFutMai: number;
+  dispFutMar: number; dispFutAbr: number; dispFutMai: number; dispFutJun: number;
+  negFutMar: number; negFutAbr: number; negFutMai: number; negFutJun: number;
   projCount: number;
 }
 
@@ -42,6 +42,7 @@ function somar(
   vendasReais: Record<string, Record<string, number>>,
   periodos: PeriodosPlano
 ): GrupoTotais {
+  const mesQT = periodos.QT ?? (((periodos.UL || 1) - 1 + 1) % 12) + 1;
   return itens.reduce((acc, i) => {
     const disp    = (i.estoques.estoque_atual || 0) - (i.demanda.pedidos_pendentes || 0);
     const proj    = projecoes[i.produto.idproduto] ?? null;
@@ -51,9 +52,11 @@ function somar(
     const pMA = i.plano?.ma || 0;
     const pPX = i.plano?.px || 0;
     const pUL = i.plano?.ul || 0;
+    const pQT = i.plano?.qt || 0;
     const prMA = hasProj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
     const prPX = hasProj ? (proj[String(periodos.PX)] ?? 0) : 0;
     const prUL = hasProj ? (proj[String(periodos.UL)] ?? 0) : 0;
+    const prQT = hasProj ? (proj[String(mesQT)] ?? 0) : 0;
     const prJan = hasProj ? (proj['1'] ?? 0) : 0;
     const prFev = hasProj ? (proj['2'] ?? 0) : 0;
     const prMarProp = hasProj ? projecaoMesDecorrida((proj['3'] ?? 0), 3) : 0;
@@ -63,6 +66,7 @@ function somar(
     const dMar = hasProj ? disp + emP + pMA - prMA : 0;
     const dAbr = hasProj ? dMar + pPX - prPX : 0;
     const dMai = hasProj ? dAbr + pUL - prUL : 0;
+    const dJun = hasProj ? dMai + pQT - prQT : 0;
     return {
       estoque:    acc.estoque    + (i.estoques.estoque_atual || 0),
       emProcesso: acc.emProcesso + emP,
@@ -74,9 +78,11 @@ function somar(
       planoMA:    acc.planoMA    + pMA,
       planoPX:    acc.planoPX    + pPX,
       planoUL:    acc.planoUL    + pUL,
+      planoQT:    acc.planoQT    + pQT,
       projMA:     acc.projMA     + prMA,
       projPX:     acc.projPX     + prPX,
       projUL:     acc.projUL     + prUL,
+      projQT:     acc.projQT     + prQT,
       projJan:    acc.projJan    + prJan,
       projFev:    acc.projFev    + prFev,
       projMarProp:acc.projMarProp+ prMarProp,
@@ -86,16 +92,18 @@ function somar(
       dispFutMar: acc.dispFutMar + dMar,
       dispFutAbr: acc.dispFutAbr + dAbr,
       dispFutMai: acc.dispFutMai + dMai,
+      dispFutJun: acc.dispFutJun + dJun,
       negFutMar: acc.negFutMar + (dMar < 0 ? Math.abs(dMar) : 0),
       negFutAbr: acc.negFutAbr + (dAbr < 0 ? Math.abs(dAbr) : 0),
       negFutMai: acc.negFutMai + (dMai < 0 ? Math.abs(dMai) : 0),
+      negFutJun: acc.negFutJun + (dJun < 0 ? Math.abs(dJun) : 0),
       projCount:  acc.projCount  + (hasProj ? 1 : 0),
     };
   }, {
     estoque:0, emProcesso:0, estoqueMin:0, pedidos:0, disponivel:0, deficit:0, abaixo:0,
-    planoMA:0, planoPX:0, planoUL:0, projMA:0, projPX:0, projUL:0,
+    planoMA:0, planoPX:0, planoUL:0, planoQT:0, projMA:0, projPX:0, projUL:0, projQT:0,
     projJan:0, projFev:0, projMarProp:0, vendaJan:0, vendaFev:0, vendaMar:0,
-    dispFutMar:0, dispFutAbr:0, dispFutMai:0, negFutMar:0, negFutAbr:0, negFutMai:0, projCount:0,
+    dispFutMar:0, dispFutAbr:0, dispFutMai:0, dispFutJun:0, negFutMar:0, negFutAbr:0, negFutMai:0, negFutJun:0, projCount:0,
   });
 }
 
@@ -229,7 +237,7 @@ interface Props {
   filtroReferencia?: string;
   filtroCor?: string;
   filtroCobertura?: 'TODAS' | 'NEGATIVA' | 'ZERO_UM' | 'MAIOR_UM' | 'MAIOR_2';
-  filtroCoberturaBase?: 'ATUAL' | 'MA' | 'PX' | 'UL';
+  filtroCoberturaBase?: 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT';
   filtroTaxa?: 'TODAS' | 'ATE_70';
 }
 
@@ -240,7 +248,7 @@ export default function MatrizPlanejamentoTable({
   filtroTexto = '',
   projecoes   = {},
   vendasReais = {},
-  periodos    = { MA: new Date().getMonth() + 1, PX: new Date().getMonth() + 2, UL: new Date().getMonth() + 3 },
+  periodos    = { MA: new Date().getMonth() + 1, PX: new Date().getMonth() + 2, UL: new Date().getMonth() + 3, QT: new Date().getMonth() + 4 },
   apenasNegativos = false,
   filtroContinuidade = [],
   filtroReferencia = '',
@@ -254,13 +262,15 @@ export default function MatrizPlanejamentoTable({
     | 'taxaJan' | 'taxaFev' | 'taxaMar'
     | 'projMA' | 'planoMA' | 'dispMA' | 'cobMA'
     | 'projPX' | 'planoPX' | 'dispPX' | 'cobPX'
-    | 'projUL' | 'planoUL' | 'dispUL' | 'cobUL';
+    | 'projUL' | 'planoUL' | 'dispUL' | 'cobUL'
+    | 'projQT' | 'planoQT' | 'dispQT' | 'cobQT';
 
   const [expandedConts, setExpandedConts] = useState<Set<string>>(new Set());
   const [expandedRefs,  setExpandedRefs ] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>('disponivel');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const marFactor = useMemo(() => projecaoMesDecorrida(1, 3), []);
+  const mesQT = useMemo(() => periodos.QT ?? (((periodos.UL || 1) - 1 + 1) % 12) + 1, [periodos.QT, periodos.UL]);
 
   const grupos = useMemo(() => {
     let base = dados;
@@ -297,16 +307,20 @@ export default function MatrizPlanejamentoTable({
         const pMA  = i.plano?.ma || 0;
         const pPX  = i.plano?.px || 0;
         const pUL  = i.plano?.ul || 0;
+        const pQT  = i.plano?.qt || 0;
         const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
         const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
         const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
+        const prQT = proj ? (proj[String(mesQT)] ?? 0) : 0;
         const dispMA = dispAtual + emP + pMA - prMA;
         const dispPX = dispMA + pPX - prPX;
         const dispUL = dispPX + pUL - prUL;
+        const dispQT = dispUL + pQT - prQT;
         const disp =
           filtroCoberturaBase === 'MA' ? dispMA :
           filtroCoberturaBase === 'PX' ? dispPX :
           filtroCoberturaBase === 'UL' ? dispUL :
+          filtroCoberturaBase === 'QT' ? dispQT :
           dispAtual;
         const cob = disp / min;
         if (filtroCobertura === 'NEGATIVA') return cob < 0;
@@ -339,14 +353,17 @@ export default function MatrizPlanejamentoTable({
         const pMA  = i.plano?.ma || 0;
         const pPX  = i.plano?.px || 0;
         const pUL  = i.plano?.ul || 0;
+        const pQT  = i.plano?.qt || 0;
         const prMA = projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA);
         const prPX = proj[String(periodos.PX)] ?? 0;
         const prUL = proj[String(periodos.UL)] ?? 0;
+        const prQT = proj[String(mesQT)] ?? 0;
         const dispMA = dispAtual + emP + pMA - prMA;
         const dispPX = dispMA + pPX - prPX;
         const dispUL = dispPX + pUL - prUL;
+        const dispQT = dispUL + pQT - prQT;
 
-        return dispAtual < 0 || dispMA < 0 || dispPX < 0 || dispUL < 0;
+        return dispAtual < 0 || dispMA < 0 || dispPX < 0 || dispUL < 0 || dispQT < 0;
       });
     }
     const grouped = agrupar(base, projecoes, vendasReais, periodos);
@@ -377,6 +394,10 @@ export default function MatrizPlanejamentoTable({
         case 'planoUL': return t.planoUL;
         case 'dispUL': return t.dispFutMai;
         case 'cobUL': return t.estoqueMin > 0 ? t.dispFutMai / t.estoqueMin : Number.NEGATIVE_INFINITY;
+        case 'projQT': return t.projQT;
+        case 'planoQT': return t.planoQT;
+        case 'dispQT': return t.dispFutJun;
+        case 'cobQT': return t.estoqueMin > 0 ? t.dispFutJun / t.estoqueMin : Number.NEGATIVE_INFINITY;
       }
     };
 
@@ -388,9 +409,11 @@ export default function MatrizPlanejamentoTable({
       const pMA = i.plano?.ma || 0;
       const pPX = i.plano?.px || 0;
       const pUL = i.plano?.ul || 0;
+      const pQT = i.plano?.qt || 0;
       const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
       const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
       const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
+      const prQT = proj ? (proj[String(mesQT)] ?? 0) : 0;
       const prJan = proj ? (proj['1'] ?? 0) : 0;
       const prFev = proj ? (proj['2'] ?? 0) : 0;
       const prMar = proj ? (proj['3'] ?? 0) * marFactor : 0;
@@ -400,6 +423,7 @@ export default function MatrizPlanejamentoTable({
       const dMA = disp + emP + pMA - prMA;
       const dPX = dMA + pPX - prPX;
       const dUL = dPX + pUL - prUL;
+      const dQT = dUL + pQT - prQT;
       const min = i.estoques.estoque_minimo || 0;
 
       switch (key) {
@@ -425,6 +449,10 @@ export default function MatrizPlanejamentoTable({
         case 'planoUL': return pUL;
         case 'dispUL': return dUL;
         case 'cobUL': return min > 0 ? dUL / min : Number.NEGATIVE_INFINITY;
+        case 'projQT': return prQT;
+        case 'planoQT': return pQT;
+        case 'dispQT': return dQT;
+        case 'cobQT': return min > 0 ? dQT / min : Number.NEGATIVE_INFINITY;
       }
     };
 
@@ -437,7 +465,7 @@ export default function MatrizPlanejamentoTable({
         }))
         .sort((a, b) => (refMetric(a.totais, sortKey) - refMetric(b.totais, sortKey)) * sortFactor),
     }));
-  }, [dados, filtroTexto, projecoes, vendasReais, periodos, apenasNegativos, filtroContinuidade, filtroReferencia, filtroCor, filtroCobertura, filtroCoberturaBase, filtroTaxa, sortKey, sortDir, marFactor]);
+  }, [dados, filtroTexto, projecoes, vendasReais, periodos, apenasNegativos, filtroContinuidade, filtroReferencia, filtroCor, filtroCobertura, filtroCoberturaBase, filtroTaxa, sortKey, sortDir, marFactor, mesQT]);
 
   useEffect(() => {
     if (grupos.length === 0) return;
@@ -467,7 +495,12 @@ export default function MatrizPlanejamentoTable({
   if (!dados.length) return <div className="bg-white rounded-lg shadow p-8 text-center text-sm text-gray-500">Nenhum dado encontrado.</div>;
 
   // month descriptors
-  const mNomes = [MESES_PT[periodos.MA], MESES_PT[periodos.PX], MESES_PT[periodos.UL]];
+  const mNomes = [
+    MESES_PT[((periodos.MA - 1) % 12) + 1],
+    MESES_PT[((periodos.PX - 1) % 12) + 1],
+    MESES_PT[((periodos.UL - 1) % 12) + 1],
+    MESES_PT[((mesQT - 1) % 12) + 1],
+  ];
 
   // th style helpers
   const thBase = 'px-3 py-3.5 text-right font-semibold text-[10px] uppercase tracking-wide';
@@ -490,7 +523,7 @@ export default function MatrizPlanejamentoTable({
 
       {/* scrollable table with sticky header */}
       <div className="w-full min-w-0 overflow-x-auto overflow-y-auto max-h-[calc(100vh-13rem)]">
-        <table className="min-w-[2300px] border-collapse text-xs">
+        <table className="min-w-[2780px] border-collapse text-xs">
 
           <thead className="sticky top-0 z-30">
             {temProjecoes ? (
@@ -511,6 +544,7 @@ export default function MatrizPlanejamentoTable({
                   <th colSpan={5} className="px-3 py-3.5 text-center bg-indigo-900 border-b border-indigo-700 font-bold">{mNomes[0]}</th>
                   <th colSpan={5} className="px-3 py-3.5 text-center bg-emerald-800 border-b border-emerald-700 font-bold">{mNomes[1]}</th>
                   <th colSpan={5} className="px-3 py-3.5 text-center bg-amber-700 border-b border-amber-600 font-bold">{mNomes[2]}</th>
+                  <th colSpan={5} className="px-3 py-3.5 text-center bg-cyan-800 border-b border-cyan-700 font-bold">{mNomes[3]}</th>
                 </tr>
                 {/* Row 2 — sub-headers */}
                 <tr className="text-gray-300">
@@ -530,6 +564,11 @@ export default function MatrizPlanejamentoTable({
                     { bg: 'bg-amber-700', label: 'Disp.', key: 'dispUL' as const },
                     { bg: 'bg-amber-700', label: 'Neg.', key: 'dispUL' as const },
                     { bg: 'bg-amber-700', label: 'Cob.', key: 'cobUL' as const },
+                    { bg: 'bg-cyan-800', label: 'Proj.', key: 'projQT' as const },
+                    { bg: 'bg-cyan-800', label: 'Plano', key: 'planoQT' as const },
+                    { bg: 'bg-cyan-800', label: 'Disp.', key: 'dispQT' as const },
+                    { bg: 'bg-cyan-800', label: 'Neg.', key: 'dispQT' as const },
+                    { bg: 'bg-cyan-800', label: 'Cob.', key: 'cobQT' as const },
                   ]).map((h, i) => (
                     <th key={i} onClick={() => onSortClick(h.key)} className={`${thBase} ${h.bg} border-b border-gray-600 cursor-pointer`}>
                       {h.label}{sortBadge(h.key)}
@@ -553,6 +592,7 @@ export default function MatrizPlanejamentoTable({
                 <th onClick={() => onSortClick('planoMA')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[0]}{sortBadge('planoMA')}</th>
                 <th onClick={() => onSortClick('planoPX')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[1]}{sortBadge('planoPX')}</th>
                 <th onClick={() => onSortClick('planoUL')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[2]}{sortBadge('planoUL')}</th>
+                <th onClick={() => onSortClick('planoQT')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[3]}{sortBadge('planoQT')}</th>
               </tr>
             )}
           </thead>
@@ -642,12 +682,28 @@ export default function MatrizPlanejamentoTable({
                         <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-amber-900">
                           {gt.projCount > 0 ? <CellCobFut v={gt.dispFutMai} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
                         </td>
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-cyan-900">
+                          {gt.projCount > 0 ? <CellProj v={gt.projQT} dark /> : <span className="text-gray-700">—</span>}
+                        </td>
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-cyan-900">
+                          <CellPlano v={gt.planoQT} dark />
+                        </td>
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-cyan-900">
+                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutJun} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        </td>
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-cyan-900">
+                          {gt.projCount > 0 ? <span className="text-red-300 font-semibold">{fmt(gt.negFutJun)}</span> : <span className="text-gray-700">—</span>}
+                        </td>
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-cyan-900">
+                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutJun} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        </td>
                       </>
                     ) : (
                       <>
                         <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-teal-900"><CellPlano v={gt.planoMA} dark /></td>
                         <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-teal-900"><CellPlano v={gt.planoPX} dark /></td>
                         <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-teal-900"><CellPlano v={gt.planoUL} dark /></td>
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-teal-900"><CellPlano v={gt.planoQT} dark /></td>
                       </>
                     )}
                   </tr>
@@ -750,12 +806,28 @@ export default function MatrizPlanejamentoTable({
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-amber-50">
                                 {rt.projCount > 0 ? <CellCobFut v={rt.dispFutMai} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
                               </td>
+                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
+                                {rt.projCount > 0 ? <CellProj v={rt.projQT} /> : <span className="text-slate-300">—</span>}
+                              </td>
+                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
+                                <CellPlano v={rt.planoQT} />
+                              </td>
+                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
+                                {rt.projCount > 0 ? <CellDispFut v={rt.dispFutJun} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                              </td>
+                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
+                                {rt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(rt.negFutJun)}</span> : <span className="text-slate-300">—</span>}
+                              </td>
+                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
+                                {rt.projCount > 0 ? <CellCobFut v={rt.dispFutJun} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                              </td>
                             </>
                           ) : (
                             <>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50"><CellPlano v={rt.planoMA} /></td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50"><CellPlano v={rt.planoPX} /></td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50"><CellPlano v={rt.planoUL} /></td>
+                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50"><CellPlano v={rt.planoQT} /></td>
                             </>
                           )}
                         </tr>
@@ -769,12 +841,15 @@ export default function MatrizPlanejamentoTable({
                           const pMA     = item.plano?.ma || 0;
                           const pPX     = item.plano?.px || 0;
                           const pUL     = item.plano?.ul || 0;
+                          const pQT     = item.plano?.qt || 0;
                           const prMA    = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
                           const prPX    = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
                           const prUL    = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
+                          const prQT    = proj ? (proj[String(mesQT)] ?? 0) : 0;
                           const dFutMar = proj !== null ? disp + emP + pMA - prMA : null;
                           const dFutAbr = proj !== null && dFutMar !== null ? dFutMar + pPX - prPX : null;
                           const dFutMai = proj !== null && dFutAbr !== null ? dFutAbr + pUL - prUL : null;
+                          const dFutJun = proj !== null && dFutMai !== null ? dFutMai + pQT - prQT : null;
                           const eMin    = item.estoques.estoque_minimo;
 
                           return (
@@ -875,12 +950,28 @@ export default function MatrizPlanejamentoTable({
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-amber-50/70">
                                     <CellCobFut v={dFutMai} min={eMin} />
                                   </td>
+                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-cyan-50/70">
+                                    <CellProj v={prQT} />
+                                  </td>
+                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-cyan-50/70">
+                                    <CellPlano v={pQT} />
+                                  </td>
+                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-cyan-50/70">
+                                    <CellDispFut v={dFutJun} min={eMin} />
+                                  </td>
+                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-cyan-50/70">
+                                    {dFutJun !== null && dFutJun < 0 ? <span className="text-red-700 font-semibold">{fmt(Math.abs(dFutJun))}</span> : <span className="text-gray-300">—</span>}
+                                  </td>
+                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-cyan-50/70">
+                                    <CellCobFut v={dFutJun} min={eMin} />
+                                  </td>
                                 </>
                               ) : (
                                 <>
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60"><CellPlano v={pMA} /></td>
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60"><CellPlano v={pPX} /></td>
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60"><CellPlano v={pUL} /></td>
+                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60"><CellPlano v={pQT} /></td>
                                 </>
                               )}
                             </tr>

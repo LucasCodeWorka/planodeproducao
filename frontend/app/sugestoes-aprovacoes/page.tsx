@@ -11,7 +11,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MARCA_FIXA = 'LIEBE';
 const STATUS_FIXO = 'EM LINHA';
 
-type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number };
+type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number };
 type Suggestion = {
   id: string;
   nome: string;
@@ -37,8 +37,9 @@ function calculaDispECobPorPlano(
   item: Planejamento,
   projecoes: ProjecoesMap,
   periodos: PeriodosPlano,
-  plano: { ma: number; px: number; ul: number }
+  plano: { ma: number; px: number; ul: number; qt: number }
 ) {
+  const mesQT = Number(periodos.QT || (((periodos.UL || 1) - 1 + 1) % 12) + 1);
   const min = Number(item.estoques.estoque_minimo || 0);
   const dispAtual = Number(item.estoques.estoque_atual || 0) - Number(item.demanda.pedidos_pendentes || 0);
   const proj = projecoes[item.produto.idproduto] ?? null;
@@ -46,16 +47,20 @@ function calculaDispECobPorPlano(
   const prMA = proj ? projecaoMesPlanejamento(Number(proj[String(periodos.MA)] || 0), periodos.MA) : 0;
   const prPX = proj ? Number(proj[String(periodos.PX)] || 0) : 0;
   const prUL = proj ? Number(proj[String(periodos.UL)] || 0) : 0;
+  const prQT = proj ? Number(proj[String(mesQT)] || 0) : 0;
   const dispMA = dispAtual + emP + plano.ma - prMA;
   const dispPX = dispMA + plano.px - prPX;
   const dispUL = dispPX + plano.ul - prUL;
+  const dispQT = dispUL + plano.qt - prQT;
   return {
     dispMA,
     dispPX,
     dispUL,
+    dispQT,
     cobMA: min > 0 ? dispMA / min : 0,
     cobPX: min > 0 ? dispPX / min : 0,
     cobUL: min > 0 ? dispUL / min : 0,
+    cobQT: min > 0 ? dispQT / min : 0,
   };
 }
 
@@ -97,11 +102,11 @@ export default function SugestoesAprovacoesPage() {
       const params = new URLSearchParams({ limit: '5000', marca: MARCA_FIXA, status: STATUS_FIXO });
       const [rMatriz, rAnalises, rProj] = await Promise.all([
         fetch(`${API_URL}/api/producao/matriz?${params}`),
-        fetch(`${API_URL}/api/analises`, { headers: authHeaders() }),
+        fetch(`${API_URL}/api/simulacoes`, { headers: authHeaders() }),
         fetch(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
       ]);
       if (!rMatriz.ok) throw new Error(`Matriz erro ${rMatriz.status}`);
-      if (!rAnalises.ok) throw new Error(`Análises erro ${rAnalises.status}`);
+      if (!rAnalises.ok) throw new Error(`Simulações erro ${rAnalises.status}`);
       if (!rProj.ok) throw new Error(`Projeções erro ${rProj.status}`);
       const pMatriz = await rMatriz.json();
       const pAnalises = await rAnalises.json();
@@ -140,9 +145,11 @@ export default function SugestoesAprovacoesPage() {
         const bMA = Math.round(b.plano?.ma || 0);
         const bPX = Math.round(b.plano?.px || 0);
         const bUL = Math.round(b.plano?.ul || 0);
+        const bQT = Math.round(b.plano?.qt || 0);
         const cMA = Math.round(p.ma || 0);
         const cPX = Math.round(p.px || 0);
         const cUL = Math.round(p.ul || 0);
+        const cQT = Math.round(p.qt || 0);
         return {
           chave: p.chave,
           referencia: b.produto.referencia || '-',
@@ -150,14 +157,15 @@ export default function SugestoesAprovacoesPage() {
           cor: b.produto.cor || '-',
           tamanho: b.produto.tamanho || '-',
           continuidade: b.produto.continuidade || 'SEM CONTINUIDADE',
-          baseMA: bMA, basePX: bPX, baseUL: bUL,
-          cenarioMA: cMA, cenarioPX: cPX, cenarioUL: cUL,
+          baseMA: bMA, basePX: bPX, baseUL: bUL, baseQT: bQT,
+          cenarioMA: cMA, cenarioPX: cPX, cenarioUL: cUL, cenarioQT: cQT,
           deltaMA: cMA - bMA,
           deltaPX: cPX - bPX,
           deltaUL: cUL - bUL,
-          deltaTotal: (cMA + cPX + cUL) - (bMA + bPX + bUL),
-          baseCalc: calculaDispECobPorPlano(b, projecoes, periodos, { ma: bMA, px: bPX, ul: bUL }),
-          cenarioCalc: calculaDispECobPorPlano(b, projecoes, periodos, { ma: cMA, px: cPX, ul: cUL }),
+          deltaQT: cQT - bQT,
+          deltaTotal: (cMA + cPX + cUL + cQT) - (bMA + bPX + bUL + bQT),
+          baseCalc: calculaDispECobPorPlano(b, projecoes, periodos, { ma: bMA, px: bPX, ul: bUL, qt: bQT }),
+          cenarioCalc: calculaDispECobPorPlano(b, projecoes, periodos, { ma: cMA, px: cPX, ul: cUL, qt: cQT }),
         };
       })
       .filter((v): v is NonNullable<typeof v> => Boolean(v))
@@ -176,7 +184,7 @@ export default function SugestoesAprovacoesPage() {
         aprovadoEm: Date.now(),
         aprovadoPor: 'PCP',
       };
-      const res = await fetch(`${API_URL}/api/analises/${selecionada.id}`, {
+      const res = await fetch(`${API_URL}/api/simulacoes/${selecionada.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ parametros }),
@@ -200,7 +208,7 @@ export default function SugestoesAprovacoesPage() {
     setError(null);
     setOkMsg(null);
     try {
-      const res = await fetch(`${API_URL}/api/analises/${selecionada.id}`, {
+      const res = await fetch(`${API_URL}/api/simulacoes/${selecionada.id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
@@ -221,13 +229,14 @@ export default function SugestoesAprovacoesPage() {
     if (!linhasAlteradas.length) return;
     const header = [
       'referencia', 'produto', 'cor', 'tamanho', 'continuidade',
-      'base_ma', 'base_px', 'base_ul', 'cenario_ma', 'cenario_px', 'cenario_ul',
-      'delta_ma', 'delta_px', 'delta_ul', 'delta_total'
+      'base_ma', 'base_px', 'base_ul', 'base_qt',
+      'cenario_ma', 'cenario_px', 'cenario_ul', 'cenario_qt',
+      'delta_ma', 'delta_px', 'delta_ul', 'delta_qt', 'delta_total'
     ];
     const rows = linhasAlteradas.map((r) => [
       r.referencia, r.produto, r.cor, r.tamanho, r.continuidade,
-      r.baseMA, r.basePX, r.baseUL, r.cenarioMA, r.cenarioPX, r.cenarioUL,
-      r.deltaMA, r.deltaPX, r.deltaUL, r.deltaTotal,
+      r.baseMA, r.basePX, r.baseUL, r.baseQT, r.cenarioMA, r.cenarioPX, r.cenarioUL, r.cenarioQT,
+      r.deltaMA, r.deltaPX, r.deltaUL, r.deltaQT, r.deltaTotal,
     ]);
     const csv = [header, ...rows]
       .map((arr) => arr.map((v) => `"${String(v ?? '').replaceAll('"', '""')}"`).join(','))
@@ -315,7 +324,7 @@ export default function SugestoesAprovacoesPage() {
                   </div>
 
                   <div className="text-xs text-gray-600 mb-3">
-                    Alterados: <strong>{fmtPeca(linhasAlteradas.length)}</strong> · Retirada total: <strong>{fmtPeca(Number(selecionada.resumo?.retiradoTotal || 0))}</strong>
+                    Itens no plano: <strong>{fmtPeca(linhasAlteradas.length)}</strong> · Retirada total: <strong>{fmtPeca(Number(selecionada.resumo?.retiradoTotal || 0))}</strong>
                   </div>
 
                   <div className="max-h-[60vh] overflow-auto border border-gray-200 rounded">
@@ -325,9 +334,9 @@ export default function SugestoesAprovacoesPage() {
                           <th className="text-left px-2 py-2">Ref</th>
                           <th className="text-left px-2 py-2">Cor</th>
                           <th className="text-left px-2 py-2">Tam</th>
-                          <th className="text-left px-2 py-2">Plano (MA/PX/UL)</th>
-                          <th className="text-left px-2 py-2">Disp. (MA/PX/UL)</th>
-                          <th className="text-left px-2 py-2">Cob. (MA/PX/UL)</th>
+                          <th className="text-left px-2 py-2">Plano (MA/PX/UL/QT)</th>
+                          <th className="text-left px-2 py-2">Disp. (MA/PX/UL/QT)</th>
+                          <th className="text-left px-2 py-2">Cob. (MA/PX/UL/QT)</th>
                           <th className="text-right px-2 py-2">Δ Total</th>
                         </tr>
                       </thead>
@@ -338,33 +347,35 @@ export default function SugestoesAprovacoesPage() {
                             <td className="px-2 py-1.5">{r.cor}</td>
                             <td className="px-2 py-1.5">{r.tamanho}</td>
                             <td className="px-2 py-1.5 whitespace-nowrap">
-                              <span className="text-gray-700">{fmtPeca(r.baseMA)} / {fmtPeca(r.basePX)} / {fmtPeca(r.baseUL)}</span>
+                              <span className="text-gray-700">{fmtPeca(r.baseMA)} / {fmtPeca(r.basePX)} / {fmtPeca(r.baseUL)} / {fmtPeca(r.baseQT)}</span>
                               <span className="mx-1 text-gray-400">→</span>
-                              <span className="font-semibold text-brand-dark">{fmtPeca(r.cenarioMA)} / {fmtPeca(r.cenarioPX)} / {fmtPeca(r.cenarioUL)}</span>
+                              <span className="font-semibold text-brand-dark">{fmtPeca(r.cenarioMA)} / {fmtPeca(r.cenarioPX)} / {fmtPeca(r.cenarioUL)} / {fmtPeca(r.cenarioQT)}</span>
                             </td>
                             <td className="px-2 py-1.5 whitespace-nowrap">
-                              <span className="text-gray-700">{fmtPeca(r.baseCalc.dispMA)} / {fmtPeca(r.baseCalc.dispPX)} / {fmtPeca(r.baseCalc.dispUL)}</span>
+                              <span className="text-gray-700">{fmtPeca(r.baseCalc.dispMA)} / {fmtPeca(r.baseCalc.dispPX)} / {fmtPeca(r.baseCalc.dispUL)} / {fmtPeca(r.baseCalc.dispQT)}</span>
                               <span className="mx-1 text-gray-400">→</span>
-                              <span className="font-semibold text-brand-dark">{fmtPeca(r.cenarioCalc.dispMA)} / {fmtPeca(r.cenarioCalc.dispPX)} / {fmtPeca(r.cenarioCalc.dispUL)}</span>
+                              <span className="font-semibold text-brand-dark">{fmtPeca(r.cenarioCalc.dispMA)} / {fmtPeca(r.cenarioCalc.dispPX)} / {fmtPeca(r.cenarioCalc.dispUL)} / {fmtPeca(r.cenarioCalc.dispQT)}</span>
                             </td>
                             <td className="px-2 py-1.5 whitespace-nowrap">
                               <span className="text-gray-700">
                                 {r.baseCalc.cobMA.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x /
                                 {' '}{r.baseCalc.cobPX.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x /
-                                {' '}{r.baseCalc.cobUL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
+                                {' '}{r.baseCalc.cobUL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x /
+                                {' '}{r.baseCalc.cobQT.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
                               </span>
                               <span className="mx-1 text-gray-400">→</span>
-                              <span className={`font-semibold ${r.cenarioCalc.cobUL < 1 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                              <span className={`font-semibold ${r.cenarioCalc.cobQT < 1 ? 'text-amber-700' : 'text-emerald-700'}`}>
                                 {r.cenarioCalc.cobMA.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x /
                                 {' '}{r.cenarioCalc.cobPX.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x /
-                                {' '}{r.cenarioCalc.cobUL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
+                                {' '}{r.cenarioCalc.cobUL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x /
+                                {' '}{r.cenarioCalc.cobQT.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
                               </span>
                             </td>
-                            <td className="px-2 py-1.5 text-right font-bold text-red-700">{fmtPeca(r.deltaTotal)}</td>
+                            <td className={`px-2 py-1.5 text-right font-bold ${r.deltaTotal < 0 ? 'text-red-700' : (r.deltaTotal > 0 ? 'text-emerald-700' : 'text-gray-600')}`}>{fmtPeca(r.deltaTotal)}</td>
                           </tr>
                         ))}
                         {linhasAlteradas.length === 0 && (
-                          <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-500">Sem itens alterados para esta sugestão.</td></tr>
+                          <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-500">Sem itens no plano para esta sugestão.</td></tr>
                         )}
                       </tbody>
                     </table>

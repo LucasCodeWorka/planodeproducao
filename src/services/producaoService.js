@@ -5,6 +5,10 @@
 const { buscarProdutoComMedias } = require('./vendasService');
 const { calcularEstoqueMinimo } = require('./estoqueMinimo');
 
+function isPt99Size(value) {
+  return String(value || '').trim().toUpperCase() === 'PT 99';
+}
+
 /**
  * Busca estoque atual de produtos na fábrica
  * @param {Object} pool - Pool de conexão PostgreSQL
@@ -174,6 +178,7 @@ async function buscarCatalogoProdutos(pool, options = {}) {
       FROM vr_prd_prdgrade a
       WHERE 1=1
         AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
+        AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
     `
     : `
       SELECT
@@ -190,6 +195,7 @@ async function buscarCatalogoProdutos(pool, options = {}) {
       FROM vr_prd_prdgrade a
       WHERE 1=1
         AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
+        AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
     `;
 
   let query = `
@@ -269,6 +275,7 @@ async function buscarPlanejamentoProduto(pool, cdProduto, cdEmpresa = 1) {
     FROM vr_prd_prdgrade a
     WHERE a.cd_produto = $1
       AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
+      AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
     LIMIT 1
   `;
 
@@ -366,7 +373,7 @@ async function buscarPlanejamentoProduto(pool, cdProduto, cdEmpresa = 1) {
 /**
  * Busca produtos elegiveis para matriz enxuta:
  * - teve venda nos ultimos 12 meses
- * - OU status em linha
+ * - OU status exatamente "EM LINHA"
  * O filtro de estoque minimo > 0 e aplicado apos calcular planejamento.
  * @param {Object} pool
  * @param {Object} options
@@ -399,7 +406,7 @@ async function buscarProdutosElegiveisMatriz(pool, options = {}) {
     ) x
     WHERE
       x.teve_venda_12m = TRUE
-      OR UPPER(TRIM(COALESCE(x.status, ''))) LIKE 'EM LINHA%'
+      OR UPPER(TRIM(COALESCE(x.status, ''))) = 'EM LINHA'
     ORDER BY x.idproduto
     LIMIT $2 OFFSET $3
   `;
@@ -432,7 +439,8 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   // ── Fase 1: filtrar produtos (lento) + agregações independentes (rápido) ──
   const paramsF1 = [];
   let   whereF1  = `WHERE a.cd_produto < 1000000
-    AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'`;
+    AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
+    AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'`;
 
   if (marca) {
     paramsF1.push(marca);
@@ -440,7 +448,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   }
   if (status) {
     paramsF1.push(status);
-    whereF1 += ` AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) LIKE UPPER(TRIM($${paramsF1.length})) || '%'`;
+    whereF1 += ` AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) = UPPER(TRIM($${paramsF1.length}))`;
   }
   if (Array.isArray(referencias) && referencias.length > 0) {
     paramsF1.push(referencias);
@@ -661,9 +669,10 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   const resultado = [];
 
   for (const row of rProdutos.rows) {
+    if (isPt99Size(row.tamanho)) continue;
     const id     = Number(row.idproduto);
     const status = (statusMap.get(id) || '').trim().toUpperCase();
-    const emLinha = status.startsWith('EM LINHA');
+    const emLinha = status === 'EM LINHA';
 
     const s              = salesMap.get(id);
     const diasVenda12m   = s ? s.total12m : 0;

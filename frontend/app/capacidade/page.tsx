@@ -41,7 +41,7 @@ type TempoDebugRow = {
   tempo_resolvido: number;
 };
 
-type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number };
+type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number };
 type AnaliseAprovada = {
   id: string;
   nome?: string;
@@ -254,7 +254,7 @@ export default function CapacidadePage() {
         fetchNoCache(`${API_URL}/api/capacidade/tempos-ref`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/producao/matriz?limit=5000&marca=${encodeURIComponent(MARCA_FIXA)}&status=${encodeURIComponent(STATUS_FIXO)}`),
         fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/analises`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/simulacoes`, { headers: authHeaders() }),
       ]);
       const pConfig = await rConfig.json();
       const pTempos = await rTempos.json();
@@ -411,7 +411,7 @@ export default function CapacidadePage() {
   }, [dados]);
 
   const planosAprovadosMap = useMemo(() => {
-    const map = new Map<string, { ma: number; px: number; ul: number }>();
+    const map = new Map<string, { ma: number; px: number; ul: number; qt: number }>();
     const base = aprovadas.filter((a) => aprovadasSelecionadasIds.includes(a.id));
     const ordenadas = [...base].sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
     for (const a of ordenadas) {
@@ -423,6 +423,7 @@ export default function CapacidadePage() {
           ma: Number(p?.ma || 0),
           px: Number(p?.px || 0),
           ul: Number(p?.ul || 0),
+          qt: Number(p?.qt || 0),
         });
       }
     }
@@ -441,6 +442,7 @@ export default function CapacidadePage() {
           ma: Number(aprovado.ma || 0),
           px: Number(aprovado.px || 0),
           ul: Number(aprovado.ul || 0),
+          qt: Number(aprovado.qt || 0),
         },
       };
     });
@@ -455,7 +457,7 @@ export default function CapacidadePage() {
         ma: Number(item.plano?.ma || 0),
         px: Number(item.plano?.px || 0),
         ul: Number(item.plano?.ul || 0),
-        jun: 0,
+        jun: Number(item.plano?.qt || 0),
       };
       for (const chave of [refPadrao, refSistema]) {
         if (!chave) continue;
@@ -463,6 +465,7 @@ export default function CapacidadePage() {
         atual.ma += plano.ma;
         atual.px += plano.px;
         atual.ul += plano.ul;
+        atual.jun += plano.jun;
         map.set(chave, atual);
       }
     }
@@ -594,9 +597,7 @@ export default function CapacidadePage() {
         const cargaPX = refs.reduce((acc, r) => acc + r.cargaPX, 0);
         const cargaUL = refs.reduce((acc, r) => acc + r.cargaUL, 0);
         const cargaJUN = refs.reduce((acc, r) => acc + r.cargaJUN, 0);
-        const capacidadeJUN = cargaJUN > 0
-          ? Number(grupo.capacidade_diaria || 0) * Number(dias[String(mesJunho)] || 0)
-          : 0;
+        const capacidadeJUN = Number(grupo.capacidade_diaria || 0) * Number(dias[String(mesJunho)] || 0);
         const planoMA = refs.reduce((acc, r) => acc + r.planoMA, 0);
         const planoPX = refs.reduce((acc, r) => acc + r.planoPX, 0);
         const planoUL = refs.reduce((acc, r) => acc + r.planoUL, 0);
@@ -640,10 +641,10 @@ export default function CapacidadePage() {
           tempoMarco: cargaMAPlano,
           tempoAbril: cargaPX,
           tempoMaio: cargaUL,
-          tempoPrp: processoCarga + cargaMAPlano + cargaPX + cargaUL,
-          difCapacidadeFinal: (capacidadeMA + capacidadePX + capacidadeUL) - (processoCarga + cargaMAPlano + cargaPX + cargaUL),
+          tempoPrp: processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN,
+          difCapacidadeFinal: (capacidadeMA + capacidadePX + capacidadeUL + capacidadeJUN) - (processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN),
           diasDif: Number(grupo.capacidade_diaria || 0) > 0
-            ? (((capacidadeMA + capacidadePX + capacidadeUL) - (processoCarga + cargaMAPlano + cargaPX + cargaUL)) / Number(grupo.capacidade_diaria || 0))
+            ? (((capacidadeMA + capacidadePX + capacidadeUL + capacidadeJUN) - (processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN)) / Number(grupo.capacidade_diaria || 0))
             : 0,
           difCapacidadeAteAbr,
           diasDifAteAbr: Number(grupo.capacidade_diaria || 0) > 0
@@ -1168,9 +1169,10 @@ export default function CapacidadePage() {
 	                    <th className="text-right px-3 py-2">Pessoas ideal</th>
 	                    <th className="text-right px-3 py-2">Processo</th>
 	                    <th className="text-right px-3 py-2">Soma tempo processo</th>
-	                    <th className="text-right px-3 py-2">Soma tempo março</th>
-	                    <th className="text-right px-3 py-2">Soma tempo abril</th>
-	                    <th className="text-right px-3 py-2">Soma tempo maio</th>
+	                    <th className="text-right px-3 py-2">Soma tempo {nomeMes(periodos.MA)}</th>
+	                    <th className="text-right px-3 py-2">Soma tempo {nomeMes(periodos.PX)}</th>
+	                    <th className="text-right px-3 py-2">Soma tempo {nomeMes(periodos.UL)}</th>
+	                    <th className="text-right px-3 py-2">Soma tempo {nomeMes(mesJunho)}</th>
 	                    <th className="text-right px-3 py-2">Tempo PRP</th>
 	                    <th className="text-right px-3 py-2">Capacidade</th>
 	                    <th className="text-right px-3 py-2">Dias</th>
@@ -1191,8 +1193,9 @@ export default function CapacidadePage() {
 	                      <td className="px-3 py-2 text-right">{row.tempoMarco.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
 	                      <td className="px-3 py-2 text-right">{row.tempoAbril.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
 	                      <td className="px-3 py-2 text-right">{row.tempoMaio.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+	                      <td className="px-3 py-2 text-right">{row.cargaJUN.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
 	                      <td className="px-3 py-2 text-right font-semibold text-brand-dark">{row.tempoPrp.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
-	                      <td className="px-3 py-2 text-right">{fmtInt(row.capacidadeMA + row.capacidadePX + row.capacidadeUL)}</td>
+	                      <td className="px-3 py-2 text-right">{fmtInt(row.capacidadeMA + row.capacidadePX + row.capacidadeUL + row.capacidadeJUN)}</td>
 	                      <td className="px-3 py-2 text-right">{row.diasTotal.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
 	                      <td className={`px-3 py-2 text-right font-semibold ${row.difCapacidadeFinal < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{row.difCapacidadeFinal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
 	                      <td className={`px-3 py-2 text-right font-semibold ${row.diasDif < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{row.diasDif.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
@@ -1201,7 +1204,7 @@ export default function CapacidadePage() {
 	                  ))}
 	                  {gruposAnalise.length === 0 && (
 	                    <tr>
-	                      <td colSpan={15} className="px-3 py-8 text-center text-gray-500">Sem grupos para exibir.</td>
+	                      <td colSpan={16} className="px-3 py-8 text-center text-gray-500">Sem grupos para exibir.</td>
 	                    </tr>
 	                  )}
                 </tbody>
@@ -1216,6 +1219,7 @@ export default function CapacidadePage() {
                       <td className="px-3 py-2 text-right">{gruposAnalise.reduce((acc, row) => acc + row.tempoMarco, 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
                       <td className="px-3 py-2 text-right">{gruposAnalise.reduce((acc, row) => acc + row.tempoAbril, 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
                       <td className="px-3 py-2 text-right">{gruposAnalise.reduce((acc, row) => acc + row.tempoMaio, 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+                      <td className="px-3 py-2 text-right">{gruposAnalise.reduce((acc, row) => acc + row.cargaJUN, 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
                       <td className="px-3 py-2 text-right">{resumo.tempoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
                       <td className="px-3 py-2 text-right">{fmtInt(resumo.capacidadeTotal)}</td>
                       <td className="px-3 py-2 text-right">{resumo.diasNecessariosTotal.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>

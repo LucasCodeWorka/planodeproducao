@@ -6,6 +6,7 @@ const router = express.Router();
 
 const DATA_DIR = path.join(__dirname, "../../data");
 const ANALISES_FILE = path.join(DATA_DIR, "analises_plano.json");
+const TABLE_NAME = "app_simulacoes";
 
 function auth(req, res, next) {
   const token = (req.headers.authorization || "").replace("Bearer ", "").trim();
@@ -19,7 +20,7 @@ function auth(req, res, next) {
   next();
 }
 
-function readAnalises() {
+function readAnalisesFile() {
   try {
     const raw = fs.readFileSync(ANALISES_FILE, "utf-8");
     const parsed = JSON.parse(raw);
@@ -30,7 +31,7 @@ function readAnalises() {
   }
 }
 
-function writeAnalises(data) {
+function writeAnalisesFile(data) {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(
     ANALISES_FILE,
@@ -39,16 +40,88 @@ function writeAnalises(data) {
   );
 }
 
-router.get("/", auth, (_req, res) => {
-  const data = readAnalises()
-    .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
-    .slice(0, 200);
+async function ensureSimulacoesTable(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
+      id           TEXT PRIMARY KEY,
+      nome         TEXT NOT NULL,
+      created_at   BIGINT NOT NULL,
+      updated_at   BIGINT NULL,
+      parametros   TEXT NOT NULL,
+      resumo       TEXT NOT NULL,
+      observacoes  TEXT NOT NULL
+    )
+  `);
+}
 
-  return res.json({
-    success: true,
-    total: data.length,
-    data,
-  });
+async function migrateLegacyFile(pool) {
+  const legacy = readAnalisesFile();
+  if (!legacy.length) return;
+
+  const existsRes = await pool.query(`SELECT COUNT(*)::INT AS total FROM ${TABLE_NAME}`);
+  const total = Number(existsRes.rows?.[0]?.total || 0);
+  if (total > 0) return;
+
+  for (const item of legacy) {
+    await pool.query(
+      `INSERT INTO ${TABLE_NAME} (id, nome, created_at, updated_at, parametros, resumo, observacoes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        String(item.id),
+        String(item.nome || ""),
+        Number(item.createdAt || Date.now()),
+        item.updatedAt ? Number(item.updatedAt) : null,
+        JSON.stringify(item.parametros || {}),
+        JSON.stringify(item.resumo || {}),
+        String(item.observacoes || "")
+      ]
+    );
+  }
+}
+
+async function readAnalises(pool) {
+  await ensureSimulacoesTable(pool);
+  await migrateLegacyFile(pool);
+
+  const result = await pool.query(`
+    SELECT id, nome, created_at, updated_at, parametros, resumo, observacoes
+    FROM ${TABLE_NAME}
+    ORDER BY created_at DESC
+    LIMIT 200
+  `);
+
+  return result.rows.map((row) => ({
+    id: String(row.id),
+    nome: String(row.nome || ""),
+    createdAt: Number(row.created_at || 0),
+    updatedAt: row.updated_at ? Number(row.updated_at) : undefined,
+    parametros: safeParseJson(row.parametros, {}),
+    resumo: safeParseJson(row.resumo, {}),
+    observacoes: String(row.observacoes || ""),
+  }));
+}
+
+function safeParseJson(raw, fallback) {
+  try {
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+router.get("/", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const data = await readAnalises(pool);
+    return res.json({
+      success: true,
+      total: data.length,
+      data,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: "Erro ao listar simulações", details: error.message });
+  }
 });
 
 router.get("/top30-produtos", auth, async (req, res) => {
@@ -70,7 +143,6 @@ router.get("/top30-produtos", auth, async (req, res) => {
         }
       }
 
-      // fallback: tenta identificar coluna de produto pelo nome
       if (value === null) {
         const keyByName = Object.keys(row).find((k) => k.toLowerCase().includes("produto"));
         if (keyByName && row[keyByName] !== null && row[keyByName] !== undefined) {
@@ -90,7 +162,6 @@ router.get("/top30-produtos", auth, async (req, res) => {
         }
       }
 
-      // fallback: tenta identificar coluna de referencia pelo nome
       if (refValue === null) {
         const keyByName = Object.keys(row).find((k) => {
           const kk = k.toLowerCase();
@@ -172,67 +243,110 @@ router.post("/projecao-vs-venda", auth, async (req, res) => {
   }
 });
 
-router.post("/", auth, (req, res) => {
+router.post("/", auth, async (req, res) => {
   const { nome, parametros = {}, resumo = {}, observacoes = "" } = req.body || {};
   const nomeTrim = String(nome || "").trim();
   if (!nomeTrim) {
     return res.status(400).json({ success: false, error: "nome é obrigatório" });
   }
 
-  const analises = readAnalises();
-  const item = {
-    id: `${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`,
-    nome: nomeTrim,
-    createdAt: Date.now(),
-    parametros,
-    resumo,
-    observacoes: String(observacoes || ""),
-  };
+  try {
+    const pool = req.app.get("pool");
+    await ensureSimulacoesTable(pool);
 
-  analises.push(item);
-  writeAnalises(analises);
+    const item = {
+      id: `${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`,
+      nome: nomeTrim,
+      createdAt: Date.now(),
+      parametros,
+      resumo,
+      observacoes: String(observacoes || ""),
+    };
 
-  return res.status(201).json({ success: true, data: item });
+    await pool.query(
+      `INSERT INTO ${TABLE_NAME} (id, nome, created_at, updated_at, parametros, resumo, observacoes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        item.id,
+        item.nome,
+        item.createdAt,
+        null,
+        JSON.stringify(item.parametros || {}),
+        JSON.stringify(item.resumo || {}),
+        item.observacoes,
+      ]
+    );
+
+    return res.status(201).json({ success: true, data: item });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: "Erro ao salvar simulação", details: error.message });
+  }
 });
 
-router.delete("/:id", auth, (req, res) => {
+router.delete("/:id", auth, async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ success: false, error: "id inválido" });
 
-  const analises = readAnalises();
-  const filtradas = analises.filter((a) => String(a.id) !== id);
-  if (filtradas.length === analises.length) {
-    return res.status(404).json({ success: false, error: "Análise não encontrada" });
+  try {
+    const pool = req.app.get("pool");
+    await ensureSimulacoesTable(pool);
+    const result = await pool.query(`DELETE FROM ${TABLE_NAME} WHERE id = $1`, [id]);
+    if (!result.rowCount) {
+      return res.status(404).json({ success: false, error: "Simulação não encontrada" });
+    }
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: "Erro ao excluir simulação", details: error.message });
   }
-
-  writeAnalises(filtradas);
-  return res.json({ success: true });
 });
 
-router.put("/:id", auth, (req, res) => {
+router.put("/:id", auth, async (req, res) => {
   const id = String(req.params.id || "").trim();
   if (!id) return res.status(400).json({ success: false, error: "id inválido" });
 
   const { nome, parametros, resumo, observacoes } = req.body || {};
-  const analises = readAnalises();
-  const idx = analises.findIndex((a) => String(a.id) === id);
-  if (idx < 0) {
-    return res.status(404).json({ success: false, error: "Análise não encontrada" });
+
+  try {
+    const pool = req.app.get("pool");
+    await ensureSimulacoesTable(pool);
+    const currentRes = await pool.query(`SELECT * FROM ${TABLE_NAME} WHERE id = $1`, [id]);
+    if (!currentRes.rowCount) {
+      return res.status(404).json({ success: false, error: "Simulação não encontrada" });
+    }
+
+    const atual = currentRes.rows[0];
+    const atualizado = {
+      id,
+      nome: nome !== undefined ? String(nome || "").trim() || String(atual.nome || "") : String(atual.nome || ""),
+      createdAt: Number(atual.created_at || 0),
+      updatedAt: Date.now(),
+      parametros: parametros !== undefined ? parametros : safeParseJson(atual.parametros, {}),
+      resumo: resumo !== undefined ? resumo : safeParseJson(atual.resumo, {}),
+      observacoes: observacoes !== undefined ? String(observacoes || "") : String(atual.observacoes || ""),
+    };
+
+    await pool.query(
+      `UPDATE ${TABLE_NAME}
+       SET nome = $2,
+           updated_at = $3,
+           parametros = $4,
+           resumo = $5,
+           observacoes = $6
+       WHERE id = $1`,
+      [
+        id,
+        atualizado.nome,
+        atualizado.updatedAt,
+        JSON.stringify(atualizado.parametros || {}),
+        JSON.stringify(atualizado.resumo || {}),
+        atualizado.observacoes,
+      ]
+    );
+
+    return res.json({ success: true, data: atualizado });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: "Erro ao atualizar simulação", details: error.message });
   }
-
-  const atual = analises[idx];
-  const atualizado = {
-    ...atual,
-    nome: nome !== undefined ? String(nome || "").trim() || atual.nome : atual.nome,
-    parametros: parametros !== undefined ? parametros : atual.parametros,
-    resumo: resumo !== undefined ? resumo : atual.resumo,
-    observacoes: observacoes !== undefined ? String(observacoes || "") : atual.observacoes,
-    updatedAt: Date.now(),
-  };
-
-  analises[idx] = atualizado;
-  writeAnalises(analises);
-  return res.json({ success: true, data: atualizado });
 });
 
 module.exports = router;

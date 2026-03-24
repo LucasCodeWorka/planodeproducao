@@ -3,7 +3,7 @@ const crypto = require("crypto");
 
 const router = express.Router();
 const CACHE_TTL_MS = (Number(process.env.CONSUMO_MP_CACHE_TTL_SECONDS) || 900) * 1000;
-const CACHE_SCHEMA_VERSION = "v3_filtro_artigo_mp";
+const CACHE_SCHEMA_VERSION = "v4_compras_mp_corte20";
 
 // Cache em memória (TTL 15min — não precisa persistir entre deploys)
 const _memCache = new Map();
@@ -67,6 +67,32 @@ function contemTermoBloqueado(texto, termos) {
   const t = String(texto || "").toUpperCase();
   if (!t) return false;
   return termos.some((x) => x && t.includes(x));
+}
+
+function startOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonths(date, months) {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function classifyCompraPeriodo(dtDisponivel, now = new Date()) {
+  const data = new Date(dtDisponivel);
+  if (Number.isNaN(data.getTime())) return null;
+
+  const mesAtual = startOfMonth(now);
+  const proxMes = addMonths(mesAtual, 1);
+  const mesSeguinte = addMonths(mesAtual, 2);
+
+  const corteMa = new Date(mesAtual.getFullYear(), mesAtual.getMonth(), 20, 23, 59, 59, 999);
+  const cortePx = new Date(proxMes.getFullYear(), proxMes.getMonth(), 20, 23, 59, 59, 999);
+  const corteUl = new Date(mesSeguinte.getFullYear(), mesSeguinte.getMonth(), 20, 23, 59, 59, 999);
+
+  if (data <= corteMa) return "ma";
+  if (data <= cortePx) return "px";
+  if (data <= corteUl) return "ul";
+  return null;
 }
 
 async function queryEstruturaPorPais(pool, idsPais) {
@@ -415,20 +441,86 @@ router.post("/analise", async (req, res) => {
 
     const estoqueMap = new Map(estoqueRows.rows.map((r) => [String(r.idmateriaprima || ""), r]));
 
+    const comprasRows = await pool.query(`
+      SELECT
+        i.cd_produto::TEXT AS idmateriaprima,
+        COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date) AS dt_disponivel,
+        SUM(COALESCE(i.qt_pendente, 0))::FLOAT AS qt_entrada
+      FROM vr_cmp_pedidoc2 c_1
+      JOIN vr_cmp_pedidoi i
+        ON i.cd_empresa = c_1.cd_empresa
+       AND i.cd_pedido = c_1.cd_pedido
+      WHERE c_1.tp_situacao = ANY (ARRAY[1::bigint, 3::bigint])
+        AND i.cd_produto::TEXT = ANY($1::TEXT[])
+        AND COALESCE(i.qt_pendente, 0) > 0
+      GROUP BY i.cd_produto, COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date)
+    `, [idsMp]);
+
+    const opInternaRows = await pool.query(`
+      SELECT
+        CASE
+          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+          ELSE op.cd_produto::TEXT
+        END AS idmateriaprima,
+        op.dt_preventrega::date AS dt_disponivel,
+        SUM(COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0))::FLOAT AS qt_entrada
+      FROM vr_pcp_opi op
+      LEFT JOIN "de-para1"
+        ON op.cd_produto = ("de-para1"."de-CODIGO")::bigint
+      WHERE op.nr_ciclo = '99'
+        AND op.tp_situacao NOT IN (40, 30)
+        AND (COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0)) > 0
+        AND (
+          CASE
+            WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+              THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+            ELSE op.cd_produto::TEXT
+          END
+        ) = ANY($1::TEXT[])
+      GROUP BY
+        CASE
+          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+          ELSE op.cd_produto::TEXT
+        END,
+        op.dt_preventrega::date
+    `, [idsMp]);
+
+    const entradasMap = new Map();
+    for (const row of [...comprasRows.rows, ...opInternaRows.rows]) {
+      const idMp = String(row.idmateriaprima || "").trim();
+      if (!idMp) continue;
+      const periodo = classifyCompraPeriodo(row.dt_disponivel, new Date());
+      if (!periodo) continue;
+      if (!entradasMap.has(idMp)) {
+        entradasMap.set(idMp, { entrada_ma: 0, entrada_px: 0, entrada_ul: 0 });
+      }
+      const acc = entradasMap.get(idMp);
+      const qtEntrada = Number(row.qt_entrada || 0);
+      if (periodo === "ma") acc.entrada_ma += qtEntrada;
+      if (periodo === "px") acc.entrada_px += qtEntrada;
+      if (periodo === "ul") acc.entrada_ul += qtEntrada;
+    }
+
     const data = Array.from(consumoMap.entries()).map(([idmateriaprima, c]) => {
       const e = estoqueMap.get(idmateriaprima) || {};
+      const compras = entradasMap.get(idmateriaprima) || {};
       const fis = Number(e.estoquefisico || 0);
       const insp = Number(e.estoqueinsp || 0);
       const corte = Number(e.estoquecorte || 0);
       const nome_materiaprima = String(e.materia_prima_ds || e.nome_materiaprima || "").trim();
       const artigo = String(e.artigo || "").trim();
       const estoquetotal = fis + insp + corte;
+      const entrada_ma = Number(compras.entrada_ma || 0);
+      const entrada_px = Number(compras.entrada_px || 0);
+      const entrada_ul = Number(compras.entrada_ul || 0);
       const consumo_ma = Number(c.consumo_ma || 0);
       const consumo_px = Number(c.consumo_px || 0);
       const consumo_ul = Number(c.consumo_ul || 0);
-      const saldo_ma = estoquetotal - consumo_ma;
-      const saldo_px = saldo_ma - consumo_px;
-      const saldo_ul = saldo_px - consumo_ul;
+      const saldo_ma = estoquetotal + entrada_ma - consumo_ma;
+      const saldo_px = saldo_ma + entrada_px - consumo_px;
+      const saldo_ul = saldo_px + entrada_ul - consumo_ul;
       const consumo_total = consumo_ma + consumo_px + consumo_ul;
       return {
         idmateriaprima,
@@ -438,6 +530,9 @@ router.post("/analise", async (req, res) => {
         estoqueinsp: insp,
         estoquecorte: corte,
         estoquetotal,
+        entrada_ma,
+        entrada_px,
+        entrada_ul,
         consumo_ma,
         consumo_px,
         consumo_ul,
@@ -547,6 +642,9 @@ router.post("/analise", async (req, res) => {
         {
           nome_materiaprima: String(d.nome_materiaprima || ""),
           estoquetotal: Number(d.estoquetotal || 0),
+          entrada_ma: Number(d.entrada_ma || 0),
+          entrada_px: Number(d.entrada_px || 0),
+          entrada_ul: Number(d.entrada_ul || 0),
           consumo_ma: Number(d.consumo_ma || 0),
           consumo_px: Number(d.consumo_px || 0),
           consumo_ul: Number(d.consumo_ul || 0),
@@ -567,6 +665,9 @@ router.post("/analise", async (req, res) => {
         const info = mpDataMap.get(idmateriaprima) || {
           nome_materiaprima: "",
           estoquetotal: 0,
+          entrada_ma: 0,
+          entrada_px: 0,
+          entrada_ul: 0,
           consumo_ma: 0,
           consumo_px: 0,
           consumo_ul: 0,
@@ -581,6 +682,9 @@ router.post("/analise", async (req, res) => {
           idmateriaprima,
           nome_materiaprima: info.nome_materiaprima,
           estoquetotal: info.estoquetotal,
+          entrada_ma: info.entrada_ma,
+          entrada_px: info.entrada_px,
+          entrada_ul: info.entrada_ul,
           consumo_ma: info.consumo_ma,
           consumo_px: info.consumo_px,
           consumo_ul: info.consumo_ul,
@@ -596,6 +700,9 @@ router.post("/analise", async (req, res) => {
         const info = mpDataMap.get(idmateriaprima) || {
           nome_materiaprima: "",
           estoquetotal: 0,
+          entrada_ma: 0,
+          entrada_px: 0,
+          entrada_ul: 0,
           consumo_ma: 0,
           consumo_px: 0,
           consumo_ul: 0,
@@ -610,6 +717,9 @@ router.post("/analise", async (req, res) => {
           idmateriaprima,
           nome_materiaprima: info.nome_materiaprima,
           estoquetotal: info.estoquetotal,
+          entrada_ma: info.entrada_ma,
+          entrada_px: info.entrada_px,
+          entrada_ul: info.entrada_ul,
           consumo_ma: info.consumo_ma,
           consumo_px: info.consumo_px,
           consumo_ul: info.consumo_ul,

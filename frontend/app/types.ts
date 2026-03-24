@@ -48,6 +48,7 @@ export interface Plano {
   ma: number;  // mês atual (março)
   px: number;  // próximo mês (abril)
   ul: number;  // mês seguinte (maio)
+  qt?: number; // quarto mês (junho)
 }
 
 export interface Planejamento {
@@ -76,4 +77,5 @@ export interface PeriodosPlano {
   MA: number;  // mês atual (ex: 3 para março)
   PX: number;  // próximo mês
   UL: number;  // último mês do plano
+  QT?: number; // mês seguinte ao UL (opcional)
 }

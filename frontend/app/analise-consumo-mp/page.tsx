@@ -35,6 +35,9 @@ export default function AnaliseConsumoMpPage() {
     estoqueinsp: number;
     estoquecorte: number;
     estoquetotal: number;
+    entrada_ma?: number;
+    entrada_px?: number;
+    entrada_ul?: number;
     consumo_ma: number;
     consumo_px: number;
     consumo_ul: number;
@@ -153,6 +156,9 @@ export default function AnaliseConsumoMpPage() {
       consumo_ma: number;
       consumo_px: number;
       consumo_ul: number;
+      entrada_ma: number;
+      entrada_px: number;
+      entrada_ul: number;
       consumo_total: number;
       saldo_ma: number;
       saldo_px: number;
@@ -170,6 +176,9 @@ export default function AnaliseConsumoMpPage() {
           consumo_ma: 0,
           consumo_px: 0,
           consumo_ul: 0,
+          entrada_ma: 0,
+          entrada_px: 0,
+          entrada_ul: 0,
           consumo_total: 0,
           saldo_ma: 0,
           saldo_px: 0,
@@ -183,6 +192,9 @@ export default function AnaliseConsumoMpPage() {
       acc.consumo_ma += Number(r.consumo_ma || 0);
       acc.consumo_px += Number(r.consumo_px || 0);
       acc.consumo_ul += Number(r.consumo_ul || 0);
+      acc.entrada_ma += Number(r.entrada_ma || 0);
+      acc.entrada_px += Number(r.entrada_px || 0);
+      acc.entrada_ul += Number(r.entrada_ul || 0);
       acc.consumo_total += Number(r.consumo_total || 0);
       acc.saldo_ma += Number(r.saldo_ma || 0);
       acc.saldo_px += Number(r.saldo_px || 0);
@@ -317,8 +329,11 @@ export default function AnaliseConsumoMpPage() {
                     <th className="text-left px-2.5 py-2">Artigo</th>
                     <th className="text-right px-2.5 py-2">Itens</th>
                     <th className="text-right px-2.5 py-2">Est. Total</th>
+                    <th className="text-right px-2.5 py-2 bg-sky-50">Entr. MA</th>
                     <th className="text-right px-2.5 py-2">Cons. MA</th>
+                    <th className="text-right px-2.5 py-2 bg-sky-50">Entr. PX</th>
                     <th className="text-right px-2.5 py-2">Cons. PX</th>
+                    <th className="text-right px-2.5 py-2 bg-sky-50">Entr. UL</th>
                     <th className="text-right px-2.5 py-2">Cons. UL</th>
                     <th className="text-right px-2.5 py-2">
                       <button type="button" onClick={() => toggleSortArtigo('saldo_ma')} className="underline-offset-2 hover:underline">
@@ -348,8 +363,11 @@ export default function AnaliseConsumoMpPage() {
                       <td className="px-2.5 py-2 font-semibold whitespace-nowrap">{r.artigo}</td>
                       <td className="px-2.5 py-2 text-right">{fmt(r.itens)}</td>
                       <td className="px-2.5 py-2 text-right font-semibold">{fmt(r.estoquetotal)}</td>
+                      <td className="px-2.5 py-2 text-right font-semibold text-sky-700 bg-sky-50/70">{fmt(r.entrada_ma)}</td>
                       <td className="px-2.5 py-2 text-right">{fmt(r.consumo_ma)}</td>
+                      <td className="px-2.5 py-2 text-right font-semibold text-sky-700 bg-sky-50/70">{fmt(r.entrada_px)}</td>
                       <td className="px-2.5 py-2 text-right">{fmt(r.consumo_px)}</td>
+                      <td className="px-2.5 py-2 text-right font-semibold text-sky-700 bg-sky-50/70">{fmt(r.entrada_ul)}</td>
                       <td className="px-2.5 py-2 text-right">{fmt(r.consumo_ul)}</td>
                       <td className={`px-2.5 py-2 text-right ${r.saldo_ma < 0 ? 'text-red-700 font-semibold' : ''}`}>{fmt(r.saldo_ma)}</td>
                       <td className={`px-2.5 py-2 text-right ${r.saldo_px < 0 ? 'text-red-700 font-semibold' : ''}`}>{fmt(r.saldo_px)}</td>
@@ -358,7 +376,7 @@ export default function AnaliseConsumoMpPage() {
                     </tr>
                   ))}
                   {rowsPorArtigo.length === 0 && (
-                    <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>
+                    <tr><td colSpan={13} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -375,8 +393,11 @@ export default function AnaliseConsumoMpPage() {
                     <th className="text-right px-2.5 py-2">Est. Insp</th>
                     <th className="text-right px-2.5 py-2">Est. Corte</th>
                     <th className="text-right px-2.5 py-2">Est. Total</th>
+                    <th className="text-right px-2.5 py-2 bg-sky-50">Entr. MA</th>
                     <th className="text-right px-2.5 py-2">Cons. MA</th>
+                    <th className="text-right px-2.5 py-2 bg-sky-50">Entr. PX</th>
                     <th className="text-right px-2.5 py-2">Cons. PX</th>
+                    <th className="text-right px-2.5 py-2 bg-sky-50">Entr. UL</th>
                     <th className="text-right px-2.5 py-2">Cons. UL</th>
                     <th className="text-right px-2.5 py-2">
                       <button type="button" onClick={() => toggleSort('saldo_ma')} className="underline-offset-2 hover:underline">
@@ -411,8 +432,11 @@ export default function AnaliseConsumoMpPage() {
                       <td className="px-2.5 py-2 text-right">{fmt(r.estoqueinsp)}</td>
                       <td className="px-2.5 py-2 text-right">{fmt(r.estoquecorte)}</td>
                       <td className="px-2.5 py-2 text-right font-semibold">{fmt(r.estoquetotal)}</td>
+                      <td className="px-2.5 py-2 text-right font-semibold text-sky-700 bg-sky-50/70">{fmt(Number(r.entrada_ma || 0))}</td>
                       <td className="px-2.5 py-2 text-right">{fmt(r.consumo_ma)}</td>
+                      <td className="px-2.5 py-2 text-right font-semibold text-sky-700 bg-sky-50/70">{fmt(Number(r.entrada_px || 0))}</td>
                       <td className="px-2.5 py-2 text-right">{fmt(r.consumo_px)}</td>
+                      <td className="px-2.5 py-2 text-right font-semibold text-sky-700 bg-sky-50/70">{fmt(Number(r.entrada_ul || 0))}</td>
                       <td className="px-2.5 py-2 text-right">{fmt(r.consumo_ul)}</td>
                       <td className={`px-2.5 py-2 text-right ${r.saldo_ma < 0 ? 'text-red-700 font-semibold' : ''}`}>{fmt(r.saldo_ma)}</td>
                       <td className={`px-2.5 py-2 text-right ${r.saldo_px < 0 ? 'text-red-700 font-semibold' : ''}`}>{fmt(r.saldo_px)}</td>
@@ -422,7 +446,7 @@ export default function AnaliseConsumoMpPage() {
                     </tr>
                   ))}
                   {rows.length === 0 && (
-                    <tr><td colSpan={15} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>
+                    <tr><td colSpan={18} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>
                   )}
                 </tbody>
               </table>

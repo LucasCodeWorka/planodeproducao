@@ -88,7 +88,8 @@ function filterCache(cacheData, { referencias = [], marca = null, status = null 
   let result = cacheData.filter((r) => {
     const apresentacao = String(r?.produto?.apresentacao || '').toUpperCase();
     const produto      = String(r?.produto?.produto      || '').toUpperCase();
-    return !apresentacao.includes('MEIA DE SEDA') && !produto.includes('MEIA DE SEDA');
+    const tamanho = String(r?.produto?.tamanho || '').trim().toUpperCase();
+    return !apresentacao.includes('MEIA DE SEDA') && !produto.includes('MEIA DE SEDA') && tamanho !== 'PT 99';
   });
   if (marca) {
     const m = marca.toUpperCase().trim();
@@ -98,7 +99,7 @@ function filterCache(cacheData, { referencias = [], marca = null, status = null 
     const s = status.toUpperCase().trim();
     result = result.filter((r) => {
       const st = (r.produto?.status || '').toUpperCase().trim();
-      return st.startsWith(s);
+      return st === s;
     });
   }
   if (referencias.length > 0) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -111,6 +111,14 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
           >
             <CalendarClock size={20} className="shrink-0" />
             {!collapsed && <span>Sugestão de Plano</span>}
+          </button>
+
+          <button
+            onClick={() => router.push('/edicao-limitada')}
+            className={`${navItemBase} ${pathname === '/edicao-limitada' ? navActive : navInactive}`}
+          >
+            <Sparkles size={20} className="shrink-0" />
+            {!collapsed && <span>Edição Limitada</span>}
           </button>
 
           <button

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import MatrizPlanejamentoTable from './components/MatrizPlanejamentoTable';
 import Sidebar from './components/Sidebar';
 import { Planejamento, ProjecoesMap, PeriodosPlano } from './types';
-import { getToken, authHeaders } from './lib/auth';
+import { getToken, authHeaders, clearToken } from './lib/auth';
 import { fetchNoCache } from './lib/api';
 import { projecaoMesPlanejamento } from './lib/projecao';
 
@@ -32,7 +32,7 @@ interface CacheStatus {
   count?:     number;
 }
 
-type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number };
+type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number };
 type AnaliseAprovada = {
   id: string;
   createdAt: number;
@@ -45,8 +45,18 @@ type AnaliseAprovada = {
 
 type ReprojecaoPreview = {
   idproduto: string;
-  recalculada: { ma: number; px: number; ul: number };
+  recalculada: { ma: number; px: number; ul: number; qt?: number };
 };
+
+function mesNormalizado(mes: number) {
+  const m = Number(mes || 0);
+  if (!Number.isFinite(m) || m <= 0) return 1;
+  return ((m - 1) % 12) + 1;
+}
+
+function nomeMesCurto(mes: number) {
+  return new Date(2000, mesNormalizado(mes) - 1, 1).toLocaleString('pt-BR', { month: 'short' });
+}
 
 function chaveItem(item: Planejamento) {
   const id = Number(item.produto.idproduto);
@@ -72,7 +82,7 @@ export default function Home() {
   const [filtroReferencia, setFiltroReferencia] = useState('');
   const [filtroCor, setFiltroCor] = useState('TODAS');
   const [filtroCobertura, setFiltroCobertura] = useState<'TODAS' | 'NEGATIVA' | 'ZERO_UM' | 'MAIOR_UM' | 'MAIOR_2'>('TODAS');
-  const [filtroCoberturaBase, setFiltroCoberturaBase] = useState<'ATUAL' | 'MA' | 'PX' | 'UL'>('ATUAL');
+  const [filtroCoberturaBase, setFiltroCoberturaBase] = useState<'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT'>('ATUAL');
   const [filtroTaxa, setFiltroTaxa] = useState<'TODAS' | 'ATE_70'>('TODAS');
   const [projecoes,    setProjecoes]    = useState<ProjecoesMap>({});
   const [vendasReais,  setVendasReais]  = useState<Record<string, Record<string, number>>>({});
@@ -152,7 +162,7 @@ export default function Home() {
 
   async function buscarAprovadas() {
     try {
-      const res = await fetchNoCache(`${API_URL}/api/analises`, { headers: authHeaders() });
+      const res = await fetchNoCache(`${API_URL}/api/simulacoes`, { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       const lista = (Array.isArray(data?.data) ? data.data : []) as AnaliseAprovada[];
@@ -223,6 +233,19 @@ export default function Home() {
       setBuildElapsed(Math.round((Date.now() - startedAt) / 1000));
       try {
         const res  = await fetchNoCache(`${API_URL}/api/admin/build-status`, { headers: authHeaders() });
+        if (res.status === 401) {
+          clearToken();
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+          setBuilding(false);
+          setRefreshing(false);
+          setRefreshMsg(null);
+          setError('Sessao expirada. Faca login novamente.');
+          router.replace('/login');
+          return;
+        }
         if (!res.ok) return;
         const data = await res.json();
         if (!data.buildState.running) {
@@ -263,6 +286,14 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ marca: MARCA_FIXA, status: STATUS_FIXO }),
       });
+      if (res.status === 401) {
+        setRefreshing(false);
+        setRefreshMsg(null);
+        clearToken();
+        setError('Sessao expirada. Faca login novamente.');
+        router.replace('/login');
+        return;
+      }
       const data = await res.json();
       if (!res.ok || !data.success) {
         setRefreshing(false); setRefreshMsg(null);
@@ -279,7 +310,7 @@ export default function Home() {
   }
 
   const planosAprovadosMap = useMemo(() => {
-    const map = new Map<string, { ma: number; px: number; ul: number }>();
+    const map = new Map<string, { ma: number; px: number; ul: number; qt: number }>();
     const base = aprovadas.filter((a) => aprovadasSelecionadasIds.includes(a.id));
     const ordenadas = [...base].sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
     for (const a of ordenadas) {
@@ -291,6 +322,7 @@ export default function Home() {
           ma: Number(p?.ma || 0),
           px: Number(p?.px || 0),
           ul: Number(p?.ul || 0),
+          qt: Number(p?.qt || 0),
         });
       }
     }
@@ -310,6 +342,7 @@ export default function Home() {
           ma: p.ma,
           px: p.px,
           ul: p.ul,
+          qt: p.qt,
         },
       };
     });
@@ -331,6 +364,7 @@ export default function Home() {
       base[String(periodos.MA)] = Number(item.recalculada?.ma || 0);
       base[String(periodos.PX)] = Number(item.recalculada?.px || 0);
       base[String(periodos.UL)] = Number(item.recalculada?.ul || 0);
+      base[String(mesNormalizado((periodos.UL || 0) + 1))] = Number(item.recalculada?.qt || 0);
       clone[id] = base;
     }
     return clone;
@@ -341,30 +375,37 @@ export default function Home() {
     let deltaMA = 0;
     let deltaPX = 0;
     let deltaUL = 0;
+    let deltaQT = 0;
+    const mesQT = mesNormalizado((periodos.UL || 0) + 1);
     for (const item of dadosPagina) {
       const id = String(item.produto.idproduto || '');
       const originalMA = Number(projecoes[id]?.[String(periodos.MA)] || 0);
       const originalPX = Number(projecoes[id]?.[String(periodos.PX)] || 0);
       const originalUL = Number(projecoes[id]?.[String(periodos.UL)] || 0);
+      const originalQT = Number(projecoes[id]?.[String(mesQT)] || 0);
       const novoMA = Number(projecoesAtivas[id]?.[String(periodos.MA)] || 0);
       const novoPX = Number(projecoesAtivas[id]?.[String(periodos.PX)] || 0);
       const novoUL = Number(projecoesAtivas[id]?.[String(periodos.UL)] || 0);
+      const novoQT = Number(projecoesAtivas[id]?.[String(mesQT)] || 0);
       if (
         Math.round(originalMA) !== Math.round(novoMA) ||
         Math.round(originalPX) !== Math.round(novoPX) ||
-        Math.round(originalUL) !== Math.round(novoUL)
+        Math.round(originalUL) !== Math.round(novoUL) ||
+        Math.round(originalQT) !== Math.round(novoQT)
       ) {
         alterados += 1;
       }
       deltaMA += novoMA - originalMA;
       deltaPX += novoPX - originalPX;
       deltaUL += novoUL - originalUL;
+      deltaQT += novoQT - originalQT;
     }
     return {
       alterados,
       deltaMA: Math.round(deltaMA),
       deltaPX: Math.round(deltaPX),
       deltaUL: Math.round(deltaUL),
+      deltaQT: Math.round(deltaQT),
     };
   }, [dadosPagina, projecoes, projecoesAtivas, periodos]);
 
@@ -390,7 +431,8 @@ export default function Home() {
         `${resumoMudancaProjecao.alterados.toLocaleString('pt-BR')} itens com projeção alterada. ` +
         `Δ MA ${resumoMudancaProjecao.deltaMA.toLocaleString('pt-BR')} · ` +
         `Δ PX ${resumoMudancaProjecao.deltaPX.toLocaleString('pt-BR')} · ` +
-        `Δ UL ${resumoMudancaProjecao.deltaUL.toLocaleString('pt-BR')}`
+        `Δ UL ${resumoMudancaProjecao.deltaUL.toLocaleString('pt-BR')} · ` +
+        `Δ QT ${resumoMudancaProjecao.deltaQT.toLocaleString('pt-BR')}`
       );
     }, 550);
   }, [considerarProjecaoNova, reprojecaoPreview, resumoMudancaProjecao]);
@@ -419,13 +461,16 @@ export default function Home() {
         const pMA = i.plano?.ma || 0;
         const pPX = i.plano?.px || 0;
         const pUL = i.plano?.ul || 0;
+        const pQT = (i.plano as { qt?: number } | undefined)?.qt || 0;
         const prMA = projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA);
         const prPX = proj[String(periodos.PX)] ?? 0;
         const prUL = proj[String(periodos.UL)] ?? 0;
+        const prQT = proj[String(mesNormalizado((periodos.UL || 0) + 1))] ?? 0;
         const dispMA = dispAtual + emP + pMA - prMA;
         const dispPX = dispMA + pPX - prPX;
         const dispUL = dispPX + pUL - prUL;
-        return dispAtual < 0 || dispMA < 0 || dispPX < 0 || dispUL < 0;
+        const dispQT = dispUL + pQT - prQT;
+        return dispAtual < 0 || dispMA < 0 || dispPX < 0 || dispUL < 0 || dispQT < 0;
       });
     }
 
@@ -467,10 +512,12 @@ export default function Home() {
       const pMA = i.plano?.ma || 0;
       const pPX = i.plano?.px || 0;
       const pUL = i.plano?.ul || 0;
+      const pQT = (i.plano as { qt?: number } | undefined)?.qt || 0;
       const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
       const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
       const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
-      const dispUltimo = dispAtual + emP + pMA - prMA + pPX - prPX + pUL - prUL;
+      const prQT = proj ? (proj[String(mesNormalizado((periodos.UL || 0) + 1))] ?? 0) : 0;
+      const dispUltimo = dispAtual + emP + pMA - prMA + pPX - prPX + pUL - prUL + pQT - prQT;
 
       const cobAtual = dispAtual / min;
       const cobUltimo = dispUltimo / min;
@@ -516,33 +563,39 @@ export default function Home() {
     let ma = 0;
     let px = 0;
     let ul = 0;
-    const porContinuidade = new Map<string, { atual: number; ma: number; px: number; ul: number }>();
+    let qt = 0;
+    const porContinuidade = new Map<string, { atual: number; ma: number; px: number; ul: number; qt: number }>();
 
     for (const i of base) {
       const continuidade = (i.produto.continuidade || 'SEM CONTINUIDADE').trim();
-      const bucket = porContinuidade.get(continuidade) || { atual: 0, ma: 0, px: 0, ul: 0 };
+      const bucket = porContinuidade.get(continuidade) || { atual: 0, ma: 0, px: 0, ul: 0, qt: 0 };
       const dispAtual = (i.estoques.estoque_atual || 0) - (i.demanda.pedidos_pendentes || 0);
       const proj = projecoesAtivas[i.produto.idproduto] ?? null;
       const emP = i.estoques.em_processo || 0;
       const pMA = i.plano?.ma || 0;
       const pPX = i.plano?.px || 0;
       const pUL = i.plano?.ul || 0;
+      const pQT = (i.plano as { qt?: number } | undefined)?.qt || 0;
       const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
       const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
       const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
+      const prQT = proj ? (proj[String(mesNormalizado((periodos.UL || 0) + 1))] ?? 0) : 0;
       const dispMA = dispAtual + emP + pMA - prMA;
       const dispPX = dispMA + pPX - prPX;
       const dispUL = dispPX + pUL - prUL;
+      const dispQT = dispUL + pQT - prQT;
 
       if (dispAtual < 0) atual += Math.abs(dispAtual);
       if (dispMA < 0) ma += Math.abs(dispMA);
       if (dispPX < 0) px += Math.abs(dispPX);
       if (dispUL < 0) ul += Math.abs(dispUL);
+      if (dispQT < 0) qt += Math.abs(dispQT);
 
       if (dispAtual < 0) bucket.atual += Math.abs(dispAtual);
       if (dispMA < 0) bucket.ma += Math.abs(dispMA);
       if (dispPX < 0) bucket.px += Math.abs(dispPX);
       if (dispUL < 0) bucket.ul += Math.abs(dispUL);
+      if (dispQT < 0) bucket.qt += Math.abs(dispQT);
       porContinuidade.set(continuidade, bucket);
     }
 
@@ -551,6 +604,7 @@ export default function Home() {
       ma: Math.round(ma),
       px: Math.round(px),
       ul: Math.round(ul),
+      qt: Math.round(qt),
       continuidade: Array.from(porContinuidade.entries())
         .map(([nome, valores]) => ({
           nome,
@@ -558,6 +612,7 @@ export default function Home() {
           ma: Math.round(valores.ma),
           px: Math.round(valores.px),
           ul: Math.round(valores.ul),
+          qt: Math.round(valores.qt),
         }))
         .sort((a, b) => {
           const ordem: Record<string, number> = {
@@ -598,7 +653,7 @@ export default function Home() {
       refKissme: new Map(),
     });
 
-    const meses = { MA: initMes(), PX: initMes(), UL: initMes() };
+    const meses = { MA: initMes(), PX: initMes(), UL: initMes(), QT: initMes() };
     const addRef = (mapa: Map<string, AcumRef>, ref: string, disp: number, min: number) => {
       const atual = mapa.get(ref) || { totalDisp: 0, totalMin: 0 };
       atual.totalDisp += disp;
@@ -631,18 +686,22 @@ export default function Home() {
       const pMA = i.plano?.ma || 0;
       const pPX = i.plano?.px || 0;
       const pUL = i.plano?.ul || 0;
+      const pQT = (i.plano as { qt?: number } | undefined)?.qt || 0;
       const proj = projecoesAtivas[i.produto.idproduto] ?? null;
       const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
       const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
       const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
+      const prQT = proj ? (proj[String(mesNormalizado((periodos.UL || 0) + 1))] ?? 0) : 0;
       const dispMA = dispAtual + emP + pMA - prMA;
       const dispPX = dispMA + pPX - prPX;
       const dispUL = dispPX + pUL - prUL;
+      const dispQT = dispUL + pQT - prQT;
 
-      const porMes: Array<{ mes: 'MA' | 'PX' | 'UL'; cob: number; disp: number }> = [
+      const porMes: Array<{ mes: 'MA' | 'PX' | 'UL' | 'QT'; cob: number; disp: number }> = [
         { mes: 'MA', cob: dispMA / min, disp: dispMA },
         { mes: 'PX', cob: dispPX / min, disp: dispPX },
         { mes: 'UL', cob: dispUL / min, disp: dispUL },
+        { mes: 'QT', cob: dispQT / min, disp: dispQT },
       ];
 
       porMes.forEach(({ mes, cob, disp }) => {
@@ -663,16 +722,16 @@ export default function Home() {
       });
     });
 
-    const toSku = (mes: 'MA' | 'PX' | 'UL', x: AcumMes): SerieMes => ({
+    const toSku = (mes: 'MA' | 'PX' | 'UL' | 'QT', x: AcumMes): SerieMes => ({
       mes, total: pctSku(x.total), top30: pctSku(x.top30), demais: pctSku(x.demais), kissme: pctSku(x.kissme),
     });
-    const toRef = (mes: 'MA' | 'PX' | 'UL', x: AcumMes): SerieMes => ({
+    const toRef = (mes: 'MA' | 'PX' | 'UL' | 'QT', x: AcumMes): SerieMes => ({
       mes, total: pctRef(x.refTotal), top30: pctRef(x.refTop30), demais: pctRef(x.refDemais), kissme: pctRef(x.refKissme),
     });
 
     return {
-      sku: [toSku('MA', meses.MA), toSku('PX', meses.PX), toSku('UL', meses.UL)],
-      ref: [toRef('MA', meses.MA), toRef('PX', meses.PX), toRef('UL', meses.UL)],
+      sku: [toSku('MA', meses.MA), toSku('PX', meses.PX), toSku('UL', meses.UL), toSku('QT', meses.QT)],
+      ref: [toRef('MA', meses.MA), toRef('PX', meses.PX), toRef('UL', meses.UL), toRef('QT', meses.QT)],
     };
   }, [dadosPagina, projecoesAtivas, periodos, top30Ids, top30Refs]);
 
@@ -1016,12 +1075,13 @@ export default function Home() {
                 <div className="flex-1 h-px bg-red-100" />
               </div>
               <div className="space-y-3">
-                <div className="grid grid-cols-4 gap-6">
+                <div className="grid grid-cols-5 gap-6">
                   {[
                     { label: 'Atual', value: resumoNegativos.atual },
-                    { label: new Date(2000, periodos.MA - 1, 1).toLocaleString('pt-BR', { month: 'short' }), value: resumoNegativos.ma },
-                    { label: new Date(2000, periodos.PX - 1, 1).toLocaleString('pt-BR', { month: 'short' }), value: resumoNegativos.px },
-                    { label: new Date(2000, periodos.UL - 1, 1).toLocaleString('pt-BR', { month: 'short' }), value: resumoNegativos.ul },
+                    { label: nomeMesCurto(periodos.MA), value: resumoNegativos.ma },
+                    { label: nomeMesCurto(periodos.PX), value: resumoNegativos.px },
+                    { label: nomeMesCurto(periodos.UL), value: resumoNegativos.ul },
+                    { label: nomeMesCurto((periodos.UL || 0) + 1), value: resumoNegativos.qt },
                   ].map((c) => (
                     <div key={c.label}>
                       <div className="text-[11px] text-red-400 mb-0.5">{c.label}</div>
@@ -1033,23 +1093,27 @@ export default function Home() {
                   {resumoNegativos.continuidade
                     .filter((c) => ['PERMANENTE', 'PERMANENTE COR NOVA', 'EDICAO LIMITADA', 'EDIÇÃO LIMITADA'].includes((c.nome || '').toUpperCase()))
                     .map((c) => (
-                      <div key={c.nome} className="grid grid-cols-[160px_repeat(4,minmax(72px,1fr))] gap-4 items-center">
+                      <div key={c.nome} className="grid grid-cols-[160px_repeat(5,minmax(72px,1fr))] gap-4 items-center">
                         <div className="text-[11px] font-semibold uppercase tracking-wide text-red-500">{c.nome}</div>
                         <div>
                           <div className="text-[10px] text-red-300">Atual</div>
                           <div className="text-sm font-bold font-mono text-red-700">{c.atual.toLocaleString('pt-BR')}</div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-red-300">{new Date(2000, periodos.MA - 1, 1).toLocaleString('pt-BR', { month: 'short' })}</div>
+                          <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.MA)}</div>
                           <div className="text-sm font-bold font-mono text-red-700">{c.ma.toLocaleString('pt-BR')}</div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-red-300">{new Date(2000, periodos.PX - 1, 1).toLocaleString('pt-BR', { month: 'short' })}</div>
+                          <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.PX)}</div>
                           <div className="text-sm font-bold font-mono text-red-700">{c.px.toLocaleString('pt-BR')}</div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-red-300">{new Date(2000, periodos.UL - 1, 1).toLocaleString('pt-BR', { month: 'short' })}</div>
+                          <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.UL)}</div>
                           <div className="text-sm font-bold font-mono text-red-700">{c.ul.toLocaleString('pt-BR')}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-red-300">{nomeMesCurto((periodos.UL || 0) + 1)}</div>
+                          <div className="text-sm font-bold font-mono text-red-700">{c.qt.toLocaleString('pt-BR')}</div>
                         </div>
                       </div>
                     ))}
@@ -1121,7 +1185,7 @@ export default function Home() {
                   value={`${analiseCobertura.mediaAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x`}
                 />
                 <Metric
-                  label={`Cobertura média ${new Date(2000, periodos.UL - 1, 1).toLocaleString('pt-BR', { month: 'short' })}`}
+                  label={`Cobertura média ${nomeMesCurto((periodos.UL || 0) + 1)}`}
                   value={`${analiseCobertura.mediaUltimo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x`}
                 />
                 <Metric
@@ -1130,7 +1194,7 @@ export default function Home() {
                   tone="danger"
                 />
                 <Metric
-                  label={`Críticos ${new Date(2000, periodos.UL - 1, 1).toLocaleString('pt-BR', { month: 'short' })} (<1x)`}
+                  label={`Críticos ${nomeMesCurto((periodos.UL || 0) + 1)} (<1x)`}
                   value={analiseCobertura.criticoUltimo.toLocaleString('pt-BR')}
                   tone="danger"
                 />
@@ -1234,7 +1298,7 @@ function VerticalCoverageChart({ title, series }: { title: string; series: Serie
         ))}
       </div>
       <div className="h-56 border border-gray-200 rounded-md p-2 bg-gray-50">
-        <div className="h-full grid grid-cols-3 gap-4">
+        <div className="h-full grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.max(1, series.length)}, minmax(0, 1fr))` }}>
           {series.map((s) => (
             <div key={s.mes} className="h-full flex flex-col">
               <div className="flex-1 flex items-end justify-center gap-1.5">
