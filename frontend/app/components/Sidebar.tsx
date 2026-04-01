@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles, PackagePlus } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -13,7 +13,7 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [fontScale, setFontScale] = useState(1);
   const [zoomScale, setZoomScale] = useState(1);
-  const router   = useRouter();
+  const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
   }
 
   const navItemBase = 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium w-full text-left transition-colors';
-  const navActive   = 'bg-brand-primary text-white';
+  const navActive = 'bg-brand-primary text-white';
   const navInactive = 'text-gray-300 hover:bg-gray-700';
 
   function adjustFont(delta: number) {
@@ -62,10 +62,7 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
   }
 
   return (
-    <aside
-      className={`${collapsed ? 'w-20' : 'w-64'} bg-brand-dark fixed left-0 top-0 h-full z-30 flex flex-col transition-all duration-300`}
-    >
-      {/* Logo */}
+    <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-brand-dark fixed left-0 top-0 h-full z-30 flex flex-col transition-all duration-300`}>
       <div className="flex items-center justify-between px-4 py-4 border-b border-gray-700">
         {!collapsed && (
           <div className="font-secondary leading-tight">
@@ -73,15 +70,11 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             <div className="text-gray-400 font-light text-xs tracking-wider">PRODUÇÃO</div>
           </div>
         )}
-        <button
-          onClick={toggle}
-          className="text-gray-300 hover:text-white transition-colors ml-auto"
-        >
+        <button onClick={toggle} className="text-gray-300 hover:text-white transition-colors ml-auto">
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 py-4 px-2 overflow-y-auto">
         {!collapsed && (
           <div className="px-2 pb-2">
@@ -89,58 +82,42 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
           </div>
         )}
         <div className="space-y-1">
-          <button
-            onClick={() => router.push('/')}
-            className={`${navItemBase} ${pathname === '/' ? navActive : navInactive}`}
-          >
+          <button onClick={() => router.push('/')} className={`${navItemBase} ${pathname === '/' ? navActive : navInactive}`}>
             <Factory size={20} className="shrink-0" />
             {!collapsed && <span>Plano de Produção</span>}
           </button>
 
-          <button
-            onClick={() => router.push('/projecoes')}
-            className={`${navItemBase} ${pathname === '/projecoes' ? navActive : navInactive}`}
-          >
+          <button onClick={() => router.push('/projecoes')} className={`${navItemBase} ${pathname === '/projecoes' ? navActive : navInactive}`}>
             <TrendingDown size={20} className="shrink-0" />
             {!collapsed && <span>Projeções</span>}
           </button>
 
-          <button
-            onClick={() => router.push('/sugestao-plano')}
-            className={`${navItemBase} ${pathname === '/sugestao-plano' ? navActive : navInactive}`}
-          >
+          <button onClick={() => router.push('/sugestao-plano')} className={`${navItemBase} ${pathname === '/sugestao-plano' ? navActive : navInactive}`}>
             <CalendarClock size={20} className="shrink-0" />
             {!collapsed && <span>Sugestão de Plano</span>}
           </button>
 
-          <button
-            onClick={() => router.push('/edicao-limitada')}
-            className={`${navItemBase} ${pathname === '/edicao-limitada' ? navActive : navInactive}`}
-          >
+          <button onClick={() => router.push('/edicao-limitada')} className={`${navItemBase} ${pathname === '/edicao-limitada' ? navActive : navInactive}`}>
             <Sparkles size={20} className="shrink-0" />
             {!collapsed && <span>Edição Limitada</span>}
           </button>
 
-          <button
-            onClick={() => router.push('/sugestoes-aprovacoes')}
-            className={`${navItemBase} ${pathname === '/sugestoes-aprovacoes' ? navActive : navInactive}`}
-          >
+          <button onClick={() => router.push('/sugestoes-aprovacoes')} className={`${navItemBase} ${pathname === '/sugestoes-aprovacoes' ? navActive : navInactive}`}>
             <CheckSquare size={20} className="shrink-0" />
             {!collapsed && <span>Sugestões/Aprovação</span>}
           </button>
 
-          <button
-            onClick={() => router.push('/capacidade')}
-            className={`${navItemBase} ${pathname === '/capacidade' ? navActive : navInactive}`}
-          >
+          <button onClick={() => router.push('/capacidade')} className={`${navItemBase} ${pathname === '/capacidade' ? navActive : navInactive}`}>
             <Gauge size={20} className="shrink-0" />
             {!collapsed && <span>Capacidade</span>}
           </button>
 
-          <button
-            onClick={() => router.push('/configuracoes')}
-            className={`${navItemBase} ${pathname === '/configuracoes' ? navActive : navInactive}`}
-          >
+          <button onClick={() => router.push('/excessos')} className={`${navItemBase} ${pathname === '/excessos' ? navActive : navInactive}`}>
+            <PackagePlus size={20} className="shrink-0" />
+            {!collapsed && <span>Estoque Loja Disponível</span>}
+          </button>
+
+          <button onClick={() => router.push('/configuracoes')} className={`${navItemBase} ${pathname === '/configuracoes' ? navActive : navInactive}`}>
             <SlidersHorizontal size={20} className="shrink-0" />
             {!collapsed && <span>Configurações</span>}
           </button>
@@ -153,26 +130,22 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             </div>
           )}
           <div className="space-y-1">
-            <button
-              onClick={() => router.push('/analise-consumo-mp')}
-              className={`${navItemBase} ${pathname === '/analise-consumo-mp' ? navActive : navInactive}`}
-            >
+            <button onClick={() => router.push('/analise-consumo-mp')} className={`${navItemBase} ${pathname === '/analise-consumo-mp' ? navActive : navInactive}`}>
               <Boxes size={20} className="shrink-0" />
               {!collapsed && <span>Análise Consumo MP</span>}
             </button>
 
-            <button
-              onClick={() => router.push('/laboratorio')}
-              className={`${navItemBase} ${pathname === '/laboratorio' ? navActive : navInactive}`}
-            >
+            <button onClick={() => router.push('/analise-mp-planos')} className={`${navItemBase} ${pathname === '/analise-mp-planos' ? navActive : navInactive}`}>
+              <Boxes size={20} className="shrink-0" />
+              {!collapsed && <span>Análise MP Planos</span>}
+            </button>
+
+            <button onClick={() => router.push('/laboratorio')} className={`${navItemBase} ${pathname === '/laboratorio' ? navActive : navInactive}`}>
               <FlaskConical size={20} className="shrink-0" />
               {!collapsed && <span>Laboratório</span>}
             </button>
 
-            <button
-              onClick={() => router.push('/diagnosticos')}
-              className={`${navItemBase} ${pathname === '/diagnosticos' ? navActive : navInactive}`}
-            >
+            <button onClick={() => router.push('/diagnosticos')} className={`${navItemBase} ${pathname === '/diagnosticos' ? navActive : navInactive}`}>
               <ClipboardList size={20} className="shrink-0" />
               {!collapsed && <span>Diagnósticos</span>}
             </button>
@@ -180,7 +153,6 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
         </div>
       </nav>
 
-      {/* Admin */}
       {!collapsed && (
         <div className="px-4 pb-2">
           <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Configurações</p>
@@ -197,24 +169,9 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
                   <span>{Math.round(fontScale * 100)}%</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => adjustFont(-0.05)}
-                    className="h-8 w-8 rounded border border-gray-700 text-gray-200 hover:bg-gray-800"
-                  >
-                    -
-                  </button>
-                  <button
-                    onClick={() => setFontScale(1)}
-                    className="flex-1 h-8 rounded border border-gray-700 text-[11px] text-gray-300 hover:bg-gray-800"
-                  >
-                    Padrão
-                  </button>
-                  <button
-                    onClick={() => adjustFont(0.05)}
-                    className="h-8 w-8 rounded border border-gray-700 text-gray-200 hover:bg-gray-800"
-                  >
-                    +
-                  </button>
+                  <button onClick={() => adjustFont(-0.05)} className="h-8 w-8 rounded border border-gray-700 text-gray-200 hover:bg-gray-800">-</button>
+                  <button onClick={() => setFontScale(1)} className="flex-1 h-8 rounded border border-gray-700 text-[11px] text-gray-300 hover:bg-gray-800">Padrão</button>
+                  <button onClick={() => adjustFont(0.05)} className="h-8 w-8 rounded border border-gray-700 text-gray-200 hover:bg-gray-800">+</button>
                 </div>
               </div>
               <div>
@@ -223,24 +180,9 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
                   <span>{Math.round(zoomScale * 100)}%</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => adjustZoom(-0.05)}
-                    className="h-8 w-8 rounded border border-gray-700 text-gray-200 hover:bg-gray-800"
-                  >
-                    -
-                  </button>
-                  <button
-                    onClick={() => setZoomScale(1)}
-                    className="flex-1 h-8 rounded border border-gray-700 text-[11px] text-gray-300 hover:bg-gray-800"
-                  >
-                    Padrão
-                  </button>
-                  <button
-                    onClick={() => adjustZoom(0.05)}
-                    className="h-8 w-8 rounded border border-gray-700 text-gray-200 hover:bg-gray-800"
-                  >
-                    +
-                  </button>
+                  <button onClick={() => adjustZoom(-0.05)} className="h-8 w-8 rounded border border-gray-700 text-gray-200 hover:bg-gray-800">-</button>
+                  <button onClick={() => setZoomScale(1)} className="flex-1 h-8 rounded border border-gray-700 text-[11px] text-gray-300 hover:bg-gray-800">Padrão</button>
+                  <button onClick={() => adjustZoom(0.05)} className="h-8 w-8 rounded border border-gray-700 text-gray-200 hover:bg-gray-800">+</button>
                 </div>
               </div>
             </div>
@@ -256,7 +198,6 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
         </button>
       </nav>
 
-      {/* Sair */}
       <div className="border-t border-gray-700 p-2">
         <button
           onClick={sair}

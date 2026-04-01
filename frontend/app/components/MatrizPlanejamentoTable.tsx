@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Planejamento, ProjecoesMap, PeriodosPlano } from '../types';
+import { Planejamento, ProjecoesMap, PeriodosPlano, EstoqueLojaDisponivelAggregado } from '../types';
 import { projecaoMesDecorrida, projecaoMesPlanejamento } from '../lib/projecao';
 
 const MESES_PT = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -31,6 +31,7 @@ interface GrupoTotais {
   dispFutMar: number; dispFutAbr: number; dispFutMai: number; dispFutJun: number;
   negFutMar: number; negFutAbr: number; negFutMai: number; negFutJun: number;
   projCount: number;
+  excedenteLojas: number;
 }
 
 type RefGroup  = { referencia: string; nomeRef: string; itens: Planejamento[]; totais: GrupoTotais };
@@ -40,7 +41,8 @@ function somar(
   itens: Planejamento[],
   projecoes: ProjecoesMap,
   vendasReais: Record<string, Record<string, number>>,
-  periodos: PeriodosPlano
+  periodos: PeriodosPlano,
+  excedentesLojas: Map<number, EstoqueLojaDisponivelAggregado> | null = null
 ): GrupoTotais {
   const mesQT = periodos.QT ?? (((periodos.UL || 1) - 1 + 1) % 12) + 1;
   return itens.reduce((acc, i) => {
@@ -67,6 +69,7 @@ function somar(
     const dAbr = hasProj ? dMar + pPX - prPX : 0;
     const dMai = hasProj ? dAbr + pUL - prUL : 0;
     const dJun = hasProj ? dMai + pQT - prQT : 0;
+    const excLoja = excedentesLojas?.get(Number(i.produto.idproduto))?.qtd_disponivel_total || 0;
     return {
       estoque:    acc.estoque    + (i.estoques.estoque_atual || 0),
       emProcesso: acc.emProcesso + emP,
@@ -98,12 +101,14 @@ function somar(
       negFutMai: acc.negFutMai + (dMai < 0 ? Math.abs(dMai) : 0),
       negFutJun: acc.negFutJun + (dJun < 0 ? Math.abs(dJun) : 0),
       projCount:  acc.projCount  + (hasProj ? 1 : 0),
+      excedenteLojas: acc.excedenteLojas + excLoja,
     };
   }, {
     estoque:0, emProcesso:0, estoqueMin:0, pedidos:0, disponivel:0, deficit:0, abaixo:0,
     planoMA:0, planoPX:0, planoUL:0, planoQT:0, projMA:0, projPX:0, projUL:0, projQT:0,
     projJan:0, projFev:0, projMarProp:0, vendaJan:0, vendaFev:0, vendaMar:0,
     dispFutMar:0, dispFutAbr:0, dispFutMai:0, dispFutJun:0, negFutMar:0, negFutAbr:0, negFutMai:0, negFutJun:0, projCount:0,
+    excedenteLojas:0,
   });
 }
 
@@ -111,7 +116,8 @@ function agrupar(
   dados: Planejamento[],
   projecoes: ProjecoesMap,
   vendasReais: Record<string, Record<string, number>>,
-  periodos: PeriodosPlano
+  periodos: PeriodosPlano,
+  excedentesLojas: Map<number, EstoqueLojaDisponivelAggregado> | null = null
 ): ContGroup[] {
   const ordemContinuidade: Record<string, number> = {
     'PERMANENTE': 1,
@@ -137,10 +143,10 @@ function agrupar(
           const itens = [...raw].sort((a, b) =>
             `${a.produto.cor}-${a.produto.tamanho}`.localeCompare(`${b.produto.cor}-${b.produto.tamanho}`)
           );
-          return { referencia, nomeRef: raw[0]?.produto?.produto || '', itens, totais: somar(itens, projecoes, vendasReais, periodos) };
+          return { referencia, nomeRef: raw[0]?.produto?.produto || '', itens, totais: somar(itens, projecoes, vendasReais, periodos, excedentesLojas) };
         })
         .sort((a, b) => a.referencia.localeCompare(b.referencia));
-      return { continuidade, referencias, totais: somar(referencias.flatMap(r => r.itens), projecoes, vendasReais, periodos) };
+      return { continuidade, referencias, totais: somar(referencias.flatMap(r => r.itens), projecoes, vendasReais, periodos, excedentesLojas) };
     })
     .sort((a, b) => {
       const keyA = (a.continuidade || '').toUpperCase().trim();
@@ -239,6 +245,9 @@ interface Props {
   filtroCobertura?: 'TODAS' | 'NEGATIVA' | 'ZERO_UM' | 'MAIOR_UM' | 'MAIOR_2';
   filtroCoberturaBase?: 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT';
   filtroTaxa?: 'TODAS' | 'ATE_70';
+  excedentesLojas?: Map<number, EstoqueLojaDisponivelAggregado> | null;
+  filtroCoberturaMinima?: string;
+  filtroEmProcessoMinimo?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -256,6 +265,9 @@ export default function MatrizPlanejamentoTable({
   filtroCobertura = 'TODAS',
   filtroCoberturaBase = 'ATUAL',
   filtroTaxa = 'TODAS',
+  excedentesLojas = null,
+  filtroCoberturaMinima = '',
+  filtroEmProcessoMinimo = '',
 }: Props) {
   type SortKey =
     | 'estoque' | 'emProcesso' | 'estoqueMin' | 'pedidos' | 'disponivel' | 'negativo' | 'cobertura'
@@ -343,6 +355,38 @@ export default function MatrizPlanejamentoTable({
         return taxaJan <= 0.7 && taxaFev <= 0.7;
       });
     }
+
+    // Filtro customizado por cobertura mínima (SEM considerar em_processo)
+    if (filtroCoberturaMinima.trim()) {
+      const valorCobertura = parseFloat(filtroCoberturaMinima);
+      console.log('[TABELA] Filtro cobertura recebido:', filtroCoberturaMinima, 'valor:', valorCobertura);
+      console.log('[TABELA] Base ANTES do filtro:', base.length, 'produtos');
+      if (!isNaN(valorCobertura)) {
+        base = base.filter((i) => {
+          // Cobertura ATUAL = (estoque - pedidos) / estoque_minimo
+          // NÃO inclui em_processo pois queremos saber o que NÃO precisa produzir
+          const estoqueAtual = Number(i.estoques?.estoque_atual || 0);
+          const pedidos = Number(i.demanda?.pedidos_pendentes || 0);
+          const estoqueMin = Number(i.estoques?.estoque_minimo || 0);
+          const disponivelSemProcesso = estoqueAtual - pedidos;
+          const coberturaAtual = estoqueMin > 0 ? disponivelSemProcesso / estoqueMin : Number.NEGATIVE_INFINITY;
+          return coberturaAtual > valorCobertura;
+        });
+        console.log('[TABELA] Base DEPOIS do filtro:', base.length, 'produtos');
+      }
+    }
+
+    // Filtro customizado por em processo mínimo
+    if (filtroEmProcessoMinimo.trim()) {
+      const valorProcesso = parseFloat(filtroEmProcessoMinimo);
+      if (!isNaN(valorProcesso)) {
+        base = base.filter((i) => {
+          const emProcesso = Number(i.estoques?.em_processo || 0);
+          return emProcesso > valorProcesso;
+        });
+      }
+    }
+
     if (apenasNegativos) {
       base = base.filter((i) => {
         const dispAtual = (i.estoques.estoque_atual || 0) - (i.demanda.pedidos_pendentes || 0);
@@ -366,7 +410,7 @@ export default function MatrizPlanejamentoTable({
         return dispAtual < 0 || dispMA < 0 || dispPX < 0 || dispUL < 0 || dispQT < 0;
       });
     }
-    const grouped = agrupar(base, projecoes, vendasReais, periodos);
+    const grouped = agrupar(base, projecoes, vendasReais, periodos, excedentesLojas);
 
     const sortFactor = sortDir === 'asc' ? 1 : -1;
 
@@ -465,7 +509,7 @@ export default function MatrizPlanejamentoTable({
         }))
         .sort((a, b) => (refMetric(a.totais, sortKey) - refMetric(b.totais, sortKey)) * sortFactor),
     }));
-  }, [dados, filtroTexto, projecoes, vendasReais, periodos, apenasNegativos, filtroContinuidade, filtroReferencia, filtroCor, filtroCobertura, filtroCoberturaBase, filtroTaxa, sortKey, sortDir, marFactor, mesQT]);
+  }, [dados, filtroTexto, projecoes, vendasReais, periodos, apenasNegativos, filtroContinuidade, filtroReferencia, filtroCor, filtroCobertura, filtroCoberturaBase, filtroTaxa, filtroCoberturaMinima, filtroEmProcessoMinimo, sortKey, sortDir, marFactor, mesQT]);
 
   useEffect(() => {
     if (grupos.length === 0) return;
@@ -613,6 +657,9 @@ export default function MatrizPlanejamentoTable({
                   <th rowSpan={2} className="sticky left-0 z-40 px-2 py-2.5 text-left w-[240px] min-w-[240px] max-w-[240px] border-b border-gray-600 bg-brand-dark shadow-[1px_0_0_0_rgba(55,65,81,0.5)]">Referência / Produto</th>
                   <th rowSpan={2} onClick={() => onSortClick('estoque')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Estoque{sortBadge('estoque')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('emProcesso')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Em Proc.{sortBadge('emProcesso')}</th>
+                  {excedentesLojas && excedentesLojas.size > 0 && (
+                    <th rowSpan={2} className="px-3 py-3.5 text-right border-b border-gray-600 bg-purple-900 text-purple-200">Estq. Lojas</th>
+                  )}
                   <th rowSpan={2} onClick={() => onSortClick('estoqueMin')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Est. Mín.{sortBadge('estoqueMin')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('pedidos')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Pedidos{sortBadge('pedidos')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('disponivel')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Disponível{sortBadge('disponivel')}</th>
@@ -661,6 +708,9 @@ export default function MatrizPlanejamentoTable({
                 <th className="sticky left-0 z-40 px-2 py-2.5 text-left w-[240px] min-w-[240px] max-w-[240px] bg-brand-dark shadow-[1px_0_0_0_rgba(55,65,81,0.5)]">Referência / Produto</th>
                 <th onClick={() => onSortClick('estoque')} className="px-3 py-3 text-right cursor-pointer">Estoque{sortBadge('estoque')}</th>
                 <th onClick={() => onSortClick('emProcesso')} className="px-3 py-3 text-right cursor-pointer">Em Proc.{sortBadge('emProcesso')}</th>
+                {excedentesLojas && excedentesLojas.size > 0 && (
+                  <th className="px-3 py-3 text-right bg-purple-900 text-purple-200">Estq. Lojas</th>
+                )}
                 <th onClick={() => onSortClick('estoqueMin')} className="px-3 py-3 text-right cursor-pointer">Est. Mín.{sortBadge('estoqueMin')}</th>
                 <th onClick={() => onSortClick('pedidos')} className="px-3 py-3 text-right cursor-pointer">Pedidos{sortBadge('pedidos')}</th>
                 <th onClick={() => onSortClick('disponivel')} className="px-3 py-3 text-right cursor-pointer">Disponível{sortBadge('disponivel')}</th>
@@ -699,6 +749,11 @@ export default function MatrizPlanejamentoTable({
                     <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
                       {gt.emProcesso > 0 ? <span className="text-gray-200 font-semibold">{fmt(gt.emProcesso)}</span> : <span className="text-gray-600">—</span>}
                     </td>
+                    {excedentesLojas && excedentesLojas.size > 0 && (
+                      <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums bg-purple-900/50">
+                        {gt.excedenteLojas > 0 ? <span className="text-purple-300 font-semibold">{fmt(gt.excedenteLojas)}</span> : <span className="text-gray-600">—</span>}
+                      </td>
+                    )}
                     <td className="px-2 py-2.5 text-right text-gray-400 font-mono text-[11px] tabular-nums">{fmt(gt.estoqueMin)}</td>
                     <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
                       {gt.pedidos > 0 ? <span className="text-brand-secondary font-semibold">{fmt(gt.pedidos)}</span> : <span className="text-gray-600">—</span>}
@@ -823,6 +878,11 @@ export default function MatrizPlanejamentoTable({
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums">
                             {rt.emProcesso > 0 ? <span className="text-gray-700 font-semibold">{fmt(rt.emProcesso)}</span> : <span className="text-slate-300">—</span>}
                           </td>
+                          {excedentesLojas && excedentesLojas.size > 0 && (
+                            <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-purple-50">
+                              {rt.excedenteLojas > 0 ? <span className="text-purple-700 font-semibold">{fmt(rt.excedenteLojas)}</span> : <span className="text-slate-300">—</span>}
+                            </td>
+                          )}
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums text-slate-500">{fmt(rt.estoqueMin)}</td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums">
                             {rt.pedidos > 0 ? <span className="text-gray-700 font-semibold">{fmt(rt.pedidos)}</span> : <span className="text-slate-300">—</span>}
@@ -958,6 +1018,15 @@ export default function MatrizPlanejamentoTable({
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
                                 {emP > 0 ? <span className="text-gray-700">{fmt(emP)}</span> : <span className="text-gray-300">—</span>}
                               </td>
+                              {excedentesLojas && excedentesLojas.size > 0 && (() => {
+                                const excItem = excedentesLojas.get(Number(item.produto.idproduto));
+                                const excVal = excItem?.qtd_disponivel_total || 0;
+                                return (
+                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-purple-50/50">
+                                    {excVal > 0 ? <span className="text-purple-700">{fmt(excVal)}</span> : <span className="text-gray-300">—</span>}
+                                  </td>
+                                );
+                              })()}
                               <td className="px-3 py-3 text-right font-mono tabular-nums text-gray-400">{fmt(eMin)}</td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
                                 {item.demanda.pedidos_pendentes > 0 ? <span className="text-gray-700">{fmt(item.demanda.pedidos_pendentes)}</span> : <span className="text-gray-300">—</span>}

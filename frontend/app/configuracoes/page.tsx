@@ -17,6 +17,10 @@ type SugestaoPlanoCfg = {
   usar_corte_minimo: boolean;
 };
 
+type EstoqueLojasCfg = {
+  cobertura_minima_lojas: number;
+};
+
 function parseNumberFlexible(raw: string): number {
   const s = String(raw || '').trim().replace(/^"|"$/g, '');
   if (!s) return NaN;
@@ -99,8 +103,11 @@ export default function ConfiguracoesPage() {
   const [cfg, setCfg] = useState<SugestaoPlanoCfg>({
     cobertura_top30: 1.2,
     cobertura_demais: 0.8,
-    cobertura_kissme: 1.5,
+    cobertura_kissme: 0.5,
     usar_corte_minimo: true,
+  });
+  const [cfgLojas, setCfgLojas] = useState<EstoqueLojasCfg>({
+    cobertura_minima_lojas: 1.0,
   });
 
   useEffect(() => {
@@ -116,20 +123,25 @@ export default function ConfiguracoesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [rCortes, rCfg] = await Promise.all([
+      const [rCortes, rCfg, rLojas] = await Promise.all([
         fetch(`${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() }),
         fetch(`${API_URL}/api/configuracoes/sugestao-plano`, { headers: authHeaders() }),
+        fetch(`${API_URL}/api/configuracoes/estoque-lojas`, { headers: authHeaders() }),
       ]);
       const pCortes = await rCortes.json();
       const pCfg = await rCfg.json();
+      const pLojas = await rLojas.json();
       if (!rCortes.ok || !pCortes.success) throw new Error(pCortes.error || 'Erro ao carregar cortes mínimos');
       if (!rCfg.ok || !pCfg.success) throw new Error(pCfg.error || 'Erro ao carregar configuração de sugestão');
       setRows(Array.isArray(pCortes.data) ? pCortes.data : []);
       if (pCfg?.data) setCfg({
-        cobertura_top30: Number(pCfg.data.cobertura_top30 || 1.2),
-        cobertura_demais: Number(pCfg.data.cobertura_demais || 0.8),
-        cobertura_kissme: Number(pCfg.data.cobertura_kissme || 1.5),
+        cobertura_top30: Number(pCfg.data.cobertura_top30 ?? 1.2),
+        cobertura_demais: Number(pCfg.data.cobertura_demais ?? 0.8),
+        cobertura_kissme: Number(pCfg.data.cobertura_kissme ?? 0.5),
         usar_corte_minimo: pCfg.data.usar_corte_minimo !== false,
+      });
+      if (pLojas?.data) setCfgLojas({
+        cobertura_minima_lojas: Number(pLojas.data.cobertura_minima_lojas || 1.0),
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar');
@@ -201,6 +213,29 @@ export default function ConfiguracoesPage() {
     }
   }
 
+  async function salvarConfiguracaoLojas() {
+    setSaving(true);
+    setError(null);
+    setOkMsg(null);
+    try {
+      const payload = {
+        cobertura_minima_lojas: Number(cfgLojas.cobertura_minima_lojas ?? 1.0),
+      };
+      const res = await fetch(`${API_URL}/api/configuracoes/estoque-lojas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao salvar configuração');
+      setOkMsg('Configuração de estoque lojas salva.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const ml = sidebarCollapsed ? 'ml-20' : 'ml-64';
   const totalAtual = useMemo(() => rows.length, [rows]);
 
@@ -244,6 +279,38 @@ export default function ConfiguracoesPage() {
             <div className="mt-3">
               <button onClick={salvarConfiguracaoSugestao} disabled={saving} className="px-3 py-2 text-xs font-semibold bg-brand-primary text-white rounded hover:bg-brand-secondary disabled:opacity-60">
                 {saving ? 'Salvando...' : 'Salvar configuração da sugestão'}
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="text-xs font-semibold text-brand-dark mb-2">
+              Estoque das Lojas (Pós-Incêndio)
+            </div>
+            <div className="text-[11px] text-gray-500 mb-3">
+              Define a cobertura mínima que cada loja deve manter. O excedente acima dessa cobertura fica disponível para uso na fábrica.
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+              <label className="text-xs text-gray-600">
+                Cobertura mínima lojas (meses)
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={cfgLojas.cobertura_minima_lojas}
+                  onChange={(e) => setCfgLojas((p) => ({ ...p, cobertura_minima_lojas: Number(e.target.value ?? 1.0) }))}
+                  className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5"
+                />
+              </label>
+              <div className="text-[11px] text-gray-500">
+                Ex: 1.0 = lojas mantêm 1 mês de estoque mínimo. Excedente acima disso pode ser transferido.
+              </div>
+              <button
+                onClick={salvarConfiguracaoLojas}
+                disabled={saving}
+                className="px-3 py-2 text-xs font-semibold bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-60"
+              >
+                {saving ? 'Salvando...' : 'Salvar config. lojas'}
               </button>
             </div>
           </div>

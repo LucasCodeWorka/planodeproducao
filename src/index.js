@@ -15,6 +15,7 @@ const openaiRoutes    = require("./routes/openai");
 const configuracoesRoutes = require("./routes/configuracoes");
 const consumoMpRoutes = require("./routes/consumoMp");
 const capacidadeRoutes = require("./routes/capacidade");
+const estoqueLojasRoutes = require("./routes/estoqueLojas");
 
 const app = express();
 
@@ -102,6 +103,7 @@ app.use("/api/openai",         openaiRoutes);
 app.use("/api/configuracoes",  configuracoesRoutes);
 app.use("/api/consumo-mp",     consumoMpRoutes);
 app.use("/api/capacidade",     capacidadeRoutes);
+app.use("/api/estoque-lojas",  estoqueLojasRoutes);
 
 // Rota legada mantida para compatibilidade
 app.get("/api/vr-vendas-qtd", async (req, res) => {

@@ -1076,9 +1076,6 @@ export default function AnalisePage() {
             <div className="px-4 py-2 text-xs text-gray-600 border-b">
               Lógica: não corrige tudo em {MESES_PT[periodos.MA]}. Distribui os ajustes entre {MESES_PT[periodos.MA]}, {MESES_PT[periodos.PX]} e {MESES_PT[periodos.UL]}, priorizando negativos e cobertura alvo no fechamento do período.
             </div>
-            <div className="px-4 py-2 text-xs text-indigo-700 bg-indigo-50 border-b border-indigo-100">
-              Março está proporcional ao dia atual para cálculo de atingimento e projeção do mês corrente.
-            </div>
             <div className="grid grid-cols-2 md:grid-cols-9 gap-3 p-4 border-b bg-gray-50">
               <Card label="SKUs com ação" value={balanceamentoPlano.totalAcoes} />
               <Card label="SKUs subir" value={balanceamentoPlano.skusSubir} />

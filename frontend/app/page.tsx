@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import MatrizPlanejamentoTable from './components/MatrizPlanejamentoTable';
 import Sidebar from './components/Sidebar';
-import { Planejamento, ProjecoesMap, PeriodosPlano } from './types';
+import { Planejamento, ProjecoesMap, PeriodosPlano, EstoqueLojaDisponivelAggregado } from './types';
 import { getToken, authHeaders, clearToken } from './lib/auth';
 import { fetchNoCache } from './lib/api';
 import { projecaoMesPlanejamento } from './lib/projecao';
@@ -78,12 +78,16 @@ export default function Home() {
   const [building,     setBuilding]     = useState(false);
   const [buildElapsed, setBuildElapsed] = useState(0);
   const [apenasNegativos, setApenasNegativos] = useState(false);
+  const [filtroNaoPrecisaProduzir, setFiltroNaoPrecisaProduzir] = useState(false);
   const [filtroContinuidade, setFiltroContinuidade] = useState<string[]>([]);
+  const [filtroSuspensos, setFiltroSuspensos] = useState<'INCLUIR' | 'EXCLUIR'>('INCLUIR');
   const [filtroReferencia, setFiltroReferencia] = useState('');
   const [filtroCor, setFiltroCor] = useState('TODAS');
   const [filtroCobertura, setFiltroCobertura] = useState<'TODAS' | 'NEGATIVA' | 'ZERO_UM' | 'MAIOR_UM' | 'MAIOR_2'>('TODAS');
   const [filtroCoberturaBase, setFiltroCoberturaBase] = useState<'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT'>('ATUAL');
   const [filtroTaxa, setFiltroTaxa] = useState<'TODAS' | 'ATE_70'>('TODAS');
+  const [filtroCoberturaMinima, setFiltroCoberturaMinima] = useState<string>('');
+  const [filtroEmProcessoMinimo, setFiltroEmProcessoMinimo] = useState<string>('');
   const [projecoes,    setProjecoes]    = useState<ProjecoesMap>({});
   const [vendasReais,  setVendasReais]  = useState<Record<string, Record<string, number>>>({});
   const [top30Ids,     setTop30Ids]     = useState<Set<string>>(new Set());
@@ -98,6 +102,9 @@ export default function Home() {
   const [reprojecaoPreview, setReprojecaoPreview] = useState<ReprojecaoPreview[]>([]);
   const [recalculandoProjecao, setRecalculandoProjecao] = useState(false);
   const [resultadoReprojecaoMsg, setResultadoReprojecaoMsg] = useState<string | null>(null);
+  const [usarEstoqueLojas, setUsarEstoqueLojas] = useState(false);
+  const [estoqueLojasDisponivel, setEstoqueLojasDisponivel] = useState<Map<number, EstoqueLojaDisponivelAggregado>>(new Map());
+  const [carregandoEstoqueLojas, setCarregandoEstoqueLojas] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reprojecaoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -178,6 +185,38 @@ export default function Home() {
       setAprovadasSelecionadasIds([]);
     }
   }
+
+  async function buscarEstoqueLojasDisponivel() {
+    setCarregandoEstoqueLojas(true);
+    try {
+      const res = await fetchNoCache(
+        `${API_URL}/api/estoque-lojas/disponivel-total?lojaDestino=1`,
+        { headers: authHeaders() }
+      );
+      if (!res.ok) throw new Error('Erro ao buscar estoque disponível das lojas');
+      const data = await res.json();
+      const map = new Map<number, EstoqueLojaDisponivelAggregado>();
+      if (Array.isArray(data?.data)) {
+        for (const item of data.data) {
+          map.set(Number(item.cd_produto), item as EstoqueLojaDisponivelAggregado);
+        }
+      }
+      setEstoqueLojasDisponivel(map);
+    } catch (e) {
+      console.error('[buscarEstoqueLojasDisponivel]', e);
+      setEstoqueLojasDisponivel(new Map());
+    } finally {
+      setCarregandoEstoqueLojas(false);
+    }
+  }
+
+  useEffect(() => {
+    if (usarEstoqueLojas) {
+      buscarEstoqueLojasDisponivel();
+    } else {
+      setEstoqueLojasDisponivel(new Map());
+    }
+  }, [usarEstoqueLojas]);
 
   async function carregarVendasReais(ids: number[]) {
     if (!ids.length) {
@@ -348,11 +387,51 @@ export default function Home() {
     });
   }, [dados, aplicarAprovadas, planosAprovadosMap]);
 
+  const dadosAtivosComEstoqueLojas = useMemo(() => {
+    if (!usarEstoqueLojas || estoqueLojasDisponivel.size === 0) return dadosAtivos;
+    return dadosAtivos.map((item) => {
+      const estoqueExtra = Number(estoqueLojasDisponivel.get(Number(item.produto.idproduto))?.qtd_disponivel_total || 0);
+      if (!(estoqueExtra > 0)) return item;
+      const estoqueAtual = Number(item.estoques.estoque_atual || 0);
+      const emProcesso = Number(item.estoques.em_processo || 0);
+      const estoqueMinimo = Number(item.estoques.estoque_minimo || 0);
+      const pedidosPendentes = Number(item.demanda.pedidos_pendentes || 0);
+      const estoqueDisponivel = estoqueAtual + estoqueExtra + emProcesso;
+      const necessidadeTotal = estoqueMinimo + pedidosPendentes;
+      const necessidadeProducao = Math.max(0, necessidadeTotal - estoqueDisponivel);
+      const situacao: 'PRODUZIR' | 'ESTOQUE_OK' = necessidadeProducao > 0 ? 'PRODUZIR' : 'ESTOQUE_OK';
+      const prioridade: 'ALTA' | 'MEDIA' | 'BAIXA' = necessidadeProducao > 0
+        ? ((estoqueAtual + estoqueExtra) < estoqueMinimo ? 'ALTA' : 'MEDIA')
+        : 'BAIXA';
+
+      return {
+        ...item,
+        estoques: {
+          ...item.estoques,
+          estoque_atual: estoqueAtual + estoqueExtra,
+          estoque_disponivel: estoqueDisponivel,
+        },
+        planejamento: {
+          ...item.planejamento,
+          necessidade_producao: necessidadeProducao,
+          situacao,
+          prioridade,
+        },
+      };
+    });
+  }, [dadosAtivos, usarEstoqueLojas, estoqueLojasDisponivel]);
+
   const dadosPagina = useMemo(() => {
-    if (filtroContinuidade.length === 0) return dadosAtivos;
+    let base = dadosAtivosComEstoqueLojas;
+
+    if (filtroSuspensos === 'EXCLUIR') {
+      base = base.filter((i) => String(i.produto.cod_situacao || '').trim() !== '007');
+    }
+
+    if (filtroContinuidade.length === 0) return base;
     const selecionadas = new Set(filtroContinuidade.map((v) => String(v || '').trim()));
-    return dadosAtivos.filter((i) => selecionadas.has((i.produto.continuidade || '').trim()));
-  }, [dadosAtivos, filtroContinuidade]);
+    return base.filter((i) => selecionadas.has((i.produto.continuidade || '').trim()));
+  }, [dadosAtivosComEstoqueLojas, filtroContinuidade, filtroSuspensos]);
 
   const projecoesAtivas = useMemo<ProjecoesMap>(() => {
     if (!considerarProjecaoNova || reprojecaoPreview.length === 0) return projecoes;
@@ -447,6 +526,48 @@ export default function Home() {
     }),
     { itens: 0, estoque: 0, emProc: 0, estoqueMin: 0, pedidos: 0 }
   ), [dadosPagina]);
+
+  // Totalizador que reflete os filtros customizados (cobertura e em processo)
+  const totaisFiltrados = useMemo(() => {
+    let base = dadosPagina;
+
+    // Aplica filtro de cobertura mínima (mesma lógica da tabela)
+    if (filtroCoberturaMinima.trim()) {
+      const valorCobertura = parseFloat(filtroCoberturaMinima);
+      if (!isNaN(valorCobertura)) {
+        base = base.filter((i) => {
+          const estoqueAtual = Number(i.estoques?.estoque_atual || 0);
+          const pedidos = Number(i.demanda?.pedidos_pendentes || 0);
+          const estoqueMin = Number(i.estoques?.estoque_minimo || 0);
+          const disponivelSemProcesso = estoqueAtual - pedidos;
+          const coberturaAtual = estoqueMin > 0 ? disponivelSemProcesso / estoqueMin : Number.NEGATIVE_INFINITY;
+          return coberturaAtual > valorCobertura;
+        });
+      }
+    }
+
+    // Aplica filtro de em processo mínimo
+    if (filtroEmProcessoMinimo.trim()) {
+      const valorProcesso = parseFloat(filtroEmProcessoMinimo);
+      if (!isNaN(valorProcesso)) {
+        base = base.filter((i) => {
+          const emProcesso = Number(i.estoques?.em_processo || 0);
+          return emProcesso > valorProcesso;
+        });
+      }
+    }
+
+    return base.reduce(
+      (acc, i) => ({
+        itens:      acc.itens      + 1,
+        estoque:    acc.estoque    + (i.estoques.estoque_atual    || 0),
+        emProc:     acc.emProc     + (i.estoques.em_processo      || 0),
+        estoqueMin: acc.estoqueMin + (i.estoques.estoque_minimo   || 0),
+        pedidos:    acc.pedidos    + (i.demanda.pedidos_pendentes  || 0),
+      }),
+      { itens: 0, estoque: 0, emProc: 0, estoqueMin: 0, pedidos: 0 }
+    );
+  }, [dadosPagina, filtroCoberturaMinima, filtroEmProcessoMinimo]);
 
   const analiseCobertura = useMemo(() => {
     let base = dadosPagina;
@@ -824,18 +945,22 @@ export default function Home() {
                 <div className="flex-1 h-px bg-gray-100" />
               </div>
               <div className="grid grid-cols-5 gap-6">
-                {[
-                  { label: 'Itens',         value: totais.itens.toLocaleString('pt-BR'),                                    accent: 'text-brand-primary' },
-                  { label: 'Estoque atual', value: totais.estoque.toLocaleString('pt-BR',    { maximumFractionDigits: 0 }), accent: 'text-blue-600' },
-                  { label: 'Em processo',   value: totais.emProc.toLocaleString('pt-BR',     { maximumFractionDigits: 0 }), accent: 'text-sky-600' },
-                  { label: 'Est. mínimo',   value: totais.estoqueMin.toLocaleString('pt-BR', { maximumFractionDigits: 0 }), accent: 'text-gray-700' },
-                  { label: 'Pedidos pend.', value: totais.pedidos.toLocaleString('pt-BR',    { maximumFractionDigits: 0 }), accent: 'text-amber-600' },
-                ].map((c) => (
-                  <div key={c.label}>
-                    <div className="text-[11px] text-gray-400 mb-0.5">{c.label}</div>
-                    <div className={`text-xl font-bold font-mono ${c.accent}`}>{c.value}</div>
-                  </div>
-                ))}
+                {(() => {
+                  const usarFiltrados = filtroCoberturaMinima.trim() || filtroEmProcessoMinimo.trim();
+                  const t = usarFiltrados ? totaisFiltrados : totais;
+                  return [
+                    { label: 'Itens',         value: t.itens.toLocaleString('pt-BR'),                                    accent: 'text-brand-primary' },
+                    { label: 'Estoque atual', value: t.estoque.toLocaleString('pt-BR',    { maximumFractionDigits: 0 }), accent: 'text-blue-600' },
+                    { label: 'Em processo',   value: t.emProc.toLocaleString('pt-BR',     { maximumFractionDigits: 0 }), accent: 'text-sky-600' },
+                    { label: 'Est. mínimo',   value: t.estoqueMin.toLocaleString('pt-BR', { maximumFractionDigits: 0 }), accent: 'text-gray-700' },
+                    { label: 'Pedidos pend.', value: t.pedidos.toLocaleString('pt-BR',    { maximumFractionDigits: 0 }), accent: 'text-amber-600' },
+                  ].map((c) => (
+                    <div key={c.label}>
+                      <div className="text-[11px] text-gray-400 mb-0.5">{c.label}</div>
+                      <div className={`text-xl font-bold font-mono ${c.accent}`}>{c.value}</div>
+                    </div>
+                  ));
+                })()}
               </div>
 
               {/* Filtros integrados */}
@@ -853,6 +978,28 @@ export default function Home() {
                     >
                       Negativos
                     </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-dark mb-1">Cobertura &gt;</label>
+                    <input
+                      type="text"
+                      value={filtroCoberturaMinima}
+                      onChange={(e) => setFiltroCoberturaMinima(e.target.value)}
+                      placeholder="ex: 1"
+                      className="w-20 px-2 py-1.5 text-xs border border-gray-300 rounded"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-dark mb-1">Em Proc. &gt;</label>
+                    <input
+                      type="text"
+                      value={filtroEmProcessoMinimo}
+                      onChange={(e) => setFiltroEmProcessoMinimo(e.target.value)}
+                      placeholder="ex: 0"
+                      className="w-20 px-2 py-1.5 text-xs border border-gray-300 rounded"
+                    />
                   </div>
 
                   <div className="border-l border-gray-200 pl-4">
@@ -958,6 +1105,37 @@ export default function Home() {
                   </div>
 
                   <div className="border-l border-gray-200 pl-4">
+                    <label className="block text-xs font-semibold text-brand-dark mb-1">Estoque Lojas</label>
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        onClick={() => setUsarEstoqueLojas((v) => !v)}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
+                          usarEstoqueLojas
+                            ? 'bg-purple-600 text-white border-purple-600'
+                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {usarEstoqueLojas ? 'Lojas ativas' : 'Usar estoque lojas'}
+                      </button>
+                      {carregandoEstoqueLojas ? (
+                        <div className="flex items-center gap-1.5 text-[11px] text-purple-700">
+                          <svg className="animate-spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                          </svg>
+                          Carregando estoque disponível...
+                        </div>
+                      ) : (
+                        usarEstoqueLojas && estoqueLojasDisponivel.size > 0 && (
+                          <div className="text-[11px] text-gray-500">
+                            {estoqueLojasDisponivel.size.toLocaleString('pt-BR')} produtos com estoque disponível
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-l border-gray-200 pl-4">
                     <label className="block text-xs font-semibold text-brand-dark mb-1">Continuidade</label>
                     <div className="relative z-50 w-56">
                       <button
@@ -1011,6 +1189,18 @@ export default function Home() {
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  <div className="border-l border-gray-200 pl-4">
+                    <label className="block text-xs font-semibold text-brand-dark mb-1">Suspensos</label>
+                    <select
+                      value={filtroSuspensos}
+                      onChange={(e) => setFiltroSuspensos(e.target.value as 'INCLUIR' | 'EXCLUIR')}
+                      className="border border-gray-300 rounded px-2 py-1.5 text-xs w-28 focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                    >
+                      <option value="INCLUIR">Incluir</option>
+                      <option value="EXCLUIR">Excluir</option>
+                    </select>
                   </div>
 
                   <div className="border-l border-gray-200 pl-4">
@@ -1159,6 +1349,9 @@ export default function Home() {
               filtroCobertura={filtroCobertura}
               filtroCoberturaBase={filtroCoberturaBase}
               filtroTaxa={filtroTaxa}
+              excedentesLojas={usarEstoqueLojas ? estoqueLojasDisponivel : null}
+              filtroCoberturaMinima={filtroCoberturaMinima}
+              filtroEmProcessoMinimo={filtroEmProcessoMinimo}
             />
           )}
 

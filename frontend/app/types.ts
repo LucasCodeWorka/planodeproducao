@@ -9,6 +9,7 @@ export interface Produto {
   status: string;
   idfamilia: string;
   continuidade: string;
+  cod_situacao?: string;
   linha?: string;
   grupo?: string;
   marca: string;
@@ -78,4 +79,42 @@ export interface PeriodosPlano {
   PX: number;  // próximo mês
   UL: number;  // último mês do plano
   QT?: number; // mês seguinte ao UL (opcional)
+}
+
+/** Excedente de estoque das lojas por produto */
+export interface ExcedenteLoja {
+  cd_produto: number;
+  excedente_total: number;
+  estoque_total_lojas: number;
+  lojas_com_excedente: number;
+  detalhes_lojas: Array<{
+    cd_empresa: number;
+    excedente: number;
+    estoque_loja: number;
+    cobertura_atual: number | null;
+  }>;
+}
+
+export interface EstoqueLojaDisponivelDetalhe {
+  loja_origem: number;
+  cd_produto: number;
+  referencia: string;
+  cor: string;
+  tamanho: string;
+  produto?: string;
+  qtd_sugerida: number;
+}
+
+export interface EstoqueLojaDisponivelAggregado {
+  cd_produto: number;
+  referencia: string;
+  cor: string;
+  tamanho: string;
+  produto?: string;
+  qtd_disponivel_total: number;
+  lojas_origem_count: number;
+  detalhes_lojas: Array<{
+    loja_origem: number;
+    qtd_sugerida: number;
+  }>;
 }

@@ -8,6 +8,7 @@ const DATA_DIR = path.join(__dirname, "../../data");
 const CORTES_FILE = path.join(DATA_DIR, "cortes_minimos_produto.json");
 const SUGESTAO_FILE = path.join(DATA_DIR, "config_sugestao_plano.json");
 const REGRAS_OPMIN_FILE = path.join(DATA_DIR, "regras_op_min_ref.json");
+const ESTOQUE_LOJAS_FILE = path.join(DATA_DIR, "config_estoque_lojas.json");
 
 function auth(req, res, next) {
   const token = (req.headers.authorization || "").replace("Bearer ", "").trim();
@@ -110,6 +111,30 @@ function writeRegrasOpMin(data) {
   );
 }
 
+function readEstoqueLojas() {
+  try {
+    const raw = fs.readFileSync(ESTOQUE_LOJAS_FILE, "utf-8");
+    const parsed = JSON.parse(raw);
+    const cfg = parsed?.data || {};
+    return {
+      cobertura_minima_lojas: Number(cfg.cobertura_minima_lojas || 1.0),
+    };
+  } catch {
+    return {
+      cobertura_minima_lojas: 1.0,
+    };
+  }
+}
+
+function writeEstoqueLojas(data) {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(
+    ESTOQUE_LOJAS_FILE,
+    JSON.stringify({ timestamp: Date.now(), data }, null, 2),
+    "utf-8"
+  );
+}
+
 router.get("/corte-minimos", auth, (_req, res) => {
   const data = readCortes().sort((a, b) => a.idproduto.localeCompare(b.idproduto));
   return res.json({ success: true, total: data.length, data });
@@ -193,6 +218,21 @@ router.post("/regras-op-minimas", auth, (req, res) => {
 
   writeRegrasOpMin(data);
   return res.status(201).json({ success: true, total: data.length, data });
+});
+
+router.get("/estoque-lojas", auth, (_req, res) => {
+  const data = readEstoqueLojas();
+  return res.json({ success: true, data });
+});
+
+router.post("/estoque-lojas", auth, (req, res) => {
+  const inData = req.body || {};
+  const data = {
+    cobertura_minima_lojas: Math.max(0.1, Number(inData.cobertura_minima_lojas || 1.0)),
+  };
+
+  writeEstoqueLojas(data);
+  return res.status(201).json({ success: true, data });
 });
 
 module.exports = router;

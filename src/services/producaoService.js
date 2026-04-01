@@ -174,6 +174,7 @@ async function buscarCatalogoProdutos(pool, options = {}) {
         a.ds_tamanho AS tamanho,
         f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
         f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) AS continuidade,
+        f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 124::bigint) AS cod_situacao,
         f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint) AS status
       FROM vr_prd_prdgrade a
       WHERE 1=1
@@ -191,7 +192,8 @@ async function buscarCatalogoProdutos(pool, options = {}) {
         f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar) AS produto,
         f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint) AS status,
         f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 24::bigint) AS idfamilia,
-        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) AS continuidade
+        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) AS continuidade,
+        f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 124::bigint) AS cod_situacao
       FROM vr_prd_prdgrade a
       WHERE 1=1
         AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
@@ -271,7 +273,8 @@ async function buscarPlanejamentoProduto(pool, cdProduto, cdEmpresa = 1) {
       f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar) AS produto,
       f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint) AS status,
       f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 24::bigint) AS idfamilia,
-      f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) AS continuidade
+      f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) AS continuidade,
+      f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 124::bigint) AS cod_situacao
     FROM vr_prd_prdgrade a
     WHERE a.cd_produto = $1
       AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
@@ -538,7 +541,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   const t1 = Date.now();
   console.log(`[matriz/paralela] Fase 2 — ${ids.length} IDs, 8 consultas paralelas`);
 
-  const [rRef, rProd, rStatus, rFamilia, rCont, rLinha, rGrupo, rEstoque, rSaldo, rVendas] =
+  const [rRef, rProd, rStatus, rFamilia, rCont, rLinha, rGrupo, rSituacao, rEstoque, rSaldo, rVendas] =
     await Promise.all([
       // Q4 – referencia
       pool.query(
@@ -589,6 +592,13 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
          FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
         [ids]
       ),
+      // Q8.3 – código da situação
+      pool.query(
+        `SELECT cd_produto::BIGINT AS idproduto,
+                f_dic_prd_classificacao(cd_produto,'CD'::text,124::bigint) AS cod_situacao
+         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+        [ids]
+      ),
       // Q9 – estoque atual
       pool.query(
         `SELECT cd_produto::BIGINT AS idproduto,
@@ -630,6 +640,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   const contMap   = new Map(rCont.rows.map(r   => [Number(r.idproduto), r.continuidade]));
   const linhaMap  = new Map(rLinha.rows.map(r  => [Number(r.idproduto), r.linha]));
   const grupoMap  = new Map(rGrupo.rows.map(r  => [Number(r.idproduto), r.grupo]));
+  const situacaoMap = new Map(rSituacao.rows.map(r => [Number(r.idproduto), r.cod_situacao]));
   const estMap    = new Map(rEstoque.rows.map(r=> [Number(r.idproduto), parseFloat(r.estoque) || 0]));
   const saldoMap  = new Map(rSaldo.rows.map(r  => [Number(r.idproduto), parseFloat(r.saldo)  || 0]));
   const emprocMap = new Map(rEmProcesso.rows.map(r => [Number(r.idproduto), parseFloat(r.qt_em_processo) || 0]));
@@ -708,6 +719,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
         continuidade: contMap.get(id) || null,
         linha:        linhaMap.get(id) || null,
         grupo:        grupoMap.get(id) || null,
+        cod_situacao: situacaoMap.get(id) || null,
         marca:        marca           || null,
         cd_empresa:   cdEmpresa
       },

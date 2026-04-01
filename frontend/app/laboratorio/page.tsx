@@ -18,8 +18,16 @@ type TaxaFaixa = 'TODAS' | 'ATE_70';
 type NivelMatriz = 'CONTINUIDADE' | 'ITEM';
 type ResumoPeriodo = { base: number; cenario: number; retirado: number };
 type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number };
+type ReprojecaoPreviewItem = {
+  idproduto: string;
+  recalculada: { ma: number; px: number; ul: number; qt?: number };
+};
 type SimulacaoParametros = {
   tipo?: string;
+  subtipo?: string;
+  origem?: string;
+  periodoAlvo?: 'MA' | 'PX' | 'UL' | 'QT';
+  maModo?: 'EMERGENCIA' | 'COBERTURA' | null;
   statusAprovacao?: 'PENDENTE' | 'APROVADA';
   aprovadoEm?: number;
   aprovadoPor?: string;
@@ -44,7 +52,12 @@ type SimulacaoParametros = {
     cobertura?: CoberturaFaixa;
     coberturaBase?: CoberturaBase;
     taxa?: TaxaFaixa;
+    suspensos?: 'INCLUIR' | 'EXCLUIR';
   };
+  usarEstoqueLojas?: boolean;
+  estoqueLojasSnapshot?: Array<{ idproduto: string; qtd_disponivel_total: number }>;
+  considerarProjecaoNova?: boolean;
+  reprojecaoPreview?: ReprojecaoPreviewItem[];
   planos?: PlanoSnapshotItem[];
 };
 type SugestaoPlanoCfg = {
@@ -169,6 +182,43 @@ function calculaDispECobPorPlano(
   };
 }
 
+function aplicarEstoqueLojasNaBase(
+  base: Planejamento[],
+  snapshot: Array<{ idproduto: string; qtd_disponivel_total: number }>
+) {
+  if (!snapshot.length) return base;
+  const estoqueMap = new Map<number, number>();
+  snapshot.forEach((row) => {
+    const id = Number(row.idproduto);
+    if (!Number.isFinite(id)) return;
+    estoqueMap.set(id, Number(row.qtd_disponivel_total || 0));
+  });
+  if (estoqueMap.size === 0) return base;
+
+  return base.map((item) => {
+    const id = Number(item.produto.idproduto);
+    const adicional = Number(estoqueMap.get(id) || 0);
+    if (!(adicional > 0)) return item;
+    const estoqueAtual = Number(item.estoques.estoque_atual || 0) + adicional;
+    const pedidosPendentes = Number(item.demanda.pedidos_pendentes || 0);
+    const estoqueDisponivel = Math.max(0, estoqueAtual - pedidosPendentes);
+    const estoqueMinimo = Number(item.estoques.estoque_minimo || 0);
+    const necessidadeProducao = Math.max(0, estoqueMinimo - estoqueDisponivel);
+    return {
+      ...item,
+      estoques: {
+        ...item.estoques,
+        estoque_atual: estoqueAtual,
+        estoque_disponivel: estoqueDisponivel,
+      },
+      planejamento: {
+        ...item.planejamento,
+        necessidade_producao: necessidadeProducao,
+      },
+    };
+  });
+}
+
 function coberturaNaBase(
   base: CoberturaBase,
   min: number,
@@ -201,8 +251,10 @@ export default function LaboratorioPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [dadosBase, setDadosBase] = useState<Planejamento[]>([]);
+  const [dadosBaseOriginal, setDadosBaseOriginal] = useState<Planejamento[]>([]);
   const [dadosCenario, setDadosCenario] = useState<Planejamento[]>([]);
   const [projecoes, setProjecoes] = useState<ProjecoesMap>({});
+  const [reprojecaoPreviewAtiva, setReprojecaoPreviewAtiva] = useState<ReprojecaoPreviewItem[]>([]);
   const [vendasReais, setVendasReais] = useState<Record<string, Record<string, number>>>({});
   const [corteMinPorProduto, setCorteMinPorProduto] = useState<Record<string, number>>({});
   const [top30Ids, setTop30Ids] = useState<Set<string>>(new Set());
@@ -253,6 +305,21 @@ export default function LaboratorioPage() {
   const [gerandoSugestaoRetirada, setGerandoSugestaoRetirada] = useState(false);
   const [vendasReaisLoading, setVendasReaisLoading] = useState(false);
 
+  const projecoesAtivas = useMemo<ProjecoesMap>(() => {
+    if (!reprojecaoPreviewAtiva.length) return projecoes;
+    const clone: ProjecoesMap = { ...projecoes };
+    for (const item of reprojecaoPreviewAtiva) {
+      const id = String(item.idproduto || '').trim();
+      if (!id) continue;
+      const base = clone[id] ? { ...clone[id] } : {};
+      base[String(periodos.MA)] = Number(item.recalculada?.ma || 0);
+      base[String(periodos.PX)] = Number(item.recalculada?.px || 0);
+      base[String(periodos.UL)] = Number(item.recalculada?.ul || 0);
+      clone[id] = base;
+    }
+    return clone;
+  }, [projecoes, reprojecaoPreviewAtiva, periodos]);
+
   useEffect(() => {
     if (!getToken()) {
       router.replace('/login');
@@ -291,9 +358,11 @@ export default function LaboratorioPage() {
       const pCfgSugestao = await rCfgSugestao.json();
       const rows = (pMatriz.data || []) as Planejamento[];
 
+      setDadosBaseOriginal(rows);
       setDadosBase(rows);
       setDadosCenario(rows);
       setProjecoes((pProj && pProj.data) || {});
+      setReprojecaoPreviewAtiva([]);
       if (pProj && pProj.periodos) setPeriodos(pProj.periodos as PeriodosPlano);
       const salvas = Array.isArray(pSaved?.data) ? (pSaved.data as SavedSimulacao[]) : [];
       setSimulacoes(
@@ -364,7 +433,7 @@ export default function LaboratorioPage() {
     if (filtroReferencia.trim() && !(item.produto.referencia || '').toLowerCase().includes(filtroReferencia.toLowerCase().trim())) return false;
 
     const dispAtual = (item.estoques.estoque_atual || 0) - (item.demanda.pedidos_pendentes || 0);
-    const proj = projecoes[item.produto.idproduto] ?? null;
+    const proj = projecoesAtivas[item.produto.idproduto] ?? null;
     const emP = item.estoques.em_processo || 0;
     const pMA = item.plano?.ma || 0;
     const pPX = item.plano?.px || 0;
@@ -390,7 +459,7 @@ export default function LaboratorioPage() {
     }
 
     if (filtroTaxa === 'ATE_70') {
-      const projSku = projecoes[item.produto.idproduto] || {};
+      const projSku = projecoesAtivas[item.produto.idproduto] || {};
       const realSku = vendasReais[item.produto.idproduto] || {};
       const pj = Number(projSku['1'] || 0);
       const pf = Number(projSku['2'] || 0);
@@ -434,7 +503,7 @@ export default function LaboratorioPage() {
       if (min <= 0) return item;
 
       const dispAtual = (item.estoques.estoque_atual || 0) - (item.demanda.pedidos_pendentes || 0);
-      const proj = projecoes[item.produto.idproduto] ?? null;
+      const proj = projecoesAtivas[item.produto.idproduto] ?? null;
       const emP = item.estoques.em_processo || 0;
       let ma = arredPeca(item.plano?.ma || 0);
       let px = arredPeca(item.plano?.px || 0);
@@ -470,7 +539,7 @@ export default function LaboratorioPage() {
   }
 
   function taxaJanFev(item: Planejamento) {
-    const projSku = projecoes[item.produto.idproduto] || {};
+    const projSku = projecoesAtivas[item.produto.idproduto] || {};
     const realSku = vendasReais[item.produto.idproduto] || {};
     const pj = Number(projSku['1'] || 0);
     const pf = Number(projSku['2'] || 0);
@@ -513,7 +582,7 @@ export default function LaboratorioPage() {
         if (min <= 0) return item;
 
         const dispAtual = (item.estoques.estoque_atual || 0) - (item.demanda.pedidos_pendentes || 0);
-        const proj = projecoes[item.produto.idproduto] ?? null;
+        const proj = projecoesAtivas[item.produto.idproduto] ?? null;
         const emP = item.estoques.em_processo || 0;
         let ma = arredPeca(item.plano?.ma || 0);
         let px = arredPeca(item.plano?.px || 0);
@@ -621,7 +690,7 @@ export default function LaboratorioPage() {
       qtdFaixa50,
       pctFaixa50: totalEscopo > 0 ? (qtdFaixa50 / totalEscopo) * 100 : 0,
     };
-  }, [cenarioEscopoSimulacao, projecoes, vendasReais]);
+  }, [cenarioEscopoSimulacao, projecoesAtivas, vendasReais]);
 
   function aplicarReducaoPorCobertura() {
     const novo = dadosCenario.map((item) => {
@@ -632,7 +701,7 @@ export default function LaboratorioPage() {
       if (min <= 0) return item;
 
       const dispAtual = (item.estoques.estoque_atual || 0) - (item.demanda.pedidos_pendentes || 0);
-      const proj = projecoes[item.produto.idproduto] ?? null;
+      const proj = projecoesAtivas[item.produto.idproduto] ?? null;
       const emP = item.estoques.em_processo || 0;
       let ma = arredPeca(item.plano?.ma || 0);
       let px = arredPeca(item.plano?.px || 0);
@@ -683,7 +752,7 @@ export default function LaboratorioPage() {
       if (min <= 0) return item;
 
       const dispAtual = (item.estoques.estoque_atual || 0) - (item.demanda.pedidos_pendentes || 0);
-      const proj = projecoes[item.produto.idproduto] ?? null;
+      const proj = projecoesAtivas[item.produto.idproduto] ?? null;
       const emP = item.estoques.em_processo || 0;
       let ma = arredPeca(item.plano?.ma || 0);
       let px = arredPeca(item.plano?.px || 0);
@@ -850,7 +919,7 @@ export default function LaboratorioPage() {
     }
   }
 
-  function aplicarSimulacao(sim: SavedSimulacao) {
+  async function aplicarSimulacao(sim: SavedSimulacao) {
     setError(null);
     setOkMsg(null);
     const p = sim.parametros || {};
@@ -876,13 +945,24 @@ export default function LaboratorioPage() {
     if (f.coberturaBase) setFiltroCoberturaBase(f.coberturaBase);
     if (f.taxa) setFiltroTaxa(f.taxa);
 
+    const reprojecaoSnapshot = Array.isArray(p.reprojecaoPreview) ? p.reprojecaoPreview : [];
+    setReprojecaoPreviewAtiva(Boolean(p.considerarProjecaoNova) ? reprojecaoSnapshot : []);
+
+    const baseOriginal = dadosBaseOriginal.length ? dadosBaseOriginal : dadosBase;
+    const estoqueLojasSnapshot = Array.isArray(p.estoqueLojasSnapshot) ? p.estoqueLojasSnapshot : [];
+    const baseContexto =
+      Boolean(p.usarEstoqueLojas) && estoqueLojasSnapshot.length > 0
+        ? aplicarEstoqueLojasNaBase(baseOriginal, estoqueLojasSnapshot)
+        : baseOriginal;
+
     const snapshot = Array.isArray(p.planos) ? p.planos : [];
     const planoPorChave = new Map(snapshot.map((i) => [i.chave, i]));
-    const novo = dadosBase.map((baseItem) => {
+    const novo = baseContexto.map((baseItem) => {
       const snap = planoPorChave.get(chaveItem(baseItem));
       if (!snap) return baseItem;
       return { ...baseItem, plano: { ma: arredPeca(snap.ma), px: arredPeca(snap.px), ul: arredPeca(snap.ul) } };
     });
+    setDadosBase(baseContexto);
     setDadosCenario(novo);
     setOkMsg(`Simulação "${sim.nome}" aplicada.`);
   }
@@ -1035,8 +1115,8 @@ export default function LaboratorioPage() {
       const retiradoUL = Math.max(0, bUl - cUl);
       const retiradoTotal = retiradoMA + retiradoPX + retiradoUL;
       if (retiradoTotal <= 0) return;
-      const baseCalc = calculaDispECobPorPlano(baseItem, projecoes, periodos, { ma: bMa, px: bPx, ul: bUl });
-      const cenarioCalc = calculaDispECobPorPlano(baseItem, projecoes, periodos, { ma: cMa, px: cPx, ul: cUl });
+      const baseCalc = calculaDispECobPorPlano(baseItem, projecoesAtivas, periodos, { ma: bMa, px: bPx, ul: bUl });
+      const cenarioCalc = calculaDispECobPorPlano(baseItem, projecoesAtivas, periodos, { ma: cMa, px: cPx, ul: cUl });
 
       itens.push({
         chave: chaveItem(baseItem),
@@ -1155,7 +1235,7 @@ export default function LaboratorioPage() {
       const ma = arredPeca(item.plano?.ma || 0);
       const px = arredPeca(item.plano?.px || 0);
       const ul = arredPeca(item.plano?.ul || 0);
-      const proj = projecoes[item.produto.idproduto] ?? null;
+      const proj = projecoesAtivas[item.produto.idproduto] ?? null;
       const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
       const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
       const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
@@ -1219,7 +1299,7 @@ export default function LaboratorioPage() {
       sku: [toSerie('MA', meses.MA), toSerie('PX', meses.PX), toSerie('UL', meses.UL)],
       ref: [toSerieRef('MA', meses.MA), toSerieRef('PX', meses.PX), toSerieRef('UL', meses.UL)],
     };
-  }, [dadosCenario, projecoes, periodos, top30Ids, top30Refs]);
+  }, [dadosCenario, projecoesAtivas, periodos, top30Ids, top30Refs]);
 
   const parametrosAnalyser = useMemo(() => {
     const base = cenarioEscopoSimulacao.filter((i) => !String(i.produto.produto || '').toUpperCase().includes('MEIA DE SEDA'));
@@ -1236,9 +1316,9 @@ export default function LaboratorioPage() {
       const ref = normalizaRef(i.produto.referencia || '');
       const isTop30 = top30Refs.has(ref) || top30Ids.has(id);
 
-      const pj = Number(projecoes[id]?.['1'] || 0);
-      const pf = Number(projecoes[id]?.['2'] || 0);
-      const pm = Number(projecoes[id]?.['3'] || 0);
+      const pj = Number(projecoesAtivas[id]?.['1'] || 0);
+      const pf = Number(projecoesAtivas[id]?.['2'] || 0);
+      const pm = Number(projecoesAtivas[id]?.['3'] || 0);
       const rj = Number(vendasReais[id]?.['1'] || 0);
       const rf = Number(vendasReais[id]?.['2'] || 0);
       const rm = Number(vendasReais[id]?.['3'] || 0);
@@ -1252,9 +1332,9 @@ export default function LaboratorioPage() {
       const ma = i.plano?.ma || 0;
       const px = i.plano?.px || 0;
       const ul = i.plano?.ul || 0;
-      const prMA = projecaoMesPlanejamento(Number(projecoes[id]?.[String(periodos.MA)] || 0), periodos.MA);
-      const prPX = Number(projecoes[id]?.[String(periodos.PX)] || 0);
-      const prUL = Number(projecoes[id]?.[String(periodos.UL)] || 0);
+      const prMA = projecaoMesPlanejamento(Number(projecoesAtivas[id]?.[String(periodos.MA)] || 0), periodos.MA);
+      const prPX = Number(projecoesAtivas[id]?.[String(periodos.PX)] || 0);
+      const prUL = Number(projecoesAtivas[id]?.[String(periodos.UL)] || 0);
       const dispMA = dispAtual + emP + ma - prMA;
       const dispPX = dispMA + px - prPX;
       const dispUL = dispPX + ul - prUL;
@@ -1333,7 +1413,7 @@ export default function LaboratorioPage() {
       quickWinPecas: Math.round(quickWinPecas),
       quickWinSkus: Math.round(quickWinSkus),
     };
-  }, [cenarioEscopoSimulacao, projecoes, vendasReais, periodos, top30Ids, top30Refs, coberturaAlvo]);
+  }, [cenarioEscopoSimulacao, projecoesAtivas, vendasReais, periodos, top30Ids, top30Refs, coberturaAlvo]);
 
   async function executarAnalyser() {
     setExecutandoAnalyser(true);

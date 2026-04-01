@@ -9,6 +9,40 @@ const DATA_DIR  = path.join(__dirname, '../../data');
 const PROJ_FILE = path.join(DATA_DIR, 'projecoes.json');
 const MATRIZ_FILE = path.join(DATA_DIR, 'matriz_cache.json');
 
+// ── Calcula períodos automaticamente ────────────────────────────────────────
+/**
+ * Retorna os períodos do plano de produção baseado na data atual.
+ * Se estamos no último dia do mês, considera o próximo mês como MA.
+ * Regras:
+ * - MA (mês atual): próximo mês se último dia, senão mês atual
+ * - PX (próximo): MA + 1 mês
+ * - UL (último): MA + 2 meses
+ * - QT (quarto): MA + 3 meses
+ */
+function calcularPeriodos() {
+  const hoje = new Date();
+  const mesAtualJs = hoje.getMonth(); // 0-11
+  const ano = hoje.getFullYear();
+  const diaAtual = hoje.getDate();
+
+  // Último dia do mês atual
+  const ultimoDia = new Date(ano, mesAtualJs + 1, 0).getDate();
+  const eUltimoDia = diaAtual === ultimoDia;
+
+  // Se é último dia, considera próximo mês como MA, senão usa o atual
+  let ma = eUltimoDia ? mesAtualJs + 2 : mesAtualJs + 1; // +1 pois getMonth() retorna 0-11
+
+  // Normaliza para 1-12
+  if (ma > 12) ma -= 12;
+
+  // Períodos sequenciais: MA, MA+1, MA+2, MA+3
+  const px = ma + 1 > 12 ? ma + 1 - 12 : ma + 1;
+  const ul = ma + 2 > 12 ? ma + 2 - 12 : ma + 2;
+  const qt = ma + 3 > 12 ? ma + 3 - 12 : ma + 3;
+
+  return { MA: ma, PX: px, UL: ul, QT: qt };
+}
+
 // ── autenticação (igual ao admin.js) ─────────────────────────────────────────
 function auth(req, res, next) {
   const token    = (req.headers.authorization || '').replace('Bearer ', '').trim();
@@ -45,7 +79,7 @@ function lerMatrizCache() {
 
 /**
  * Converte qualquer representação de mês para número 1-12.
- * Aceita: número ("1"–"12"), abrev PT ("JAN"–"DEZ"), nome completo PT, MA/PX/UL.
+ * Aceita: número ("1"–"12"), abrev PT ("JAN"–"DEZ"), nome completo PT, MA/PX/UL/QT.
  * Retorna null se inválido.
  */
 function parsearMes(raw) {
@@ -54,6 +88,9 @@ function parsearMes(raw) {
   // Número direto (1–12)
   const n = parseInt(v, 10);
   if (!isNaN(n) && n >= 1 && n <= 12) return n;
+
+  // Calcula períodos dinamicamente
+  const periodos = calcularPeriodos();
 
   // Mapeamento por nome/abrev
   const nomes = {
@@ -69,10 +106,11 @@ function parsearMes(raw) {
     OUT: 10, OUTUBRO: 10,
     NOV: 11, NOVEMBRO: 11,
     DEZ: 12, DEZEMBRO: 12,
-    // Períodos do plano (mapeados para o mês corrente + offset)
-    MA: new Date().getMonth() + 1,       // mês atual
-    PX: new Date().getMonth() + 2,       // próximo mês
-    UL: new Date().getMonth() + 3,       // último mês do plano
+    // Períodos do plano (calculados dinamicamente)
+    MA: periodos.MA,
+    PX: periodos.PX,
+    UL: periodos.UL,
+    QT: periodos.QT,
   };
 
   return nomes[v] ?? null;
@@ -130,15 +168,14 @@ function parsearCSV(texto) {
 router.get('/', auth, (req, res) => {
   const { data, timestamp } = lerProjecoes();
 
-  // Informa os meses atuais do plano (MA/PX/UL) para o frontend
-  const mesAtual = new Date().getMonth() + 1;
-  const periodos = { MA: mesAtual, PX: mesAtual + 1, UL: mesAtual + 2, QT: mesAtual + 3 };
+  // Informa os meses atuais do plano (MA/PX/UL/QT) para o frontend
+  const periodos = calcularPeriodos();
 
   return res.json({
     success:   true,
     timestamp: timestamp ? new Date(timestamp).toLocaleString('pt-BR') : null,
     count:     Object.keys(data).length,
-    periodos,           // { MA: 3, PX: 4, UL: 5 }
+    periodos,
     data
   });
 });
@@ -154,7 +191,7 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
     const anoAtual = agora.getFullYear();
     const mesBase = mesAtual === 1 ? 12 : mesAtual - 1;
     const anoBase = mesAtual === 1 ? anoAtual - 1 : anoAtual;
-    const periodos = { MA: mesAtual, PX: mesAtual + 1, UL: mesAtual + 2, QT: mesAtual + 3 };
+    const periodos = calcularPeriodos();
 
     if (!ids.length) {
       return res.json({
@@ -320,7 +357,7 @@ router.post('/reajustes', auth, async (req, res) => {
     const pool = req.app.get('pool');
     const ano = Number(req.body?.ano) || new Date().getFullYear();
     const hoje = new Date();
-    const mesAtual = hoje.getMonth() + 1;
+    const mesAtual = hoje.getMonth() + 1; // mês atual (1-12)
     const diasNoMes = new Date(hoje.getFullYear(), mesAtual, 0).getDate();
     const dia = Math.min(hoje.getDate(), diasNoMes);
     const fatorMesAtual = diasNoMes > 0 ? dia / diasNoMes : 1;
@@ -339,8 +376,9 @@ router.post('/reajustes', auth, async (req, res) => {
 
     const { data: projecoes } = lerProjecoes();
     const ids = Object.keys(projecoes).map((v) => Number(v)).filter((n) => Number.isFinite(n));
+    const periodos = calcularPeriodos();
     if (!ids.length) {
-      return res.json({ success: true, ano, count: 0, resumo: {}, sugestoes: [], periodos: { MA: mesAtual, PX: mesAtual + 1, UL: mesAtual + 2 } });
+      return res.json({ success: true, ano, count: 0, resumo: {}, sugestoes: [], periodos });
     }
 
     const result = await pool.query(`
@@ -373,7 +411,6 @@ router.post('/reajustes', auth, async (req, res) => {
       });
     }
 
-    const periodos = { MA: mesAtual, PX: mesAtual + 1, UL: mesAtual + 2 };
     const sugestoes = [];
     const resumo = {
       alerta30: 0,

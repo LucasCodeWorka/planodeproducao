@@ -124,6 +124,31 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
+router.get("/produtos-suspensos", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const result = await pool.query(`
+      SELECT DISTINCT a.cd_produto::TEXT AS idproduto
+      FROM vr_prd_prdgrade a
+      WHERE f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 124::bigint) = '007'
+    `);
+
+    const ids = result.rows.map(row => String(row.idproduto));
+
+    return res.json({
+      success: true,
+      total: ids.length,
+      ids: ids
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao consultar produtos suspensos",
+      details: error.message,
+    });
+  }
+});
+
 router.get("/top30-produtos", auth, async (req, res) => {
   try {
     const pool = req.app.get("pool");
