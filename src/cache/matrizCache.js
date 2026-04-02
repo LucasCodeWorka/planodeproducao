@@ -84,6 +84,14 @@ async function getCacheStatus() {
   }
 }
 
+function normalizeStatus(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+}
+
 function filterCache(cacheData, { referencias = [], marca = null, status = null } = {}) {
   let result = cacheData.filter((r) => {
     const apresentacao = String(r?.produto?.apresentacao || '').toUpperCase();
@@ -96,10 +104,13 @@ function filterCache(cacheData, { referencias = [], marca = null, status = null 
     result = result.filter(r => (r.produto?.marca || '').toUpperCase().trim() === m);
   }
   if (status) {
-    const s = status.toUpperCase().trim();
+    const statuses = String(status)
+      .split(',')
+      .map((s) => normalizeStatus(s))
+      .filter(Boolean);
     result = result.filter((r) => {
-      const st = (r.produto?.status || '').toUpperCase().trim();
-      return st === s;
+      const st = normalizeStatus(r.produto?.status || '');
+      return statuses.includes(st);
     });
   }
   if (referencias.length > 0) {

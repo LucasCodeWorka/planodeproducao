@@ -9,6 +9,14 @@ function isPt99Size(value) {
   return String(value || '').trim().toUpperCase() === 'PT 99';
 }
 
+function normalizeStatus(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+}
+
 /**
  * Busca estoque atual de produtos na fábrica
  * @param {Object} pool - Pool de conexão PostgreSQL
@@ -450,8 +458,15 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     whereF1 += ` AND f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint) = $${paramsF1.length}`;
   }
   if (status) {
-    paramsF1.push(status);
-    whereF1 += ` AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) = UPPER(TRIM($${paramsF1.length}))`;
+    // Suporta múltiplos status separados por vírgula e variações com/sem acento.
+    const statusList = String(status).split(',').map((s) => normalizeStatus(s)).filter(Boolean);
+    if (statusList.length === 1) {
+      paramsF1.push(statusList[0]);
+      whereF1 += ` AND UPPER(TRIM(TRANSLATE(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''), 'ÁÀÂÃÄáàâãäÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÕÖóòôõöÚÙÛÜúùûüÇç', 'AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuCc'))) = $${paramsF1.length}`;
+    } else if (statusList.length > 1) {
+      paramsF1.push(statusList);
+      whereF1 += ` AND UPPER(TRIM(TRANSLATE(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''), 'ÁÀÂÃÄáàâãäÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÕÖóòôõöÚÙÛÜúùûüÇç', 'AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuCc'))) = ANY($${paramsF1.length})`;
+    }
   }
   if (Array.isArray(referencias) && referencias.length > 0) {
     paramsF1.push(referencias);
@@ -760,6 +775,212 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   return resultado;
 }
 
+/**
+ * Busca detalhes de produção em processo por local (setor)
+ * Mostra em qual local está cada quantidade em processo
+ * @param {Object} pool - Pool de conexão PostgreSQL
+ * @param {number} cdProduto - Código do produto
+ * @returns {Promise<Array>} Lista de locais com quantidade em processo
+ */
+async function buscarEmProcessoPorLocal(pool, cdProduto) {
+  const query = `
+    SELECT
+      a.cd_local,
+      a.ds_local,
+      f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
+      a.cd_produto,
+      SUM(a.qt_op)::FLOAT AS qtd_op,
+      SUM(a.qt_finalizada)::FLOAT AS qtd_finalizada,
+      SUM(a.qt_op - COALESCE(a.qt_finalizada, 0))::FLOAT AS qtd_em_processo
+    FROM vr_cdf_locop a
+    WHERE a.cd_produto = $1
+    GROUP BY a.cd_local, a.ds_local, a.cd_produto
+    HAVING SUM(a.qt_op - COALESCE(a.qt_finalizada, 0)) > 0
+    ORDER BY a.cd_local
+  `;
+
+  const result = await pool.query(query, [cdProduto]);
+
+  return result.rows.map((r) => ({
+    cd_local: Number(r.cd_local),
+    ds_local: String(r.ds_local || '').trim(),
+    referencia: String(r.referencia || ''),
+    cd_produto: Number(r.cd_produto),
+    qtd_op: Math.round(parseFloat(r.qtd_op) || 0),
+    qtd_finalizada: Math.round(parseFloat(r.qtd_finalizada) || 0),
+    qtd_em_processo: Math.round(parseFloat(r.qtd_em_processo) || 0),
+  }));
+}
+
+/**
+ * Busca visão completa de produção por local
+ * Retorna todos os produtos em processo com: local, estoque, est. mín, pedidos, disponível, cobertura
+ * @param {Object} pool - Pool de conexão PostgreSQL
+ * @param {Object} options - Opções de filtro
+ * @returns {Promise<Array>} Lista completa de produção por local
+ */
+async function buscarProducaoPorLocalCompleta(pool, options = {}) {
+  const { cdLocal = null, marca = null } = options;
+  const t0 = Date.now();
+
+  // Query principal: todos os produtos em processo agrupados por local
+  let whereLocop = 'WHERE 1=1';
+  const paramsLocop = [];
+
+  if (cdLocal) {
+    paramsLocop.push(cdLocal);
+    whereLocop += ` AND a.cd_local = $${paramsLocop.length}`;
+  }
+
+  const queryLocop = `
+    SELECT
+      a.cd_local,
+      a.ds_local,
+      a.cd_produto,
+      f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
+      f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar) AS produto,
+      f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint) AS marca,
+      f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint) AS status,
+      f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) AS continuidade,
+      p.ds_cor AS cor,
+      p.ds_tamanho AS tamanho,
+      SUM(a.qt_op)::FLOAT AS qtd_op,
+      SUM(COALESCE(a.qt_finalizada, 0))::FLOAT AS qtd_finalizada,
+      SUM(a.qt_op - COALESCE(a.qt_finalizada, 0))::FLOAT AS qtd_em_processo
+    FROM vr_cdf_locop a
+    LEFT JOIN vr_prd_prdgrade p ON p.cd_produto = a.cd_produto
+    ${whereLocop}
+    GROUP BY a.cd_local, a.ds_local, a.cd_produto, p.ds_cor, p.ds_tamanho
+    HAVING SUM(a.qt_op - COALESCE(a.qt_finalizada, 0)) > 0
+    ORDER BY a.cd_local, a.cd_produto
+  `;
+
+  const rLocop = await pool.query(queryLocop, paramsLocop);
+  console.log(`[producao-local] Fase 1 (locop): ${rLocop.rows.length} registros em ${((Date.now()-t0)/1000).toFixed(1)}s`);
+
+  if (rLocop.rows.length === 0) return [];
+
+  // Extrair IDs únicos dos produtos
+  const ids = [...new Set(rLocop.rows.map(r => Number(r.cd_produto)))];
+  const t1 = Date.now();
+
+  // Buscar estoque, pedidos, estoque mínimo em paralelo
+  const [rEstoque, rPedidos, rSaldo, rVendas] = await Promise.all([
+    // Estoque atual
+    pool.query(
+      `SELECT cd_produto::BIGINT AS idproduto,
+              COALESCE(f_dic_sld_prd_produto('1'::TEXT,'1'::TEXT,cd_produto,NULL::TIMESTAMP WITHOUT TIME ZONE)::FLOAT, 0) AS estoque
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+    // Pedidos pendentes
+    pool.query(
+      `SELECT p.cd_produto::BIGINT AS idproduto,
+              COALESCE(SUM(p.qt_pendente), 0)::FLOAT AS qt_pendente
+       FROM vr_ped_pedidoi p
+       WHERE p.cd_empresa = 1
+         AND p.cd_operacao <> 44
+         AND p.tp_situacao <> 6
+         AND p.cd_produto = ANY($1)
+       GROUP BY p.cd_produto`,
+      [ids]
+    ),
+    // Saldo adicional
+    pool.query(
+      `SELECT cd_produto::BIGINT AS idproduto,
+              COALESCE(f_prd_saldo_produto(1::BIGINT,7::BIGINT,cd_produto,NULL::TIMESTAMP WITHOUT TIME ZONE)::FLOAT, 0) AS saldo
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+    // Vendas para cálculo de estoque mínimo (últimos 6 meses)
+    pool.query(
+      `SELECT v.idproduto::BIGINT AS idproduto,
+              SUM(v.qt_liquida)::FLOAT AS total_vendas,
+              COUNT(DISTINCT DATE(v.data)) AS dias_venda
+       FROM vr_vendas_qtd v
+       WHERE v.data >= CURRENT_DATE - INTERVAL '6 months'
+         AND v.idproduto = ANY($1)
+       GROUP BY v.idproduto`,
+      [ids]
+    ),
+  ]);
+
+  console.log(`[producao-local] Fase 2 (dados): ${((Date.now()-t1)/1000).toFixed(1)}s`);
+
+  // Criar maps de lookup
+  const estoqueMap = new Map(rEstoque.rows.map(r => [Number(r.idproduto), parseFloat(r.estoque) || 0]));
+  const pedidosMap = new Map(rPedidos.rows.map(r => [Number(r.idproduto), parseFloat(r.qt_pendente) || 0]));
+  const saldoMap = new Map(rSaldo.rows.map(r => [Number(r.idproduto), parseFloat(r.saldo) || 0]));
+  const vendasMap = new Map(rVendas.rows.map(r => [Number(r.idproduto), {
+    total: parseFloat(r.total_vendas) || 0,
+    dias: Number(r.dias_venda) || 0
+  }]));
+
+  // Montar resultado
+  const resultado = [];
+  for (const row of rLocop.rows) {
+    const id = Number(row.cd_produto);
+    const marcaProd = String(row.marca || '').trim().toUpperCase();
+
+    // Filtro por marca se especificado
+    if (marca && marcaProd !== marca.toUpperCase()) continue;
+
+    const estoque = estoqueMap.get(id) || 0;
+    const pedidos = (pedidosMap.get(id) || 0) + (saldoMap.get(id) || 0);
+    const vendas = vendasMap.get(id);
+    const mediaMensal = vendas ? vendas.total / 6 : 0;
+    const estoqueMinimo = Math.round(mediaMensal);
+    const disponivel = estoque - pedidos;
+    const cobertura = estoqueMinimo > 0 ? disponivel / estoqueMinimo : null;
+
+    resultado.push({
+      cd_local: Number(row.cd_local),
+      ds_local: String(row.ds_local || '').trim(),
+      cd_produto: id,
+      referencia: String(row.referencia || ''),
+      produto: String(row.produto || ''),
+      cor: String(row.cor || ''),
+      tamanho: String(row.tamanho || ''),
+      marca: marcaProd,
+      status: String(row.status || '').trim(),
+      continuidade: String(row.continuidade || '').trim(),
+      qtd_op: Math.round(parseFloat(row.qtd_op) || 0),
+      qtd_finalizada: Math.round(parseFloat(row.qtd_finalizada) || 0),
+      qtd_em_processo: Math.round(parseFloat(row.qtd_em_processo) || 0),
+      estoque: Math.round(estoque),
+      estoque_minimo: estoqueMinimo,
+      pedidos: Math.round(pedidos),
+      disponivel: Math.round(disponivel),
+      cobertura: cobertura !== null ? Math.round(cobertura * 100) / 100 : null,
+    });
+  }
+
+  console.log(`[producao-local] Total: ${((Date.now()-t0)/1000).toFixed(1)}s — ${resultado.length} registros`);
+  return resultado;
+}
+
+/**
+ * Busca lista de locais de produção disponíveis
+ * @param {Object} pool - Pool de conexão PostgreSQL
+ * @returns {Promise<Array>} Lista de locais
+ */
+async function buscarLocaisProducao(pool) {
+  const query = `
+    SELECT DISTINCT
+      a.cd_local,
+      a.ds_local
+    FROM vr_cdf_locop a
+    WHERE a.qt_op - COALESCE(a.qt_finalizada, 0) > 0
+    ORDER BY a.cd_local
+  `;
+
+  const result = await pool.query(query);
+  return result.rows.map(r => ({
+    cd_local: Number(r.cd_local),
+    ds_local: String(r.ds_local || '').trim(),
+  }));
+}
+
 module.exports = {
   buscarEstoqueFabrica,
   buscarProdutosEmProcesso,
@@ -767,5 +988,8 @@ module.exports = {
   buscarCatalogoProdutos,
   buscarPlanejamentoProduto,
   buscarProdutosElegiveisMatriz,
-  buscarMatrizPlanejamentoRapida
+  buscarMatrizPlanejamentoRapida,
+  buscarEmProcessoPorLocal,
+  buscarProducaoPorLocalCompleta,
+  buscarLocaisProducao
 };

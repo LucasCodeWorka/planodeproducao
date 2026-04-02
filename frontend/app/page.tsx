@@ -11,7 +11,7 @@ import { projecaoMesPlanejamento } from './lib/projecao';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MARCA_FIXA = 'LIEBE';
-const STATUS_FIXO = 'EM LINHA';
+const STATUS_FIXO = 'EM LINHA,NOVA COLECAO';
 
 type SerieMes = { mes: string; total: number; top30: number; demais: number; kissme: number };
 
@@ -187,10 +187,11 @@ export default function Home() {
   }
 
   async function buscarEstoqueLojasDisponivel() {
+    if (carregandoEstoqueLojas || estoqueLojasDisponivel.size > 0) return;
     setCarregandoEstoqueLojas(true);
     try {
       const res = await fetchNoCache(
-        `${API_URL}/api/estoque-lojas/disponivel-total?lojaDestino=1`,
+        `${API_URL}/api/estoque-lojas/disponivel-total?lojaDestino=1&incluirDetalhes=false`,
         { headers: authHeaders() }
       );
       if (!res.ok) throw new Error('Erro ao buscar estoque disponível das lojas');
@@ -213,8 +214,6 @@ export default function Home() {
   useEffect(() => {
     if (usarEstoqueLojas) {
       buscarEstoqueLojasDisponivel();
-    } else {
-      setEstoqueLojasDisponivel(new Map());
     }
   }, [usarEstoqueLojas]);
 

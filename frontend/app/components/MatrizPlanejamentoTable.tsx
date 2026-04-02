@@ -282,6 +282,33 @@ export default function MatrizPlanejamentoTable({
   const [sortKey, setSortKey] = useState<SortKey>('disponivel');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const marFactor = useMemo(() => projecaoMesDecorrida(1, 3), []);
+
+  // Modal de Em Processo por Local
+  const [modalEmProcesso, setModalEmProcesso] = useState<{
+    open: boolean;
+    cdProduto: number | null;
+    referencia: string;
+    cor: string;
+    tamanho: string;
+    loading: boolean;
+    error: string | null;
+    data: Array<{ cd_local: number; ds_local: string; qtd_em_processo: number; qtd_op: number; qtd_finalizada: number }>;
+  }>({ open: false, cdProduto: null, referencia: '', cor: '', tamanho: '', loading: false, error: null, data: [] });
+
+  const abrirModalEmProcesso = async (cdProduto: number, referencia: string, cor: string, tamanho: string) => {
+    setModalEmProcesso({ open: true, cdProduto, referencia, cor, tamanho, loading: true, error: null, data: [] });
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_URL}/api/producao/em-processo-local/${cdProduto}`);
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Erro ao buscar dados');
+      setModalEmProcesso((prev) => ({ ...prev, loading: false, data: json.data || [] }));
+    } catch (e) {
+      setModalEmProcesso((prev) => ({ ...prev, loading: false, error: e instanceof Error ? e.message : 'Erro desconhecido' }));
+    }
+  };
+
+  const fecharModalEmProcesso = () => setModalEmProcesso({ open: false, cdProduto: null, referencia: '', cor: '', tamanho: '', loading: false, error: null, data: [] });
   const mesQT = useMemo(() => periodos.QT ?? (((periodos.UL || 1) - 1 + 1) % 12) + 1, [periodos.QT, periodos.UL]);
 
   const grupos = useMemo(() => {
@@ -1016,7 +1043,20 @@ export default function MatrizPlanejamentoTable({
                                 {item.estoques.estoque_atual > 0 ? <span className="text-gray-700">{fmt(item.estoques.estoque_atual)}</span> : <span className="text-gray-300">0</span>}
                               </td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
-                                {emP > 0 ? <span className="text-gray-700">{fmt(emP)}</span> : <span className="text-gray-300">—</span>}
+                                {emP > 0 ? (
+                                  <button
+                                    onClick={() => abrirModalEmProcesso(
+                                      Number(item.produto.idproduto),
+                                      item.produto.referencia || '',
+                                      item.produto.cor || '',
+                                      item.produto.tamanho || ''
+                                    )}
+                                    className="text-sky-700 hover:text-sky-900 hover:underline cursor-pointer font-semibold"
+                                    title="Clique para ver detalhes por local"
+                                  >
+                                    {fmt(emP)}
+                                  </button>
+                                ) : <span className="text-gray-300">—</span>}
                               </td>
                               {excedentesLojas && excedentesLojas.size > 0 && (() => {
                                 const excItem = excedentesLojas.get(Number(item.produto.idproduto));
@@ -1149,6 +1189,72 @@ export default function MatrizPlanejamentoTable({
         )}
         <span className="ml-auto text-gray-400">Disponível = Estoque − Pedidos · Cobertura = Disp. ÷ Est. Mín.</span>
       </div>
+
+      {/* Modal Em Processo por Local */}
+      {modalEmProcesso.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={fecharModalEmProcesso}>
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-gray-200 bg-sky-50 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-sky-800">Em Processo por Local</h3>
+                <p className="text-xs text-sky-600">
+                  {modalEmProcesso.referencia} · {modalEmProcesso.cor} / {modalEmProcesso.tamanho}
+                  <span className="ml-2 text-gray-400">ID: {modalEmProcesso.cdProduto}</span>
+                </p>
+              </div>
+              <button onClick={fecharModalEmProcesso} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-auto">
+              {modalEmProcesso.loading && (
+                <div className="text-center py-8 text-gray-500 text-sm">Carregando...</div>
+              )}
+              {modalEmProcesso.error && (
+                <div className="text-center py-8 text-red-600 text-sm">{modalEmProcesso.error}</div>
+              )}
+              {!modalEmProcesso.loading && !modalEmProcesso.error && modalEmProcesso.data.length === 0 && (
+                <div className="text-center py-8 text-gray-500 text-sm">Nenhum registro em processo encontrado.</div>
+              )}
+              {!modalEmProcesso.loading && !modalEmProcesso.error && modalEmProcesso.data.length > 0 && (
+                <table className="min-w-full text-xs">
+                  <thead className="bg-gray-100 sticky top-0">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-semibold text-gray-700">Cód. Local</th>
+                      <th className="text-left px-3 py-2 font-semibold text-gray-700">Local (Setor)</th>
+                      <th className="text-right px-3 py-2 font-semibold text-gray-700">Qtd. OP</th>
+                      <th className="text-right px-3 py-2 font-semibold text-gray-700">Finalizada</th>
+                      <th className="text-right px-3 py-2 font-semibold text-sky-700">Em Processo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modalEmProcesso.data.map((loc, idx) => (
+                      <tr key={loc.cd_local} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-3 py-2 text-gray-500 font-mono">{loc.cd_local}</td>
+                        <td className="px-3 py-2 text-gray-700 font-medium">{loc.ds_local}</td>
+                        <td className="px-3 py-2 text-right font-mono text-gray-600">{fmt(loc.qtd_op)}</td>
+                        <td className="px-3 py-2 text-right font-mono text-gray-600">{fmt(loc.qtd_finalizada)}</td>
+                        <td className="px-3 py-2 text-right font-mono text-sky-700 font-semibold">{fmt(loc.qtd_em_processo)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-sky-50 border-t border-sky-200">
+                    <tr>
+                      <td colSpan={4} className="px-3 py-2 text-right font-semibold text-sky-800">Total Em Processo:</td>
+                      <td className="px-3 py-2 text-right font-mono text-sky-800 font-bold">
+                        {fmt(modalEmProcesso.data.reduce((acc, l) => acc + l.qtd_em_processo, 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 text-right">
+              <button onClick={fecharModalEmProcesso} className="px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,7 +5,10 @@ const {
   buscarPedidosPendentes,
   buscarCatalogoProdutos,
   buscarPlanejamentoProduto,
-  buscarMatrizPlanejamentoRapida
+  buscarMatrizPlanejamentoRapida,
+  buscarEmProcessoPorLocal,
+  buscarProducaoPorLocalCompleta,
+  buscarLocaisProducao
 } = require("../services/producaoService");
 
 const { readCache, filterCache } = require("../cache/matrizCache");
@@ -446,6 +449,99 @@ router.get("/matriz", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Erro ao consultar matriz"
+    });
+  }
+});
+
+/**
+ * GET /api/producao/em-processo-local/:cdProduto
+ * Retorna detalhes de produção em processo por local (setor)
+ * Mostra em qual local está cada quantidade em processo
+ *
+ * Path params:
+ * - cdProduto: código do produto
+ */
+router.get("/em-processo-local/:cdProduto", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const cdProduto = Number(req.params.cdProduto);
+
+    if (isNaN(cdProduto)) {
+      return res.status(400).json({
+        success: false,
+        error: "Código do produto inválido"
+      });
+    }
+
+    const locais = await buscarEmProcessoPorLocal(pool, cdProduto);
+
+    const totalEmProcesso = locais.reduce((acc, l) => acc + l.qtd_em_processo, 0);
+
+    return res.status(200).json({
+      success: true,
+      cd_produto: cdProduto,
+      total_em_processo: totalEmProcesso,
+      total_locais: locais.length,
+      data: locais
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao consultar produção por local",
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/producao/producao-por-local
+ * Retorna visão completa de produção por local com estoque, pedidos, cobertura
+ *
+ * Query params:
+ * - cd_local: filtrar por local específico
+ * - marca: filtrar por marca (ex: "LIEBE")
+ */
+router.get("/producao-por-local", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const cdLocal = req.query.cd_local ? Number(req.query.cd_local) : null;
+    const marca = req.query.marca ? String(req.query.marca).trim() : null;
+
+    const dados = await buscarProducaoPorLocalCompleta(pool, { cdLocal, marca });
+
+    return res.status(200).json({
+      success: true,
+      total: dados.length,
+      data: dados
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao consultar produção por local",
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/producao/locais
+ * Retorna lista de locais de produção com produção ativa
+ */
+router.get("/locais", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const locais = await buscarLocaisProducao(pool);
+
+    return res.status(200).json({
+      success: true,
+      total: locais.length,
+      data: locais
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao consultar locais de produção",
+      details: error.message
     });
   }
 });

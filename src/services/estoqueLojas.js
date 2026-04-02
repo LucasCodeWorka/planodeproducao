@@ -293,35 +293,46 @@ async function buscarEstoqueDisponivelTransferencia(pool, options = {}) {
     lojaOrigem = null,
   } = options;
 
-  const params = [Number(lojaDestino), 'COBERTURA_MIX_FAMILIA'];
-  const filtros = [`a.loja_destino = $1`, `a.cenario = $2`];
+  const params = [];
+  const filtros = [
+    `c.dt_pedido::date >= CURRENT_DATE - INTERVAL '1 month'`,
+    `c.cd_cliente = 110000001`,
+    `c.cd_empresa > 1`,
+    `i.cd_produto < 1000000`,
+    `f_dic_prd_cd_seqgrupo(i.cd_produto) <> 3256`,
+    `c.tp_situacao NOT IN ('6','4')`,
+    `c.cd_operacao IN ('30','598','989')`,
+  ];
 
   if (cdProduto !== null) {
     params.push(Number(cdProduto));
-    filtros.push(`a.cd_produto = $${params.length}`);
+    filtros.push(`i.cd_produto = $${params.length}`);
   }
 
   if (lojaOrigem !== null) {
     params.push(Number(lojaOrigem));
-    filtros.push(`a.loja_origem = $${params.length}`);
+    filtros.push(`c.cd_empresa = $${params.length}`);
   }
 
   const query = `
     SELECT
-      a.loja_origem::BIGINT AS loja_origem,
-      a.cd_produto::BIGINT AS cd_produto,
-      MAX(f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar)) AS referencia,
+      c.cd_empresa::BIGINT AS loja_origem,
+      i.cd_produto::BIGINT AS cd_produto,
+      MAX(f_dic_prd_nivel(i.cd_produto, 'CD'::bpchar)) AS referencia,
       MAX(p.ds_cor) AS cor,
       MAX(p.ds_tamanho) AS tamanho,
-      MAX(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar)) AS produto,
-      SUM(COALESCE(a.qtd_sugerida, 0))::FLOAT AS qtd_sugerida
-    FROM cenario_transferencia_fabrica a
+      MAX(f_dic_prd_nivel(i.cd_produto, 'DS'::bpchar)) AS produto,
+      SUM(COALESCE(i.qt_solicitada, 0))::FLOAT AS qtd_sugerida
+    FROM ped_pedidoc c
+    JOIN ped_pedidoi i
+      ON c.cd_empresa = i.cd_empresa
+      AND c.cd_pedido = i.cd_pedido
     LEFT JOIN vr_prd_prdgrade p
-      ON p.cd_produto = a.cd_produto
+      ON p.cd_produto = i.cd_produto
     WHERE ${filtros.join(' AND ')}
-    GROUP BY a.loja_origem, a.cd_produto
-    HAVING SUM(COALESCE(a.qtd_sugerida, 0)) > 0
-    ORDER BY a.cd_produto, a.loja_origem
+    GROUP BY c.cd_empresa, i.cd_produto
+    HAVING SUM(COALESCE(i.qt_solicitada, 0)) > 0
+    ORDER BY i.cd_produto, c.cd_empresa
   `;
 
   const result = await pool.query(query, params);
