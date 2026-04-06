@@ -248,6 +248,28 @@ export default function ProcessoLocalPage() {
                       ))}
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Cobertura &gt;</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={filtroCoberturaMinima}
+                      onChange={(e) => setFiltroCoberturaMinima(e.target.value)}
+                      placeholder="Ex: 1"
+                      className="border border-gray-300 rounded px-3 py-1.5 text-sm w-20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Em Proc. &gt;</label>
+                    <input
+                      type="number"
+                      step="1"
+                      value={filtroEmProcessoMinimo}
+                      onChange={(e) => setFiltroEmProcessoMinimo(e.target.value)}
+                      placeholder="Ex: 100"
+                      className="border border-gray-300 rounded px-3 py-1.5 text-sm w-24"
+                    />
+                  </div>
                   <button
                     onClick={carregarDados}
                     className="px-4 py-1.5 text-sm font-semibold bg-brand-primary text-white rounded hover:bg-brand-secondary"

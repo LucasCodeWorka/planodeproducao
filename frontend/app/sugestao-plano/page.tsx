@@ -83,6 +83,7 @@ type Row = {
   planoComOpMin?: number; // MA: Quanto seria COM OP mínima (informativo)
   tempoRef: number;
   grupoRateios: Array<{ grupo: string; rateio: number }>;
+  usouMeioLote?: boolean; // MA Emergência: usou corte_min / 2
 };
 type VendasReaisMap = Record<string, Record<string, number>>;
 type MpViabilidade = {
@@ -748,7 +749,9 @@ export default function SugestaoPlanoPage() {
 
       // Para MA, mantém a lógica especial de lote flexível nos dois modos.
       let lote = cfg.usar_corte_minimo ? (Number(cortes[id] || 0) > 0 ? Number(cortes[id]) : Math.max(1, Math.round(min))) : 1;
+      const loteOriginal = lote; // Guarda o lote original para comparação
       let planoSugerido = 0;
+      let usouMeioLote = false;
 
       if (periodoAlvo === 'MA') {
         if (necessidadeBruta <= 0) {
@@ -770,9 +773,10 @@ export default function SugestaoPlanoPage() {
           else if (planoCeil > 0) {
             planoSugerido = planoCeil;
 
-            // Se ultrapassar muito (cob > 1.0), tenta lote/2
+            // Se ultrapassar muito (cob > 0.5 em emergência, > 1.0 normal), tenta lote/2
             const cobPosCeil = min > 0 ? dispPosCeil / min : 0;
-            if (cobPosCeil > 1.0 && lote > 1) {
+            const thresholdMeioLote = maModo === 'EMERGENCIA' ? 0.5 : 1.0;
+            if (cobPosCeil > thresholdMeioLote && lote > 1) {
               lote = Math.max(1, Math.round(lote / 2));
               const planoMeioLote = Math.ceil(necessidadeBruta / lote) * lote;
 
@@ -780,9 +784,11 @@ export default function SugestaoPlanoPage() {
               const dispPosMeio = dispAnterior + planoMeioLote - projMes;
               if (dispPosMeio >= 0) {
                 planoSugerido = planoMeioLote;
+                usouMeioLote = true; // Marcamos que usou meio lote
               } else {
                 // Se lote/2 deixaria negativo, mantém lote inteiro
                 planoSugerido = planoCeil;
+                lote = loteOriginal; // Restaura o lote original
               }
             }
           }
@@ -869,6 +875,7 @@ export default function SugestaoPlanoPage() {
         planoComOpMin: planoSugerido, // Inicialmente igual, pode ser atualizado depois
         tempoRef: Number(tempoByIdRef.get(String(item.produto.cd_seqgrupo || '')) || 0),
         grupoRateios,
+        usouMeioLote,
       };
     });
 
@@ -1323,6 +1330,22 @@ export default function SugestaoPlanoPage() {
     // Agora funciona para todos os períodos (MA, PX, UL, QT)
     return rowsVisiveisTela.filter((r) => Boolean(r.opMinNaoAtendida)).length;
   }, [rowsVisiveisTela]);
+
+  // Conta SKUs que usaram corte_min / 2 no MA Emergência
+  const resumoMeioLote = useMemo(() => {
+    if (periodoAlvo !== 'MA' || maModo !== 'EMERGENCIA') {
+      return { skus: 0, pecas: 0 };
+    }
+    let skus = 0;
+    let pecas = 0;
+    rowsVisiveisTela.forEach((r) => {
+      if (r.usouMeioLote) {
+        skus += 1;
+        pecas += r.planoSugerido;
+      }
+    });
+    return { skus, pecas };
+  }, [rowsVisiveisTela, periodoAlvo, maModo]);
 
   const resumoNegativos = useMemo(() => {
     let itensAtuais = 0;
@@ -2130,6 +2153,21 @@ export default function SugestaoPlanoPage() {
 
             {periodoAlvo === 'MA' && maModo === 'EMERGENCIA' && (
               <>
+                {resumoMeioLote.skus > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5">
+                      <div className="text-[11px] text-amber-700">SKUs com Corte Mín ÷ 2</div>
+                      <div className="text-xl font-bold text-amber-800 leading-tight">{fmt(resumoMeioLote.skus)}</div>
+                      <div className="text-[11px] text-amber-600 mt-0.5">Peças: {fmt(resumoMeioLote.pecas)}</div>
+                    </div>
+                    <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5 flex items-center">
+                      <div className="text-[11px] text-gray-500">
+                        Esses SKUs tiveram o corte mínimo dividido por 2 para evitar cobertura &gt; 1x
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="pt-1 text-xs font-semibold text-gray-600 uppercase tracking-wide">Viabilidade de Matéria-Prima</div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
