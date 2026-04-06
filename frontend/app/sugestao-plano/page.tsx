@@ -1864,168 +1864,223 @@ export default function SugestaoPlanoPage() {
           {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{error}</div>}
           {okMsg && <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700">{okMsg}</div>}
 
-          <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-wrap gap-3 items-end">
-            <label className="text-xs text-gray-600">
-              Mês-alvo
-              <select value={periodoAlvo} onChange={(e) => setPeriodoAlvo(e.target.value as PeriodoAlvo)} className="mt-1 border border-gray-300 rounded px-2 py-1.5">
-                <option value="MA">MA</option>
-                <option value="PX">PX</option>
-                <option value="UL">UL</option>
-                <option value="QT">QT</option>
-              </select>
-            </label>
-            {periodoAlvo === 'MA' && (
-              <label className="text-xs text-gray-600">
-                Modo MA
-                <select value={maModo} onChange={(e) => setMaModo(e.target.value as MAModo)} className="mt-1 border border-gray-300 rounded px-2 py-1.5">
-                  <option value="EMERGENCIA">MA - Emergência</option>
-                  <option value="COBERTURA">MA - Cobertura</option>
-                </select>
-              </label>
-            )}
-            <div className="text-xs text-gray-600">
-              Coberturas config:
-              {' '}Top30 <strong>{cfg.cobertura_top30.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
-              {' '}· Demais <strong>{cfg.cobertura_demais.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
-              {' '}· KISS ME <strong>{cfg.cobertura_kissme.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
-              {' '}· Corte mínimo <strong>{cfg.usar_corte_minimo ? 'ATIVO' : 'INATIVO'}</strong>
-            </div>
-            <label className="text-xs text-gray-600">
-              Margem MA negativo (x)
-              <input
-                type="number"
-                min={0}
-                max={0.3}
-                step={0.01}
-                value={margemCobMA}
-                onChange={(e) => setMargemCobMA(Math.max(0, Math.min(0.3, Number(e.target.value || 0))))}
-                className="mt-1 w-24 border border-gray-300 rounded px-2 py-1.5"
-              />
-            </label>
-            <div className="text-xs text-gray-500">
-              Piso MA negativo: <strong>{(COB_ALVO_MA_NEGATIVO - Math.max(0, margemCobMA)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</strong>
-            </div>
-            <label className="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
-                checked={somenteDeltaNegativo}
-                onChange={(e) => setSomenteDeltaNegativo(e.target.checked)}
-              />
-              Somente delta negativo
-            </label>
-            <button
-              type="button"
-              onClick={() => setSomenteNegativoMA((v) => !v)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded border ${
-                somenteNegativoMA
-                  ? 'bg-red-100 text-red-700 border-red-300'
-                  : 'bg-white text-gray-700 border-gray-300'
-              }`}
-            >
-              Negativo {periodoAlvo}
-            </button>
-            <label className="text-xs text-gray-600">
-              Continuidade
-              <select
-                value={filtroCont}
-                onChange={(e) => setFiltroCont(e.target.value as typeof filtroCont)}
-                className="mt-1 border border-gray-300 rounded px-2 py-1.5"
-              >
-                <option value="TODAS">Todas</option>
-                <option value="PERMANENTE">PERMANENTE</option>
-                <option value="PERMANENTE COR NOVA">PERMANENTE COR NOVA</option>
-              </select>
-            </label>
-            <label className="text-xs text-gray-600">
-              Suspensos (124)
-              <select
-                value={filtroSuspensos}
-                onChange={(e) => setFiltroSuspensos(e.target.value as typeof filtroSuspensos)}
-                className="mt-1 border border-gray-300 rounded px-2 py-1.5"
-              >
-                <option value="INCLUIR">Incluir</option>
-                <option value="EXCLUIR">Excluir</option>
-              </select>
-            </label>
-            <label className="text-xs text-gray-600">
-              OP Min
-              <select
-                value={filtroOpMin}
-                onChange={(e) => setFiltroOpMin(e.target.value as typeof filtroOpMin)}
-                className="mt-1 border border-gray-300 rounded px-2 py-1.5"
-              >
-                <option value="TODOS">Todos</option>
-                <option value="BLOQUEADA">Só bloqueada</option>
-              </select>
-            </label>
-            <label className="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
-                checked={considerarProjecaoNova}
-                onChange={(e) => setConsiderarProjecaoNova(e.target.checked)}
-              />
-              Considerar projeção nova
-            </label>
-            <label className="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
-                checked={considerarCapacidade}
-                onChange={(e) => setConsiderarCapacidade(e.target.checked)}
-              />
-              Considerar capacidade
-            </label>
-            <label className="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
-                checked={usarEstoqueLojas}
-                onChange={(e) => setUsarEstoqueLojas(e.target.checked)}
-              />
-              Usar estoque lojas
-            </label>
-            {carregandoEstoqueLojas ? (
-              <div className="text-xs text-violet-700">Carregando estoque disponível...</div>
-            ) : (
-              usarEstoqueLojas && estoqueLojasDisponivel.size > 0 && (
-                <div className="text-xs text-gray-500">
-                  {estoqueLojasDisponivel.size.toLocaleString('pt-BR')} produtos com saldo disponível
+          {/* Painel de Controles - Layout Organizado */}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+            {/* Linha 1: Período e Coberturas */}
+            <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-4">
+              {/* Grupo: Período */}
+              <div className="flex items-center gap-3 pr-4 border-r border-gray-200">
+                <label className="flex flex-col">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Mês-alvo</span>
+                  <select
+                    value={periodoAlvo}
+                    onChange={(e) => setPeriodoAlvo(e.target.value as PeriodoAlvo)}
+                    className="border border-gray-300 rounded px-2 py-1.5 text-sm font-medium bg-gray-50 hover:bg-white focus:ring-2 focus:ring-brand-primary/20"
+                  >
+                    <option value="MA">MA</option>
+                    <option value="PX">PX</option>
+                    <option value="UL">UL</option>
+                    <option value="QT">QT</option>
+                  </select>
+                </label>
+                {periodoAlvo === 'MA' && (
+                  <label className="flex flex-col">
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Modo</span>
+                    <select
+                      value={maModo}
+                      onChange={(e) => setMaModo(e.target.value as MAModo)}
+                      className="border border-gray-300 rounded px-2 py-1.5 text-sm font-medium bg-gray-50 hover:bg-white focus:ring-2 focus:ring-brand-primary/20"
+                    >
+                      <option value="EMERGENCIA">Emergência</option>
+                      <option value="COBERTURA">Cobertura</option>
+                    </select>
+                  </label>
+                )}
+              </div>
+
+              {/* Grupo: Coberturas Config */}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
+                <span className="text-[10px] font-semibold text-slate-500 uppercase">Coberturas:</span>
+                <span className="text-xs">
+                  <span className="text-slate-600">Top30</span>{' '}
+                  <strong className="text-slate-800">{cfg.cobertura_top30.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className="text-xs">
+                  <span className="text-slate-600">Demais</span>{' '}
+                  <strong className="text-slate-800">{cfg.cobertura_demais.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className="text-xs">
+                  <span className="text-slate-600">KISS ME</span>{' '}
+                  <strong className="text-slate-800">{cfg.cobertura_kissme.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded ${cfg.usar_corte_minimo ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                  Corte mín. <strong>{cfg.usar_corte_minimo ? 'ATIVO' : 'INATIVO'}</strong>
+                </span>
+              </div>
+
+              {/* Margem MA */}
+              <div className="flex items-center gap-2 ml-auto">
+                <label className="flex flex-col">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Margem MA neg. (x)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={0.3}
+                    step={0.01}
+                    value={margemCobMA}
+                    onChange={(e) => setMargemCobMA(Math.max(0, Math.min(0.3, Number(e.target.value || 0))))}
+                    className="w-20 border border-gray-300 rounded px-2 py-1.5 text-sm bg-gray-50 hover:bg-white"
+                  />
+                </label>
+                <div className="text-xs text-gray-500 pt-4">
+                  Piso: <strong className="text-gray-700">{(COB_ALVO_MA_NEGATIVO - Math.max(0, margemCobMA)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</strong>
                 </div>
-              )
-            )}
-            {periodoAlvo !== 'MA' && (
-              <label className="text-xs text-gray-600">
-                Filtro MP
-                <select
-                  value={filtroViabilidade}
-                  onChange={(e) => setFiltroViabilidade(e.target.value as typeof filtroViabilidade)}
-                  className="mt-1 border border-gray-300 rounded px-2 py-1.5"
+              </div>
+            </div>
+
+            {/* Linha 2: Filtros e Opções */}
+            <div className="px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+              {/* Grupo: Filtros de Visualização */}
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Filtros:</span>
+                <button
+                  type="button"
+                  onClick={() => setSomenteNegativoMA((v) => !v)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all ${
+                    somenteNegativoMA
+                      ? 'bg-red-500 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
                 >
-                  <option value="TODOS">Todos</option>
-                  {false ? (
-                    <>
-                      <option value="PRODUTIVEL">Só produzível</option>
-                      <option value="BLOQUEADO">Só bloqueado</option>
-                    </>
-                  ) : (
-                    <>
+                  Negativo {periodoAlvo}
+                </button>
+                <label className="inline-flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer hover:text-gray-800">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20"
+                    checked={somenteDeltaNegativo}
+                    onChange={(e) => setSomenteDeltaNegativo(e.target.checked)}
+                  />
+                  <span>Somente delta negativo</span>
+                </label>
+              </div>
+
+              {/* Separador visual */}
+              <div className="h-6 w-px bg-gray-200" />
+
+              {/* Grupo: Selects de Filtro */}
+              <div className="flex items-center gap-3">
+                <label className="flex flex-col">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Suspensos</span>
+                  <select
+                    value={filtroSuspensos}
+                    onChange={(e) => setFiltroSuspensos(e.target.value as typeof filtroSuspensos)}
+                    className="border border-gray-300 rounded px-2 py-1 text-xs bg-gray-50 hover:bg-white"
+                  >
+                    <option value="INCLUIR">Incluir</option>
+                    <option value="EXCLUIR">Excluir</option>
+                  </select>
+                </label>
+                <label className="flex flex-col">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">OP Min</span>
+                  <select
+                    value={filtroOpMin}
+                    onChange={(e) => setFiltroOpMin(e.target.value as typeof filtroOpMin)}
+                    className="border border-gray-300 rounded px-2 py-1 text-xs bg-gray-50 hover:bg-white"
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="BLOQUEADA">Bloqueada</option>
+                  </select>
+                </label>
+                <label className="flex flex-col">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Continuidade</span>
+                  <select
+                    value={filtroCont}
+                    onChange={(e) => setFiltroCont(e.target.value as typeof filtroCont)}
+                    className="border border-gray-300 rounded px-2 py-1 text-xs bg-gray-50 hover:bg-white"
+                  >
+                    <option value="TODAS">Todas</option>
+                    <option value="PERMANENTE">PERMANENTE</option>
+                    <option value="PERMANENTE COR NOVA">PERM. COR NOVA</option>
+                  </select>
+                </label>
+              </div>
+
+              {/* Separador visual */}
+              <div className="h-6 w-px bg-gray-200" />
+
+              {/* Grupo: Checkboxes de Opções */}
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Opções:</span>
+                <label className="inline-flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer hover:text-gray-800">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20"
+                    checked={considerarProjecaoNova}
+                    onChange={(e) => setConsiderarProjecaoNova(e.target.checked)}
+                  />
+                  <span>Projeção nova</span>
+                </label>
+                <label className="inline-flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer hover:text-gray-800">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20"
+                    checked={considerarCapacidade}
+                    onChange={(e) => setConsiderarCapacidade(e.target.checked)}
+                  />
+                  <span>Capacidade</span>
+                </label>
+                <label className="inline-flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer hover:text-gray-800">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20"
+                    checked={usarEstoqueLojas}
+                    onChange={(e) => setUsarEstoqueLojas(e.target.checked)}
+                  />
+                  <span>Estoque lojas</span>
+                </label>
+                {carregandoEstoqueLojas && (
+                  <span className="text-xs text-violet-600 animate-pulse">Carregando...</span>
+                )}
+                {!carregandoEstoqueLojas && usarEstoqueLojas && estoqueLojasDisponivel.size > 0 && (
+                  <span className="text-[10px] text-gray-400">
+                    ({estoqueLojasDisponivel.size.toLocaleString('pt-BR')} produtos)
+                  </span>
+                )}
+              </div>
+
+              {/* Filtro MP (condicional) */}
+              {periodoAlvo !== 'MA' && (
+                <>
+                  <div className="h-6 w-px bg-gray-200" />
+                  <label className="flex flex-col">
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Filtro MP</span>
+                    <select
+                      value={filtroViabilidade}
+                      onChange={(e) => setFiltroViabilidade(e.target.value as typeof filtroViabilidade)}
+                      className="border border-gray-300 rounded px-2 py-1 text-xs bg-gray-50 hover:bg-white"
+                    >
+                      <option value="TODOS">Todos</option>
                       <option value="OK">Só OK</option>
-                      <option value="SOLICITAR_COMPRA">Só solicitar compra</option>
-                    </>
-                  )}
-                </select>
-              </label>
-            )}
-            <button
-              type="button"
-              onClick={salvarSugestaoAtual}
-              disabled={salvandoSugestao || loading}
-              className="ml-auto px-3 py-1.5 text-xs font-semibold rounded border border-brand-primary bg-brand-primary text-white hover:bg-brand-secondary disabled:opacity-60"
-            >
-              {salvandoSugestao ? 'Salvando...' : 'Salvar sugestão'}
-            </button>
+                      <option value="SOLICITAR_COMPRA">Solicitar compra</option>
+                    </select>
+                  </label>
+                </>
+              )}
+
+              {/* Botão Salvar */}
+              <button
+                type="button"
+                onClick={salvarSugestaoAtual}
+                disabled={salvandoSugestao || loading}
+                className="ml-auto px-4 py-2 text-xs font-bold rounded-lg bg-brand-primary text-white hover:bg-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all hover:shadow-md"
+              >
+                {salvandoSugestao ? 'Salvando...' : 'Salvar sugestão'}
+              </button>
+            </div>
           </div>
 
           {(considerarProjecaoNova || recalculandoProjecao || resultadoReprojecaoMsg) && (
