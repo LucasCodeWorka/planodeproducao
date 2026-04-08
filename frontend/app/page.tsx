@@ -98,6 +98,10 @@ export default function Home() {
   const [aprovadasSelecionadasIds, setAprovadasSelecionadasIds] = useState<string[]>([]);
   const [abrirSeletorAprovadas, setAbrirSeletorAprovadas] = useState(false);
   const [abrirSeletorContinuidade, setAbrirSeletorContinuidade] = useState(false);
+  const [filtroLinha, setFiltroLinha] = useState<string[]>([]);
+  const [filtroFamilia, setFiltroFamilia] = useState<string[]>([]);
+  const [abrirSeletorLinha, setAbrirSeletorLinha] = useState(false);
+  const [abrirSeletorFamilia, setAbrirSeletorFamilia] = useState(false);
   const [considerarProjecaoNova, setConsiderarProjecaoNova] = useState(false);
   const [reprojecaoPreview, setReprojecaoPreview] = useState<ReprojecaoPreview[]>([]);
   const [recalculandoProjecao, setRecalculandoProjecao] = useState(false);
@@ -105,6 +109,8 @@ export default function Home() {
   const [usarEstoqueLojas, setUsarEstoqueLojas] = useState(false);
   const [estoqueLojasDisponivel, setEstoqueLojasDisponivel] = useState<Map<number, EstoqueLojaDisponivelAggregado>>(new Map());
   const [carregandoEstoqueLojas, setCarregandoEstoqueLojas] = useState(false);
+  const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C'>>({});
+  const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C')[]>([]);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reprojecaoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,6 +126,7 @@ export default function Home() {
     buscarReprojecaoFechada();
     buscarTop30();
     buscarAprovadas();
+    buscarCurvaABC();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -140,6 +147,17 @@ export default function Home() {
       if (data.success) {
         setProjecoes(data.data as ProjecoesMap);
         if (data.periodos) setPeriodos(data.periodos as PeriodosPlano);
+      }
+    } catch { /* silencioso */ }
+  }
+
+  async function buscarCurvaABC() {
+    try {
+      const res = await fetchNoCache(`${API_URL}/api/analises/curva-abc-referencias`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && data.porReferencia) {
+        setCurvaABC(data.porReferencia as Record<string, 'A' | 'B' | 'C'>);
       }
     } catch { /* silencioso */ }
   }
@@ -427,10 +445,32 @@ export default function Home() {
       base = base.filter((i) => String(i.produto.cod_situacao || '').trim() !== '007');
     }
 
-    if (filtroContinuidade.length === 0) return base;
-    const selecionadas = new Set(filtroContinuidade.map((v) => String(v || '').trim()));
-    return base.filter((i) => selecionadas.has((i.produto.continuidade || '').trim()));
-  }, [dadosAtivosComEstoqueLojas, filtroContinuidade, filtroSuspensos]);
+    if (filtroContinuidade.length > 0) {
+      const selecionadas = new Set(filtroContinuidade.map((v) => String(v || '').trim()));
+      base = base.filter((i) => selecionadas.has((i.produto.continuidade || '').trim()));
+    }
+
+    if (filtroLinha.length > 0) {
+      const selecionadas = new Set(filtroLinha.map((v) => String(v || '').trim()));
+      base = base.filter((i) => selecionadas.has((i.produto.linha || '').trim()));
+    }
+
+    if (filtroFamilia.length > 0) {
+      const selecionadas = new Set(filtroFamilia.map((v) => String(v || '').trim()));
+      base = base.filter((i) => selecionadas.has((i.produto.idfamilia || '').trim()));
+    }
+
+    if (filtroCurvaABC.length > 0) {
+      const curvasSelecionadas = new Set(filtroCurvaABC);
+      base = base.filter((i) => {
+        const ref = (i.produto.referencia || '').trim().toUpperCase();
+        const curva = curvaABC[ref] || 'B';
+        return curvasSelecionadas.has(curva);
+      });
+    }
+
+    return base;
+  }, [dadosAtivosComEstoqueLojas, filtroContinuidade, filtroSuspensos, filtroLinha, filtroFamilia, filtroCurvaABC, curvaABC]);
 
   const projecoesAtivas = useMemo<ProjecoesMap>(() => {
     if (!considerarProjecaoNova || reprojecaoPreview.length === 0) return projecoes;
@@ -864,6 +904,16 @@ export default function Home() {
     [dadosPagina]
   );
 
+  const opcoesLinha = useMemo(
+    () => Array.from(new Set(dadosAtivos.map((i) => (i.produto.linha || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [dadosAtivos]
+  );
+
+  const opcoesFamilia = useMemo(
+    () => Array.from(new Set(dadosAtivos.map((i) => (i.produto.idfamilia || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [dadosAtivos]
+  );
+
   const ml = sidebarCollapsed ? 'ml-20' : 'ml-64';
 
   return (
@@ -1191,6 +1241,154 @@ export default function Home() {
                   </div>
 
                   <div className="border-l border-gray-200 pl-4">
+                    <label className="block text-xs font-semibold text-brand-dark mb-1">Linha</label>
+                    <div className="relative z-50 w-44">
+                      <button
+                        type="button"
+                        onClick={() => setAbrirSeletorLinha((v) => !v)}
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs text-left bg-white hover:bg-gray-50"
+                      >
+                        {filtroLinha.length === 0
+                          ? 'Todas'
+                          : `${filtroLinha.length} selecionada(s)`} {abrirSeletorLinha ? '▲' : '▼'}
+                      </button>
+                      {abrirSeletorLinha && (
+                        <div className="absolute z-[120] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
+                          <div className="mb-1 flex items-center justify-between">
+                            <span className="text-[11px] text-gray-500">Escolha as linhas</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setFiltroLinha(opcoesLinha)}
+                                className="px-2 py-0.5 text-[11px] rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                              >
+                                Todas
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFiltroLinha([])}
+                                className="px-2 py-0.5 text-[11px] rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                              >
+                                Limpar
+                              </button>
+                            </div>
+                          </div>
+                          <div className="max-h-36 overflow-auto space-y-1 pr-1">
+                            {opcoesLinha.map((c) => (
+                              <label key={c} className="flex items-center gap-2 text-[11px] text-gray-700">
+                                <input
+                                  type="checkbox"
+                                  checked={filtroLinha.includes(c)}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setFiltroLinha((prev) => {
+                                      if (checked) return prev.includes(c) ? prev : [...prev, c];
+                                      return prev.filter((v) => v !== c);
+                                    });
+                                  }}
+                                />
+                                <span className="truncate">{c}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-l border-gray-200 pl-4">
+                    <label className="block text-xs font-semibold text-brand-dark mb-1">Familia</label>
+                    <div className="relative z-50 w-44">
+                      <button
+                        type="button"
+                        onClick={() => setAbrirSeletorFamilia((v) => !v)}
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs text-left bg-white hover:bg-gray-50"
+                      >
+                        {filtroFamilia.length === 0
+                          ? 'Todas'
+                          : `${filtroFamilia.length} selecionada(s)`} {abrirSeletorFamilia ? '▲' : '▼'}
+                      </button>
+                      {abrirSeletorFamilia && (
+                        <div className="absolute z-[120] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
+                          <div className="mb-1 flex items-center justify-between">
+                            <span className="text-[11px] text-gray-500">Escolha as familias</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setFiltroFamilia(opcoesFamilia)}
+                                className="px-2 py-0.5 text-[11px] rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                              >
+                                Todas
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFiltroFamilia([])}
+                                className="px-2 py-0.5 text-[11px] rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                              >
+                                Limpar
+                              </button>
+                            </div>
+                          </div>
+                          <div className="max-h-36 overflow-auto space-y-1 pr-1">
+                            {opcoesFamilia.map((c) => (
+                              <label key={c} className="flex items-center gap-2 text-[11px] text-gray-700">
+                                <input
+                                  type="checkbox"
+                                  checked={filtroFamilia.includes(c)}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setFiltroFamilia((prev) => {
+                                      if (checked) return prev.includes(c) ? prev : [...prev, c];
+                                      return prev.filter((v) => v !== c);
+                                    });
+                                  }}
+                                />
+                                <span className="truncate">{c}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-l border-gray-200 pl-4">
+                    <label className="block text-xs font-semibold text-brand-dark mb-1">Curva ABC</label>
+                    <div className="flex items-center gap-1">
+                      {(['A', 'B', 'C'] as const).map((curva) => (
+                        <button
+                          key={curva}
+                          onClick={() => {
+                            setFiltroCurvaABC((prev) => {
+                              if (prev.includes(curva)) return prev.filter((c) => c !== curva);
+                              return [...prev, curva];
+                            });
+                          }}
+                          className={`px-3 py-1.5 text-xs font-bold rounded border transition-colors ${
+                            filtroCurvaABC.includes(curva)
+                              ? curva === 'A'
+                                ? 'bg-green-600 text-white border-green-600'
+                                : curva === 'C'
+                                  ? 'bg-red-600 text-white border-red-600'
+                                  : 'bg-gray-600 text-white border-gray-600'
+                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {curva}
+                        </button>
+                      ))}
+                      {filtroCurvaABC.length > 0 && (
+                        <button
+                          onClick={() => setFiltroCurvaABC([])}
+                          className="px-2 py-1.5 text-[10px] text-gray-500 hover:text-gray-700"
+                        >
+                          Limpar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-l border-gray-200 pl-4">
                     <label className="block text-xs font-semibold text-brand-dark mb-1">Suspensos</label>
                     <select
                       value={filtroSuspensos}
@@ -1351,6 +1549,7 @@ export default function Home() {
               excedentesLojas={usarEstoqueLojas ? estoqueLojasDisponivel : null}
               filtroCoberturaMinima={filtroCoberturaMinima}
               filtroEmProcessoMinimo={filtroEmProcessoMinimo}
+              curvaABC={curvaABC}
             />
           )}
 

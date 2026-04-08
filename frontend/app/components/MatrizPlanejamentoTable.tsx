@@ -248,6 +248,7 @@ interface Props {
   excedentesLojas?: Map<number, EstoqueLojaDisponivelAggregado> | null;
   filtroCoberturaMinima?: string;
   filtroEmProcessoMinimo?: string;
+  curvaABC?: Record<string, 'A' | 'B' | 'C'>;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -268,6 +269,7 @@ export default function MatrizPlanejamentoTable({
   excedentesLojas = null,
   filtroCoberturaMinima = '',
   filtroEmProcessoMinimo = '',
+  curvaABC = {},
 }: Props) {
   type SortKey =
     | 'estoque' | 'emProcesso' | 'estoqueMin' | 'pedidos' | 'disponivel' | 'negativo' | 'cobertura'
@@ -682,6 +684,7 @@ export default function MatrizPlanejamentoTable({
                 {/* Row 1 — group labels */}
                 <tr className="bg-brand-dark text-gray-200 text-[11px] font-semibold uppercase tracking-wide">
                   <th rowSpan={2} className="sticky left-0 z-40 px-2 py-2.5 text-left w-[240px] min-w-[240px] max-w-[240px] border-b border-gray-600 bg-brand-dark shadow-[1px_0_0_0_rgba(55,65,81,0.5)]">Referência / Produto</th>
+                  <th rowSpan={2} className="px-2 py-2.5 text-center border-b border-gray-600 bg-brand-dark w-[50px]">Curva</th>
                   <th rowSpan={2} onClick={() => onSortClick('estoque')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Estoque{sortBadge('estoque')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('emProcesso')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Em Proc.{sortBadge('emProcesso')}</th>
                   {excedentesLojas && excedentesLojas.size > 0 && (
@@ -733,6 +736,7 @@ export default function MatrizPlanejamentoTable({
             ) : (
               <tr className="bg-brand-dark text-gray-200 text-[11px] font-semibold uppercase tracking-wide">
                 <th className="sticky left-0 z-40 px-2 py-2.5 text-left w-[240px] min-w-[240px] max-w-[240px] bg-brand-dark shadow-[1px_0_0_0_rgba(55,65,81,0.5)]">Referência / Produto</th>
+                <th className="px-2 py-2.5 text-center bg-brand-dark w-[50px]">Curva</th>
                 <th onClick={() => onSortClick('estoque')} className="px-3 py-3 text-right cursor-pointer">Estoque{sortBadge('estoque')}</th>
                 <th onClick={() => onSortClick('emProcesso')} className="px-3 py-3 text-right cursor-pointer">Em Proc.{sortBadge('emProcesso')}</th>
                 {excedentesLojas && excedentesLojas.size > 0 && (
@@ -772,6 +776,7 @@ export default function MatrizPlanejamentoTable({
                       {grupo.continuidade}
                       <BadgeSit t={gt} />
                     </td>
+                    <td className="px-2 py-2.5 text-center text-gray-500 text-[10px]">—</td>
                     <td className="px-2 py-2.5 text-right text-gray-200 font-mono text-[11px] tabular-nums font-semibold">{fmt(gt.estoque)}</td>
                     <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
                       {gt.emProcesso > 0 ? <span className="text-gray-200 font-semibold">{fmt(gt.emProcesso)}</span> : <span className="text-gray-600">—</span>}
@@ -900,6 +905,14 @@ export default function MatrizPlanejamentoTable({
                             >
                               {ref.nomeRef}
                             </span>
+                          </td>
+                          <td className="px-2 py-3.5 text-center">
+                            {(() => {
+                              const refNorm = (ref.referencia || '').trim().toUpperCase();
+                              const curva = curvaABC[refNorm] || 'B';
+                              const curvaClass = curva === 'A' ? 'bg-green-100 text-green-800' : curva === 'C' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600';
+                              return <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${curvaClass}`}>{curva}</span>;
+                            })()}
                           </td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums text-slate-700 font-semibold">{fmt(rt.estoque)}</td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums">
@@ -1038,6 +1051,14 @@ export default function MatrizPlanejamentoTable({
                                 <span className="font-medium text-gray-700">{(item.produto.cor || '—').trim()}</span>
                                 <span className="text-gray-400 mx-1.5">/</span>
                                 <span className="text-gray-500">{(item.produto.tamanho || '—').trim()}</span>
+                              </td>
+                              <td className="px-2 py-3 text-center">
+                                {(() => {
+                                  const refNorm = (item.produto.referencia || '').trim().toUpperCase();
+                                  const curva = curvaABC[refNorm] || 'B';
+                                  const curvaClass = curva === 'A' ? 'bg-green-100 text-green-800' : curva === 'C' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600';
+                                  return <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${curvaClass}`}>{curva}</span>;
+                                })()}
                               </td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
                                 {item.estoques.estoque_atual > 0 ? <span className="text-gray-700">{fmt(item.estoques.estoque_atual)}</span> : <span className="text-gray-300">0</span>}

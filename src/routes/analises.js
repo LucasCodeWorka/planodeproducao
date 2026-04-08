@@ -219,6 +219,108 @@ router.get("/top30-produtos", auth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/analises/curva-abc-referencias
+ * Retorna a curva ABC por referência baseada nas vendas dos últimos 3 meses
+ * Curva A: Top 30 por valor + Top 30 por quantidade (união)
+ * Curva C: Últimas 20 referências no ranking
+ * Curva B: Referências entre A e C
+ */
+router.get("/curva-abc-referencias", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+
+    // Query para calcular vendas por referência nos últimos 3 meses
+    const query = `
+      WITH vendas_3m AS (
+        SELECT
+          f_dic_prd_nivel(v.idproduto, 'CD'::bpchar) AS referencia,
+          SUM(v.qt_liquida) AS total_qty,
+          COUNT(DISTINCT DATE(v.data)) AS dias_com_vendas
+        FROM vr_vendas_qtd v
+        WHERE v.data >= CURRENT_DATE - INTERVAL '90 days'
+          AND v.idempresa = 1
+        GROUP BY f_dic_prd_nivel(v.idproduto, 'CD'::bpchar)
+        HAVING f_dic_prd_nivel(v.idproduto, 'CD'::bpchar) IS NOT NULL
+          AND f_dic_prd_nivel(v.idproduto, 'CD'::bpchar) != ''
+      ),
+      ranked AS (
+        SELECT
+          referencia,
+          total_qty,
+          dias_com_vendas,
+          ROW_NUMBER() OVER (ORDER BY total_qty DESC) AS rank_qty,
+          COUNT(*) OVER () AS total_refs
+        FROM vendas_3m
+        WHERE total_qty > 0
+      )
+      SELECT
+        r.referencia,
+        r.total_qty,
+        r.dias_com_vendas,
+        r.rank_qty,
+        r.total_refs,
+        CASE
+          WHEN r.rank_qty <= 30 THEN 'A'
+          WHEN r.rank_qty > r.total_refs - 20 THEN 'C'
+          ELSE 'B'
+        END AS curva
+      FROM ranked r
+      ORDER BY r.rank_qty
+    `;
+
+    const result = await pool.query(query);
+
+    // Organizar resultado por curva
+    const curvaA = [];
+    const curvaB = [];
+    const curvaC = [];
+    const porReferencia = {};
+
+    for (const row of result.rows) {
+      const ref = String(row.referencia || '').trim().toUpperCase();
+      if (!ref) continue;
+
+      const item = {
+        referencia: ref,
+        totalQtd: Number(row.total_qty) || 0,
+        diasComVendas: Number(row.dias_com_vendas) || 0,
+        rankQtd: Number(row.rank_qty) || 0,
+        curva: row.curva
+      };
+
+      porReferencia[ref] = row.curva;
+
+      if (row.curva === 'A') curvaA.push(item);
+      else if (row.curva === 'C') curvaC.push(item);
+      else curvaB.push(item);
+    }
+
+    return res.json({
+      success: true,
+      totalReferencias: result.rows.length,
+      resumo: {
+        curvaA: curvaA.length,
+        curvaB: curvaB.length,
+        curvaC: curvaC.length
+      },
+      porReferencia,
+      detalhes: {
+        curvaA,
+        curvaB,
+        curvaC
+      }
+    });
+  } catch (error) {
+    console.error('[curva-abc-referencias] Erro:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao calcular curva ABC por referências",
+      details: error.message
+    });
+  }
+});
+
 router.post("/projecao-vs-venda", auth, async (req, res) => {
   try {
     const pool = req.app.get("pool");
