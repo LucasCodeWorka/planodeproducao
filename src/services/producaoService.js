@@ -518,7 +518,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
        FROM vr_pcp_lotepl2 a
        LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
        WHERE p.tp_situacao = 1
-         AND p.cd_auxiliar IN ('MA', 'PX', 'UL')
+         AND p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT')
        GROUP BY a.cd_produto, p.cd_auxiliar`,
       []
     ),
@@ -661,13 +661,13 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   const emprocMap = new Map(rEmProcesso.rows.map(r => [Number(r.idproduto), parseFloat(r.qt_em_processo) || 0]));
   const pedMap    = new Map(rPedidos.rows.map(r    => [Number(r.idproduto), parseFloat(r.qt_pendente)    || 0]));
 
-  // Plano de produção: { MA, PX, UL } por produto
+  // Plano de produção: { MA, PX, UL, QT } por produto
   const planoMap  = new Map();
   for (const row of rPlano.rows) {
     const id  = Number(row.idproduto);
     const per = String(row.cd_auxiliar || '').trim().toUpperCase();
-    if (!planoMap.has(id)) planoMap.set(id, { MA: 0, PX: 0, UL: 0 });
-    if (per === 'MA' || per === 'PX' || per === 'UL') {
+    if (!planoMap.has(id)) planoMap.set(id, { MA: 0, PX: 0, UL: 0, QT: 0 });
+    if (per === 'MA' || per === 'PX' || per === 'UL' || per === 'QT') {
       planoMap.get(id)[per] = parseFloat(row.plano) || 0;
     }
   }
@@ -752,7 +752,8 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
       plano: {
         ma: planoMap.get(id)?.MA || 0,   // mês atual
         px: planoMap.get(id)?.PX || 0,   // próximo mês
-        ul: planoMap.get(id)?.UL || 0    // mês seguinte
+        ul: planoMap.get(id)?.UL || 0,   // mês seguinte
+        qt: planoMap.get(id)?.QT || 0    // quarto mês
       },
       planejamento: {
         necessidade_total:    necessidadeTotal,
