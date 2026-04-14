@@ -417,7 +417,7 @@ async function buscarProdutosElegiveisMatriz(pool, options = {}) {
     ) x
     WHERE
       x.teve_venda_12m = TRUE
-      OR UPPER(TRIM(COALESCE(x.status, ''))) = 'EM LINHA'
+      OR UPPER(TRIM(COALESCE(x.status, ''))) IN ('EM LINHA', 'NOVA COLECAO')
     ORDER BY x.idproduto
     LIMIT $2 OFFSET $3
   `;
@@ -698,14 +698,14 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     if (isPt99Size(row.tamanho)) continue;
     const id     = Number(row.idproduto);
     const status = (statusMap.get(id) || '').trim().toUpperCase();
-    const emLinha = status === 'EM LINHA';
+    const emLinha = status === 'EM LINHA' || status === 'NOVA COLECAO';
 
     const s              = salesMap.get(id);
     const diasVenda12m   = s ? s.total12m : 0;
     const mediaSemestral = s ? s.sumSem / 6 : 0;  // média mensal do semestre (total ÷ 6 meses)
     const media3m        = s ? s.sum3m  / 3 : 0;  // média mensal dos 3 meses fechados (total ÷ 3 meses)
 
-    // Filtro: precisa ter vendas nos últimos 12m OU estar em linha
+    // Filtro: precisa ter vendas nos últimos 12m OU estar em linha/nova coleção
     if (!diasVenda12m && !emLinha) continue;
 
     const estoqueAtual     = estMap.get(id)    || 0;
