@@ -8,6 +8,7 @@ const router = express.Router();
 const DATA_DIR  = path.join(__dirname, '../../data');
 const PROJ_FILE = path.join(DATA_DIR, 'projecoes.json');
 const MATRIZ_FILE = path.join(DATA_DIR, 'matriz_cache.json');
+const DE_PARA_FILE = path.join(DATA_DIR, 'de_para_referencias.json');
 
 // ── Calcula períodos automaticamente ────────────────────────────────────────
 /**
@@ -75,6 +76,194 @@ function lerMatrizCache() {
   } catch {
     return [];
   }
+}
+
+function lerDeParaReferencias() {
+  try {
+    const raw = fs.readFileSync(DE_PARA_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed?.data) ? parsed.data : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizarTextoComparacao(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
+}
+
+function cloneMeses(meses) {
+  return Object.fromEntries(
+    Object.entries(meses || {}).map(([mes, qtd]) => [String(mes), Number(qtd) || 0])
+  );
+}
+
+async function buscarProdutosPorReferencias(pool, referencias) {
+  const refs = [...new Set(
+    (Array.isArray(referencias) ? referencias : [])
+      .map((ref) => String(ref || '').trim())
+      .filter(Boolean)
+  )];
+
+  if (!refs.length) return [];
+
+  const result = await pool.query(`
+    SELECT
+      a.cd_produto::TEXT AS idproduto,
+      f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar)::TEXT AS referencia,
+      COALESCE(a.ds_cor, '')::TEXT AS cor,
+      COALESCE(a.ds_tamanho, '')::TEXT AS tamanho
+    FROM vr_prd_prdgrade a
+    WHERE f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar)::TEXT = ANY($1::TEXT[])
+    ORDER BY referencia, a.ds_cor, a.ds_tamanho, a.cd_produto
+  `, [refs]);
+
+  return result.rows.map((row) => ({
+    idproduto: String(row.idproduto || '').trim(),
+    referencia: String(row.referencia || '').trim(),
+    cor: String(row.cor || '').trim(),
+    tamanho: String(row.tamanho || '').trim(),
+  }));
+}
+
+function escolherOrigemPorSku(produtosAntigos, produtoNovo, indiceNovo) {
+  if (!Array.isArray(produtosAntigos) || !produtosAntigos.length) return null;
+
+  const cor = normalizarTextoComparacao(produtoNovo?.cor);
+  const tamanho = normalizarTextoComparacao(produtoNovo?.tamanho);
+
+  const matchExato = produtosAntigos.find((item) =>
+    normalizarTextoComparacao(item.cor) === cor &&
+    normalizarTextoComparacao(item.tamanho) === tamanho
+  );
+  if (matchExato) return matchExato;
+
+  const matchTamanho = produtosAntigos.find((item) =>
+    normalizarTextoComparacao(item.tamanho) === tamanho
+  );
+  if (matchTamanho) return matchTamanho;
+
+  const matchCor = produtosAntigos.find((item) =>
+    normalizarTextoComparacao(item.cor) === cor
+  );
+  if (matchCor) return matchCor;
+
+  return produtosAntigos[indiceNovo] || produtosAntigos[0] || null;
+}
+
+async function montarProjecoesEfetivas(pool) {
+  const { data: projecoesOriginais, timestamp } = lerProjecoes();
+  const dePara = lerDeParaReferencias();
+
+  if (!pool || !dePara.length) {
+    return { data: projecoesOriginais, timestamp, deParaAplicado: [] };
+  }
+
+  const referencias = [];
+  for (const item of dePara) {
+    const antiga = String(item?.ref_antiga || '').trim();
+    const nova = String(item?.ref_nova || '').trim();
+    if (antiga) referencias.push(antiga);
+    if (nova) referencias.push(nova);
+  }
+
+  const produtos = await buscarProdutosPorReferencias(pool, referencias);
+  const produtosPorReferencia = new Map();
+  for (const produto of produtos) {
+    if (!produtosPorReferencia.has(produto.referencia)) {
+      produtosPorReferencia.set(produto.referencia, []);
+    }
+    produtosPorReferencia.get(produto.referencia).push(produto);
+  }
+
+  const efetivas = Object.fromEntries(
+    Object.entries(projecoesOriginais || {}).map(([id, meses]) => [String(id), cloneMeses(meses)])
+  );
+  const deParaAplicado = [];
+
+  for (const item of dePara) {
+    const refAntiga = String(item?.ref_antiga || '').trim();
+    const refNova = String(item?.ref_nova || '').trim();
+    if (!refAntiga || !refNova) continue;
+
+    const produtosAntigos = produtosPorReferencia.get(refAntiga) || [];
+    const produtosNovos = produtosPorReferencia.get(refNova) || [];
+    if (!produtosAntigos.length || !produtosNovos.length) continue;
+
+    let aplicados = 0;
+    for (let i = 0; i < produtosNovos.length; i += 1) {
+      const produtoNovo = produtosNovos[i];
+      const idNovo = String(produtoNovo.idproduto || '').trim();
+      if (!idNovo || efetivas[idNovo]) continue;
+
+      const origem = escolherOrigemPorSku(produtosAntigos, produtoNovo, i);
+      const idAntigo = String(origem?.idproduto || '').trim();
+      if (!idAntigo || !projecoesOriginais[idAntigo]) continue;
+
+      efetivas[idNovo] = cloneMeses(projecoesOriginais[idAntigo]);
+      aplicados += 1;
+    }
+
+    if (aplicados > 0) {
+      deParaAplicado.push({
+        ref_antiga: refAntiga,
+        ref_nova: refNova,
+        produtos_copiados: aplicados,
+      });
+    }
+  }
+
+  return { data: efetivas, timestamp, deParaAplicado };
+}
+
+async function montarMetaPorId(pool, ids) {
+  const idsValidos = [...new Set(
+    (Array.isArray(ids) ? ids : [])
+      .map((id) => String(id || '').trim())
+      .filter(Boolean)
+  )];
+
+  const metaPorId = new Map();
+  for (const item of lerMatrizCache()) {
+    const id = String(item?.produto?.idproduto || '').trim();
+    if (!id) continue;
+    metaPorId.set(id, {
+      referencia: item?.produto?.referencia || '',
+      produto: item?.produto?.produto || item?.produto?.apresentacao || '',
+      continuidade: item?.produto?.continuidade || 'SEM CONTINUIDADE',
+    });
+  }
+
+  if (!pool || !idsValidos.length) return metaPorId;
+
+  const idsFaltantes = idsValidos.filter((id) => !metaPorId.has(id));
+  if (!idsFaltantes.length) return metaPorId;
+
+  const result = await pool.query(`
+    SELECT
+      a.cd_produto::TEXT AS idproduto,
+      COALESCE(f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar), '')::TEXT AS referencia,
+      COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), a.nm_produto, '')::TEXT AS produto,
+      COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint), 'SEM CONTINUIDADE')::TEXT AS continuidade
+    FROM vr_prd_prdgrade a
+    WHERE a.cd_produto::TEXT = ANY($1::TEXT[])
+  `, [idsFaltantes]);
+
+  for (const row of result.rows) {
+    const id = String(row.idproduto || '').trim();
+    if (!id) continue;
+    metaPorId.set(id, {
+      referencia: String(row.referencia || '').trim(),
+      produto: String(row.produto || '').trim(),
+      continuidade: String(row.continuidade || 'SEM CONTINUIDADE').trim(),
+    });
+  }
+
+  return metaPorId;
 }
 
 /**
@@ -165,26 +354,36 @@ function parsearCSV(texto) {
 }
 
 // ── GET /api/projecoes ────────────────────────────────────────────────────────
-router.get('/', auth, (req, res) => {
-  const { data, timestamp } = lerProjecoes();
+router.get('/', auth, async (req, res) => {
+  try {
+    const pool = req.app.get('pool');
+    const { data, timestamp, deParaAplicado } = await montarProjecoesEfetivas(pool);
 
-  // Informa os meses atuais do plano (MA/PX/UL/QT) para o frontend
-  const periodos = calcularPeriodos();
+    // Informa os meses atuais do plano (MA/PX/UL/QT) para o frontend
+    const periodos = calcularPeriodos();
 
-  return res.json({
-    success:   true,
-    timestamp: timestamp ? new Date(timestamp).toLocaleString('pt-BR') : null,
-    count:     Object.keys(data).length,
-    periodos,
-    data
-  });
+    return res.json({
+      success:   true,
+      timestamp: timestamp ? new Date(timestamp).toLocaleString('pt-BR') : null,
+      count:     Object.keys(data).length,
+      periodos,
+      deParaAplicado,
+      data
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'Erro ao carregar projeções',
+      details: error.message,
+    });
+  }
 });
 
 // ── GET /api/projecoes/reprojecao-fechada ───────────────────────────────────
 router.get('/reprojecao-fechada', auth, async (req, res) => {
   try {
     const pool = req.app.get('pool');
-    const { data: projecoes } = lerProjecoes();
+    const { data: projecoes, deParaAplicado } = await montarProjecoesEfetivas(pool);
     const ids = Object.keys(projecoes).map((v) => Number(v)).filter((n) => Number.isFinite(n));
     const agora = new Date();
     const mesAtual = agora.getMonth() + 1;
@@ -200,12 +399,13 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
         base: { ano: anoBase, mes: mesBase },
         periodos,
         regras: REPROJECAO_REGRAS_FIXAS,
+        deParaAplicado,
         sugestoes: [],
         resumo: { aumentoForte: 0, media: 0, manter: 0, quedaLeve: 0, quedaForte: 0 },
       });
     }
 
-    const [vendasResult, matrizRows] = await Promise.all([
+    const [vendasResult, metaPorId] = await Promise.all([
       pool.query(`
         SELECT
           v.idproduto::TEXT AS idproduto,
@@ -216,20 +416,10 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
           AND EXTRACT(MONTH FROM v.data)::INT = $3
         GROUP BY v.idproduto
       `, [ids, anoBase, mesBase]),
-      Promise.resolve(lerMatrizCache()),
+      montarMetaPorId(pool, ids.map(String)),
     ]);
 
     const vendasMap = new Map(vendasResult.rows.map((r) => [String(r.idproduto), Number(r.quantidade) || 0]));
-    const metaPorId = new Map();
-    for (const item of matrizRows) {
-      const id = String(item?.produto?.idproduto || '');
-      if (!id) continue;
-      metaPorId.set(id, {
-        referencia: item?.produto?.referencia || '',
-        produto: item?.produto?.produto || item?.produto?.apresentacao || '',
-        continuidade: item?.produto?.continuidade || 'SEM CONTINUIDADE',
-      });
-    }
 
     const resumo = { aumentoForte: 0, media: 0, manter: 0, quedaLeve: 0, quedaForte: 0 };
     const sugestoes = [];
@@ -293,6 +483,7 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
       base: { ano: anoBase, mes: mesBase },
       periodos,
       regras: REPROJECAO_REGRAS_FIXAS,
+      deParaAplicado,
       resumo,
       sugestoes: sugestoes.slice(0, 3000),
     });
@@ -374,11 +565,11 @@ router.post('/reajustes', auth, async (req, res) => {
       longo: { permiteAumentar: true, maxReducaoPct: Number(req.body?.politica?.longo?.maxReducaoPct ?? 70), maxAumentoPct: Number(req.body?.politica?.longo?.maxAumentoPct ?? 60) },
     };
 
-    const { data: projecoes } = lerProjecoes();
+    const { data: projecoes, deParaAplicado } = await montarProjecoesEfetivas(pool);
     const ids = Object.keys(projecoes).map((v) => Number(v)).filter((n) => Number.isFinite(n));
     const periodos = calcularPeriodos();
     if (!ids.length) {
-      return res.json({ success: true, ano, count: 0, resumo: {}, sugestoes: [], periodos });
+      return res.json({ success: true, ano, count: 0, resumo: {}, sugestoes: [], periodos, deParaAplicado });
     }
 
     const result = await pool.query(`
@@ -399,17 +590,7 @@ router.post('/reajustes', auth, async (req, res) => {
       vendas[id][String(row.mes)] = Number(row.quantidade) || 0;
     }
 
-    const matriz = lerMatrizCache();
-    const metaPorId = new Map();
-    for (const item of matriz) {
-      const id = String(item?.produto?.idproduto || '');
-      if (!id) continue;
-      metaPorId.set(id, {
-        referencia: item?.produto?.referencia || '',
-        produto: item?.produto?.produto || item?.produto?.apresentacao || '',
-        continuidade: item?.produto?.continuidade || 'SEM CONTINUIDADE',
-      });
-    }
+    const metaPorId = await montarMetaPorId(pool, Object.keys(projecoes));
 
     const sugestoes = [];
     const resumo = {
@@ -516,6 +697,7 @@ router.post('/reajustes', auth, async (req, res) => {
       limiares,
       politica,
       count: sugestoes.length,
+      deParaAplicado,
       resumo,
       sugestoes: sugestoes.slice(0, 2000),
     });

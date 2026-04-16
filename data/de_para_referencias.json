@@ -1,0 +1,31 @@
+{
+  "timestamp": 1713294000000,
+  "descricao": "Mapeamento DE-PARA de referências para projeção de vendas. A referência nova herda a projeção da referência antiga.",
+  "data": [
+    {
+      "ref_antiga": "703001",
+      "ref_nova": "703016",
+      "descricao": "SUTIA 1/2 TACA EM MICROFIBRA TACA B"
+    },
+    {
+      "ref_antiga": "703008",
+      "ref_nova": "703017",
+      "descricao": "SUTIA 1/2 TACA EM MICROFIBRA TACA B"
+    },
+    {
+      "ref_antiga": "703013",
+      "ref_nova": "703018",
+      "descricao": "SUTIA 1/2 TACA BASICO EM MICROFIBRA TM"
+    },
+    {
+      "ref_antiga": "703014",
+      "ref_nova": "703020",
+      "descricao": "SUTIA MEIA TACA COM ZIPER C/ MICROFIBRA"
+    },
+    {
+      "ref_antiga": "703010",
+      "ref_nova": "703021",
+      "descricao": "SUTIA 1/2 TACA EM RENDA TACA B"
+    }
+  ]
+}

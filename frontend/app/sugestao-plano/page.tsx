@@ -296,6 +296,13 @@ function findRegraOpMin(rules: RegraOpMinRow[], continuidade: string, linha: str
   ) || null;
 }
 
+// Cobertura máxima por curva ABC para UL/QT: A=1.0, B=1.5, C=3.0
+function coberturaMaxPorCurva(curva: 'A' | 'B' | 'C'): number {
+  if (curva === 'A') return 1.0;
+  if (curva === 'B') return 1.5;
+  return 3.0; // Curva C
+}
+
 export default function SugestaoPlanoPage() {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -315,6 +322,8 @@ export default function SugestaoPlanoPage() {
   const [cortes, setCortes] = useState<Record<string, number>>({});
   const [top30Ids, setTop30Ids] = useState<Set<string>>(new Set());
   const [top30Refs, setTop30Refs] = useState<Set<string>>(new Set());
+  const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C'>>({});
+  const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C')[]>([]);
   const [capacidadeGrupos, setCapacidadeGrupos] = useState<GrupoCapacidadeConfig[]>([]);
   const [capacidadeGrupoRefs, setCapacidadeGrupoRefs] = useState<GrupoRefConfig[]>([]);
   const [capacidadeDias, setCapacidadeDias] = useState<Record<string, number>>({});
@@ -436,7 +445,7 @@ export default function SugestaoPlanoPage() {
     setError(null);
     try {
       const params = new URLSearchParams({ limit: '5000', marca: MARCA_FIXA, status: STATUS_FIXO });
-      const [rMatriz, rProj, rTop30, rCortes, rCfg, rCapConfig, rCapTempos, rReproj] = await Promise.all([
+      const [rMatriz, rProj, rTop30, rCortes, rCfg, rCapConfig, rCapTempos, rReproj, rCurvaABC] = await Promise.all([
         fetchNoCache(`${API_URL}/api/producao/matriz?${params}`),
         fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/analises/top30-produtos`, { headers: authHeaders() }),
@@ -445,6 +454,7 @@ export default function SugestaoPlanoPage() {
         fetchNoCache(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/capacidade/tempos-ref`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/projecoes/reprojecao-fechada`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/analises/curva-abc-referencias`, { headers: authHeaders() }),
       ]);
       if (!rMatriz.ok || !rProj.ok || !rTop30.ok || !rCortes.ok || !rCfg.ok || !rCapConfig.ok || !rCapTempos.ok || !rReproj.ok) {
         throw new Error('Erro ao carregar dados da sugestão de plano');
@@ -457,12 +467,14 @@ export default function SugestaoPlanoPage() {
       const pCapConfig = await rCapConfig.json();
       const pCapTempos = await rCapTempos.json();
       const pReproj = await rReproj.json();
+      const pCurvaABC = rCurvaABC.ok ? await rCurvaABC.json() : { porReferencia: {} };
 
       setDados((pMatriz?.data || []) as Planejamento[]);
       setProjecoes((pProj?.data || {}) as ProjecoesMap);
       if (pProj?.periodos) setPeriodos(pProj.periodos as PeriodosPlano);
       setTop30Ids(new Set(((pTop30?.ids || []) as string[]).map((v) => String(v))));
       setTop30Refs(new Set(((pTop30?.referencias || []) as string[]).map((v) => normRef(v))));
+      setCurvaABC((pCurvaABC?.porReferencia || {}) as Record<string, 'A' | 'B' | 'C'>);
       setCapacidadeGrupos(Array.isArray(pCapConfig?.data?.grupos) ? pCapConfig.data.grupos : []);
       setCapacidadeGrupoRefs(Array.isArray(pCapConfig?.data?.grupo_refs) ? pCapConfig.data.grupo_refs : []);
       setCapacidadeDias((pCapConfig?.data?.dias && typeof pCapConfig.data.dias === 'object') ? pCapConfig.data.dias : {});
@@ -808,6 +820,28 @@ export default function SugestaoPlanoPage() {
             const cobPosLower = dispPosLower / min;
             if (cobPosLower >= (COB_ALVO_MA_NEGATIVO - Math.max(0, margemCobMA))) {
               planoSugerido = lowerLot;
+            }
+          }
+        }
+
+        // Para UL e QT: aplicar lógica de meio lote baseada na cobertura máxima por curva ABC
+        if ((periodoAlvo === 'UL' || periodoAlvo === 'QT') && cfg.usar_corte_minimo && lote > 1 && min > 0 && planoSugerido > 0) {
+          const curvaRef = curvaABC[refNorm] || 'B';
+          const cobMax = coberturaMaxPorCurva(curvaRef);
+          const dispPosAtual = dispAnterior + planoSugerido - projMes;
+          const cobPosAtual = dispPosAtual / min;
+
+          // Se cobertura pós exceder o máximo permitido pela curva, tenta usar meio lote
+          if (cobPosAtual > cobMax) {
+            const meioLote = Math.max(1, Math.round(lote / 2));
+            const planoMeioLote = Math.ceil(necessidadeBruta / meioLote) * meioLote;
+            const dispPosMeio = dispAnterior + planoMeioLote - projMes;
+
+            // Só usa meio lote se não deixar negativo
+            if (dispPosMeio >= 0) {
+              planoSugerido = planoMeioLote;
+              lote = meioLote;
+              usouMeioLote = true;
             }
           }
         }
@@ -1220,9 +1254,15 @@ export default function SugestaoPlanoPage() {
       if (somenteNegativoMA && !(r.dispMesAlvo < 0)) return false;
       if (filtroCont !== 'TODAS' && String(r.continuidade || '').trim().toUpperCase() !== filtroCont) return false;
       if (filtroOpMin === 'BLOQUEADA' && !Boolean(r.opMinNaoAtendida)) return false;
+      // Filtro por curva ABC
+      if (filtroCurvaABC.length > 0) {
+        const refNorm = String(r.referencia || '').trim().toUpperCase();
+        const curva = curvaABC[refNorm] || 'B';
+        if (!filtroCurvaABC.includes(curva)) return false;
+      }
       return true;
     });
-  }, [rows, periodoAlvo, maModo, somenteDeltaNegativo, somenteNegativoMA, filtroCont, filtroOpMin]);
+  }, [rows, periodoAlvo, maModo, somenteDeltaNegativo, somenteNegativoMA, filtroCont, filtroOpMin, filtroCurvaABC, curvaABC]);
 
   const refEscopoStatusMap = useMemo(() => {
     const m = new Map<string, boolean>(); // true = bloqueada
@@ -1331,9 +1371,11 @@ export default function SugestaoPlanoPage() {
     return rowsVisiveisTela.filter((r) => Boolean(r.opMinNaoAtendida)).length;
   }, [rowsVisiveisTela]);
 
-  // Conta SKUs que usaram corte_min / 2 no MA Emergência
+  // Conta SKUs que usaram corte_min / 2 (MA Emergência, UL e QT)
   const resumoMeioLote = useMemo(() => {
-    if (periodoAlvo !== 'MA' || maModo !== 'EMERGENCIA') {
+    // Funciona para MA Emergência, UL e QT
+    const habilitado = (periodoAlvo === 'MA' && maModo === 'EMERGENCIA') || periodoAlvo === 'UL' || periodoAlvo === 'QT';
+    if (!habilitado) {
       return { skus: 0, pecas: 0 };
     }
     let skus = 0;
@@ -2007,6 +2049,41 @@ export default function SugestaoPlanoPage() {
                     <option value="PERMANENTE COR NOVA">PERM. COR NOVA</option>
                   </select>
                 </label>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Curva ABC</span>
+                  <div className="flex items-center gap-1">
+                    {(['A', 'B', 'C'] as const).map((curva) => (
+                      <button
+                        key={curva}
+                        onClick={() => {
+                          setFiltroCurvaABC((prev) => {
+                            if (prev.includes(curva)) return prev.filter((c) => c !== curva);
+                            return [...prev, curva];
+                          });
+                        }}
+                        className={`px-2.5 py-1 text-xs font-bold rounded border transition-colors ${
+                          filtroCurvaABC.includes(curva)
+                            ? curva === 'A'
+                              ? 'bg-green-600 text-white border-green-600'
+                              : curva === 'C'
+                                ? 'bg-red-600 text-white border-red-600'
+                                : 'bg-gray-600 text-white border-gray-600'
+                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
+                        }`}
+                      >
+                        {curva}
+                      </button>
+                    ))}
+                    {filtroCurvaABC.length > 0 && (
+                      <button
+                        onClick={() => setFiltroCurvaABC([])}
+                        className="px-1.5 py-1 text-[10px] text-gray-500 hover:text-gray-700"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Separador visual */}
@@ -2217,7 +2294,7 @@ export default function SugestaoPlanoPage() {
                     </div>
                     <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5 flex items-center">
                       <div className="text-[11px] text-gray-500">
-                        Esses SKUs tiveram o corte mínimo dividido por 2 para evitar cobertura &gt; 1x
+                        Esses SKUs tiveram o corte mínimo dividido por 2 para evitar cobertura &gt; 0.5x (emergência)
                       </div>
                     </div>
                   </div>
@@ -2304,6 +2381,20 @@ export default function SugestaoPlanoPage() {
                     </div>
                   </div>
                 </div>
+                {(periodoAlvo === 'UL' || periodoAlvo === 'QT') && resumoMeioLote.skus > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5">
+                      <div className="text-[11px] text-amber-700">SKUs com Corte Mín ÷ 2</div>
+                      <div className="text-xl font-bold text-amber-800 leading-tight">{fmt(resumoMeioLote.skus)}</div>
+                      <div className="text-[11px] text-amber-600 mt-0.5">Peças: {fmt(resumoMeioLote.pecas)}</div>
+                    </div>
+                    <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5 flex items-center">
+                      <div className="text-[11px] text-gray-500">
+                        SKUs com corte mínimo dividido por 2 para respeitar cobertura máxima por curva ABC (A=1x, B=1.5x, C=3x)
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {(periodoAlvo === 'UL' || periodoAlvo === 'QT') && (
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                     <div className={`rounded-md border px-3 py-2.5 ${considerarCapacidade ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
