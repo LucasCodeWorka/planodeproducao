@@ -109,8 +109,8 @@ export default function Home() {
   const [usarEstoqueLojas, setUsarEstoqueLojas] = useState(false);
   const [estoqueLojasDisponivel, setEstoqueLojasDisponivel] = useState<Map<number, EstoqueLojaDisponivelAggregado>>(new Map());
   const [carregandoEstoqueLojas, setCarregandoEstoqueLojas] = useState(false);
-  const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C'>>({});
-  const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C')[]>([]);
+  const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
+  const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reprojecaoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,7 +157,7 @@ export default function Home() {
       if (!res.ok) return;
       const data = await res.json();
       if (data.success && data.porReferencia) {
-        setCurvaABC(data.porReferencia as Record<string, 'A' | 'B' | 'C'>);
+        setCurvaABC(data.porReferencia as Record<string, 'A' | 'B' | 'C' | 'D'>);
       }
     } catch { /* silencioso */ }
   }
@@ -1353,9 +1353,9 @@ export default function Home() {
                   </div>
 
                   <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Curva ABC</label>
+                    <label className="block text-xs font-semibold text-brand-dark mb-1">Curva ABCD</label>
                     <div className="flex items-center gap-1">
-                      {(['A', 'B', 'C'] as const).map((curva) => (
+                      {(['A', 'B', 'C', 'D'] as const).map((curva) => (
                         <button
                           key={curva}
                           onClick={() => {
@@ -1370,7 +1370,9 @@ export default function Home() {
                                 ? 'bg-green-600 text-white border-green-600'
                                 : curva === 'C'
                                   ? 'bg-red-600 text-white border-red-600'
-                                  : 'bg-gray-600 text-white border-gray-600'
+                                  : curva === 'D'
+                                    ? 'bg-amber-600 text-white border-amber-600'
+                                    : 'bg-gray-600 text-white border-gray-600'
                               : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                           }`}
                         >

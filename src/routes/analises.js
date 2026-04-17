@@ -224,10 +224,11 @@ router.get("/top30-produtos", auth, async (req, res) => {
 
 /**
  * GET /api/analises/curva-abc-referencias
- * Retorna a curva ABC por referência baseada nas vendas dos últimos 90 dias
- * Curva A: União das Top 30 por VALOR + Top 30 por QUANTIDADE (mínimo 30, máximo 60 refs)
- * Curva C: Últimas 20 referências no ranking de quantidade
- * Curva B: Referências entre A e C
+ * Retorna a curva ABCD por referência baseada nas vendas dos últimos 90 dias
+ * Curva A: Referências com 2.500+ unidades vendidas no período
+ * Curva B: Referências intermediárias (não são A, C ou D)
+ * Curva C: 30 referências anteriores às últimas 20 no ranking de quantidade
+ * Curva D: Últimas 20 referências no ranking de quantidade
  */
 router.get("/curva-abc-referencias", auth, async (req, res) => {
   try {

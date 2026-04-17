@@ -248,7 +248,7 @@ interface Props {
   excedentesLojas?: Map<number, EstoqueLojaDisponivelAggregado> | null;
   filtroCoberturaMinima?: string;
   filtroEmProcessoMinimo?: string;
-  curvaABC?: Record<string, 'A' | 'B' | 'C'>;
+  curvaABC?: Record<string, 'A' | 'B' | 'C' | 'D'>;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -910,7 +910,7 @@ export default function MatrizPlanejamentoTable({
                             {(() => {
                               const refNorm = (ref.referencia || '').trim().toUpperCase();
                               const curva = curvaABC[refNorm] || 'B';
-                              const curvaClass = curva === 'A' ? 'bg-green-100 text-green-800' : curva === 'C' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600';
+                              const curvaClass = curva === 'A' ? 'bg-green-100 text-green-800' : curva === 'C' ? 'bg-red-100 text-red-800' : curva === 'D' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600';
                               return <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${curvaClass}`}>{curva}</span>;
                             })()}
                           </td>
@@ -1056,7 +1056,7 @@ export default function MatrizPlanejamentoTable({
                                 {(() => {
                                   const refNorm = (item.produto.referencia || '').trim().toUpperCase();
                                   const curva = curvaABC[refNorm] || 'B';
-                                  const curvaClass = curva === 'A' ? 'bg-green-100 text-green-800' : curva === 'C' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600';
+                                  const curvaClass = curva === 'A' ? 'bg-green-100 text-green-800' : curva === 'C' ? 'bg-red-100 text-red-800' : curva === 'D' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600';
                                   return <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${curvaClass}`}>{curva}</span>;
                                 })()}
                               </td>

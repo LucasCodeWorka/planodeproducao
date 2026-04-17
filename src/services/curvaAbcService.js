@@ -78,12 +78,13 @@ function buildCurvaAbcQuery() {
       SELECT
         r.*,
         CASE
-          WHEN r.rank_qty <= 30 OR r.rank_valor <= 30 THEN 'A'
-          WHEN r.rank_qty > r.total_refs - 20 THEN 'C'
+          WHEN r.total_qty >= 2500 THEN 'A'
+          WHEN r.rank_qty > r.total_refs - 20 THEN 'D'
+          WHEN r.rank_qty > r.total_refs - 50 THEN 'C'
           ELSE 'B'
         END AS curva,
-        (r.rank_qty <= 30) AS top30_qtd,
-        (r.rank_valor <= 30) AS top30_valor
+        false AS top30_qtd,
+        false AS top30_valor
       FROM ranked r
     )
     SELECT * FROM com_curva
@@ -95,22 +96,12 @@ function mapCurvaPayload(rows) {
   const curvaA = [];
   const curvaB = [];
   const curvaC = [];
+  const curvaD = [];
   const porReferencia = {};
-
-  let top30ApenasQtd = 0;
-  let top30ApenasValor = 0;
-  let top30Ambos = 0;
 
   for (const row of rows) {
     const ref = String(row.referencia || '').trim().toUpperCase();
     if (!ref) continue;
-
-    const isTop30Qtd = row.top30_qtd === true;
-    const isTop30Valor = row.top30_valor === true;
-
-    if (isTop30Qtd && isTop30Valor) top30Ambos += 1;
-    else if (isTop30Qtd) top30ApenasQtd += 1;
-    else if (isTop30Valor) top30ApenasValor += 1;
 
     const item = {
       referencia: ref,
@@ -122,14 +113,15 @@ function mapCurvaPayload(rows) {
       rankQtd: Number(row.rank_qty) || 0,
       rankValor: Number(row.rank_valor) || 0,
       curva: row.curva,
-      top30Qtd: isTop30Qtd,
-      top30Valor: isTop30Valor
+      top30Qtd: false,
+      top30Valor: false
     };
 
     porReferencia[ref] = row.curva;
 
     if (row.curva === 'A') curvaA.push(item);
     else if (row.curva === 'C') curvaC.push(item);
+    else if (row.curva === 'D') curvaD.push(item);
     else curvaB.push(item);
   }
 
@@ -141,19 +133,15 @@ function mapCurvaPayload(rows) {
     resumo: {
       curvaA: curvaA.length,
       curvaB: curvaB.length,
-      curvaC: curvaC.length
-    },
-    estatisticas: {
-      top30ApenasQtd,
-      top30ApenasValor,
-      top30Ambos,
-      sobreposicaoPerc: curvaA.length > 0 ? ((top30Ambos / curvaA.length) * 100).toFixed(1) : '0'
+      curvaC: curvaC.length,
+      curvaD: curvaD.length
     },
     porReferencia,
     detalhes: {
       curvaA,
       curvaB,
-      curvaC
+      curvaC,
+      curvaD
     }
   };
 }

@@ -296,11 +296,12 @@ function findRegraOpMin(rules: RegraOpMinRow[], continuidade: string, linha: str
   ) || null;
 }
 
-// Cobertura máxima por curva ABC para UL/QT: A=1.0, B=1.5, C=3.0
-function coberturaMaxPorCurva(curva: 'A' | 'B' | 'C'): number {
+// Cobertura máxima por curva ABCD para UL/QT: A=1.0, B=1.5, C=2.0, D=3.0
+function coberturaMaxPorCurva(curva: 'A' | 'B' | 'C' | 'D'): number {
   if (curva === 'A') return 1.0;
   if (curva === 'B') return 1.5;
-  return 3.0; // Curva C
+  if (curva === 'C') return 2.0;
+  return 3.0; // Curva D
 }
 
 export default function SugestaoPlanoPage() {
@@ -322,8 +323,8 @@ export default function SugestaoPlanoPage() {
   const [cortes, setCortes] = useState<Record<string, number>>({});
   const [top30Ids, setTop30Ids] = useState<Set<string>>(new Set());
   const [top30Refs, setTop30Refs] = useState<Set<string>>(new Set());
-  const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C'>>({});
-  const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C')[]>([]);
+  const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
+  const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
   const [capacidadeGrupos, setCapacidadeGrupos] = useState<GrupoCapacidadeConfig[]>([]);
   const [capacidadeGrupoRefs, setCapacidadeGrupoRefs] = useState<GrupoRefConfig[]>([]);
   const [capacidadeDias, setCapacidadeDias] = useState<Record<string, number>>({});
@@ -474,7 +475,7 @@ export default function SugestaoPlanoPage() {
       if (pProj?.periodos) setPeriodos(pProj.periodos as PeriodosPlano);
       setTop30Ids(new Set(((pTop30?.ids || []) as string[]).map((v) => String(v))));
       setTop30Refs(new Set(((pTop30?.referencias || []) as string[]).map((v) => normRef(v))));
-      setCurvaABC((pCurvaABC?.porReferencia || {}) as Record<string, 'A' | 'B' | 'C'>);
+      setCurvaABC((pCurvaABC?.porReferencia || {}) as Record<string, 'A' | 'B' | 'C' | 'D'>);
       setCapacidadeGrupos(Array.isArray(pCapConfig?.data?.grupos) ? pCapConfig.data.grupos : []);
       setCapacidadeGrupoRefs(Array.isArray(pCapConfig?.data?.grupo_refs) ? pCapConfig.data.grupo_refs : []);
       setCapacidadeDias((pCapConfig?.data?.dias && typeof pCapConfig.data.dias === 'object') ? pCapConfig.data.dias : {});
@@ -2052,7 +2053,7 @@ export default function SugestaoPlanoPage() {
                 <div className="flex flex-col">
                   <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Curva ABC</span>
                   <div className="flex items-center gap-1">
-                    {(['A', 'B', 'C'] as const).map((curva) => (
+                    {(['A', 'B', 'C', 'D'] as const).map((curva) => (
                       <button
                         key={curva}
                         onClick={() => {
@@ -2067,7 +2068,9 @@ export default function SugestaoPlanoPage() {
                               ? 'bg-green-600 text-white border-green-600'
                               : curva === 'C'
                                 ? 'bg-red-600 text-white border-red-600'
-                                : 'bg-gray-600 text-white border-gray-600'
+                                : curva === 'D'
+                                  ? 'bg-amber-600 text-white border-amber-600'
+                                  : 'bg-gray-600 text-white border-gray-600'
                             : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                         }`}
                       >
