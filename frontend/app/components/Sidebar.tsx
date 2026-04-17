@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles, PackagePlus, MapPin } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles, PackagePlus, MapPin, BarChart3 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -120,6 +120,11 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
           <button onClick={() => router.push('/processo-local')} className={`${navItemBase} ${pathname === '/processo-local' ? navActive : navInactive}`}>
             <MapPin size={20} className="shrink-0" />
             {!collapsed && <span>Processo por Local</span>}
+          </button>
+
+          <button onClick={() => router.push('/curva-abc')} className={`${navItemBase} ${pathname === '/curva-abc' ? navActive : navInactive}`}>
+            <BarChart3 size={20} className="shrink-0" />
+            {!collapsed && <span>Curva ABC</span>}
           </button>
 
           <button onClick={() => router.push('/configuracoes')} className={`${navItemBase} ${pathname === '/configuracoes' ? navActive : navInactive}`}>

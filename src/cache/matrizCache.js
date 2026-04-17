@@ -3,6 +3,14 @@ const CACHE_KEY = 'matriz_planejamento';
 
 let _pool = null;
 
+function resolveCacheCount(payload) {
+  if (Array.isArray(payload)) return payload.length;
+  if (Array.isArray(payload?.data)) return payload.data.length;
+  if (Number.isFinite(payload?.totalReferencias)) return Number(payload.totalReferencias);
+  if (Number.isFinite(payload?.count)) return Number(payload.count);
+  return 0;
+}
+
 async function initCache(pool) {
   _pool = pool;
   try {
@@ -19,17 +27,17 @@ async function initCache(pool) {
   }
 }
 
-async function readCache() {
+async function readCacheByKey(key = CACHE_KEY) {
   if (!_pool) return null;
   try {
     const res = await _pool.query(
       'SELECT timestamp, data FROM app_cache WHERE key = $1',
-      [CACHE_KEY]
+      [key]
     );
     if (res.rows.length === 0) return null;
     const { timestamp, data } = res.rows[0];
     const cache = JSON.parse(data);
-    if (!Array.isArray(cache.data) || cache.data.length === 0) return null;
+    if (cache.data === undefined || cache.data === null) return null;
     const ageMs = Date.now() - Number(timestamp);
     return {
       data:      cache.data,
@@ -39,31 +47,31 @@ async function readCache() {
       meta:      cache.meta || {}
     };
   } catch (err) {
-    console.error('[matrizCache] readCache erro:', err.message);
+    console.error(`[matrizCache] readCache erro (${key}):`, err.message);
     return null;
   }
 }
 
-async function writeCache(data, meta = {}) {
+async function writeCacheByKey(key = CACHE_KEY, data, meta = {}) {
   if (!_pool) return;
   const timestamp = Date.now();
-  const json = JSON.stringify({ timestamp, count: data.length, meta, data });
+  const json = JSON.stringify({ timestamp, count: resolveCacheCount(data), meta, data });
   await _pool.query(
     `INSERT INTO app_cache (key, timestamp, data)
      VALUES ($1, $2, $3)
      ON CONFLICT (key) DO UPDATE
        SET timestamp = EXCLUDED.timestamp,
            data      = EXCLUDED.data`,
-    [CACHE_KEY, timestamp, json]
+    [key, timestamp, json]
   );
 }
 
-async function getCacheStatus() {
+async function getCacheStatusByKey(key = CACHE_KEY) {
   if (!_pool) return { exists: false, fresh: false };
   try {
     const res = await _pool.query(
       'SELECT timestamp, data FROM app_cache WHERE key = $1',
-      [CACHE_KEY]
+      [key]
     );
     if (res.rows.length === 0) return { exists: false, fresh: false };
     const { timestamp, data } = res.rows[0];
@@ -74,14 +82,26 @@ async function getCacheStatus() {
       timestamp: Number(timestamp),
       updatedAt: new Date(Number(timestamp)).toLocaleString('pt-BR'),
       ageHours:  +(ageMs / 3_600_000).toFixed(1),
-      count:     cache.count || (Array.isArray(cache.data) ? cache.data.length : 0),
+      count:     cache.count || resolveCacheCount(cache.data),
       fresh:     ageMs < CACHE_TTL_HOURS * 3_600_000,
       meta:      cache.meta || {}
     };
   } catch (err) {
-    console.error('[matrizCache] getCacheStatus erro:', err.message);
+    console.error(`[matrizCache] getCacheStatus erro (${key}):`, err.message);
     return { exists: false, fresh: false };
   }
+}
+
+async function readCache() {
+  return readCacheByKey(CACHE_KEY);
+}
+
+async function writeCache(data, meta = {}) {
+  return writeCacheByKey(CACHE_KEY, data, meta);
+}
+
+async function getCacheStatus() {
+  return getCacheStatusByKey(CACHE_KEY);
 }
 
 function normalizeStatus(value) {
@@ -120,4 +140,13 @@ function filterCache(cacheData, { referencias = [], marca = null, status = null 
   return result;
 }
 
-module.exports = { initCache, readCache, writeCache, getCacheStatus, filterCache };
+module.exports = {
+  initCache,
+  readCache,
+  writeCache,
+  getCacheStatus,
+  readCacheByKey,
+  writeCacheByKey,
+  getCacheStatusByKey,
+  filterCache
+};

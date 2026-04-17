@@ -1,6 +1,9 @@
 const express  = require('express');
 const { buscarMatrizPlanejamentoRapida } = require('../services/producaoService');
-const { writeCache, getCacheStatus }     = require('../cache/matrizCache');
+const { writeCache, writeCacheByKey, getCacheStatus }     = require('../cache/matrizCache');
+const { calcularCurvaAbcReferencias } = require('../services/curvaAbcService');
+
+const CURVA_ABC_CACHE_KEY = 'curva_abc_referencias';
 
 const router = express.Router();
 
@@ -82,6 +85,12 @@ router.post('/refresh', auth, (req, res) => {
       const data = await buscarMatrizPlanejamentoRapida(pool, { marca, status });
       if (data.length === 0) throw new Error('Rebuild retornou 0 produtos — cache não gravado');
       await writeCache(data, { marca, status, geradoPor: 'admin/refresh' });
+      const curvaAbc = await calcularCurvaAbcReferencias(pool);
+      await writeCacheByKey(CURVA_ABC_CACHE_KEY, curvaAbc, {
+        marca: 'LIEBE',
+        status: 'EM LINHA,NOVA COLECAO',
+        geradoPor: 'admin/refresh'
+      });
 
       const ms = Date.now() - buildState.startedAt;
       console.log(`[admin/refresh] Cache reconstruído: ${data.length} produtos em ${ms}ms`);

@@ -1,12 +1,15 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
+const { readCacheByKey, writeCacheByKey } = require("../cache/matrizCache");
+const { calcularCurvaAbcReferencias } = require("../services/curvaAbcService");
 
 const router = express.Router();
 
 const DATA_DIR = path.join(__dirname, "../../data");
 const ANALISES_FILE = path.join(DATA_DIR, "analises_plano.json");
 const TABLE_NAME = "app_simulacoes";
+const CURVA_ABC_CACHE_KEY = "curva_abc_referencias";
 
 function auth(req, res, next) {
   const token = (req.headers.authorization || "").replace("Bearer ", "").trim();
@@ -221,96 +224,36 @@ router.get("/top30-produtos", auth, async (req, res) => {
 
 /**
  * GET /api/analises/curva-abc-referencias
- * Retorna a curva ABC por referência baseada nas vendas dos últimos 3 meses
- * Curva A: Top 30 por valor + Top 30 por quantidade (união)
- * Curva C: Últimas 20 referências no ranking
+ * Retorna a curva ABC por referência baseada nas vendas dos últimos 90 dias
+ * Curva A: União das Top 30 por VALOR + Top 30 por QUANTIDADE (mínimo 30, máximo 60 refs)
+ * Curva C: Últimas 20 referências no ranking de quantidade
  * Curva B: Referências entre A e C
  */
 router.get("/curva-abc-referencias", auth, async (req, res) => {
   try {
     const pool = req.app.get("pool");
-
-    // Query para calcular vendas por referência nos últimos 3 meses
-    const query = `
-      WITH vendas_3m AS (
-        SELECT
-          f_dic_prd_nivel(v.idproduto, 'CD'::bpchar) AS referencia,
-          SUM(v.qt_liquida) AS total_qty,
-          COUNT(DISTINCT DATE(v.data)) AS dias_com_vendas
-        FROM vr_vendas_qtd v
-        WHERE v.data >= CURRENT_DATE - INTERVAL '90 days'
-          AND v.idempresa = 1
-        GROUP BY f_dic_prd_nivel(v.idproduto, 'CD'::bpchar)
-        HAVING f_dic_prd_nivel(v.idproduto, 'CD'::bpchar) IS NOT NULL
-          AND f_dic_prd_nivel(v.idproduto, 'CD'::bpchar) != ''
-      ),
-      ranked AS (
-        SELECT
-          referencia,
-          total_qty,
-          dias_com_vendas,
-          ROW_NUMBER() OVER (ORDER BY total_qty DESC) AS rank_qty,
-          COUNT(*) OVER () AS total_refs
-        FROM vendas_3m
-        WHERE total_qty > 0
-      )
-      SELECT
-        r.referencia,
-        r.total_qty,
-        r.dias_com_vendas,
-        r.rank_qty,
-        r.total_refs,
-        CASE
-          WHEN r.rank_qty <= 30 THEN 'A'
-          WHEN r.rank_qty > r.total_refs - 20 THEN 'C'
-          ELSE 'B'
-        END AS curva
-      FROM ranked r
-      ORDER BY r.rank_qty
-    `;
-
-    const result = await pool.query(query);
-
-    // Organizar resultado por curva
-    const curvaA = [];
-    const curvaB = [];
-    const curvaC = [];
-    const porReferencia = {};
-
-    for (const row of result.rows) {
-      const ref = String(row.referencia || '').trim().toUpperCase();
-      if (!ref) continue;
-
-      const item = {
-        referencia: ref,
-        totalQtd: Number(row.total_qty) || 0,
-        diasComVendas: Number(row.dias_com_vendas) || 0,
-        rankQtd: Number(row.rank_qty) || 0,
-        curva: row.curva
-      };
-
-      porReferencia[ref] = row.curva;
-
-      if (row.curva === 'A') curvaA.push(item);
-      else if (row.curva === 'C') curvaC.push(item);
-      else curvaB.push(item);
+    const cached = await readCacheByKey(CURVA_ABC_CACHE_KEY);
+    if (cached?.data && !req.query?.refresh) {
+      res.set("X-Cache", "HIT");
+      return res.json({
+        ...cached.data,
+        cache: {
+          updatedAt: new Date(cached.timestamp).toLocaleString("pt-BR"),
+          fresh: cached.fresh,
+          ageHours: Number(cached.ageHours?.toFixed?.(1) || 0),
+        },
+      });
     }
 
-    return res.json({
-      success: true,
-      totalReferencias: result.rows.length,
-      resumo: {
-        curvaA: curvaA.length,
-        curvaB: curvaB.length,
-        curvaC: curvaC.length
-      },
-      porReferencia,
-      detalhes: {
-        curvaA,
-        curvaB,
-        curvaC
-      }
+    const payload = await calcularCurvaAbcReferencias(pool);
+    await writeCacheByKey(CURVA_ABC_CACHE_KEY, payload, {
+      marca: "LIEBE",
+      status: "EM LINHA,NOVA COLECAO",
+      geradoPor: req.query?.refresh ? "analises/curva-abc-referencias?refresh=true" : "analises/curva-abc-referencias",
     });
+
+    res.set("X-Cache", cached ? "MISS" : "BUILD");
+    return res.json(payload);
   } catch (error) {
     console.error('[curva-abc-referencias] Erro:', error);
     return res.status(500).json({
