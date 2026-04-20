@@ -88,7 +88,7 @@ router.post('/refresh', auth, (req, res) => {
       const curvaAbc = await calcularCurvaAbcReferencias(pool);
       await writeCacheByKey(CURVA_ABC_CACHE_KEY, curvaAbc, {
         marca: 'LIEBE',
-        status: 'EM LINHA,NOVA COLECAO',
+        status: 'EM LINHA',
         geradoPor: 'admin/refresh'
       });
 

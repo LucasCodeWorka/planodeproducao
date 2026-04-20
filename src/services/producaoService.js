@@ -4,6 +4,7 @@
 
 const { buscarProdutoComMedias } = require('./vendasService');
 const { calcularEstoqueMinimo } = require('./estoqueMinimo');
+const { isExcludedPlanningItem } = require('./planningExclusions');
 
 function isPt99Size(value) {
   return String(value || '').trim().toUpperCase() === 'PT 99';
@@ -257,7 +258,11 @@ async function buscarCatalogoProdutos(pool, options = {}) {
 
   const result = await pool.query(query, params);
 
-  return result.rows;
+  return result.rows.filter((row) => !isExcludedPlanningItem({
+    referencia: row.referencia,
+    produto: row.produto,
+    apresentacao: row.apresentacao,
+  }));
 }
 
 /**
@@ -297,6 +302,13 @@ async function buscarPlanejamentoProduto(pool, cdProduto, cdEmpresa = 1) {
   }
 
   const produto = catalogoResult.rows[0];
+  if (isExcludedPlanningItem({
+    referencia: produto.referencia,
+    produto: produto.produto,
+    apresentacao: produto.apresentacao,
+  })) {
+    return null;
+  }
 
   // 2. Buscar estoque
   const estoqueQuery = `
@@ -423,7 +435,9 @@ async function buscarProdutosElegiveisMatriz(pool, options = {}) {
   `;
 
   const result = await pool.query(query, [cdEmpresa, limit, offset]);
-  return result.rows;
+  return result.rows.filter((row) => !isExcludedPlanningItem({
+    referencia: row.referencia,
+  }));
 }
 
 /**
@@ -697,6 +711,13 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   for (const row of rProdutos.rows) {
     if (isPt99Size(row.tamanho)) continue;
     const id     = Number(row.idproduto);
+    const referencia = refMap.get(id) || null;
+    const produtoNome = prodMap.get(id) || null;
+    if (isExcludedPlanningItem({
+      referencia,
+      produto: produtoNome,
+      apresentacao: row.apresentacao,
+    })) continue;
     const status = (statusMap.get(id) || '').trim().toUpperCase();
     const emLinha = status === 'EM LINHA' || status === 'NOVA COLECAO';
 
@@ -727,8 +748,8 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
         apresentacao: row.apresentacao,
         cor:          row.cor,
         tamanho:      row.tamanho,
-        referencia:   refMap.get(id)  || null,
-        produto:      prodMap.get(id) || null,
+        referencia,
+        produto:      produtoNome,
         status:       statusMap.get(id) || null,
         idfamilia:    famMap.get(id)  || null,
         continuidade: contMap.get(id) || null,
@@ -922,6 +943,10 @@ async function buscarProducaoPorLocalCompleta(pool, options = {}) {
   for (const row of rLocop.rows) {
     const id = Number(row.cd_produto);
     const marcaProd = String(row.marca || '').trim().toUpperCase();
+    if (isExcludedPlanningItem({
+      referencia: row.referencia,
+      produto: row.produto,
+    })) continue;
 
     // Filtro por marca se especificado
     if (marca && marcaProd !== marca.toUpperCase()) continue;

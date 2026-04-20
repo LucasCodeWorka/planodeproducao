@@ -6,6 +6,7 @@
  */
 
 const { calcularEstoqueMinimo } = require('./estoqueMinimo');
+const { isExcludedPlanningItem } = require('./planningExclusions');
 
 /**
  * Busca estoque atual de produtos em todas as lojas
@@ -336,15 +337,20 @@ async function buscarEstoqueDisponivelTransferencia(pool, options = {}) {
   `;
 
   const result = await pool.query(query, params);
-  return result.rows.map((r) => ({
-    loja_origem: Number(r.loja_origem),
-    cd_produto: Number(r.cd_produto),
-    referencia: String(r.referencia || ''),
-    cor: String(r.cor || ''),
-    tamanho: String(r.tamanho || ''),
-    produto: String(r.produto || ''),
-    qtd_sugerida: Math.round(Number(r.qtd_sugerida || 0)),
-  }));
+  return result.rows
+    .map((r) => ({
+      loja_origem: Number(r.loja_origem),
+      cd_produto: Number(r.cd_produto),
+      referencia: String(r.referencia || ''),
+      cor: String(r.cor || ''),
+      tamanho: String(r.tamanho || ''),
+      produto: String(r.produto || ''),
+      qtd_sugerida: Math.round(Number(r.qtd_sugerida || 0)),
+    }))
+    .filter((item) => !isExcludedPlanningItem({
+      referencia: item.referencia,
+      produto: item.produto,
+    }));
 }
 
 async function buscarEstoqueDisponivelAgregadoPorProduto(pool, options = {}) {

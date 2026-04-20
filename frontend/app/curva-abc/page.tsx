@@ -346,7 +346,7 @@ export default function CurvaABCPage() {
                 <li><span className="font-semibold text-amber-700">Curva D:</span> ultimas 20 referencias no ranking de quantidade.</li>
               </ul>
               <div className="mt-2 pt-2 border-t border-amber-200 text-xs text-amber-600">
-                Filtros aplicados: marca LIEBE, status EM LINHA e NOVA COLECAO, excluindo PT%, PT 99 e MEIA DE SEDA.
+                Filtros aplicados: marca LIEBE, status EM LINHA, excluindo suspensos (007), PT%, PT 99 e MEIA DE SEDA.
               </div>
             </div>
 

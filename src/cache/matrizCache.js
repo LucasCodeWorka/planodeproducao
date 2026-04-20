@@ -1,5 +1,6 @@
 const CACHE_TTL_HOURS = Number(process.env.CACHE_TTL_HOURS) || 24;
 const CACHE_KEY = 'matriz_planejamento';
+const { isExcludedPlanningItem } = require('../services/planningExclusions');
 
 let _pool = null;
 
@@ -117,7 +118,16 @@ function filterCache(cacheData, { referencias = [], marca = null, status = null 
     const apresentacao = String(r?.produto?.apresentacao || '').toUpperCase();
     const produto      = String(r?.produto?.produto      || '').toUpperCase();
     const tamanho = String(r?.produto?.tamanho || '').trim().toUpperCase();
-    return !apresentacao.includes('MEIA DE SEDA') && !produto.includes('MEIA DE SEDA') && tamanho !== 'PT 99';
+    return (
+      !apresentacao.includes('MEIA DE SEDA') &&
+      !produto.includes('MEIA DE SEDA') &&
+      tamanho !== 'PT 99' &&
+      !isExcludedPlanningItem({
+        referencia: r?.produto?.referencia,
+        produto: r?.produto?.produto,
+        apresentacao: r?.produto?.apresentacao,
+      })
+    );
   });
   if (marca) {
     const m = marca.toUpperCase().trim();

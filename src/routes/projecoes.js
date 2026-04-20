@@ -2,6 +2,7 @@ const express = require('express');
 const fs      = require('fs');
 const path    = require('path');
 const { aplicarReprojecaoMes, REPROJECAO_REGRAS_FIXAS } = require('../services/reprojecaoFechada');
+const { isExcludedReference, isExcludedPlanningItem } = require('../services/planningExclusions');
 
 const router = express.Router();
 
@@ -9,6 +10,7 @@ const DATA_DIR  = path.join(__dirname, '../../data');
 const PROJ_FILE = path.join(DATA_DIR, 'projecoes.json');
 const MATRIZ_FILE = path.join(DATA_DIR, 'matriz_cache.json');
 const DE_PARA_FILE = path.join(DATA_DIR, 'de_para_referencias.json');
+const MESES_TRANSICAO_NOVA_COLECAO = ['7', '8', '9', '10', '11', '12'];
 
 // ── Calcula períodos automaticamente ────────────────────────────────────────
 /**
@@ -82,7 +84,13 @@ function lerDeParaReferencias() {
   try {
     const raw = fs.readFileSync(DE_PARA_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed?.data) ? parsed.data : [];
+    return Array.isArray(parsed?.data)
+      ? parsed.data.filter((item) => {
+          const refAntiga = String(item?.ref_antiga || '').trim();
+          const refNova = String(item?.ref_nova || '').trim();
+          return !isExcludedReference(refAntiga) && !isExcludedReference(refNova);
+        })
+      : [];
   } catch {
     return [];
   }
@@ -115,6 +123,7 @@ async function buscarProdutosPorReferencias(pool, referencias) {
     SELECT
       a.cd_produto::TEXT AS idproduto,
       f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar)::TEXT AS referencia,
+      COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), a.nm_produto, '')::TEXT AS produto,
       COALESCE(a.ds_cor, '')::TEXT AS cor,
       COALESCE(a.ds_tamanho, '')::TEXT AS tamanho
     FROM vr_prd_prdgrade a
@@ -125,6 +134,7 @@ async function buscarProdutosPorReferencias(pool, referencias) {
   return result.rows.map((row) => ({
     idproduto: String(row.idproduto || '').trim(),
     referencia: String(row.referencia || '').trim(),
+    produto: String(row.produto || '').trim(),
     cor: String(row.cor || '').trim(),
     tamanho: String(row.tamanho || '').trim(),
   }));
@@ -155,11 +165,44 @@ function escolherOrigemPorSku(produtosAntigos, produtoNovo, indiceNovo) {
   return produtosAntigos[indiceNovo] || produtosAntigos[0] || null;
 }
 
+function transferirProjecaoNovaColecao(projecaoAntiga, projecaoNova) {
+  const origem = cloneMeses(projecaoAntiga);
+  const destino = cloneMeses(projecaoNova);
+
+  let mesesTransferidos = 0;
+  let conflitosDestino = 0;
+  let houveTransferencia = false;
+
+  for (const mes of MESES_TRANSICAO_NOVA_COLECAO) {
+    const valorOrigem = Number(origem[mes] || 0);
+    const valorDestinoAnterior = Number(destino[mes] || 0);
+
+    if (valorDestinoAnterior !== 0 && valorOrigem !== 0 && valorDestinoAnterior !== valorOrigem) {
+      conflitosDestino += 1;
+    }
+
+    if (valorOrigem !== 0 || valorDestinoAnterior !== 0) {
+      destino[mes] = valorOrigem;
+      origem[mes] = 0;
+      mesesTransferidos += 1;
+      houveTransferencia = true;
+    }
+  }
+
+  return {
+    origem,
+    destino,
+    mesesTransferidos,
+    conflitosDestino,
+    houveTransferencia,
+  };
+}
+
 async function montarProjecoesEfetivas(pool) {
   const { data: projecoesOriginais, timestamp } = lerProjecoes();
   const dePara = lerDeParaReferencias();
 
-  if (!pool || !dePara.length) {
+  if (!pool) {
     return { data: projecoesOriginais, timestamp, deParaAplicado: [] };
   }
 
@@ -171,7 +214,7 @@ async function montarProjecoesEfetivas(pool) {
     if (nova) referencias.push(nova);
   }
 
-  const produtos = await buscarProdutosPorReferencias(pool, referencias);
+  const produtos = referencias.length ? await buscarProdutosPorReferencias(pool, referencias) : [];
   const produtosPorReferencia = new Map();
   for (const produto of produtos) {
     if (!produtosPorReferencia.has(produto.referencia)) {
@@ -192,32 +235,108 @@ async function montarProjecoesEfetivas(pool) {
 
     const produtosAntigos = produtosPorReferencia.get(refAntiga) || [];
     const produtosNovos = produtosPorReferencia.get(refNova) || [];
-    if (!produtosAntigos.length || !produtosNovos.length) continue;
+    const diagnostico = {
+      ref_antiga: refAntiga,
+      ref_nova: refNova,
+      descricao_arquivo: String(item?.descricao || '').trim(),
+      produtos_antigos: produtosAntigos.length,
+      produtos_novos: produtosNovos.length,
+      produtos_transferidos: 0,
+      produtos_sem_origem: 0,
+      antigos_sem_destino: 0,
+      conflitos_destino: 0,
+      meses_transferidos: 0,
+      observacoes: [],
+    };
 
-    let aplicados = 0;
+    if (!produtosAntigos.length) {
+      diagnostico.observacoes.push('Referencia antiga sem SKU encontrado no cadastro');
+      deParaAplicado.push(diagnostico);
+      continue;
+    }
+
+    if (!produtosNovos.length) {
+      diagnostico.observacoes.push('Referencia nova sem SKU encontrado no cadastro');
+      deParaAplicado.push(diagnostico);
+      continue;
+    }
+
+    if (produtosAntigos.length !== produtosNovos.length) {
+      diagnostico.observacoes.push(`Quantidade de SKUs divergente: antiga=${produtosAntigos.length}, nova=${produtosNovos.length}`);
+    }
+
+    const origensUsadas = new Set();
     for (let i = 0; i < produtosNovos.length; i += 1) {
       const produtoNovo = produtosNovos[i];
       const idNovo = String(produtoNovo.idproduto || '').trim();
-      if (!idNovo || efetivas[idNovo]) continue;
+      if (!idNovo) continue;
 
-      const origem = escolherOrigemPorSku(produtosAntigos, produtoNovo, i);
+      const candidatos = produtosAntigos.filter((produto) => !origensUsadas.has(String(produto.idproduto || '').trim()));
+      const origem = escolherOrigemPorSku(candidatos, produtoNovo, i);
       const idAntigo = String(origem?.idproduto || '').trim();
-      if (!idAntigo || !projecoesOriginais[idAntigo]) continue;
+      if (!idAntigo) {
+        diagnostico.produtos_sem_origem += 1;
+        continue;
+      }
 
-      efetivas[idNovo] = cloneMeses(projecoesOriginais[idAntigo]);
-      aplicados += 1;
+      origensUsadas.add(idAntigo);
+
+      const projecaoAntiga = efetivas[idAntigo] || projecoesOriginais[idAntigo];
+      const projecaoNova = efetivas[idNovo] || projecoesOriginais[idNovo];
+      if (!projecaoAntiga && !projecaoNova) continue;
+
+      const transferencia = transferirProjecaoNovaColecao(projecaoAntiga, projecaoNova);
+      efetivas[idAntigo] = transferencia.origem;
+      efetivas[idNovo] = transferencia.destino;
+
+      if (!transferencia.houveTransferencia) continue;
+
+      diagnostico.produtos_transferidos += 1;
+      diagnostico.meses_transferidos += transferencia.mesesTransferidos;
+      diagnostico.conflitos_destino += transferencia.conflitosDestino;
     }
 
-    if (aplicados > 0) {
-      deParaAplicado.push({
-        ref_antiga: refAntiga,
-        ref_nova: refNova,
-        produtos_copiados: aplicados,
-      });
+    diagnostico.antigos_sem_destino = produtosAntigos.filter((produto) => !origensUsadas.has(String(produto.idproduto || '').trim())).length;
+
+    if (diagnostico.antigos_sem_destino > 0) {
+      diagnostico.observacoes.push(`${diagnostico.antigos_sem_destino} SKU(s) da referencia antiga ficaram sem destino 1:1`);
+    }
+
+    if (diagnostico.produtos_sem_origem > 0) {
+      diagnostico.observacoes.push(`${diagnostico.produtos_sem_origem} SKU(s) novos ficaram sem origem correspondente`);
+    }
+
+    if (diagnostico.conflitos_destino > 0) {
+      diagnostico.observacoes.push(`${diagnostico.conflitos_destino} mes(es) do destino foram sobrescritos na transicao`);
+    }
+
+    deParaAplicado.push(diagnostico);
+  }
+
+  const dataFiltrada = await filtrarProjecoesExcluidas(pool, efetivas);
+  return { data: dataFiltrada, timestamp, deParaAplicado };
+}
+
+async function filtrarProjecoesExcluidas(pool, projecoesBase) {
+  const projecoes = Object.fromEntries(
+    Object.entries(projecoesBase || {}).map(([id, meses]) => [String(id), cloneMeses(meses)])
+  );
+
+  const ids = Object.keys(projecoes);
+  if (!pool || !ids.length) return projecoes;
+
+  const metaPorId = await montarMetaPorId(pool, ids);
+  for (const id of ids) {
+    const meta = metaPorId.get(id) || {};
+    if (isExcludedPlanningItem({
+      referencia: meta.referencia,
+      produto: meta.produto,
+    })) {
+      delete projecoes[id];
     }
   }
 
-  return { data: efetivas, timestamp, deParaAplicado };
+  return projecoes;
 }
 
 async function montarMetaPorId(pool, ids) {
@@ -426,7 +545,7 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
     for (const [id, proj] of Object.entries(projecoes)) {
       const meta = metaPorId.get(id) || { referencia: '', produto: '', continuidade: 'SEM CONTINUIDADE' };
       const nomeProd = String(meta.produto || '').toUpperCase();
-      if (nomeProd.includes('MEIA DE SEDA')) continue;
+      if (nomeProd.includes('MEIA DE SEDA') || isExcludedPlanningItem({ referencia: meta.referencia, produto: meta.produto })) continue;
 
       const projBase = Number(proj[String(mesBase)] || 0);
       const vendaBase = Number(vendasMap.get(String(id)) || 0);
@@ -497,7 +616,7 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
 });
 
 // ── POST /api/projecoes/upload ────────────────────────────────────────────────
-router.post('/upload', auth, (req, res) => {
+router.post('/upload', auth, async (req, res) => {
   try {
     let csvTexto = '';
 
@@ -518,7 +637,9 @@ router.post('/upload', auth, (req, res) => {
       existente[r.idproduto][String(r.mes)] = r.qtd;
     }
 
-    salvarProjecoes(existente);
+    const pool = req.app.get('pool');
+    const saneado = await filtrarProjecoesExcluidas(pool, existente);
+    salvarProjecoes(saneado);
 
     // Contagem de meses importados por número
     const mesesImportados = [...new Set(registros.map(r => r.mes))].sort((a,b) => a-b);
@@ -529,7 +650,7 @@ router.post('/upload', auth, (req, res) => {
       produtos:   new Set(registros.map(r => r.idproduto)).size,
       meses:      mesesImportados,
       avisos:     erros,
-      total:      Object.keys(existente).length
+      total:      Object.keys(saneado).length
     });
   } catch (err) {
     return res.status(400).json({ success: false, error: err.message });
@@ -617,7 +738,7 @@ router.post('/reajustes', auth, async (req, res) => {
     for (const [id, proj] of Object.entries(projecoes)) {
       const meta = metaPorId.get(id) || { referencia: '', produto: '', continuidade: 'SEM CONTINUIDADE' };
       const nomeProd = String(meta.produto || '').toUpperCase();
-      if (nomeProd.includes('MEIA DE SEDA')) continue;
+      if (nomeProd.includes('MEIA DE SEDA') || isExcludedPlanningItem({ referencia: meta.referencia, produto: meta.produto })) continue;
 
       const pJan = Number(proj['1'] || 0);
       const pFev = Number(proj['2'] || 0);

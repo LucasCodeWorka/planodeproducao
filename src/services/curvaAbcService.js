@@ -5,7 +5,8 @@ function buildCurvaAbcQuery() {
         f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia
       FROM vr_prd_prdgrade a
       WHERE UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint), ''))) = 'LIEBE'
-        AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) IN ('EM LINHA', 'NOVA COLECAO')
+        AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) IN ('EM LINHA')
+        AND COALESCE(f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 124::bigint), '') <> '007'
         AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
         AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
         AND f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) IS NOT NULL
@@ -18,7 +19,8 @@ function buildCurvaAbcQuery() {
         COUNT(DISTINCT a.cd_produto)::INT AS qtd_skus
       FROM vr_prd_prdgrade a
       WHERE UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint), ''))) = 'LIEBE'
-        AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) IN ('EM LINHA', 'NOVA COLECAO')
+        AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) IN ('EM LINHA')
+        AND COALESCE(f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 124::bigint), '') <> '007'
         AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
         AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
         AND f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) IS NOT NULL

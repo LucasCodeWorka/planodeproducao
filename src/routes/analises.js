@@ -249,7 +249,7 @@ router.get("/curva-abc-referencias", auth, async (req, res) => {
     const payload = await calcularCurvaAbcReferencias(pool);
     await writeCacheByKey(CURVA_ABC_CACHE_KEY, payload, {
       marca: "LIEBE",
-      status: "EM LINHA,NOVA COLECAO",
+      status: "EM LINHA",
       geradoPor: req.query?.refresh ? "analises/curva-abc-referencias?refresh=true" : "analises/curva-abc-referencias",
     });
 
