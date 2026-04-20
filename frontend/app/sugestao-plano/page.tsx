@@ -1623,14 +1623,14 @@ export default function SugestaoPlanoPage() {
       const totalQtd = itens.reduce((sum, item) => sum + (item.totalQtd || 0), 0);
       const totalValor = itens.reduce((sum, item) => sum + (item.totalValor || 0), 0);
       const totalSkus = itens.reduce((sum, item) => sum + (item.qtdSkus || 0), 0);
-      const mediaDiaria = totalQtd / 90;
+      const mediaMensal = totalQtd / 3;
       return {
         curva,
         refs: itens.length,
         totalQtd,
         totalValor,
         totalSkus,
-        mediaDiaria,
+        mediaMensal,
         percQtd: totalQtdGeral > 0 ? (totalQtd / totalQtdGeral) * 100 : 0,
         percValor: totalValorGeral > 0 ? (totalValor / totalValorGeral) * 100 : 0,
       };
@@ -1641,7 +1641,7 @@ export default function SugestaoPlanoPage() {
       totalQtdGeral,
       totalValorGeral,
       totalSkusGeral,
-      mediaDiariaGeral: totalQtdGeral / 90,
+      mediaMensalGeral: totalQtdGeral / 3,
       porCurva,
     };
   }, [curvaABCData]);
@@ -2376,8 +2376,8 @@ export default function SugestaoPlanoPage() {
                             <div className={`font-semibold ${estilo.text}`}>{fmt(c.totalQtd)}</div>
                           </div>
                           <div>
-                            <div className={estilo.soft}>Media Diaria</div>
-                            <div className={`font-semibold ${estilo.text}`}>{fmt(c.mediaDiaria)}</div>
+                            <div className={estilo.soft}>Media Mensal</div>
+                            <div className={`font-semibold ${estilo.text}`}>{fmt(c.mediaMensal)}</div>
                           </div>
                           <div>
                             <div className={estilo.soft}>SKUs</div>
