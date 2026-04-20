@@ -42,6 +42,8 @@ type CurvaData = {
 type CurvaStats = {
   totalQtd: number;
   totalValor: number;
+  totalSkus: number;
+  mediaDiaria: number;
   percQtd: number;
   percValor: number;
   percRefs: number;
@@ -203,11 +205,15 @@ export default function CurvaABCPage() {
       const itens = grupos[curva];
       const totalQtd = itens.reduce((sum, item) => sum + item.totalQtd, 0);
       const totalValor = itens.reduce((sum, item) => sum + item.totalValor, 0);
+      const totalSkus = itens.reduce((sum, item) => sum + item.qtdSkus, 0);
+      const mediaDiaria = totalQtd / 90;
       const ultima = [...itens].sort((a, b) => a.rankQtd - b.rankQtd).pop() || null;
 
       acc[curva] = {
         totalQtd,
         totalValor,
+        totalSkus,
+        mediaDiaria,
         percQtd: totalQtdGeral > 0 ? (totalQtd / totalQtdGeral) * 100 : 0,
         percValor: totalValorGeral > 0 ? (totalValor / totalValorGeral) * 100 : 0,
         percRefs: data.totalReferencias > 0 ? (itens.length / data.totalReferencias) * 100 : 0,
@@ -283,6 +289,15 @@ export default function CurvaABCPage() {
                           <div className={`text-[10px] uppercase ${estilo.soft}`}>Valor (R$)</div>
                           <div className={`font-semibold ${estilo.text}`}>{fmtValor(resumo.totalValor)}</div>
                           <div className={`text-[10px] ${estilo.soft}`}>{resumo.percValor.toFixed(1)}% do total</div>
+                        </div>
+                        <div>
+                          <div className={`text-[10px] uppercase ${estilo.soft}`}>Total SKUs</div>
+                          <div className={`font-semibold ${estilo.text}`}>{fmt(resumo.totalSkus)}</div>
+                        </div>
+                        <div>
+                          <div className={`text-[10px] uppercase ${estilo.soft}`}>Media Diaria</div>
+                          <div className={`font-semibold ${estilo.text}`}>{fmt(resumo.mediaDiaria)}</div>
+                          <div className={`text-[10px] ${estilo.soft}`}>pcs/dia (90d)</div>
                         </div>
                       </div>
                       <div className={`mt-3 pt-3 border-t text-[11px] ${estilo.soft}`}>
@@ -396,6 +411,7 @@ export default function CurvaABCPage() {
                       <th className="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Curva</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Rank Qtd</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Qtd Vendida</th>
+                      <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Media Diaria</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">SKUs</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Media / SKU</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Rank Valor</th>
@@ -416,6 +432,7 @@ export default function CurvaABCPage() {
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-gray-600">#{item.rankQtd}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmt(item.totalQtd)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono tabular-nums text-blue-600">{fmt(item.totalQtd / 90)}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-gray-600">{fmt(item.qtdSkus)}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-emerald-700">{fmt(item.mediaQtdPorSku)}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-gray-600">#{item.rankValor}</td>

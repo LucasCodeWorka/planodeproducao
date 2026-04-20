@@ -86,6 +86,28 @@ type Row = {
   usouMeioLote?: boolean; // MA Emergência: usou corte_min / 2
 };
 type VendasReaisMap = Record<string, Record<string, number>>;
+type CurvaABCItem = {
+  referencia: string;
+  totalQtd: number;
+  totalValor: number;
+  diasComVendas: number;
+  qtdSkus: number;
+  mediaQtdPorSku: number;
+  rankQtd: number;
+  rankValor: number;
+  curva: 'A' | 'B' | 'C' | 'D';
+};
+type CurvaABCData = {
+  totalReferencias: number;
+  resumo: { curvaA: number; curvaB: number; curvaC: number; curvaD: number };
+  porReferencia: Record<string, 'A' | 'B' | 'C' | 'D'>;
+  detalhes: {
+    curvaA: CurvaABCItem[];
+    curvaB: CurvaABCItem[];
+    curvaC: CurvaABCItem[];
+    curvaD: CurvaABCItem[];
+  };
+};
 type MpViabilidade = {
   loading: boolean;
   erro: string | null;
@@ -324,6 +346,7 @@ export default function SugestaoPlanoPage() {
   const [top30Ids, setTop30Ids] = useState<Set<string>>(new Set());
   const [top30Refs, setTop30Refs] = useState<Set<string>>(new Set());
   const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
+  const [curvaABCData, setCurvaABCData] = useState<CurvaABCData | null>(null);
   const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
   const [capacidadeGrupos, setCapacidadeGrupos] = useState<GrupoCapacidadeConfig[]>([]);
   const [capacidadeGrupoRefs, setCapacidadeGrupoRefs] = useState<GrupoRefConfig[]>([]);
@@ -468,7 +491,7 @@ export default function SugestaoPlanoPage() {
       const pCapConfig = await rCapConfig.json();
       const pCapTempos = await rCapTempos.json();
       const pReproj = await rReproj.json();
-      const pCurvaABC = rCurvaABC.ok ? await rCurvaABC.json() : { porReferencia: {} };
+      const pCurvaABC = rCurvaABC.ok ? await rCurvaABC.json() : { porReferencia: {}, detalhes: { curvaA: [], curvaB: [], curvaC: [], curvaD: [] }, resumo: { curvaA: 0, curvaB: 0, curvaC: 0, curvaD: 0 }, totalReferencias: 0 };
 
       setDados((pMatriz?.data || []) as Planejamento[]);
       setProjecoes((pProj?.data || {}) as ProjecoesMap);
@@ -476,6 +499,7 @@ export default function SugestaoPlanoPage() {
       setTop30Ids(new Set(((pTop30?.ids || []) as string[]).map((v) => String(v))));
       setTop30Refs(new Set(((pTop30?.referencias || []) as string[]).map((v) => normRef(v))));
       setCurvaABC((pCurvaABC?.porReferencia || {}) as Record<string, 'A' | 'B' | 'C' | 'D'>);
+      setCurvaABCData(pCurvaABC as CurvaABCData);
       setCapacidadeGrupos(Array.isArray(pCapConfig?.data?.grupos) ? pCapConfig.data.grupos : []);
       setCapacidadeGrupoRefs(Array.isArray(pCapConfig?.data?.grupo_refs) ? pCapConfig.data.grupo_refs : []);
       setCapacidadeDias((pCapConfig?.data?.dias && typeof pCapConfig.data.dias === 'object') ? pCapConfig.data.dias : {});
@@ -1580,6 +1604,48 @@ export default function SugestaoPlanoPage() {
     };
   }, [rowsVisiveisTela]);
 
+  const resumoCurvaABCD = useMemo(() => {
+    if (!curvaABCData) return null;
+    const detalhes = curvaABCData.detalhes || { curvaA: [], curvaB: [], curvaC: [], curvaD: [] };
+    const grupos = {
+      A: detalhes.curvaA || [],
+      B: detalhes.curvaB || [],
+      C: detalhes.curvaC || [],
+      D: detalhes.curvaD || [],
+    };
+    const todosItens = [...grupos.A, ...grupos.B, ...grupos.C, ...grupos.D];
+    const totalQtdGeral = todosItens.reduce((acc, item) => acc + (item.totalQtd || 0), 0);
+    const totalValorGeral = todosItens.reduce((acc, item) => acc + (item.totalValor || 0), 0);
+    const totalSkusGeral = todosItens.reduce((acc, item) => acc + (item.qtdSkus || 0), 0);
+
+    const porCurva = (['A', 'B', 'C', 'D'] as const).map((curva) => {
+      const itens = grupos[curva];
+      const totalQtd = itens.reduce((sum, item) => sum + (item.totalQtd || 0), 0);
+      const totalValor = itens.reduce((sum, item) => sum + (item.totalValor || 0), 0);
+      const totalSkus = itens.reduce((sum, item) => sum + (item.qtdSkus || 0), 0);
+      const mediaDiaria = totalQtd / 90;
+      return {
+        curva,
+        refs: itens.length,
+        totalQtd,
+        totalValor,
+        totalSkus,
+        mediaDiaria,
+        percQtd: totalQtdGeral > 0 ? (totalQtd / totalQtdGeral) * 100 : 0,
+        percValor: totalValorGeral > 0 ? (totalValor / totalValorGeral) * 100 : 0,
+      };
+    });
+
+    return {
+      totalRefs: curvaABCData.totalReferencias,
+      totalQtdGeral,
+      totalValorGeral,
+      totalSkusGeral,
+      mediaDiariaGeral: totalQtdGeral / 90,
+      porCurva,
+    };
+  }, [curvaABCData]);
+
   const bloqueioRefMap = useMemo(() => {
     const map = new Map<string, NonNullable<MpViabilidade['refsBloqueadasDetalhe']>[number]>();
     for (const b of mpViab.refsBloqueadasDetalhe || []) {
@@ -2285,6 +2351,49 @@ export default function SugestaoPlanoPage() {
                 </div>
               </div>
             </div>
+
+            {resumoCurvaABCD && (
+              <>
+                <div className="pt-1 text-xs font-semibold text-gray-600 uppercase tracking-wide">Resumo Curva ABCD (Vendas 90 dias)</div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  {resumoCurvaABCD.porCurva.map((c) => {
+                    const cores = {
+                      A: { border: 'border-green-300', bg: 'bg-green-50', text: 'text-green-800', soft: 'text-green-600' },
+                      B: { border: 'border-slate-300', bg: 'bg-slate-50', text: 'text-slate-700', soft: 'text-slate-500' },
+                      C: { border: 'border-red-300', bg: 'bg-red-50', text: 'text-red-800', soft: 'text-red-600' },
+                      D: { border: 'border-amber-300', bg: 'bg-amber-50', text: 'text-amber-800', soft: 'text-amber-600' },
+                    };
+                    const estilo = cores[c.curva];
+                    return (
+                      <div key={c.curva} className={`rounded-md border ${estilo.border} ${estilo.bg} px-3 py-2.5`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-sm font-bold ${estilo.text}`}>Curva {c.curva}</span>
+                          <span className={`text-[10px] font-semibold ${estilo.soft}`}>{c.refs} refs</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[11px]">
+                          <div>
+                            <div className={estilo.soft}>Qtd Total</div>
+                            <div className={`font-semibold ${estilo.text}`}>{fmt(c.totalQtd)}</div>
+                          </div>
+                          <div>
+                            <div className={estilo.soft}>Media Diaria</div>
+                            <div className={`font-semibold ${estilo.text}`}>{fmt(c.mediaDiaria)}</div>
+                          </div>
+                          <div>
+                            <div className={estilo.soft}>SKUs</div>
+                            <div className={`font-semibold ${estilo.text}`}>{fmt(c.totalSkus)}</div>
+                          </div>
+                          <div>
+                            <div className={estilo.soft}>% Qtd</div>
+                            <div className={`font-semibold ${estilo.text}`}>{c.percQtd.toFixed(1)}%</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
             {periodoAlvo === 'MA' && maModo === 'EMERGENCIA' && (
               <>
