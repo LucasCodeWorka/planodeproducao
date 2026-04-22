@@ -1,137 +1,235 @@
-function buildCurvaAbcQuery() {
-  return `
-    WITH referencias_validas AS (
-      SELECT DISTINCT
-        f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia
-      FROM vr_prd_prdgrade a
-      WHERE UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint), ''))) = 'LIEBE'
-        AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) IN ('EM LINHA')
-        AND COALESCE(f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 124::bigint), '') <> '007'
-        AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
-        AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
-        AND f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) IS NOT NULL
-        AND f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) != ''
-        AND UPPER(TRIM(f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar))) NOT LIKE 'PT%'
-    ),
-    sku_por_referencia AS (
+/**
+ * Serviço para cálculo da Curva ABCD por referência
+ *
+ * Estratégia: começar pelas VENDAS (poucos registros) e só buscar
+ * classificações dos produtos que tiveram venda.
+ */
+
+function filtrarProduto(produto) {
+  const marca = String(produto.marca || '').trim().toUpperCase();
+  const status = String(produto.status || '').trim().toUpperCase();
+  const codSituacao = String(produto.cod_situacao || '').trim();
+  const continuidade = String(produto.continuidade || '').trim().toUpperCase();
+  const nmProduto = String(produto.nm_produto || '').toUpperCase();
+  const tamanho = String(produto.ds_tamanho || '').trim().toUpperCase();
+  const referencia = String(produto.referencia || '').trim().toUpperCase();
+
+  if (marca !== 'LIEBE') return false;
+  if (status !== 'EM LINHA') return false;
+  if (codSituacao === '007') return false;
+  if (continuidade === 'EDICAO LIMITADA') return false;
+  if (nmProduto.includes('MEIA DE SEDA')) return false;
+  if (tamanho === 'PT 99') return false;
+  if (!referencia) return false;
+  if (referencia.startsWith('PT')) return false;
+
+  return true;
+}
+
+function calcularCurva(totalQty, rankQty, totalRefs) {
+  if (totalQty >= 2500) return 'A';
+  if (rankQty > totalRefs - 20) return 'D';
+  if (rankQty > totalRefs - 50) return 'C';
+  return 'B';
+}
+
+async function calcularCurvaAbcReferencias(pool) {
+  const t0 = Date.now();
+  console.log('[curva-abc] Fase 1 — buscando vendas dos últimos 90 dias...');
+
+  // Fase 1: buscar APENAS vendas (poucos registros) + IDs dos produtos que venderam
+  const [rVendasQtd, rVendasValor] = await Promise.all([
+    pool.query(`
       SELECT
-        f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
-        COUNT(DISTINCT a.cd_produto)::INT AS qtd_skus
-      FROM vr_prd_prdgrade a
-      WHERE UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint), ''))) = 'LIEBE'
-        AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) IN ('EM LINHA')
-        AND COALESCE(f_dic_prd_classificacao(a.cd_produto, 'CD'::text, 124::bigint), '') <> '007'
-        AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
-        AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
-        AND f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) IS NOT NULL
-        AND f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) != ''
-        AND UPPER(TRIM(f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar))) NOT LIKE 'PT%'
-      GROUP BY f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar)
-    ),
-    vendas_qtd AS (
-      SELECT
+        v.idproduto,
         f_dic_prd_nivel(v.idproduto, 'CD'::bpchar) AS referencia,
         SUM(v.qt_liquida) AS total_qty,
         COUNT(DISTINCT DATE(v.data)) AS dias_com_vendas
       FROM vr_vendas_qtd v
-      INNER JOIN referencias_validas rv
-        ON rv.referencia = f_dic_prd_nivel(v.idproduto, 'CD'::bpchar)
       WHERE v.data >= CURRENT_DATE - INTERVAL '90 days'
         AND v.idempresa = 1
-      GROUP BY f_dic_prd_nivel(v.idproduto, 'CD'::bpchar)
-    ),
-    vendas_valor AS (
+        AND v.idproduto < 1000000
+      GROUP BY v.idproduto, f_dic_prd_nivel(v.idproduto, 'CD'::bpchar)
+    `),
+    pool.query(`
       SELECT
         f_dic_prd_nivel(v.idproduto, 'CD'::bpchar) AS referencia,
         SUM(v.valor) AS total_valor
       FROM vr_vendas_valor v
-      INNER JOIN referencias_validas rv
-        ON rv.referencia = f_dic_prd_nivel(v.idproduto, 'CD'::bpchar)
       WHERE v.data >= CURRENT_DATE - INTERVAL '90 days'
         AND v.idempresa = 1
+        AND v.idproduto < 1000000
       GROUP BY f_dic_prd_nivel(v.idproduto, 'CD'::bpchar)
-    ),
-    combinado AS (
-      SELECT
-        COALESCE(q.referencia, val.referencia) AS referencia,
-        COALESCE(q.total_qty, 0) AS total_qty,
-        COALESCE(val.total_valor, 0) AS total_valor,
-        COALESCE(q.dias_com_vendas, 0) AS dias_com_vendas,
-        COALESCE(sku.qtd_skus, 0) AS qtd_skus
-      FROM vendas_qtd q
-      FULL OUTER JOIN vendas_valor val ON q.referencia = val.referencia
-      LEFT JOIN sku_por_referencia sku
-        ON sku.referencia = COALESCE(q.referencia, val.referencia)
-      WHERE COALESCE(q.total_qty, 0) > 0 OR COALESCE(val.total_valor, 0) > 0
-    ),
-    ranked AS (
-      SELECT
-        referencia,
-        total_qty,
-        total_valor,
-        dias_com_vendas,
-        qtd_skus,
-        ROW_NUMBER() OVER (ORDER BY total_qty DESC) AS rank_qty,
-        ROW_NUMBER() OVER (ORDER BY total_valor DESC) AS rank_valor,
-        COUNT(*) OVER () AS total_refs
-      FROM combinado
-    ),
-    com_curva AS (
-      SELECT
-        r.*,
-        CASE
-          WHEN r.total_qty >= 2500 THEN 'A'
-          WHEN r.rank_qty > r.total_refs - 20 THEN 'D'
-          WHEN r.rank_qty > r.total_refs - 50 THEN 'C'
-          ELSE 'B'
-        END AS curva,
-        false AS top30_qtd,
-        false AS top30_valor
-      FROM ranked r
-    )
-    SELECT * FROM com_curva
-    ORDER BY rank_qty
-  `;
-}
+    `)
+  ]);
 
-function mapCurvaPayload(rows) {
+  // Pegar IDs únicos dos produtos que tiveram venda
+  const idsSet = new Set(rVendasQtd.rows.map(r => Number(r.idproduto)));
+  const ids = Array.from(idsSet);
+
+  console.log(`[curva-abc] Fase 1 concluída em ${((Date.now() - t0) / 1000).toFixed(1)}s — ${ids.length} produtos com venda`);
+
+  if (ids.length === 0) {
+    return {
+      success: true,
+      totalReferencias: 0,
+      resumo: { curvaA: 0, curvaB: 0, curvaC: 0, curvaD: 0 },
+      porReferencia: {},
+      detalhes: { curvaA: [], curvaB: [], curvaC: [], curvaD: [] }
+    };
+  }
+
+  // Fase 2: buscar classificações APENAS dos produtos que venderam
+  const t1 = Date.now();
+  console.log(`[curva-abc] Fase 2 — ${ids.length} IDs, 5 consultas paralelas`);
+
+  const [rProdutos, rMarca, rStatus, rSituacao, rContinuidade] = await Promise.all([
+    pool.query(
+      `SELECT cd_produto::BIGINT AS id, nm_produto, ds_tamanho
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+    pool.query(
+      `SELECT cd_produto::BIGINT AS id, f_dic_prd_classificacao(cd_produto, 'DS'::text, 20::bigint) AS marca
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+    pool.query(
+      `SELECT cd_produto::BIGINT AS id, f_dic_prd_classificacao(cd_produto, 'DS'::text, 27::bigint) AS status
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+    pool.query(
+      `SELECT cd_produto::BIGINT AS id, f_dic_prd_classificacao(cd_produto, 'CD'::text, 124::bigint) AS cod_situacao
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+    pool.query(
+      `SELECT cd_produto::BIGINT AS id, f_dic_prd_classificacao(cd_produto, 'DS'::text, 802::bigint) AS continuidade
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    )
+  ]);
+
+  console.log(`[curva-abc] Fase 2 concluída em ${((Date.now() - t1) / 1000).toFixed(1)}s`);
+
+  // Criar maps
+  const produtosMap = new Map(rProdutos.rows.map(r => [Number(r.id), r]));
+  const marcaMap = new Map(rMarca.rows.map(r => [Number(r.id), r.marca]));
+  const statusMap = new Map(rStatus.rows.map(r => [Number(r.id), r.status]));
+  const situacaoMap = new Map(rSituacao.rows.map(r => [Number(r.id), r.cod_situacao]));
+  const continuMap = new Map(rContinuidade.rows.map(r => [Number(r.id), r.continuidade]));
+
+  // Mapear vendas por referência
+  const vendasValorMap = new Map();
+  for (const v of rVendasValor.rows) {
+    const ref = String(v.referencia || '').trim().toUpperCase();
+    if (ref) vendasValorMap.set(ref, Number(v.total_valor) || 0);
+  }
+
+  // Processar e filtrar
+  console.log('[curva-abc] Processando filtros no JavaScript...');
+  const t2 = Date.now();
+
+  // Agrupar vendas por referência, filtrando produtos inválidos
+  const refData = new Map(); // ref -> { totalQty, diasComVendas, qtdSkus }
+
+  for (const v of rVendasQtd.rows) {
+    const id = Number(v.idproduto);
+    const ref = String(v.referencia || '').trim().toUpperCase();
+    if (!ref) continue;
+
+    const prod = produtosMap.get(id);
+    const produto = {
+      nm_produto: prod?.nm_produto || '',
+      ds_tamanho: prod?.ds_tamanho || '',
+      referencia: ref,
+      marca: marcaMap.get(id),
+      status: statusMap.get(id),
+      cod_situacao: situacaoMap.get(id),
+      continuidade: continuMap.get(id)
+    };
+
+    if (!filtrarProduto(produto)) continue;
+
+    if (!refData.has(ref)) {
+      refData.set(ref, { totalQty: 0, diasComVendas: 0, skus: new Set() });
+    }
+
+    const data = refData.get(ref);
+    data.totalQty += Number(v.total_qty) || 0;
+    data.diasComVendas = Math.max(data.diasComVendas, Number(v.dias_com_vendas) || 0);
+    data.skus.add(id);
+  }
+
+  console.log(`[curva-abc] ${refData.size} referências válidas após filtros`);
+
+  // Montar lista para ranking
+  const combinado = [];
+  for (const [ref, data] of refData) {
+    combinado.push({
+      referencia: ref,
+      totalQty: data.totalQty,
+      totalValor: vendasValorMap.get(ref) || 0,
+      diasComVendas: data.diasComVendas,
+      qtdSkus: data.skus.size
+    });
+  }
+
+  // Ordenar e calcular curva
+  combinado.sort((a, b) => b.totalQty - a.totalQty);
+  const totalRefs = combinado.length;
+
   const curvaA = [];
   const curvaB = [];
   const curvaC = [];
   const curvaD = [];
   const porReferencia = {};
 
-  for (const row of rows) {
-    const ref = String(row.referencia || '').trim().toUpperCase();
-    if (!ref) continue;
+  for (let i = 0; i < combinado.length; i++) {
+    const item = combinado[i];
+    const rankQty = i + 1;
+    const curva = calcularCurva(item.totalQty, rankQty, totalRefs);
 
-    const item = {
-      referencia: ref,
-      totalQtd: Number(row.total_qty) || 0,
-      totalValor: Number(row.total_valor) || 0,
-      diasComVendas: Number(row.dias_com_vendas) || 0,
-      qtdSkus: Number(row.qtd_skus) || 0,
-      mediaQtdPorSku: (Number(row.qtd_skus) || 0) > 0 ? (Number(row.total_qty) || 0) / Number(row.qtd_skus) : 0,
-      rankQtd: Number(row.rank_qty) || 0,
-      rankValor: Number(row.rank_valor) || 0,
-      curva: row.curva,
+    const resultado = {
+      referencia: item.referencia,
+      totalQtd: item.totalQty,
+      totalValor: item.totalValor,
+      diasComVendas: item.diasComVendas,
+      qtdSkus: item.qtdSkus,
+      mediaQtdPorSku: item.qtdSkus > 0 ? item.totalQty / item.qtdSkus : 0,
+      rankQtd: rankQty,
+      rankValor: 0,
+      curva,
       top30Qtd: false,
       top30Valor: false
     };
 
-    porReferencia[ref] = row.curva;
+    porReferencia[item.referencia] = curva;
 
-    if (row.curva === 'A') curvaA.push(item);
-    else if (row.curva === 'C') curvaC.push(item);
-    else if (row.curva === 'D') curvaD.push(item);
-    else curvaB.push(item);
+    if (curva === 'A') curvaA.push(resultado);
+    else if (curva === 'C') curvaC.push(resultado);
+    else if (curva === 'D') curvaD.push(resultado);
+    else curvaB.push(resultado);
   }
 
-  curvaA.sort((a, b) => a.rankQtd - b.rankQtd);
+  // Rank por valor
+  const ordenadoPorValor = [...combinado].sort((a, b) => b.totalValor - a.totalValor);
+  const rankValorMap = new Map();
+  ordenadoPorValor.forEach((item, idx) => rankValorMap.set(item.referencia, idx + 1));
+
+  [curvaA, curvaB, curvaC, curvaD].forEach(lista => {
+    lista.forEach(item => {
+      item.rankValor = rankValorMap.get(item.referencia) || 0;
+    });
+  });
+
+  console.log(`[curva-abc] Processamento JS concluído em ${Date.now() - t2}ms`);
+  console.log(`[curva-abc] Total: ${((Date.now() - t0) / 1000).toFixed(1)}s — ${totalRefs} referências`);
 
   return {
     success: true,
-    totalReferencias: rows.length,
+    totalReferencias: totalRefs,
     resumo: {
       curvaA: curvaA.length,
       curvaB: curvaB.length,
@@ -146,11 +244,6 @@ function mapCurvaPayload(rows) {
       curvaD
     }
   };
-}
-
-async function calcularCurvaAbcReferencias(pool) {
-  const result = await pool.query(buildCurvaAbcQuery());
-  return mapCurvaPayload(result.rows || []);
 }
 
 module.exports = {
