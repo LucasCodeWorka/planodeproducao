@@ -359,6 +359,11 @@ function getCoberturaMaxPorCurva(curva: 'A' | 'B' | 'C' | 'D', cfg: SugestaoCfg,
   return cfg.cobertura_max_d;
 }
 
+function getCoberturaMaxToleradaParaCorteMinimo(curva: 'A' | 'B' | 'C' | 'D', cobMax: number): number {
+  if (curva === 'A') return cobMax + 0.5;
+  return cobMax;
+}
+
 export default function SugestaoPlanoPage() {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -945,16 +950,18 @@ export default function SugestaoPlanoPage() {
         // Para UL e QT: aplicar lógica de meio lote baseada na cobertura máxima por curva ABC (ou IDEAL)
         if ((periodoAlvo === 'UL' || periodoAlvo === 'QT') && cfg.usar_corte_minimo && lote > 1 && min > 0 && planoSugerido > 0) {
           const cobMax = getCoberturaMaxPorCurva(curvaRef, cfg, linhaItem);
+          const cobMaxTolerada = getCoberturaMaxToleradaParaCorteMinimo(curvaRef, cobMax);
           const dispPosAtual = dispAnterior + planoSugerido - projMes;
           const cobPosAtual = dispPosAtual / min;
 
           // Se cobertura pós exceder o máximo permitido pela curva, tenta usar meio lote
-          if (cobPosAtual > cobMax) {
+          if (cobPosAtual > cobMaxTolerada) {
             const meioLote = Math.max(1, Math.round(lote / 2));
             const planoMeioLote = Math.ceil(necessidadeBruta / meioLote) * meioLote;
             const dispPosMeio = dispAnterior + planoMeioLote - projMes;
 
-            // Só usa meio lote se não deixar negativo
+            // Se passou da tolerância, usa meio lote sempre que isso não deixar o SKU negativo.
+            // Para curva A: 1.50x mantém corte cheio; acima de 1.50x cai para meio lote.
             if (dispPosMeio >= 0) {
               planoSugerido = planoMeioLote;
               lote = meioLote;
@@ -2115,7 +2122,7 @@ export default function SugestaoPlanoPage() {
 
               {/* Grupo: Coberturas Config por Curva ABC */}
               <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
-                <span className="text-[10px] font-semibold text-slate-500 uppercase">Cob. Alvo:</span>
+                <span className="text-[10px] font-semibold text-slate-500 uppercase">Cob. Min:</span>
                 <span className="text-xs">
                   <span className="text-emerald-600 font-semibold">A</span>{' '}
                   <strong className="text-slate-800">{cfg.cobertura_min_a.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
@@ -2136,8 +2143,33 @@ export default function SugestaoPlanoPage() {
                   <strong className="text-slate-800">{cfg.cobertura_min_d.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
                 </span>
                 <span className="text-slate-300">|</span>
+                <span className="text-[10px] font-semibold text-slate-500 uppercase">Cob. Máx:</span>
+                <span className="text-xs">
+                  <span className="text-emerald-600 font-semibold">A</span>{' '}
+                  <strong className="text-slate-800">{cfg.cobertura_max_a.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className="text-xs">
+                  <span className="text-blue-600 font-semibold">B</span>{' '}
+                  <strong className="text-slate-800">{cfg.cobertura_max_b.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className="text-xs">
+                  <span className="text-amber-600 font-semibold">C</span>{' '}
+                  <strong className="text-slate-800">{cfg.cobertura_max_c.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className="text-xs">
+                  <span className="text-red-600 font-semibold">D</span>{' '}
+                  <strong className="text-slate-800">{cfg.cobertura_max_d.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
+                </span>
+                <span className="text-slate-300">|</span>
                 <span className={`text-xs px-1.5 py-0.5 rounded ${cfg.usar_corte_minimo ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
                   Corte mín. <strong>{cfg.usar_corte_minimo ? 'ATIVO' : 'INATIVO'}</strong>
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className="text-[11px] text-amber-700">
+                  Regra curva A UL/QT: até <strong>{(cfg.cobertura_max_a + 0.5).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong> mantém corte cheio; acima disso usa 1/2 corte.
                 </span>
               </div>
 
