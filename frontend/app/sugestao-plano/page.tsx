@@ -400,6 +400,7 @@ export default function SugestaoPlanoPage() {
   const [filtroCont, setFiltroCont] = useState<'TODAS' | 'PERMANENTE' | 'PERMANENTE COR NOVA'>('TODAS');
   const [filtroSuspensos, setFiltroSuspensos] = useState<'INCLUIR' | 'EXCLUIR'>('INCLUIR');
   const [filtroOpMin, setFiltroOpMin] = useState<'TODOS' | 'BLOQUEADA'>('TODOS');
+  const [filtroMeioLoteUL, setFiltroMeioLoteUL] = useState<'TODOS' | 'MEIO_LOTE'>('TODOS');
   const [filtroViabilidade, setFiltroViabilidade] = useState<'TODOS' | 'PRODUTIVEL' | 'BLOQUEADO' | 'OK' | 'SOLICITAR_COMPRA'>('TODOS');
   const [activeRowKey, setActiveRowKey] = useState<string | null>(null);
   const [expandedConts, setExpandedConts] = useState<Set<string>>(new Set());
@@ -1311,6 +1312,7 @@ export default function SugestaoPlanoPage() {
       if (somenteNegativoMA && !(r.dispMesAlvo < 0)) return false;
       if (filtroCont !== 'TODAS' && String(r.continuidade || '').trim().toUpperCase() !== filtroCont) return false;
       if (filtroOpMin === 'BLOQUEADA' && !Boolean(r.opMinNaoAtendida)) return false;
+      if (periodoAlvo === 'UL' && filtroMeioLoteUL === 'MEIO_LOTE' && !Boolean(r.usouMeioLote)) return false;
       // Filtro por curva ABC
       if (filtroCurvaABC.length > 0) {
         const refNorm = String(r.referencia || '').trim().toUpperCase();
@@ -1319,7 +1321,7 @@ export default function SugestaoPlanoPage() {
       }
       return true;
     });
-  }, [rows, periodoAlvo, maModo, somenteDeltaNegativo, somenteNegativoMA, filtroCont, filtroOpMin, filtroCurvaABC, curvaABC]);
+  }, [rows, periodoAlvo, maModo, somenteDeltaNegativo, somenteNegativoMA, filtroCont, filtroOpMin, filtroMeioLoteUL, filtroCurvaABC, curvaABC]);
 
   const refEscopoStatusMap = useMemo(() => {
     const m = new Map<string, boolean>(); // true = bloqueada
@@ -2144,6 +2146,19 @@ export default function SugestaoPlanoPage() {
                     <option value="BLOQUEADA">Bloqueada</option>
                   </select>
                 </label>
+                {periodoAlvo === 'UL' && (
+                  <label className="flex flex-col">
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">1/2 Corte</span>
+                    <select
+                      value={filtroMeioLoteUL}
+                      onChange={(e) => setFiltroMeioLoteUL(e.target.value as typeof filtroMeioLoteUL)}
+                      className="border border-gray-300 rounded px-2 py-1 text-xs bg-gray-50 hover:bg-white"
+                    >
+                      <option value="TODOS">Todos</option>
+                      <option value="MEIO_LOTE">Somente 1/2 corte</option>
+                    </select>
+                  </label>
+                )}
                 <label className="flex flex-col">
                   <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Continuidade</span>
                   <select
@@ -2984,6 +2999,7 @@ export default function SugestaoPlanoPage() {
                         const refKey = `${cont.continuidade}__${refGroup.referencia}`;
                         const refOpen = expandedRefs.has(refKey);
                         const refOpMinNaoAtendida = refGroup.itens.some((r) => Boolean(r.opMinNaoAtendida));
+                        const refMeioLoteUL = periodoAlvo === 'UL' && refGroup.itens.some((r) => Boolean(r.usouMeioLote));
                         const refOpMinFaltante = refGroup.itens.reduce((max, r) => Math.max(max, Number(r.opMinFaltante || 0)), 0);
                         const refTotais = refGroup.itens.reduce((acc, r) => ({
                           estoqueAtual: acc.estoqueAtual + Number(r.estoqueAtual || 0),
@@ -3022,8 +3038,8 @@ export default function SugestaoPlanoPage() {
                               : 'OK';
                         return (
                           <Fragment key={refKey}>
-                                <tr className={`${refOpMinNaoAtendida ? 'bg-rose-100 text-rose-950 border-rose-200' : 'bg-slate-100 text-slate-800 border-slate-200'} border-t`}>
-                              <td className={`sticky left-0 z-20 px-2 py-2 shadow-[1px_0_0_0_rgba(148,163,184,0.22)] ${refOpMinNaoAtendida ? 'bg-rose-100' : 'bg-slate-100'}`}>
+                                <tr className={`${refOpMinNaoAtendida ? 'bg-rose-100 text-rose-950 border-rose-200' : refMeioLoteUL ? 'bg-amber-100 text-amber-950 border-amber-200' : 'bg-slate-100 text-slate-800 border-slate-200'} border-t`}>
+                              <td className={`sticky left-0 z-20 px-2 py-2 shadow-[1px_0_0_0_rgba(148,163,184,0.22)] ${refOpMinNaoAtendida ? 'bg-rose-100' : refMeioLoteUL ? 'bg-amber-100' : 'bg-slate-100'}`}>
                                 <button type="button" className="mr-2" onClick={() => setExpandedRefs((prev) => {
                                   const next = new Set(prev);
                                   if (next.has(refKey)) next.delete(refKey); else next.add(refKey);
@@ -3035,6 +3051,11 @@ export default function SugestaoPlanoPage() {
                                 {refOpMinNaoAtendida && (
                                   <span className="ml-2 inline-flex items-center rounded-full bg-rose-200 px-2 py-0.5 text-[10px] font-semibold text-rose-900">
                                     OP min bloqueada · faltam {fmt(refOpMinFaltante)}
+                                  </span>
+                                )}
+                                {!refOpMinNaoAtendida && refMeioLoteUL && (
+                                  <span className="ml-2 inline-flex items-center rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+                                    Usou 1/2 corte no UL
                                   </span>
                                 )}
                               </td>
@@ -3078,13 +3099,16 @@ export default function SugestaoPlanoPage() {
                               const st = statusViabilidadeRow(r);
                               const aumentoPlano = Number(r.deltaPlano || 0) > 0;
                               const opMinBloqueada = Boolean(r.opMinNaoAtendida);
+                              const meioLoteUL = periodoAlvo === 'UL' && Boolean(r.usouMeioLote);
                               const rowBgClass = isActive
                                 ? 'bg-blue-50'
                                 : opMinBloqueada
                                   ? 'bg-rose-50'
-                                : aumentoPlano
-                                  ? 'bg-emerald-50'
-                                  : (idx % 2 === 0 ? 'bg-white' : 'bg-slate-50');
+                                  : meioLoteUL
+                                    ? 'bg-amber-50'
+                                  : aumentoPlano
+                                    ? 'bg-emerald-50'
+                                    : (idx % 2 === 0 ? 'bg-white' : 'bg-slate-50');
                               return (
                                 <tr
                                   key={rowKey}
@@ -3112,6 +3136,8 @@ export default function SugestaoPlanoPage() {
                                   <td className={`px-2 py-1.5 text-right font-semibold ${
                                     opMinBloqueada
                                       ? 'text-rose-900 bg-rose-100/80'
+                                      : meioLoteUL
+                                        ? 'text-amber-900 bg-amber-100/80'
                                       : aumentoPlano
                                         ? 'text-emerald-800 bg-emerald-100/70'
                                         : 'text-brand-dark bg-indigo-50'
@@ -3120,6 +3146,11 @@ export default function SugestaoPlanoPage() {
                                     {opMinBloqueada && r.planoComOpMin && r.planoComOpMin !== r.planoSugerido && (
                                       <div className="text-[9px] text-rose-600 font-normal mt-0.5">
                                         c/OP: {fmt(r.planoComOpMin)}
+                                      </div>
+                                    )}
+                                    {!opMinBloqueada && meioLoteUL && (
+                                      <div className="text-[9px] text-amber-700 font-normal mt-0.5">
+                                        1/2 corte
                                       </div>
                                     )}
                                   </td>
