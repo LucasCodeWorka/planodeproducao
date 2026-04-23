@@ -386,6 +386,13 @@ router.get("/matriz", async (req, res) => {
     const cacheStatus = cached?.meta?.status ? String(cached.meta.status).trim().toUpperCase() : null;
     const reqMarca   = marca ? marca.toUpperCase() : null;
     const reqStatus  = status ? status.toUpperCase() : null;
+    const parseStatusSet = (value) =>
+      new Set(
+        String(value || '')
+          .split(',')
+          .map((s) => String(s || '').trim().toUpperCase())
+          .filter(Boolean)
+      );
     const cacheAtendeMarca =
       !cached
         ? false
@@ -401,8 +408,18 @@ router.get("/matriz", async (req, res) => {
         : (
             // cache global (sem status) atende qualquer filtro de status
             !cacheStatus ||
-            // cache por status só atende mesmo status
-            cacheStatus === reqStatus
+            // request sem status aceita qualquer cache por status
+            !reqStatus ||
+            // cache por status atende mesmo status ou subconjunto do request
+            (() => {
+              const cacheSet = parseStatusSet(cacheStatus);
+              const reqSet = parseStatusSet(reqStatus);
+              if (!cacheSet.size || !reqSet.size) return false;
+              for (const st of reqSet) {
+                if (!cacheSet.has(st)) return false;
+              }
+              return true;
+            })()
           );
 
     if (cached && cached.fresh && cacheAtendeMarca && cacheAtendeStatus) {

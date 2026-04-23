@@ -20,6 +20,18 @@ const COB_SAUDAVEL_CURVA_B = 0.7;
 const COB_SAUDAVEL_CURVA_C = 0.6;
 const COB_SAUDAVEL_CURVA_D = 0.5;
 
+function nowMs() {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now();
+  }
+  return Date.now();
+}
+
+function logTempoSugestao(label: string, startedAt: number, extra?: string) {
+  const elapsed = nowMs() - startedAt;
+  console.log(`[sugestao-plano] ${label}: ${elapsed.toFixed(1)}ms${extra ? ` — ${extra}` : ''}`);
+}
+
 type PeriodoAlvo = 'MA' | 'PX' | 'UL' | 'QT';
 type MAModo = 'EMERGENCIA' | 'COBERTURA';
 type SugestaoCfg = {
@@ -45,6 +57,7 @@ type Row = {
   continuidade: string;
   cod_situacao: string;
   linha: string;
+  familia: string;
   grupoProduto: string;
   curvaABCItem: 'A' | 'B' | 'C' | 'D';
   estoqueAtual: number;
@@ -350,6 +363,7 @@ export default function SugestaoPlanoPage() {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [carregandoComplementos, setCarregandoComplementos] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
   const [salvandoSugestao, setSalvandoSugestao] = useState(false);
@@ -363,8 +377,6 @@ export default function SugestaoPlanoPage() {
     UL: new Date().getMonth() + 3,
   });
   const [cortes, setCortes] = useState<Record<string, number>>({});
-  const [top30Ids, setTop30Ids] = useState<Set<string>>(new Set());
-  const [top30Refs, setTop30Refs] = useState<Set<string>>(new Set());
   const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
   const [curvaABCData, setCurvaABCData] = useState<CurvaABCData | null>(null);
   const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
@@ -398,6 +410,8 @@ export default function SugestaoPlanoPage() {
   const [resultadoReprojecaoMsg, setResultadoReprojecaoMsg] = useState<string | null>(null);
   const [margemCobMA, setMargemCobMA] = useState<number>(MARGEM_COB_MA_NEGATIVO_PADRAO);
   const [filtroCont, setFiltroCont] = useState<'TODAS' | 'PERMANENTE' | 'PERMANENTE COR NOVA'>('TODAS');
+  const [filtroLinha, setFiltroLinha] = useState('TODAS');
+  const [filtroFamilia, setFiltroFamilia] = useState('TODAS');
   const [filtroSuspensos, setFiltroSuspensos] = useState<'INCLUIR' | 'EXCLUIR'>('INCLUIR');
   const [filtroOpMin, setFiltroOpMin] = useState<'TODOS' | 'BLOQUEADA'>('TODOS');
   const [filtroMeioLoteUL, setFiltroMeioLoteUL] = useState<'TODOS' | 'MEIO_LOTE'>('TODOS');
@@ -494,44 +508,38 @@ export default function SugestaoPlanoPage() {
   async function carregar() {
     setLoading(true);
     setError(null);
+    const tCarregar = nowMs();
     try {
       const params = new URLSearchParams({ limit: '5000', marca: MARCA_FIXA, status: STATUS_FIXO });
-      const [rMatriz, rProj, rTop30, rCortes, rCfg, rCapConfig, rCapTempos, rReproj, rCurvaABC] = await Promise.all([
-        fetchNoCache(`${API_URL}/api/producao/matriz?${params}`),
-        fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/analises/top30-produtos`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/configuracoes/sugestao-plano`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/capacidade/tempos-ref`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/projecoes/reprojecao-fechada`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/analises/curva-abc-referencias`, { headers: authHeaders() }),
+      const medirFetch = async (label: string, url: string, init?: RequestInit) => {
+        const t = nowMs();
+        const response = await fetchNoCache(url, init);
+        logTempoSugestao(`request ${label}`, t, `status=${response.status}`);
+        return response;
+      };
+
+      const tEssenciais = nowMs();
+      const [rMatriz, rProj, rCortes, rCfg] = await Promise.all([
+        medirFetch('matriz', `${API_URL}/api/producao/matriz?${params}`),
+        medirFetch('projecoes', `${API_URL}/api/projecoes`, { headers: authHeaders() }),
+        medirFetch('corte-minimos', `${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() }),
+        medirFetch('config-sugestao', `${API_URL}/api/configuracoes/sugestao-plano`, { headers: authHeaders() }),
       ]);
-      if (!rMatriz.ok || !rProj.ok || !rTop30.ok || !rCortes.ok || !rCfg.ok || !rCapConfig.ok || !rCapTempos.ok || !rReproj.ok) {
+      logTempoSugestao('bloco essencial concluído', tEssenciais);
+      if (!rMatriz.ok || !rProj.ok || !rCortes.ok || !rCfg.ok) {
         throw new Error('Erro ao carregar dados da sugestão de plano');
       }
+
+      const tJsonEssenciais = nowMs();
       const pMatriz = await rMatriz.json();
       const pProj = await rProj.json();
-      const pTop30 = await rTop30.json();
       const pCortes = await rCortes.json();
       const pCfg = await rCfg.json();
-      const pCapConfig = await rCapConfig.json();
-      const pCapTempos = await rCapTempos.json();
-      const pReproj = await rReproj.json();
-      const pCurvaABC = rCurvaABC.ok ? await rCurvaABC.json() : { porReferencia: {}, detalhes: { curvaA: [], curvaB: [], curvaC: [], curvaD: [] }, resumo: { curvaA: 0, curvaB: 0, curvaC: 0, curvaD: 0 }, totalReferencias: 0 };
+      logTempoSugestao('parse json essenciais', tJsonEssenciais);
 
       setDados((pMatriz?.data || []) as Planejamento[]);
       setProjecoes((pProj?.data || {}) as ProjecoesMap);
       if (pProj?.periodos) setPeriodos(pProj.periodos as PeriodosPlano);
-      setTop30Ids(new Set(((pTop30?.ids || []) as string[]).map((v) => String(v))));
-      setTop30Refs(new Set(((pTop30?.referencias || []) as string[]).map((v) => normRef(v))));
-      setCurvaABC((pCurvaABC?.porReferencia || {}) as Record<string, 'A' | 'B' | 'C' | 'D'>);
-      setCurvaABCData(pCurvaABC as CurvaABCData);
-      setCapacidadeGrupos(Array.isArray(pCapConfig?.data?.grupos) ? pCapConfig.data.grupos : []);
-      setCapacidadeGrupoRefs(Array.isArray(pCapConfig?.data?.grupo_refs) ? pCapConfig.data.grupo_refs : []);
-      setCapacidadeDias((pCapConfig?.data?.dias && typeof pCapConfig.data.dias === 'object') ? pCapConfig.data.dias : {});
-      setCapacidadeTemposRef(Array.isArray(pCapTempos?.data) ? pCapTempos.data : []);
-      setReprojecaoPreview(Array.isArray(pReproj?.sugestoes) ? pReproj.sugestoes : []);
 
       const map: Record<string, number> = {};
       const cortesRows = Array.isArray(pCortes?.data) ? pCortes.data : [];
@@ -561,28 +569,78 @@ export default function SugestaoPlanoPage() {
         .map((i) => Number(i.produto.idproduto))
         .filter((n) => Number.isFinite(n))
         .slice(0, 5000);
-      if (ids.length) {
+
+      setLoading(false);
+      setCarregandoComplementos(true);
+      logTempoSugestao('primeira pintura liberada', tCarregar, `ids=${ids.length}`);
+
+      void (async () => {
+        const tComplementos = nowMs();
         try {
-          const rReal = await fetchNoCache(`${API_URL}/api/analises/projecao-vs-venda`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeaders() },
-            body: JSON.stringify({ ano: new Date().getFullYear(), ids }),
-          });
-          if (rReal.ok) {
-            const pReal = await rReal.json();
-            setVendasReais((pReal?.data || {}) as VendasReaisMap);
+          const medirFetchSettled = (label: string, url: string, init?: RequestInit) =>
+            medirFetch(label, url, init);
+
+          const [capConfigResult, capTemposResult, reprojResult, curvaResult] = await Promise.allSettled([
+            medirFetchSettled('capacidade-config', `${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
+            medirFetchSettled('capacidade-tempos-ref', `${API_URL}/api/capacidade/tempos-ref`, { headers: authHeaders() }),
+            medirFetchSettled('reprojecao-fechada', `${API_URL}/api/projecoes/reprojecao-fechada`, { headers: authHeaders() }),
+            medirFetchSettled('curva-abc-referencias', `${API_URL}/api/analises/curva-abc-referencias`, { headers: authHeaders() }),
+          ]);
+
+          if (capConfigResult.status === 'fulfilled' && capConfigResult.value.ok) {
+            const pCapConfig = await capConfigResult.value.json();
+            setCapacidadeGrupos(Array.isArray(pCapConfig?.data?.grupos) ? pCapConfig.data.grupos : []);
+            setCapacidadeGrupoRefs(Array.isArray(pCapConfig?.data?.grupo_refs) ? pCapConfig.data.grupo_refs : []);
+            setCapacidadeDias((pCapConfig?.data?.dias && typeof pCapConfig.data.dias === 'object') ? pCapConfig.data.dias : {});
+          }
+
+          if (capTemposResult.status === 'fulfilled' && capTemposResult.value.ok) {
+            const pCapTempos = await capTemposResult.value.json();
+            setCapacidadeTemposRef(Array.isArray(pCapTempos?.data) ? pCapTempos.data : []);
+          }
+
+          if (reprojResult.status === 'fulfilled' && reprojResult.value.ok) {
+            const pReproj = await reprojResult.value.json();
+            setReprojecaoPreview(Array.isArray(pReproj?.sugestoes) ? pReproj.sugestoes : []);
+          }
+
+          if (curvaResult.status === 'fulfilled' && curvaResult.value.ok) {
+            const pCurvaABC = await curvaResult.value.json();
+            setCurvaABC((pCurvaABC?.porReferencia || {}) as Record<string, 'A' | 'B' | 'C' | 'D'>);
+            setCurvaABCData(pCurvaABC as CurvaABCData);
+          }
+
+          if (ids.length) {
+            try {
+              const tReal = nowMs();
+              const rReal = await fetchNoCache(`${API_URL}/api/analises/projecao-vs-venda`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                body: JSON.stringify({ ano: new Date().getFullYear(), ids }),
+              });
+              logTempoSugestao('request projecao-vs-venda', tReal, `status=${rReal.status} ids=${ids.length}`);
+              if (rReal.ok) {
+                const tRealJson = nowMs();
+                const pReal = await rReal.json();
+                logTempoSugestao('parse json projecao-vs-venda', tRealJson);
+                setVendasReais((pReal?.data || {}) as VendasReaisMap);
+              } else {
+                setVendasReais({});
+              }
+            } catch {
+              setVendasReais({});
+            }
           } else {
             setVendasReais({});
           }
-        } catch {
-          setVendasReais({});
+        } finally {
+          logTempoSugestao('complementos concluídos', tComplementos);
+          setCarregandoComplementos(false);
         }
-      } else {
-        setVendasReais({});
-      }
+      })();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar');
-    } finally {
+      logTempoSugestao('carregamento com erro', tCarregar);
       setLoading(false);
     }
   }
@@ -704,6 +762,7 @@ export default function SugestaoPlanoPage() {
   }, [considerarProjecaoNova, reprojecaoPreview, resumoMudancaProjecao, periodoAlvo]);
 
   const rows = useMemo<Row[]>(() => {
+    const tRows = nowMs();
     const mesQT = mesSeguinte(Number(periodos.UL || 0));
     // Agora todos os períodos (MA, PX, UL, QT) usam OP mínima e capacidade
     const alvoComOpMinECapacidade = true;
@@ -921,6 +980,7 @@ export default function SugestaoPlanoPage() {
         continuidade: item.produto.continuidade || '-',
         cod_situacao: String(item.produto.cod_situacao || '').trim(),
         linha: item.produto.linha || '-',
+        familia: item.produto.idfamilia || '-',
         grupoProduto: item.produto.grupo || '-',
         curvaABCItem: curvaRef,
         estoqueAtual,
@@ -982,9 +1042,6 @@ export default function SugestaoPlanoPage() {
 
     // ─── REGRA ESPECIAL ABRIL (MA): Calcula OP mínima SIMULADA (informativo) ─────
     if (periodoAlvo === 'MA') {
-      console.log('[DEBUG OP MIN MA] Entrando na lógica de OP mínima para MA');
-      let countRefsAbaixo = 0;
-
       // Para MA: calcula quanto seria COM OP mínima + marca referências abaixo
       for (const rowsRef of Array.from(byRef.values())) {
         const regra = rowsRef[0]?.regraOpMin || null;
@@ -992,9 +1049,7 @@ export default function SugestaoPlanoPage() {
 
         const totalRef = rowsRef.reduce((acc: number, r: Row) => acc + Number(r.planoSugerido || 0), 0);
         if (totalRef > 0 && totalRef < Number(regra.op_min_ref || 0)) {
-          countRefsAbaixo++;
           const faltante = Math.max(0, Number(regra.op_min_ref || 0) - totalRef);
-          console.log(`[DEBUG OP MIN] Ref ${rowsRef[0].referencia}: total=${totalRef}, opMin=${regra.op_min_ref}, faltam=${faltante}`);
 
           // SIMULA a distribuição da OP mínima (SEM aplicar de verdade)
           const ordenadas = [...rowsRef].sort((a, b) => {
@@ -1025,26 +1080,11 @@ export default function SugestaoPlanoPage() {
             row.opMinNaoAtendida = true;
             row.opMinFaltante = faltante;
             row.planoComOpMin = planoSimuladoPorRow.get(row) || row.planoSugerido;
-            console.log(`[DEBUG OP MIN] SKU ${row.referencia}-${row.cor}-${row.tamanho}: planoSug=${row.planoSugerido}, planoComOpMin=${row.planoComOpMin}`);
           });
         }
       }
-      console.log(`[DEBUG OP MIN MA] Total de referências abaixo da OP mínima: ${countRefsAbaixo}`);
 
-      // Verifica se as marcações foram aplicadas em baseRowsMapped
-      const marcadas = baseRowsMapped.filter(r => r.opMinNaoAtendida);
-      console.log(`[DEBUG OP MIN MA] Total de SKUs marcados em baseRowsMapped: ${marcadas.length}`);
-      if (marcadas.length > 0) {
-        console.log(`[DEBUG OP MIN MA] Exemplo de SKU marcado:`, {
-          ref: marcadas[0].referencia,
-          cor: marcadas[0].cor,
-          tam: marcadas[0].tamanho,
-          opMinNaoAtendida: marcadas[0].opMinNaoAtendida,
-          planoSugerido: marcadas[0].planoSugerido,
-          planoComOpMin: marcadas[0].planoComOpMin
-        });
-      }
-
+      logTempoSugestao('calculo rows', tRows, `periodo=${periodoAlvo} fase=base items=${baseRowsMapped.length}`);
       return baseRowsMapped;
     }
 
@@ -1109,7 +1149,10 @@ export default function SugestaoPlanoPage() {
       ajustadas.push(...ordenadas);
     }
 
-    if (!considerarCapacidade) return ajustadas;
+    if (!considerarCapacidade) {
+      logTempoSugestao('calculo rows', tRows, `periodo=${periodoAlvo} fase=op-min items=${ajustadas.length}`);
+      return ajustadas;
+    }
 
     const diasMA = Number(capacidadeDias[String(periodos.MA)] || 0);
     const diasPX = Number(capacidadeDias[String(periodos.PX)] || 0);
@@ -1303,14 +1346,17 @@ export default function SugestaoPlanoPage() {
       });
     }
 
+    logTempoSugestao('calculo rows', tRows, `periodo=${periodoAlvo} fase=capacidade items=${rowsCap.length}`);
     return rowsCap;
-  }, [dadosBase, top30Ids, top30Refs, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, considerarCapacidade, filtroSuspensos]);
+  }, [dadosBase, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, considerarCapacidade, filtroSuspensos]);
 
   const rowsVisiveis = useMemo(() => {
     return rows.filter((r) => {
       if (somenteDeltaNegativo && !(r.deltaPlano < 0)) return false;
       if (somenteNegativoMA && !(r.dispMesAlvo < 0)) return false;
       if (filtroCont !== 'TODAS' && String(r.continuidade || '').trim().toUpperCase() !== filtroCont) return false;
+      if (filtroLinha !== 'TODAS' && String(r.linha || '').trim().toUpperCase() !== filtroLinha) return false;
+      if (filtroFamilia !== 'TODAS' && String(r.familia || '').trim().toUpperCase() !== filtroFamilia) return false;
       if (filtroOpMin === 'BLOQUEADA' && !Boolean(r.opMinNaoAtendida)) return false;
       if (periodoAlvo === 'UL' && filtroMeioLoteUL === 'MEIO_LOTE' && !Boolean(r.usouMeioLote)) return false;
       // Filtro por curva ABC
@@ -1321,7 +1367,25 @@ export default function SugestaoPlanoPage() {
       }
       return true;
     });
-  }, [rows, periodoAlvo, maModo, somenteDeltaNegativo, somenteNegativoMA, filtroCont, filtroOpMin, filtroMeioLoteUL, filtroCurvaABC, curvaABC]);
+  }, [rows, periodoAlvo, maModo, somenteDeltaNegativo, somenteNegativoMA, filtroCont, filtroLinha, filtroFamilia, filtroOpMin, filtroMeioLoteUL, filtroCurvaABC, curvaABC]);
+
+  const opcoesLinha = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => {
+      const linha = String(r.linha || '').trim().toUpperCase();
+      if (linha) set.add(linha);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [rows]);
+
+  const opcoesFamilia = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => {
+      const familia = String(r.familia || '').trim().toUpperCase();
+      if (familia) set.add(familia);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [rows]);
 
   const refEscopoStatusMap = useMemo(() => {
     const m = new Map<string, boolean>(); // true = bloqueada
@@ -2009,6 +2073,11 @@ export default function SugestaoPlanoPage() {
           {loading && <div className="bg-white rounded-lg border p-4 text-sm text-gray-500">Carregando...</div>}
           {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{error}</div>}
           {okMsg && <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700">{okMsg}</div>}
+          {!loading && carregandoComplementos && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              Carregando complementos da tela em segundo plano...
+            </div>
+          )}
 
           {/* Painel de Controles - Layout Organizado */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
@@ -2169,6 +2238,32 @@ export default function SugestaoPlanoPage() {
                     <option value="TODAS">Todas</option>
                     <option value="PERMANENTE">PERMANENTE</option>
                     <option value="PERMANENTE COR NOVA">PERM. COR NOVA</option>
+                  </select>
+                </label>
+                <label className="flex flex-col">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Linha</span>
+                  <select
+                    value={filtroLinha}
+                    onChange={(e) => setFiltroLinha(e.target.value)}
+                    className="border border-gray-300 rounded px-2 py-1 text-xs bg-gray-50 hover:bg-white"
+                  >
+                    <option value="TODAS">Todas</option>
+                    {opcoesLinha.map((linha) => (
+                      <option key={linha} value={linha}>{linha}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Família</span>
+                  <select
+                    value={filtroFamilia}
+                    onChange={(e) => setFiltroFamilia(e.target.value)}
+                    className="border border-gray-300 rounded px-2 py-1 text-xs bg-gray-50 hover:bg-white"
+                  >
+                    <option value="TODAS">Todas</option>
+                    {opcoesFamilia.map((familia) => (
+                      <option key={familia} value={familia}>{familia}</option>
+                    ))}
                   </select>
                 </label>
                 <div className="flex flex-col">
@@ -2727,6 +2822,7 @@ export default function SugestaoPlanoPage() {
                               continuidade: '',
                               cod_situacao: '',
                               linha: '',
+                              familia: '',
                               grupoProduto: '',
                               curvaABCItem: 'B',
                               estoqueAtual: 0,
