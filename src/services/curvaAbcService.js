@@ -5,14 +5,40 @@
  * classificações dos produtos que tiveram venda.
  */
 
+const { isExcludedPlanningItem, normalizePlanningText } = require('./planningExclusions');
+const fs = require('fs');
+const path = require('path');
+
+const CORTES_FILE = path.join(__dirname, '../../data/cortes_minimos_produto.json');
+
+function readCortesMap() {
+  try {
+    const raw = fs.readFileSync(CORTES_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    const data = Array.isArray(parsed?.data) ? parsed.data : [];
+    const map = new Map();
+
+    for (const row of data) {
+      const idproduto = String(row?.idproduto || '').trim();
+      const corteMin = Number(row?.corte_min || 0);
+      if (!idproduto || !(corteMin > 0)) continue;
+      map.set(idproduto, Math.round(corteMin));
+    }
+
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
 function filtrarProduto(produto) {
-  const marca = String(produto.marca || '').trim().toUpperCase();
-  const status = String(produto.status || '').trim().toUpperCase();
+  const marca = normalizePlanningText(produto.marca);
+  const status = normalizePlanningText(produto.status);
   const codSituacao = String(produto.cod_situacao || '').trim();
-  const continuidade = String(produto.continuidade || '').trim().toUpperCase();
-  const nmProduto = String(produto.nm_produto || '').toUpperCase();
-  const tamanho = String(produto.ds_tamanho || '').trim().toUpperCase();
-  const referencia = String(produto.referencia || '').trim().toUpperCase();
+  const continuidade = normalizePlanningText(produto.continuidade);
+  const nmProduto = normalizePlanningText(produto.nm_produto);
+  const tamanho = normalizePlanningText(produto.ds_tamanho);
+  const referencia = normalizePlanningText(produto.referencia);
 
   if (marca !== 'LIEBE') return false;
   if (status !== 'EM LINHA') return false;
@@ -22,6 +48,11 @@ function filtrarProduto(produto) {
   if (tamanho === 'PT 99') return false;
   if (!referencia) return false;
   if (referencia.startsWith('PT')) return false;
+  if (isExcludedPlanningItem({
+    referencia: produto.referencia,
+    produto: produto.nm_produto,
+    apresentacao: produto.nm_produto,
+  })) return false;
 
   return true;
 }
@@ -130,9 +161,10 @@ async function calcularCurvaAbcReferencias(pool) {
   // Processar e filtrar
   console.log('[curva-abc] Processando filtros no JavaScript...');
   const t2 = Date.now();
+  const cortesMap = readCortesMap();
 
   // Agrupar vendas por referência, filtrando produtos inválidos
-  const refData = new Map(); // ref -> { totalQty, diasComVendas, qtdSkus }
+  const refData = new Map(); // ref -> { totalQty, diasComVendas, qtdSkus, corteMin }
 
   for (const v of rVendasQtd.rows) {
     const id = Number(v.idproduto);
@@ -153,13 +185,14 @@ async function calcularCurvaAbcReferencias(pool) {
     if (!filtrarProduto(produto)) continue;
 
     if (!refData.has(ref)) {
-      refData.set(ref, { totalQty: 0, diasComVendas: 0, skus: new Set() });
+      refData.set(ref, { totalQty: 0, diasComVendas: 0, skus: new Set(), corteMin: 0 });
     }
 
     const data = refData.get(ref);
     data.totalQty += Number(v.total_qty) || 0;
     data.diasComVendas = Math.max(data.diasComVendas, Number(v.dias_com_vendas) || 0);
     data.skus.add(id);
+    data.corteMin = Math.max(data.corteMin, Number(cortesMap.get(String(id)) || 0));
   }
 
   console.log(`[curva-abc] ${refData.size} referências válidas após filtros`);
@@ -172,7 +205,8 @@ async function calcularCurvaAbcReferencias(pool) {
       totalQty: data.totalQty,
       totalValor: vendasValorMap.get(ref) || 0,
       diasComVendas: data.diasComVendas,
-      qtdSkus: data.skus.size
+      qtdSkus: data.skus.size,
+      corteMin: data.corteMin
     });
   }
 
@@ -197,7 +231,8 @@ async function calcularCurvaAbcReferencias(pool) {
       totalValor: item.totalValor,
       diasComVendas: item.diasComVendas,
       qtdSkus: item.qtdSkus,
-      mediaQtdPorSku: item.qtdSkus > 0 ? item.totalQty / item.qtdSkus : 0,
+      corteMin: item.corteMin,
+      mediaQtdPorSku: item.qtdSkus > 0 ? item.totalQty / item.qtdSkus / 3 : 0,
       rankQtd: rankQty,
       rankValor: 0,
       curva,

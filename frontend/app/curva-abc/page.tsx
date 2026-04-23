@@ -16,6 +16,7 @@ type CurvaItem = {
   totalValor: number;
   diasComVendas: number;
   qtdSkus: number;
+  corteMin: number;
   mediaQtdPorSku: number;
   rankQtd: number;
   rankValor: number;
@@ -414,6 +415,7 @@ export default function CurvaABCPage() {
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Media Mensal</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">SKUs</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Media / SKU</th>
+                      <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Corte Min</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Rank Valor</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valor (R$)</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Dias c/ Venda</th>
@@ -435,6 +437,7 @@ export default function CurvaABCPage() {
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-blue-600">{fmt(item.totalQtd / 3)}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-gray-600">{fmt(item.qtdSkus)}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-emerald-700">{fmt(item.mediaQtdPorSku)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono tabular-nums text-indigo-700">{fmt(item.corteMin)}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-gray-600">#{item.rankValor}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtValor(item.totalValor)}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-gray-500">{item.diasComVendas}</td>
