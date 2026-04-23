@@ -61,9 +61,14 @@ type SimulacaoParametros = {
   planos?: PlanoSnapshotItem[];
 };
 type SugestaoPlanoCfg = {
-  cobertura_top30: number;
-  cobertura_demais: number;
-  cobertura_kissme: number;
+  cobertura_min_a: number;
+  cobertura_max_a: number;
+  cobertura_min_b: number;
+  cobertura_max_b: number;
+  cobertura_min_c: number;
+  cobertura_max_c: number;
+  cobertura_min_d: number;
+  cobertura_max_d: number;
   usar_corte_minimo: boolean;
 };
 type SavedSimulacao = {
@@ -260,9 +265,14 @@ export default function LaboratorioPage() {
   const [top30Ids, setTop30Ids] = useState<Set<string>>(new Set());
   const [top30Refs, setTop30Refs] = useState<Set<string>>(new Set());
   const [cfgSugestaoPlano, setCfgSugestaoPlano] = useState<SugestaoPlanoCfg>({
-    cobertura_top30: 1.2,
-    cobertura_demais: 0.8,
-    cobertura_kissme: 1.5,
+    cobertura_min_a: 1.2,
+    cobertura_max_a: 1.0,
+    cobertura_min_b: 1.0,
+    cobertura_max_b: 1.5,
+    cobertura_min_c: 0.8,
+    cobertura_max_c: 2.0,
+    cobertura_min_d: 0.5,
+    cobertura_max_d: 3.0,
     usar_corte_minimo: true,
   });
   const [periodos, setPeriodos] = useState<PeriodosPlano>({
@@ -371,9 +381,14 @@ export default function LaboratorioPage() {
       setTop30Ids(new Set(((pTop30 && pTop30.ids) || []).map((v: string) => String(v))));
       setTop30Refs(new Set(((pTop30 && pTop30.referencias) || []).map((v: string) => normalizaRef(v))));
       setCfgSugestaoPlano({
-        cobertura_top30: Number(pCfgSugestao?.data?.cobertura_top30 || 1.2),
-        cobertura_demais: Number(pCfgSugestao?.data?.cobertura_demais || 0.8),
-        cobertura_kissme: Number(pCfgSugestao?.data?.cobertura_kissme || 1.5),
+        cobertura_min_a: Number(pCfgSugestao?.data?.cobertura_min_a ?? 1.2),
+        cobertura_max_a: Number(pCfgSugestao?.data?.cobertura_max_a ?? 1.0),
+        cobertura_min_b: Number(pCfgSugestao?.data?.cobertura_min_b ?? 1.0),
+        cobertura_max_b: Number(pCfgSugestao?.data?.cobertura_max_b ?? 1.5),
+        cobertura_min_c: Number(pCfgSugestao?.data?.cobertura_min_c ?? 0.8),
+        cobertura_max_c: Number(pCfgSugestao?.data?.cobertura_max_c ?? 2.0),
+        cobertura_min_d: Number(pCfgSugestao?.data?.cobertura_min_d ?? 0.5),
+        cobertura_max_d: Number(pCfgSugestao?.data?.cobertura_max_d ?? 3.0),
         usar_corte_minimo: pCfgSugestao?.data?.usar_corte_minimo !== false,
       });
       const corteMap: Record<string, number> = {};
@@ -484,14 +499,9 @@ export default function LaboratorioPage() {
     return Math.max(1, Math.round(Number(item.estoques.estoque_minimo || 0)));
   }
 
-  function obterCoberturaAlvoConfig(item: Planejamento) {
-    const texto = `${String(item.produto.continuidade || '')} ${String(item.produto.produto || '')}`.toUpperCase();
-    const id = String(item.produto.idproduto || '');
-    const refNorm = normalizaRef(item.produto.referencia || '');
-    const isTop30 = top30Refs.has(refNorm) || top30Ids.has(id);
-    if (texto.includes('KISS ME')) return Number(cfgSugestaoPlano.cobertura_kissme || 1.5);
-    if (isTop30) return Number(cfgSugestaoPlano.cobertura_top30 || 1.2);
-    return Number(cfgSugestaoPlano.cobertura_demais || 0.8);
+  function obterCoberturaAlvoConfig(_item: Planejamento) {
+    // Usa cobertura da curva B como fallback padrão (laboratório não tem acesso à curva ABC)
+    return Number(cfgSugestaoPlano.cobertura_min_b || 1.0);
   }
 
   function sugerirPlanoFuturoPorConfig() {
@@ -534,7 +544,7 @@ export default function LaboratorioPage() {
     });
     setDadosCenario(novo);
     setOkMsg(
-      `Sugestão futura aplicada: Top30 ${cfgSugestaoPlano.cobertura_top30.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x, Demais ${cfgSugestaoPlano.cobertura_demais.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x, KISS ME ${cfgSugestaoPlano.cobertura_kissme.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x.`
+      `Sugestão futura aplicada com cobertura padrão (Curva B): ${cfgSugestaoPlano.cobertura_min_b.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x.`
     );
   }
 
@@ -1593,9 +1603,10 @@ export default function LaboratorioPage() {
                   Sugerir plano futuro (Configurações)
                 </button>
                 <div className="mt-1 text-[11px] text-gray-600">
-                  Config atual: Top30 {cfgSugestaoPlano.cobertura_top30.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x ·
-                  Demais {cfgSugestaoPlano.cobertura_demais.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x ·
-                  KISS ME {cfgSugestaoPlano.cobertura_kissme.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x ·
+                  Config atual por Curva: A {cfgSugestaoPlano.cobertura_min_a.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x ·
+                  B {cfgSugestaoPlano.cobertura_min_b.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x ·
+                  C {cfgSugestaoPlano.cobertura_min_c.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x ·
+                  D {cfgSugestaoPlano.cobertura_min_d.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x ·
                   Corte mínimo {cfgSugestaoPlano.usar_corte_minimo ? 'ATIVO' : 'INATIVO'}
                 </div>
               </div>

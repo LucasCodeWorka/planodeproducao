@@ -17,6 +17,8 @@ type CurvaItem = {
   diasComVendas: number;
   qtdSkus: number;
   corteMin: number;
+  linhas?: string[];
+  familias?: string[];
   mediaQtdPorSku: number;
   rankQtd: number;
   rankValor: number;
@@ -121,6 +123,8 @@ export default function CurvaABCPage() {
   const [data, setData] = useState<CurvaData | null>(null);
   const [filtroCurva, setFiltroCurva] = useState<'TODAS' | Curva>('TODAS');
   const [filtroTexto, setFiltroTexto] = useState('');
+  const [filtroLinha, setFiltroLinha] = useState('TODAS');
+  const [filtroFamilia, setFiltroFamilia] = useState('TODAS');
   const [ordenacao, setOrdenacao] = useState<'rank_qtd' | 'rank_valor' | 'qtd' | 'valor' | 'media_sku' | 'ref'>('rank_qtd');
 
   useEffect(() => {
@@ -166,6 +170,14 @@ export default function CurvaABCPage() {
       itens = itens.filter((item) => item.curva === filtroCurva);
     }
 
+    if (filtroLinha !== 'TODAS') {
+      itens = itens.filter((item) => (item.linhas || []).includes(filtroLinha));
+    }
+
+    if (filtroFamilia !== 'TODAS') {
+      itens = itens.filter((item) => (item.familias || []).includes(filtroFamilia));
+    }
+
     if (filtroTexto.trim()) {
       const termo = filtroTexto.trim().toUpperCase();
       itens = itens.filter((item) => item.referencia.includes(termo));
@@ -187,7 +199,19 @@ export default function CurvaABCPage() {
       return [...itens].sort((a, b) => a.referencia.localeCompare(b.referencia));
     }
     return itens;
-  }, [todosItens, filtroCurva, filtroTexto, ordenacao]);
+  }, [todosItens, filtroCurva, filtroLinha, filtroFamilia, filtroTexto, ordenacao]);
+
+  const opcoesLinha = useMemo(() => {
+    const set = new Set<string>();
+    todosItens.forEach((item) => (item.linhas || []).forEach((linha) => set.add(linha)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [todosItens]);
+
+  const opcoesFamilia = useMemo(() => {
+    const set = new Set<string>();
+    todosItens.forEach((item) => (item.familias || []).forEach((familia) => set.add(familia)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [todosItens]);
 
   const stats = useMemo(() => {
     if (!data) return null;
@@ -398,6 +422,34 @@ export default function CurvaABCPage() {
                     </select>
                   </div>
 
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-500 uppercase">Linha:</span>
+                    <select
+                      value={filtroLinha}
+                      onChange={(e) => setFiltroLinha(e.target.value)}
+                      className="border border-gray-300 rounded px-2 py-1 text-sm max-w-[180px]"
+                    >
+                      <option value="TODAS">Todas</option>
+                      {opcoesLinha.map((linha) => (
+                        <option key={linha} value={linha}>{linha}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-500 uppercase">Familia:</span>
+                    <select
+                      value={filtroFamilia}
+                      onChange={(e) => setFiltroFamilia(e.target.value)}
+                      className="border border-gray-300 rounded px-2 py-1 text-sm max-w-[200px]"
+                    >
+                      <option value="TODAS">Todas</option>
+                      {opcoesFamilia.map((familia) => (
+                        <option key={familia} value={familia}>{familia}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div className="ml-auto text-sm text-gray-500">
                     {fmt(itensFiltrados.length)} referencias
                   </div>
@@ -415,15 +467,22 @@ export default function CurvaABCPage() {
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Media Mensal</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">SKUs</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Media / SKU</th>
-                      <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Corte Min</th>
+                      <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Folha Corte Min</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Rank Valor</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valor (R$)</th>
-                      <th className="px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Dias c/ Venda</th>
-                    </tr>
+                                          </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {itensFiltrados.map((item) => {
                       const estilo = estiloCurva(item.curva);
+                      const temCorteMin = Number(item.corteMin) > 0;
+                      const diffMediaCorte = Number(item.mediaQtdPorSku || 0) - Number(item.corteMin || 0);
+                      const toleranciaMediaCorte = 0.5;
+                      const mediaVsCorte =
+                        !temCorteMin ? null
+                        : Math.abs(diffMediaCorte) <= toleranciaMediaCorte ? 'equal'
+                        : diffMediaCorte > 0 ? 'up'
+                        : 'down';
                       return (
                         <tr key={item.referencia} className={`hover:bg-gray-50 ${estilo.row}`}>
                           <td className="px-3 py-2.5 font-semibold text-gray-800">{item.referencia}</td>
@@ -436,12 +495,20 @@ export default function CurvaABCPage() {
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmt(item.totalQtd)}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-blue-600">{fmt(item.totalQtd / 3)}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-gray-600">{fmt(item.qtdSkus)}</td>
-                          <td className="px-3 py-2.5 text-right font-mono tabular-nums text-emerald-700">{fmt(item.mediaQtdPorSku)}</td>
-                          <td className="px-3 py-2.5 text-right font-mono tabular-nums text-indigo-700">{fmt(item.corteMin)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono tabular-nums text-emerald-700">
+                            <span className="inline-flex items-center justify-end gap-1 w-full">
+                              <span>{fmt(item.mediaQtdPorSku)}</span>
+                              {mediaVsCorte === 'up' && <span className="text-emerald-600" title="Média / SKU acima da folha de corte mínima">▲</span>}
+                              {mediaVsCorte === 'down' && <span className="text-red-600" title="Média / SKU abaixo da folha de corte mínima">▼</span>}
+                              {mediaVsCorte === 'equal' && <span className="text-slate-400" title="Média / SKU igual à folha de corte mínima">•</span>}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono tabular-nums text-purple-600">
+                          {item.corteMin > 0 ? fmt(item.corteMin) : '-'}
+                        </td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums text-gray-600">#{item.rankValor}</td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums">{fmtValor(item.totalValor)}</td>
-                          <td className="px-3 py-2.5 text-right font-mono tabular-nums text-gray-500">{item.diasComVendas}</td>
-                        </tr>
+                                                  </tr>
                       );
                     })}
                   </tbody>

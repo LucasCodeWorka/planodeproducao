@@ -53,17 +53,31 @@ function readSugestaoPlano() {
     const parsed = JSON.parse(raw);
     const cfg = parsed?.data || {};
     return {
-      cobertura_top30: Number(cfg.cobertura_top30 || 1.2),
-      cobertura_demais: Number(cfg.cobertura_demais || 0.8),
-      cobertura_kissme: Number(cfg.cobertura_kissme || 1.5),
+      // Novos campos por Curva ABC
+      cobertura_min_a: Number(cfg.cobertura_min_a ?? 0.5),
+      cobertura_max_a: Number(cfg.cobertura_max_a ?? 1.0),
+      cobertura_min_b: Number(cfg.cobertura_min_b ?? 1.0),
+      cobertura_max_b: Number(cfg.cobertura_max_b ?? 2.0),
+      cobertura_min_c: Number(cfg.cobertura_min_c ?? 1.0),
+      cobertura_max_c: Number(cfg.cobertura_max_c ?? 2.5),
+      cobertura_min_d: Number(cfg.cobertura_min_d ?? 1.0),
+      cobertura_max_d: Number(cfg.cobertura_max_d ?? 3.0),
+      // Cobertura máxima especial para linha IDEAL
+      cobertura_max_ideal: Number(cfg.cobertura_max_ideal ?? 6.0),
       usar_corte_minimo: cfg.usar_corte_minimo !== false,
       usar_op_minima_ref: cfg.usar_op_minima_ref !== false,
     };
   } catch {
     return {
-      cobertura_top30: 1.2,
-      cobertura_demais: 0.8,
-      cobertura_kissme: 1.5,
+      cobertura_min_a: 0.5,
+      cobertura_max_a: 1.0,
+      cobertura_min_b: 1.0,
+      cobertura_max_b: 2.0,
+      cobertura_min_c: 1.0,
+      cobertura_max_c: 2.5,
+      cobertura_min_d: 1.0,
+      cobertura_max_d: 3.0,
+      cobertura_max_ideal: 6.0,
       usar_corte_minimo: true,
       usar_op_minima_ref: true,
     };
@@ -170,14 +184,30 @@ router.get("/sugestao-plano", auth, (_req, res) => {
 router.post("/sugestao-plano", auth, (req, res) => {
   const inData = req.body || {};
   const data = {
-    cobertura_top30: Number(inData.cobertura_top30 || 1.2),
-    cobertura_demais: Number(inData.cobertura_demais || 0.8),
-    cobertura_kissme: Number(inData.cobertura_kissme || 1.5),
+    // Novos campos por Curva ABC
+    cobertura_min_a: Number(inData.cobertura_min_a ?? 0.5),
+    cobertura_max_a: Number(inData.cobertura_max_a ?? 1.0),
+    cobertura_min_b: Number(inData.cobertura_min_b ?? 1.0),
+    cobertura_max_b: Number(inData.cobertura_max_b ?? 2.0),
+    cobertura_min_c: Number(inData.cobertura_min_c ?? 1.0),
+    cobertura_max_c: Number(inData.cobertura_max_c ?? 2.5),
+    cobertura_min_d: Number(inData.cobertura_min_d ?? 1.0),
+    cobertura_max_d: Number(inData.cobertura_max_d ?? 3.0),
+    // Cobertura máxima especial para linha IDEAL
+    cobertura_max_ideal: Number(inData.cobertura_max_ideal ?? 6.0),
     usar_corte_minimo: inData.usar_corte_minimo !== false,
     usar_op_minima_ref: inData.usar_op_minima_ref !== false,
   };
 
-  if (!(data.cobertura_top30 > 0) || !(data.cobertura_demais > 0) || !(data.cobertura_kissme > 0)) {
+  // Validar que todas as coberturas são maiores que zero
+  const coberturas = [
+    data.cobertura_min_a, data.cobertura_max_a,
+    data.cobertura_min_b, data.cobertura_max_b,
+    data.cobertura_min_c, data.cobertura_max_c,
+    data.cobertura_min_d, data.cobertura_max_d,
+    data.cobertura_max_ideal,
+  ];
+  if (coberturas.some(c => !(c > 0))) {
     return res.status(400).json({ success: false, error: "Coberturas devem ser maiores que zero" });
   }
 

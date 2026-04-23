@@ -31,6 +31,12 @@ function readCortesMap() {
   }
 }
 
+// Continuidades válidas para planejamento
+const CONTINUIDADES_VALIDAS = new Set([
+  'PERMANENTE',
+  'PERMANENTE COR NOVA',
+]);
+
 function filtrarProduto(produto) {
   const marca = normalizePlanningText(produto.marca);
   const status = normalizePlanningText(produto.status);
@@ -43,7 +49,8 @@ function filtrarProduto(produto) {
   if (marca !== 'LIEBE') return false;
   if (status !== 'EM LINHA') return false;
   if (codSituacao === '007') return false;
-  if (continuidade === 'EDICAO LIMITADA') return false;
+  // Filtrar apenas continuidades válidas para planejamento
+  if (!CONTINUIDADES_VALIDAS.has(continuidade)) return false;
   if (nmProduto.includes('MEIA DE SEDA')) return false;
   if (tamanho === 'PT 99') return false;
   if (!referencia) return false;
@@ -114,7 +121,7 @@ async function calcularCurvaAbcReferencias(pool) {
   const t1 = Date.now();
   console.log(`[curva-abc] Fase 2 — ${ids.length} IDs, 5 consultas paralelas`);
 
-  const [rProdutos, rMarca, rStatus, rSituacao, rContinuidade] = await Promise.all([
+  const [rProdutos, rMarca, rStatus, rSituacao, rContinuidade, rLinha, rFamilia] = await Promise.all([
     pool.query(
       `SELECT cd_produto::BIGINT AS id, nm_produto, ds_tamanho
        FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
@@ -139,6 +146,16 @@ async function calcularCurvaAbcReferencias(pool) {
       `SELECT cd_produto::BIGINT AS id, f_dic_prd_classificacao(cd_produto, 'DS'::text, 802::bigint) AS continuidade
        FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
       [ids]
+    ),
+    pool.query(
+      `SELECT cd_produto::BIGINT AS id, f_dic_prd_classificacao(cd_produto, 'DS'::text, 23::bigint) AS linha
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+    pool.query(
+      `SELECT cd_produto::BIGINT AS id, f_dic_prd_classificacao(cd_produto, 'DS'::text, 24::bigint) AS familia
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
     )
   ]);
 
@@ -150,6 +167,8 @@ async function calcularCurvaAbcReferencias(pool) {
   const statusMap = new Map(rStatus.rows.map(r => [Number(r.id), r.status]));
   const situacaoMap = new Map(rSituacao.rows.map(r => [Number(r.id), r.cod_situacao]));
   const continuMap = new Map(rContinuidade.rows.map(r => [Number(r.id), r.continuidade]));
+  const linhaMap = new Map(rLinha.rows.map(r => [Number(r.id), r.linha]));
+  const familiaMap = new Map(rFamilia.rows.map(r => [Number(r.id), r.familia]));
 
   // Mapear vendas por referência
   const vendasValorMap = new Map();
@@ -164,7 +183,8 @@ async function calcularCurvaAbcReferencias(pool) {
   const cortesMap = readCortesMap();
 
   // Agrupar vendas por referência, filtrando produtos inválidos
-  const refData = new Map(); // ref -> { totalQty, diasComVendas, qtdSkus, corteMin }
+  // corteMin guarda o MENOR corte mínimo encontrado entre os SKUs da referência (folha de corte)
+  const refData = new Map(); // ref -> { totalQty, diasComVendas, qtdSkus, corteMin, linhas, familias }
 
   for (const v of rVendasQtd.rows) {
     const id = Number(v.idproduto);
@@ -185,14 +205,22 @@ async function calcularCurvaAbcReferencias(pool) {
     if (!filtrarProduto(produto)) continue;
 
     if (!refData.has(ref)) {
-      refData.set(ref, { totalQty: 0, diasComVendas: 0, skus: new Set(), corteMin: 0 });
+      refData.set(ref, { totalQty: 0, diasComVendas: 0, skus: new Set(), corteMin: Infinity, linhas: new Set(), familias: new Set() });
     }
 
     const data = refData.get(ref);
     data.totalQty += Number(v.total_qty) || 0;
     data.diasComVendas = Math.max(data.diasComVendas, Number(v.dias_com_vendas) || 0);
     data.skus.add(id);
-    data.corteMin = Math.max(data.corteMin, Number(cortesMap.get(String(id)) || 0));
+    // Pegar o MENOR corte_min entre os SKUs (folha de corte mínimo)
+    const corteDoSku = Number(cortesMap.get(String(id)) || 0);
+    if (corteDoSku > 0 && corteDoSku < data.corteMin) {
+      data.corteMin = corteDoSku;
+    }
+    const linha = String(linhaMap.get(id) || '').trim();
+    const familia = String(familiaMap.get(id) || '').trim();
+    if (linha) data.linhas.add(linha);
+    if (familia) data.familias.add(familia);
   }
 
   console.log(`[curva-abc] ${refData.size} referências válidas após filtros`);
@@ -206,7 +234,10 @@ async function calcularCurvaAbcReferencias(pool) {
       totalValor: vendasValorMap.get(ref) || 0,
       diasComVendas: data.diasComVendas,
       qtdSkus: data.skus.size,
-      corteMin: data.corteMin
+      // Se nenhum SKU tinha corte definido, corteMin será Infinity; nesse caso retornar 0
+      corteMin: data.corteMin === Infinity ? 0 : data.corteMin,
+      linhas: Array.from(data.linhas).sort(),
+      familias: Array.from(data.familias).sort()
     });
   }
 
@@ -232,6 +263,8 @@ async function calcularCurvaAbcReferencias(pool) {
       diasComVendas: item.diasComVendas,
       qtdSkus: item.qtdSkus,
       corteMin: item.corteMin,
+      linhas: item.linhas,
+      familias: item.familias,
       mediaQtdPorSku: item.qtdSkus > 0 ? item.totalQty / item.qtdSkus / 3 : 0,
       rankQtd: rankQty,
       rankValor: 0,

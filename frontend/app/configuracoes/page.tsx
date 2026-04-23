@@ -11,9 +11,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 type CorteRow = { idproduto: string; corte_min: number };
 type SugestaoPlanoCfg = {
-  cobertura_top30: number;
-  cobertura_demais: number;
-  cobertura_kissme: number;
+  cobertura_min_a: number;
+  cobertura_max_a: number;
+  cobertura_min_b: number;
+  cobertura_max_b: number;
+  cobertura_min_c: number;
+  cobertura_max_c: number;
+  cobertura_min_d: number;
+  cobertura_max_d: number;
+  cobertura_max_ideal: number;
   usar_corte_minimo: boolean;
 };
 
@@ -101,9 +107,15 @@ export default function ConfiguracoesPage() {
   const [rows, setRows] = useState<CorteRow[]>([]);
   const [preview, setPreview] = useState<CorteRow[]>([]);
   const [cfg, setCfg] = useState<SugestaoPlanoCfg>({
-    cobertura_top30: 1.2,
-    cobertura_demais: 0.8,
-    cobertura_kissme: 0.5,
+    cobertura_min_a: 0.5,
+    cobertura_max_a: 1.0,
+    cobertura_min_b: 1.0,
+    cobertura_max_b: 2.0,
+    cobertura_min_c: 1.0,
+    cobertura_max_c: 2.5,
+    cobertura_min_d: 1.0,
+    cobertura_max_d: 3.0,
+    cobertura_max_ideal: 6.0,
     usar_corte_minimo: true,
   });
   const [cfgLojas, setCfgLojas] = useState<EstoqueLojasCfg>({
@@ -135,9 +147,15 @@ export default function ConfiguracoesPage() {
       if (!rCfg.ok || !pCfg.success) throw new Error(pCfg.error || 'Erro ao carregar configuração de sugestão');
       setRows(Array.isArray(pCortes.data) ? pCortes.data : []);
       if (pCfg?.data) setCfg({
-        cobertura_top30: Number(pCfg.data.cobertura_top30 ?? 1.2),
-        cobertura_demais: Number(pCfg.data.cobertura_demais ?? 0.8),
-        cobertura_kissme: Number(pCfg.data.cobertura_kissme ?? 0.5),
+        cobertura_min_a: Number(pCfg.data.cobertura_min_a ?? 0.5),
+        cobertura_max_a: Number(pCfg.data.cobertura_max_a ?? 1.0),
+        cobertura_min_b: Number(pCfg.data.cobertura_min_b ?? 1.0),
+        cobertura_max_b: Number(pCfg.data.cobertura_max_b ?? 2.0),
+        cobertura_min_c: Number(pCfg.data.cobertura_min_c ?? 1.0),
+        cobertura_max_c: Number(pCfg.data.cobertura_max_c ?? 2.5),
+        cobertura_min_d: Number(pCfg.data.cobertura_min_d ?? 1.0),
+        cobertura_max_d: Number(pCfg.data.cobertura_max_d ?? 3.0),
+        cobertura_max_ideal: Number(pCfg.data.cobertura_max_ideal ?? 6.0),
         usar_corte_minimo: pCfg.data.usar_corte_minimo !== false,
       });
       if (pLojas?.data) setCfgLojas({
@@ -192,9 +210,15 @@ export default function ConfiguracoesPage() {
     setOkMsg(null);
     try {
       const payload = {
-        cobertura_top30: Number(cfg.cobertura_top30 || 0),
-        cobertura_demais: Number(cfg.cobertura_demais || 0),
-        cobertura_kissme: Number(cfg.cobertura_kissme || 0),
+        cobertura_min_a: Number(cfg.cobertura_min_a || 0),
+        cobertura_max_a: Number(cfg.cobertura_max_a || 0),
+        cobertura_min_b: Number(cfg.cobertura_min_b || 0),
+        cobertura_max_b: Number(cfg.cobertura_max_b || 0),
+        cobertura_min_c: Number(cfg.cobertura_min_c || 0),
+        cobertura_max_c: Number(cfg.cobertura_max_c || 0),
+        cobertura_min_d: Number(cfg.cobertura_min_d || 0),
+        cobertura_max_d: Number(cfg.cobertura_max_d || 0),
+        cobertura_max_ideal: Number(cfg.cobertura_max_ideal || 0),
         usar_corte_minimo: Boolean(cfg.usar_corte_minimo),
         usar_op_minima_ref: true,
       };
@@ -254,20 +278,73 @@ export default function ConfiguracoesPage() {
           {okMsg && <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700">{okMsg}</div>}
 
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-xs font-semibold text-brand-dark mb-2">Regras da sugestão futura de plano</div>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-              <label className="text-xs text-gray-600">
-                Cobertura Top30
-                <input type="number" step="0.1" value={cfg.cobertura_top30} onChange={(e) => setCfg((p) => ({ ...p, cobertura_top30: Number(e.target.value || 0) }))} className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5" />
-              </label>
-              <label className="text-xs text-gray-600">
-                Cobertura Demais
-                <input type="number" step="0.1" value={cfg.cobertura_demais} onChange={(e) => setCfg((p) => ({ ...p, cobertura_demais: Number(e.target.value || 0) }))} className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5" />
-              </label>
-              <label className="text-xs text-gray-600">
-                Cobertura KISS ME
-                <input type="number" step="0.1" value={cfg.cobertura_kissme} onChange={(e) => setCfg((p) => ({ ...p, cobertura_kissme: Number(e.target.value || 0) }))} className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5" />
-              </label>
+            <div className="text-xs font-semibold text-brand-dark mb-2">Regras de Cobertura por Curva ABC</div>
+            <div className="text-[11px] text-gray-500 mb-3">
+              Configure a cobertura mínima (alvo) e máxima (limite para UL/QT) por curva ABC.
+            </div>
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-700">Curva</th>
+                  <th className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-700">Cobertura Mínima (Alvo)</th>
+                  <th className="border border-gray-200 px-3 py-2 text-left font-semibold text-gray-700">Cobertura Máxima (Limite UL/QT)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border border-gray-200 px-3 py-2 font-semibold text-emerald-600">A</td>
+                  <td className="border border-gray-200 px-2 py-1">
+                    <input type="number" step="0.1" min="0" value={cfg.cobertura_min_a} onChange={(e) => setCfg((p) => ({ ...p, cobertura_min_a: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded px-2 py-1" />
+                  </td>
+                  <td className="border border-gray-200 px-2 py-1">
+                    <input type="number" step="0.1" min="0" value={cfg.cobertura_max_a} onChange={(e) => setCfg((p) => ({ ...p, cobertura_max_a: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded px-2 py-1" />
+                  </td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-200 px-3 py-2 font-semibold text-blue-600">B</td>
+                  <td className="border border-gray-200 px-2 py-1">
+                    <input type="number" step="0.1" min="0" value={cfg.cobertura_min_b} onChange={(e) => setCfg((p) => ({ ...p, cobertura_min_b: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded px-2 py-1" />
+                  </td>
+                  <td className="border border-gray-200 px-2 py-1">
+                    <input type="number" step="0.1" min="0" value={cfg.cobertura_max_b} onChange={(e) => setCfg((p) => ({ ...p, cobertura_max_b: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded px-2 py-1" />
+                  </td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-200 px-3 py-2 font-semibold text-amber-600">C</td>
+                  <td className="border border-gray-200 px-2 py-1">
+                    <input type="number" step="0.1" min="0" value={cfg.cobertura_min_c} onChange={(e) => setCfg((p) => ({ ...p, cobertura_min_c: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded px-2 py-1" />
+                  </td>
+                  <td className="border border-gray-200 px-2 py-1">
+                    <input type="number" step="0.1" min="0" value={cfg.cobertura_max_c} onChange={(e) => setCfg((p) => ({ ...p, cobertura_max_c: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded px-2 py-1" />
+                  </td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-200 px-3 py-2 font-semibold text-red-600">D</td>
+                  <td className="border border-gray-200 px-2 py-1">
+                    <input type="number" step="0.1" min="0" value={cfg.cobertura_min_d} onChange={(e) => setCfg((p) => ({ ...p, cobertura_min_d: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded px-2 py-1" />
+                  </td>
+                  <td className="border border-gray-200 px-2 py-1">
+                    <input type="number" step="0.1" min="0" value={cfg.cobertura_max_d} onChange={(e) => setCfg((p) => ({ ...p, cobertura_max_d: Number(e.target.value || 0) }))} className="w-full border border-gray-300 rounded px-2 py-1" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="text-xs font-semibold text-purple-800 mb-2">Regra Especial - Linha IDEAL</div>
+              <div className="text-[11px] text-purple-600 mb-2">
+                Produtos da linha IDEAL usam cobertura máxima diferenciada (pode cortar 50% do mínimo).
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-gray-600">
+                  Cobertura Máxima IDEAL
+                  <input type="number" step="0.1" min="0" value={cfg.cobertura_max_ideal} onChange={(e) => setCfg((p) => ({ ...p, cobertura_max_ideal: Number(e.target.value || 0) }))} className="mt-1 w-24 border border-gray-300 rounded px-2 py-1" />
+                </label>
+                <span className="text-[11px] text-gray-500 pt-4">Padrão: 6.0x</span>
+              </div>
+            </div>
+
+            <div className="mt-3">
               <label className="inline-flex items-center gap-2 text-xs text-gray-700">
                 <input type="checkbox" checked={cfg.usar_corte_minimo} onChange={(e) => setCfg((p) => ({ ...p, usar_corte_minimo: e.target.checked }))} />
                 Usar corte mínimo e múltiplos

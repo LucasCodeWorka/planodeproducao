@@ -566,98 +566,123 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   console.log(`[períodos] Semestral : ${inicioSem.toISOString().slice(0,10)} → ${new Date(fimSem - 1).toISOString().slice(0,10)}`);
   console.log(`[períodos] 3M fechado: ${inicio3m.toISOString().slice(0,10)} → ${new Date(fim3m - 1).toISOString().slice(0,10)}`);
 
-  // ── Fase 2: classificações + estoque + vendas em paralelo (só para os IDs) ─
-  const t1 = Date.now();
-  console.log(`[matriz/paralela] Fase 2 — ${ids.length} IDs, 8 consultas paralelas`);
+  async function timedStep(label, fn) {
+    const start = Date.now();
+    const result = await fn();
+    console.log(`[matriz/fase2/${label}] concluida em ${((Date.now() - start) / 1000).toFixed(1)}s`);
+    return result;
+  }
 
-  const [rRef, rProd, rStatus, rFamilia, rCont, rLinha, rGrupo, rSituacao, rEstoque, rSaldo, rVendas] =
-    await Promise.all([
-      // Q4 – referencia
-      pool.query(
-        `SELECT cd_produto::BIGINT AS idproduto,
-                f_dic_prd_nivel(cd_produto,'CD'::bpchar) AS referencia
-         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
-        [ids]
-      ),
-      // Q5 – nome do produto
-      pool.query(
-        `SELECT cd_produto::BIGINT AS idproduto,
-                f_dic_prd_nivel(cd_produto,'DS'::bpchar) AS produto
-         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
-        [ids]
-      ),
-      // Q6 – status
-      pool.query(
-        `SELECT cd_produto::BIGINT AS idproduto,
-                f_dic_prd_classificacao(cd_produto,'DS'::text,27::bigint) AS status
-         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
-        [ids]
-      ),
-      // Q7 – idfamilia
-      pool.query(
-        `SELECT cd_produto::BIGINT AS idproduto,
-                f_dic_prd_classificacao(cd_produto,'DS'::text,24::bigint) AS idfamilia
-         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
-        [ids]
-      ),
-      // Q8 – continuidade
-      pool.query(
-        `SELECT cd_produto::BIGINT AS idproduto,
-                f_dic_prd_classificacao(cd_produto,'DS'::text,802::bigint) AS continuidade
-         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
-        [ids]
-      ),
-      // Q8.1 – linha
-      pool.query(
-        `SELECT cd_produto::BIGINT AS idproduto,
-                f_dic_prd_classificacao(cd_produto,'DS'::text,23::bigint) AS linha
-         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
-        [ids]
-      ),
-      // Q8.2 – grupo
-      pool.query(
-        `SELECT cd_produto::BIGINT AS idproduto,
-                f_dic_prd_classificacao(cd_produto,'DS'::text,25::bigint) AS grupo
-         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
-        [ids]
-      ),
-      // Q8.3 – código da situação
-      pool.query(
-        `SELECT cd_produto::BIGINT AS idproduto,
-                f_dic_prd_classificacao(cd_produto,'CD'::text,124::bigint) AS cod_situacao
-         FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
-        [ids]
-      ),
-      // Q9 – estoque atual
-      pool.query(
-        `SELECT cd_produto::BIGINT AS idproduto,
-                COALESCE(f_dic_sld_prd_produto(
-                  $1::TEXT,'1'::TEXT,cd_produto,NULL::TIMESTAMP WITHOUT TIME ZONE
-                )::FLOAT, 0) AS estoque
-         FROM vr_prd_prdgrade WHERE cd_produto = ANY($2)`,
-        [String(cdEmpresa), ids]
-      ),
-      // Q10 – saldo adicional pedidos
-      pool.query(
-        `SELECT cd_produto::BIGINT AS idproduto,
-                COALESCE(f_prd_saldo_produto(
-                  $1::BIGINT,7::BIGINT,cd_produto,NULL::TIMESTAMP WITHOUT TIME ZONE
-                )::FLOAT, 0) AS saldo
-         FROM vr_prd_prdgrade WHERE cd_produto = ANY($2)`,
-        [cdEmpresa, ids]
-      ),
-      // Q11 – vendas cobrindo semestral + 3m + 12m (filtradas pelos IDs, todas as empresas)
-      pool.query(
-        `SELECT v.idproduto::BIGINT AS idproduto,
-                DATE(v.data) AS dia,
-                SUM(v.qt_liquida)::FLOAT AS qtd
-         FROM vr_vendas_qtd v
-         WHERE v.data >= $2
-           AND v.idproduto = ANY($1)
-         GROUP BY v.idproduto, DATE(v.data)`,
-        [ids, inicioVendasQuery]
-      ),
-    ]);
+  // ── Fase 2: dimensões em blocos + fatos isolados (só para os IDs) ─
+  const t1 = Date.now();
+  console.log(`[matriz/paralela] Fase 2 — ${ids.length} IDs, dimensoes em blocos e fatos isolados`);
+
+  const [rRef, rProd, rStatus] = await timedStep('dim-a-ref-prod-status', () => Promise.all([
+    // Q4 – referencia
+    pool.query(
+      `SELECT cd_produto::BIGINT AS idproduto,
+              f_dic_prd_nivel(cd_produto,'CD'::bpchar) AS referencia
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+    // Q5 – nome do produto
+    pool.query(
+      `SELECT cd_produto::BIGINT AS idproduto,
+              f_dic_prd_nivel(cd_produto,'DS'::bpchar) AS produto
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+    // Q6 – status
+    pool.query(
+      `SELECT cd_produto::BIGINT AS idproduto,
+              f_dic_prd_classificacao(cd_produto,'DS'::text,27::bigint) AS status
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+  ]));
+
+  const [rFamilia, rCont] = await timedStep('dim-b-familia-continuidade', () => Promise.all([
+    // Q7 – idfamilia
+    pool.query(
+      `SELECT cd_produto::BIGINT AS idproduto,
+              f_dic_prd_classificacao(cd_produto,'DS'::text,24::bigint) AS idfamilia
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+    // Q8 – continuidade
+    pool.query(
+      `SELECT cd_produto::BIGINT AS idproduto,
+              f_dic_prd_classificacao(cd_produto,'DS'::text,802::bigint) AS continuidade
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+  ]));
+
+  const [rLinha, rGrupo] = await timedStep('dim-c-linha-grupo', () => Promise.all([
+    // Q8.1 – linha
+    pool.query(
+      `SELECT cd_produto::BIGINT AS idproduto,
+              f_dic_prd_classificacao(cd_produto,'DS'::text,23::bigint) AS linha
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+    // Q8.2 – grupo
+    pool.query(
+      `SELECT cd_produto::BIGINT AS idproduto,
+              f_dic_prd_classificacao(cd_produto,'DS'::text,25::bigint) AS grupo
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    ),
+  ]));
+
+  const rSituacao = await timedStep('dim-d-situacao', () =>
+    // Q8.3 – código da situação
+    pool.query(
+      `SELECT cd_produto::BIGINT AS idproduto,
+              f_dic_prd_classificacao(cd_produto,'CD'::text,124::bigint) AS cod_situacao
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($1)`,
+      [ids]
+    )
+  );
+
+  const rEstoque = await timedStep('estoque', () =>
+    // Q9 – estoque atual
+    pool.query(
+      `SELECT p.cd_produto::BIGINT AS idproduto,
+              COALESCE(mv.estoque_bruto::FLOAT, 0) AS estoque
+       FROM vr_prd_prdgrade p
+       LEFT JOIN mv_pcp_estoque_atual mv
+         ON mv.cd_produto::BIGINT = p.cd_produto::BIGINT
+       WHERE p.cd_produto = ANY($1)`,
+      [ids]
+    )
+  );
+
+  const rSaldo = await timedStep('saldo', () =>
+    // Q10 – saldo adicional pedidos
+    pool.query(
+      `SELECT cd_produto::BIGINT AS idproduto,
+              COALESCE(f_prd_saldo_produto(
+                $1::BIGINT,7::BIGINT,cd_produto,NULL::TIMESTAMP WITHOUT TIME ZONE
+              )::FLOAT, 0) AS saldo
+       FROM vr_prd_prdgrade WHERE cd_produto = ANY($2)`,
+      [cdEmpresa, ids]
+    )
+  );
+
+  const rVendas = await timedStep('vendas', () =>
+    // Q11 – vendas cobrindo semestral + 3m + 12m (filtradas pelos IDs, todas as empresas)
+    pool.query(
+      `SELECT v.idproduto::BIGINT AS idproduto,
+              DATE(v.data) AS dia,
+              SUM(v.qt_liquida)::FLOAT AS qtd
+       FROM vr_vendas_qtd v
+       WHERE v.data >= $2
+         AND v.idproduto = ANY($1)
+       GROUP BY v.idproduto, DATE(v.data)`,
+      [ids, inicioVendasQuery]
+    )
+  );
 
   console.log(`[matriz/paralela] Fase 2 concluída em ${((Date.now()-t1)/1000).toFixed(1)}s`);
 

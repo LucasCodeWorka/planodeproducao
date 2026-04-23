@@ -14,16 +14,24 @@ const MARCA_FIXA = 'LIEBE';
 const STATUS_FIXO = 'EM LINHA';
 const COB_ALVO_MA_NEGATIVO = 0.7;
 const MARGEM_COB_MA_NEGATIVO_PADRAO = 0.05;
-const COB_SAUDAVEL_UL_TOP30 = 0.8;
-const COB_SAUDAVEL_UL_KISSME = 0.8;
-const COB_SAUDAVEL_UL_DEMAIS = 0.6;
+// Cobertura saudável padrão por curva (usado em fallback)
+const COB_SAUDAVEL_CURVA_A = 0.8;
+const COB_SAUDAVEL_CURVA_B = 0.7;
+const COB_SAUDAVEL_CURVA_C = 0.6;
+const COB_SAUDAVEL_CURVA_D = 0.5;
 
 type PeriodoAlvo = 'MA' | 'PX' | 'UL' | 'QT';
 type MAModo = 'EMERGENCIA' | 'COBERTURA';
 type SugestaoCfg = {
-  cobertura_top30: number;
-  cobertura_demais: number;
-  cobertura_kissme: number;
+  cobertura_min_a: number;
+  cobertura_max_a: number;
+  cobertura_min_b: number;
+  cobertura_max_b: number;
+  cobertura_min_c: number;
+  cobertura_max_c: number;
+  cobertura_min_d: number;
+  cobertura_max_d: number;
+  cobertura_max_ideal: number;
   usar_corte_minimo: boolean;
   usar_op_minima_ref: boolean;
 };
@@ -38,7 +46,7 @@ type Row = {
   cod_situacao: string;
   linha: string;
   grupoProduto: string;
-  classe: 'TOP30' | 'KISS ME' | 'DEMAIS';
+  curvaABCItem: 'A' | 'B' | 'C' | 'D';
   estoqueAtual: number;
   pedidosPendentes: number;
   emProcesso: number;
@@ -283,10 +291,11 @@ function mesSeguinte(mes: number) {
   return (m % 12) + 1;
 }
 
-function healthyCoverageTarget(classe: Row['classe']) {
-  if (classe === 'TOP30') return COB_SAUDAVEL_UL_TOP30;
-  if (classe === 'KISS ME') return COB_SAUDAVEL_UL_KISSME;
-  return COB_SAUDAVEL_UL_DEMAIS;
+function healthyCoverageTarget(curva: 'A' | 'B' | 'C' | 'D') {
+  if (curva === 'A') return COB_SAUDAVEL_CURVA_A;
+  if (curva === 'B') return COB_SAUDAVEL_CURVA_B;
+  if (curva === 'C') return COB_SAUDAVEL_CURVA_C;
+  return COB_SAUDAVEL_CURVA_D;
 }
 
 function normalizeRuleText(value: string) {
@@ -318,12 +327,23 @@ function findRegraOpMin(rules: RegraOpMinRow[], continuidade: string, linha: str
   ) || null;
 }
 
-// Cobertura máxima por curva ABCD para UL/QT: A=1.0, B=1.5, C=2.0, D=3.0
-function coberturaMaxPorCurva(curva: 'A' | 'B' | 'C' | 'D'): number {
-  if (curva === 'A') return 1.0;
-  if (curva === 'B') return 1.5;
-  if (curva === 'C') return 2.0;
-  return 3.0; // Curva D
+// Funções helper para obter cobertura mínima e máxima por curva da configuração
+function getCoberturaMinPorCurva(curva: 'A' | 'B' | 'C' | 'D', cfg: SugestaoCfg): number {
+  if (curva === 'A') return cfg.cobertura_min_a;
+  if (curva === 'B') return cfg.cobertura_min_b;
+  if (curva === 'C') return cfg.cobertura_min_c;
+  return cfg.cobertura_min_d;
+}
+
+function getCoberturaMaxPorCurva(curva: 'A' | 'B' | 'C' | 'D', cfg: SugestaoCfg, linha?: string): number {
+  // Linha IDEAL tem cobertura máxima especial
+  if (linha && linha.toUpperCase().trim() === 'IDEAL') {
+    return cfg.cobertura_max_ideal;
+  }
+  if (curva === 'A') return cfg.cobertura_max_a;
+  if (curva === 'B') return cfg.cobertura_max_b;
+  if (curva === 'C') return cfg.cobertura_max_c;
+  return cfg.cobertura_max_d;
 }
 
 export default function SugestaoPlanoPage() {
@@ -353,9 +373,15 @@ export default function SugestaoPlanoPage() {
   const [capacidadeDias, setCapacidadeDias] = useState<Record<string, number>>({});
   const [capacidadeTemposRef, setCapacidadeTemposRef] = useState<TempoRefConfig[]>([]);
   const [cfg, setCfg] = useState<SugestaoCfg>({
-    cobertura_top30: 1.2,
-    cobertura_demais: 0.8,
-    cobertura_kissme: 1.5,
+    cobertura_min_a: 0.5,
+    cobertura_max_a: 1.0,
+    cobertura_min_b: 1.0,
+    cobertura_max_b: 2.0,
+    cobertura_min_c: 1.0,
+    cobertura_max_c: 2.5,
+    cobertura_min_d: 1.0,
+    cobertura_max_d: 3.0,
+    cobertura_max_ideal: 6.0,
     usar_corte_minimo: true,
     usar_op_minima_ref: true,
   });
@@ -516,9 +542,15 @@ export default function SugestaoPlanoPage() {
       setCortes(map);
       if (pCfg?.data) {
         setCfg({
-          cobertura_top30: Number(pCfg.data.cobertura_top30 || 1.2),
-          cobertura_demais: Number(pCfg.data.cobertura_demais || 0.8),
-          cobertura_kissme: Number(pCfg.data.cobertura_kissme || 1.5),
+          cobertura_min_a: Number(pCfg.data.cobertura_min_a ?? 0.5),
+          cobertura_max_a: Number(pCfg.data.cobertura_max_a ?? 1.0),
+          cobertura_min_b: Number(pCfg.data.cobertura_min_b ?? 1.0),
+          cobertura_max_b: Number(pCfg.data.cobertura_max_b ?? 2.0),
+          cobertura_min_c: Number(pCfg.data.cobertura_min_c ?? 1.0),
+          cobertura_max_c: Number(pCfg.data.cobertura_max_c ?? 2.5),
+          cobertura_min_d: Number(pCfg.data.cobertura_min_d ?? 1.0),
+          cobertura_max_d: Number(pCfg.data.cobertura_max_d ?? 3.0),
+          cobertura_max_ideal: Number(pCfg.data.cobertura_max_ideal ?? 6.0),
           usar_corte_minimo: pCfg.data.usar_corte_minimo !== false,
           usar_op_minima_ref: true,
         });
@@ -723,11 +755,11 @@ export default function SugestaoPlanoPage() {
     const baseRowsMapped = baseRows.map((item) => {
       const id = String(item.produto.idproduto || '');
       const refNorm = normRef(item.produto.referencia || '');
-      const texto = `${String(item.produto.continuidade || '')} ${String(item.produto.produto || '')}`.toUpperCase();
-      const isKiss = texto.includes('KISS ME');
-      const isTop30 = top30Refs.has(refNorm) || top30Ids.has(id);
-      const classe: Row['classe'] = isKiss ? 'KISS ME' : (isTop30 ? 'TOP30' : 'DEMAIS');
-      const cobAlvoBase = isKiss ? cfg.cobertura_kissme : isTop30 ? cfg.cobertura_top30 : cfg.cobertura_demais;
+      const linhaItem = String(item.produto.linha || '').trim();
+      // Identificar curva ABC da referência (fallback para B se não encontrada)
+      const curvaRef: 'A' | 'B' | 'C' | 'D' = curvaABC[refNorm] || 'B';
+      // Cobertura alvo baseada na curva ABC configurada
+      const cobAlvoBase = getCoberturaMinPorCurva(curvaRef, cfg);
       const gruposRef = gruposByReferencia.get(refNorm) || [];
       const somaCapGrupos = gruposRef.reduce((acc, grupo) => acc + Math.max(0, Number(capacidadeDiariaByGrupo.get(grupo) || 0)), 0);
       const grupoRateios = gruposRef.map((grupo) => {
@@ -776,7 +808,8 @@ export default function SugestaoPlanoPage() {
       let cobAlvo = cobAlvoBase;
 
       if (periodoAlvo === 'MA') {
-        cobAlvo = maModo === 'EMERGENCIA' ? (isKiss ? 0.5 : 0) : cobAlvoBase;
+        // Em modo emergência, curva A/B tem cobertura reduzida, C/D = 0
+        cobAlvo = maModo === 'EMERGENCIA' ? (curvaRef === 'A' || curvaRef === 'B' ? 0.5 : 0) : cobAlvoBase;
       } else if (maModo === 'EMERGENCIA' && dispMA < 0) {
         cobAlvo = COB_ALVO_MA_NEGATIVO;
       }
@@ -849,10 +882,9 @@ export default function SugestaoPlanoPage() {
           }
         }
 
-        // Para UL e QT: aplicar lógica de meio lote baseada na cobertura máxima por curva ABC
+        // Para UL e QT: aplicar lógica de meio lote baseada na cobertura máxima por curva ABC (ou IDEAL)
         if ((periodoAlvo === 'UL' || periodoAlvo === 'QT') && cfg.usar_corte_minimo && lote > 1 && min > 0 && planoSugerido > 0) {
-          const curvaRef = curvaABC[refNorm] || 'B';
-          const cobMax = coberturaMaxPorCurva(curvaRef);
+          const cobMax = getCoberturaMaxPorCurva(curvaRef, cfg, linhaItem);
           const dispPosAtual = dispAnterior + planoSugerido - projMes;
           const cobPosAtual = dispPosAtual / min;
 
@@ -889,7 +921,7 @@ export default function SugestaoPlanoPage() {
         cod_situacao: String(item.produto.cod_situacao || '').trim(),
         linha: item.produto.linha || '-',
         grupoProduto: item.produto.grupo || '-',
-        classe,
+        curvaABCItem: curvaRef,
         estoqueAtual,
         pedidosPendentes,
         emProcesso: emP,
@@ -1138,7 +1170,7 @@ export default function SugestaoPlanoPage() {
       });
     }
 
-    const prioridadeClasse = (classe: Row['classe']) => (classe === 'TOP30' ? 3 : classe === 'KISS ME' ? 2 : 1);
+    const prioridadeCurva = (curva: 'A' | 'B' | 'C' | 'D') => (curva === 'A' ? 4 : curva === 'B' ? 3 : curva === 'C' ? 2 : 1);
     const coberturaAtual = (row: Row) => {
       if (!(Number(row.estoqueMin || 0) > 0)) return 0;
       const dispBase =
@@ -1156,7 +1188,7 @@ export default function SugestaoPlanoPage() {
         if (bFolga !== aFolga) return bFolga - aFolga;
         const covDiff = coberturaAtual(b) - coberturaAtual(a);
         if (covDiff !== 0) return covDiff;
-        const classeDiff = prioridadeClasse(a.classe) - prioridadeClasse(b.classe);
+        const classeDiff = prioridadeCurva(a.curvaABCItem) - prioridadeCurva(b.curvaABCItem);
         if (classeDiff !== 0) return classeDiff;
         const tempoDiff = Number(b.tempoRef || 0) - Number(a.tempoRef || 0);
         if (tempoDiff !== 0) return tempoDiff;
@@ -1194,7 +1226,7 @@ export default function SugestaoPlanoPage() {
     const candidatosCorteComDano = rowsCap
       .filter((r) => Number(r.planoSugerido || 0) > 0 && Number(r.tempoRef || 0) > 0 && r.grupoRateios.length > 0)
       .sort((a, b) => {
-        const classeDiff = prioridadeClasse(a.classe) - prioridadeClasse(b.classe);
+        const classeDiff = prioridadeCurva(a.curvaABCItem) - prioridadeCurva(b.curvaABCItem);
         if (classeDiff !== 0) return classeDiff;
         const tempoDiff = Number(b.tempoRef || 0) - Number(a.tempoRef || 0);
         if (tempoDiff !== 0) return tempoDiff;
@@ -1236,7 +1268,7 @@ export default function SugestaoPlanoPage() {
         const aNeg = Number(a.dispPos || 0) < 0 ? 1 : 0;
         const bNeg = Number(b.dispPos || 0) < 0 ? 1 : 0;
         if (aNeg !== bNeg) return bNeg - aNeg;
-        const classeDiff = prioridadeClasse(b.classe) - prioridadeClasse(a.classe);
+        const classeDiff = prioridadeCurva(b.curvaABCItem) - prioridadeCurva(a.curvaABCItem);
         if (classeDiff !== 0) return classeDiff;
         const retornoA = Math.abs(Math.min(0, Number(a.dispPos || 0))) / Math.max(1, Number(a.tempoRef || 0));
         const retornoB = Math.abs(Math.min(0, Number(b.dispPos || 0))) / Math.max(1, Number(b.tempoRef || 0));
@@ -1470,9 +1502,10 @@ export default function SugestaoPlanoPage() {
         cargaDisponivelUL: 0,
         cargaSugeridaUL: 0,
         fatorCobertura: 1,
-        top30Estimado: cfg.cobertura_top30,
-        demaisEstimado: cfg.cobertura_demais,
-        kissEstimado: cfg.cobertura_kissme,
+        curvaAEstimado: cfg.cobertura_min_a,
+        curvaBEstimado: cfg.cobertura_min_b,
+        curvaCEstimado: cfg.cobertura_min_c,
+        curvaDEstimado: cfg.cobertura_min_d,
         gruposEstourados: [] as Array<{ grupo: string; saldo: number; diasFaltantes: number; cargaUL: number; capacidadeUL: number }>,
       };
     }
@@ -1539,9 +1572,10 @@ export default function SugestaoPlanoPage() {
       cargaDisponivelUL,
       cargaSugeridaUL,
       fatorCobertura,
-      top30Estimado: Number(cfg.cobertura_top30 || 0) * fatorCobertura,
-      demaisEstimado: Number(cfg.cobertura_demais || 0) * fatorCobertura,
-      kissEstimado: Number(cfg.cobertura_kissme || 0) * fatorCobertura,
+      curvaAEstimado: Number(cfg.cobertura_min_a || 0) * fatorCobertura,
+      curvaBEstimado: Number(cfg.cobertura_min_b || 0) * fatorCobertura,
+      curvaCEstimado: Number(cfg.cobertura_min_c || 0) * fatorCobertura,
+      curvaDEstimado: Number(cfg.cobertura_min_d || 0) * fatorCobertura,
       gruposEstourados,
     };
   }, [periodoAlvo, capacidadeDias, periodos, capacidadeGrupos, rows, cfg, considerarCapacidade]);
@@ -1549,19 +1583,18 @@ export default function SugestaoPlanoPage() {
   const coberturaSugeridaAutomatica = useMemo(() => {
     if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT')) {
       return {
-        top30: Number(cfg.cobertura_top30 || 0),
-        demais: Number(cfg.cobertura_demais || 0),
-        kiss: Number(cfg.cobertura_kissme || 0),
+        curvaA: Number(cfg.cobertura_min_a || 0),
+        curvaB: Number(cfg.cobertura_min_b || 0),
+        curvaC: Number(cfg.cobertura_min_c || 0),
+        curvaD: Number(cfg.cobertura_min_d || 0),
         observacao: '',
       };
     }
 
-    const mediaPorClasse = (classe: Row['classe']) => {
-      const itens = rowsVisiveisTela.filter((r) => r.classe === classe && Number(r.estoqueMin || 0) > 0);
+    const mediaPorCurva = (curva: 'A' | 'B' | 'C' | 'D') => {
+      const itens = rowsVisiveisTela.filter((r) => r.curvaABCItem === curva && Number(r.estoqueMin || 0) > 0);
       if (!itens.length) {
-        if (classe === 'TOP30') return Number(cfg.cobertura_top30 || 0);
-        if (classe === 'KISS ME') return Number(cfg.cobertura_kissme || 0);
-        return Number(cfg.cobertura_demais || 0);
+        return getCoberturaMinPorCurva(curva, cfg);
       }
       let somaPeso = 0;
       let somaCob = 0;
@@ -1574,18 +1607,19 @@ export default function SugestaoPlanoPage() {
       return somaPeso > 0 ? somaCob / somaPeso : 0;
     };
 
-    const top30 = Number(mediaPorClasse('TOP30').toFixed(2));
-    const demais = Number(mediaPorClasse('DEMAIS').toFixed(2));
-    const kiss = Number(mediaPorClasse('KISS ME').toFixed(2));
+    const curvaA = Number(mediaPorCurva('A').toFixed(2));
+    const curvaB = Number(mediaPorCurva('B').toFixed(2));
+    const curvaC = Number(mediaPorCurva('C').toFixed(2));
+    const curvaD = Number(mediaPorCurva('D').toFixed(2));
     const observacao = diagnosticoCapacidadeUL.gruposEstourados.length > 0
       ? 'Cobertura média viável do plano final. Ainda existem grupos gargalo na tabela vermelha.'
       : 'Cobertura média viável do plano final que coube na capacidade.';
-    return { top30, demais, kiss, observacao };
+    return { curvaA, curvaB, curvaC, curvaD, observacao };
   }, [periodoAlvo, diagnosticoCapacidadeUL, cfg, rowsVisiveisTela]);
 
   const resumoCoberturaPos = useMemo(() => {
-    const mediaPorClasse = (classe: Row['classe']) => {
-      const itens = rowsVisiveisTela.filter((r) => r.classe === classe && Number(r.estoqueMin || 0) > 0);
+    const mediaPorCurva = (curva: 'A' | 'B' | 'C' | 'D') => {
+      const itens = rowsVisiveisTela.filter((r) => r.curvaABCItem === curva && Number(r.estoqueMin || 0) > 0);
       if (!itens.length) return 0;
       let somaPeso = 0;
       let somaCob = 0;
@@ -1598,9 +1632,10 @@ export default function SugestaoPlanoPage() {
       return somaPeso > 0 ? somaCob / somaPeso : 0;
     };
     return {
-      top30: mediaPorClasse('TOP30'),
-      kiss: mediaPorClasse('KISS ME'),
-      demais: mediaPorClasse('DEMAIS'),
+      curvaA: mediaPorCurva('A'),
+      curvaB: mediaPorCurva('B'),
+      curvaC: mediaPorCurva('C'),
+      curvaD: mediaPorCurva('D'),
     };
   }, [rowsVisiveisTela]);
 
@@ -2007,22 +2042,27 @@ export default function SugestaoPlanoPage() {
                 )}
               </div>
 
-              {/* Grupo: Coberturas Config */}
+              {/* Grupo: Coberturas Config por Curva ABC */}
               <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
-                <span className="text-[10px] font-semibold text-slate-500 uppercase">Coberturas:</span>
+                <span className="text-[10px] font-semibold text-slate-500 uppercase">Cob. Alvo:</span>
                 <span className="text-xs">
-                  <span className="text-slate-600">Top30</span>{' '}
-                  <strong className="text-slate-800">{cfg.cobertura_top30.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
+                  <span className="text-emerald-600 font-semibold">A</span>{' '}
+                  <strong className="text-slate-800">{cfg.cobertura_min_a.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
                 </span>
                 <span className="text-slate-300">|</span>
                 <span className="text-xs">
-                  <span className="text-slate-600">Demais</span>{' '}
-                  <strong className="text-slate-800">{cfg.cobertura_demais.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
+                  <span className="text-blue-600 font-semibold">B</span>{' '}
+                  <strong className="text-slate-800">{cfg.cobertura_min_b.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
                 </span>
                 <span className="text-slate-300">|</span>
                 <span className="text-xs">
-                  <span className="text-slate-600">KISS ME</span>{' '}
-                  <strong className="text-slate-800">{cfg.cobertura_kissme.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
+                  <span className="text-amber-600 font-semibold">C</span>{' '}
+                  <strong className="text-slate-800">{cfg.cobertura_min_c.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
+                </span>
+                <span className="text-slate-300">|</span>
+                <span className="text-xs">
+                  <span className="text-red-600 font-semibold">D</span>{' '}
+                  <strong className="text-slate-800">{cfg.cobertura_min_d.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong>
                 </span>
                 <span className="text-slate-300">|</span>
                 <span className={`text-xs px-1.5 py-0.5 rounded ${cfg.usar_corte_minimo ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -2331,23 +2371,29 @@ export default function SugestaoPlanoPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
-                <div className="text-[11px] text-gray-500">Cob. Pós Top30</div>
-                <div className="text-xl font-bold text-gray-900 leading-tight">
-                  {resumoCoberturaPos.top30.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                <div className="text-[11px] text-gray-500">Cob. Pós Curva A</div>
+                <div className="text-xl font-bold text-emerald-700 leading-tight">
+                  {resumoCoberturaPos.curvaA.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
                 </div>
               </div>
-              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
-                <div className="text-[11px] text-gray-500">Cob. Pós KISS ME</div>
-                <div className="text-xl font-bold text-gray-900 leading-tight">
-                  {resumoCoberturaPos.kiss.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
+              <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5">
+                <div className="text-[11px] text-gray-500">Cob. Pós Curva B</div>
+                <div className="text-xl font-bold text-blue-700 leading-tight">
+                  {resumoCoberturaPos.curvaB.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
                 </div>
               </div>
-              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
-                <div className="text-[11px] text-gray-500">Cob. Pós Demais</div>
-                <div className="text-xl font-bold text-gray-900 leading-tight">
-                  {resumoCoberturaPos.demais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5">
+                <div className="text-[11px] text-gray-500">Cob. Pós Curva C</div>
+                <div className="text-xl font-bold text-amber-700 leading-tight">
+                  {resumoCoberturaPos.curvaC.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
+                </div>
+              </div>
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2.5">
+                <div className="text-[11px] text-gray-500">Cob. Pós Curva D</div>
+                <div className="text-xl font-bold text-red-700 leading-tight">
+                  {resumoCoberturaPos.curvaD.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
                 </div>
               </div>
             </div>
@@ -2559,15 +2605,15 @@ export default function SugestaoPlanoPage() {
                         </div>
                       </div>
                       <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
-                        <div className="text-[11px] text-gray-500">Cob. estimada Top30 / KISS</div>
+                        <div className="text-[11px] text-gray-500">Cob. estimada A / B</div>
                         <div className="text-lg font-bold text-gray-900 leading-tight">
-                          {diagnosticoCapacidadeUL.top30Estimado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x / {diagnosticoCapacidadeUL.kissEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
+                          <span className="text-emerald-600">{diagnosticoCapacidadeUL.curvaAEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</span> / <span className="text-blue-600">{diagnosticoCapacidadeUL.curvaBEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</span>
                         </div>
                       </div>
                       <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
-                        <div className="text-[11px] text-gray-500">Cob. estimada Demais</div>
-                        <div className="text-xl font-bold text-gray-900 leading-tight">
-                          {diagnosticoCapacidadeUL.demaisEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x
+                        <div className="text-[11px] text-gray-500">Cob. estimada C / D</div>
+                        <div className="text-lg font-bold text-gray-900 leading-tight">
+                          <span className="text-amber-600">{diagnosticoCapacidadeUL.curvaCEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</span> / <span className="text-red-600">{diagnosticoCapacidadeUL.curvaDEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</span>
                         </div>
                       </div>
                     </div>
@@ -2575,11 +2621,12 @@ export default function SugestaoPlanoPage() {
                     <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-3">
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <div className="text-xs font-semibold uppercase tracking-wide text-blue-800">Cobertura sugerida automática</div>
+                          <div className="text-xs font-semibold uppercase tracking-wide text-blue-800">Cobertura sugerida automática por Curva</div>
                           <div className="mt-1 text-sm text-slate-700">
-                            Top30 <strong>{coberturaSugeridaAutomatica.top30.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</strong>
-                            {' '}· KISS ME <strong>{coberturaSugeridaAutomatica.kiss.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</strong>
-                            {' '}· Demais <strong>{coberturaSugeridaAutomatica.demais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</strong>
+                            <span className="text-emerald-600 font-semibold">A</span> <strong>{coberturaSugeridaAutomatica.curvaA.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</strong>
+                            {' '}· <span className="text-blue-600 font-semibold">B</span> <strong>{coberturaSugeridaAutomatica.curvaB.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</strong>
+                            {' '}· <span className="text-amber-600 font-semibold">C</span> <strong>{coberturaSugeridaAutomatica.curvaC.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</strong>
+                            {' '}· <span className="text-red-600 font-semibold">D</span> <strong>{coberturaSugeridaAutomatica.curvaD.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x</strong>
                           </div>
                           <div className="mt-1 text-[11px] text-slate-600">{coberturaSugeridaAutomatica.observacao}</div>
                         </div>
@@ -2588,9 +2635,10 @@ export default function SugestaoPlanoPage() {
                           className="rounded-md border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100"
                           onClick={() => setCfg((prev) => ({
                             ...prev,
-                            cobertura_top30: coberturaSugeridaAutomatica.top30,
-                            cobertura_demais: coberturaSugeridaAutomatica.demais,
-                            cobertura_kissme: coberturaSugeridaAutomatica.kiss,
+                            cobertura_min_a: coberturaSugeridaAutomatica.curvaA,
+                            cobertura_min_b: coberturaSugeridaAutomatica.curvaB,
+                            cobertura_min_c: coberturaSugeridaAutomatica.curvaC,
+                            cobertura_min_d: coberturaSugeridaAutomatica.curvaD,
                           }))}
                         >
                           Usar Cobertura Sugerida
@@ -2665,7 +2713,7 @@ export default function SugestaoPlanoPage() {
                               cod_situacao: '',
                               linha: '',
                               grupoProduto: '',
-                              classe: 'DEMAIS',
+                              curvaABCItem: 'B',
                               estoqueAtual: 0,
                               pedidosPendentes: 0,
                               emProcesso: 0,
@@ -2853,7 +2901,7 @@ export default function SugestaoPlanoPage() {
                   <th className="sticky left-0 z-30 text-left px-2 py-2 whitespace-nowrap min-w-[110px] bg-slate-100 text-slate-900 shadow-[1px_0_0_0_rgba(148,163,184,0.35)]">Ref</th>
                   <th className="text-left px-2 py-2 whitespace-nowrap">Cor</th>
                   <th className="text-left px-2 py-2 whitespace-nowrap">Tam</th>
-                  <th className="text-left px-2 py-2 whitespace-nowrap">Classe</th>
+                  <th className="text-left px-2 py-2 whitespace-nowrap">Curva</th>
                   <th className="text-right px-2 py-2 whitespace-nowrap bg-stone-200">Estoque</th>
                   <th className="text-right px-2 py-2 whitespace-nowrap bg-stone-200">Proc.</th>
                   <th className="text-right px-2 py-2 whitespace-nowrap bg-stone-200">Disp. Atual</th>
@@ -3050,7 +3098,7 @@ export default function SugestaoPlanoPage() {
                                   <td className={`sticky left-0 z-20 px-2 py-1.5 font-semibold whitespace-nowrap min-w-[110px] ${rowBgClass} shadow-[1px_0_0_0_rgba(148,163,184,0.24)]`}>{r.referencia}</td>
                                   <td className="px-2 py-1.5 whitespace-nowrap">{r.cor}</td>
                                   <td className="px-2 py-1.5 whitespace-nowrap">{r.tamanho}</td>
-                                  <td className="px-2 py-1.5 whitespace-nowrap">{r.classe}</td>
+                                  <td className={`px-2 py-1.5 whitespace-nowrap font-semibold ${r.curvaABCItem === 'A' ? 'text-emerald-600' : r.curvaABCItem === 'B' ? 'text-blue-600' : r.curvaABCItem === 'C' ? 'text-amber-600' : 'text-red-600'}`}>{r.curvaABCItem}</td>
                                   <td className="px-2 py-1.5 text-right bg-stone-50">{fmt(r.estoqueAtual)}</td>
                                   <td className="px-2 py-1.5 text-right bg-stone-50">{fmt(r.emProcesso)}</td>
                                   <td className="px-2 py-1.5 text-right font-semibold bg-stone-50">{fmt(r.dispAtualComProcesso)}</td>
