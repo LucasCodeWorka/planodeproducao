@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Planejamento, ProjecoesMap, PeriodosPlano, EstoqueLojaDisponivelAggregado } from '../types';
@@ -19,11 +19,11 @@ function situacao(estoque: number, pedidos: number, estoqueMin: number): Situaca
   return 'ok';
 }
 
-// ─── GrupoTotais ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ GrupoTotais â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface GrupoTotais {
   estoque: number; emProcesso: number; estoqueMin: number;
-  pedidos: number; disponivel: number; deficit: number; abaixo: number;
+  pedidos: number; disponivel: number; disponivelPosProcesso: number; deficit: number; deficitPosProcesso: number; abaixo: number;
   planoMA: number; planoPX: number; planoUL: number; planoQT: number;
   projMA:  number; projPX:  number; projUL:  number; projQT: number;
   projJan: number; projFev: number; projMarProp: number;
@@ -51,6 +51,7 @@ function somar(
     const real    = vendasReais[i.produto.idproduto] ?? null;
     const hasProj = proj !== null;
     const emP = i.estoques.em_processo || 0;
+    const dispPosProcesso = disp + emP;
     const pMA = i.plano?.ma || 0;
     const pPX = i.plano?.px || 0;
     const pUL = i.plano?.ul || 0;
@@ -76,7 +77,9 @@ function somar(
       estoqueMin: acc.estoqueMin + (i.estoques.estoque_minimo || 0),
       pedidos:    acc.pedidos    + (i.demanda.pedidos_pendentes || 0),
       disponivel: acc.disponivel + disp,
+      disponivelPosProcesso: acc.disponivelPosProcesso + dispPosProcesso,
       deficit:    acc.deficit    + (disp < 0 ? disp : 0),
+      deficitPosProcesso: acc.deficitPosProcesso + (dispPosProcesso < 0 ? dispPosProcesso : 0),
       abaixo:     acc.abaixo     + (disp >= 0 && disp < (i.estoques.estoque_minimo || 0) ? 1 : 0),
       planoMA:    acc.planoMA    + pMA,
       planoPX:    acc.planoPX    + pPX,
@@ -104,7 +107,7 @@ function somar(
       excedenteLojas: acc.excedenteLojas + excLoja,
     };
   }, {
-    estoque:0, emProcesso:0, estoqueMin:0, pedidos:0, disponivel:0, deficit:0, abaixo:0,
+    estoque:0, emProcesso:0, estoqueMin:0, pedidos:0, disponivel:0, disponivelPosProcesso:0, deficit:0, deficitPosProcesso:0, abaixo:0,
     planoMA:0, planoPX:0, planoUL:0, planoQT:0, projMA:0, projPX:0, projUL:0, projQT:0,
     projJan:0, projFev:0, projMarProp:0, vendaJan:0, vendaFev:0, vendaMar:0,
     dispFutMar:0, dispFutAbr:0, dispFutMai:0, dispFutJun:0, negFutMar:0, negFutAbr:0, negFutMai:0, negFutJun:0, projCount:0,
@@ -158,7 +161,7 @@ function agrupar(
     });
 }
 
-// ─── Cells ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Cells â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Regra de cor: texto escuro (gray-800) no claro, claro (gray-100) no escuro.
 // Cor só para alertas: vermelho = déficit, âmbar = abaixo do mínimo.
 
@@ -230,7 +233,7 @@ function CellTaxa({ venda, proj, dark = false }: { venda: number; proj: number; 
   return <span title={tooltip} className={dark ? DK : D}>{s}</span>;
 }
 
-// ─── Props ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Props â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface Props {
   dados:        Planejamento[];
@@ -251,7 +254,7 @@ interface Props {
   curvaABC?: Record<string, 'A' | 'B' | 'C' | 'D'>;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function MatrizPlanejamentoTable({
   dados,
@@ -272,7 +275,7 @@ export default function MatrizPlanejamentoTable({
   curvaABC = {},
 }: Props) {
   type SortKey =
-    | 'estoque' | 'emProcesso' | 'estoqueMin' | 'pedidos' | 'disponivel' | 'negativo' | 'cobertura'
+    | 'estoque' | 'emProcesso' | 'estoqueMin' | 'pedidos' | 'disponivel' | 'disponivelPosProcesso' | 'negativo' | 'negativoPosProcesso' | 'cobertura'
     | 'taxaJan' | 'taxaFev' | 'taxaMar'
     | 'projMA' | 'planoMA' | 'dispMA' | 'cobMA'
     | 'projPX' | 'planoPX' | 'dispPX' | 'cobPX'
@@ -385,7 +388,7 @@ export default function MatrizPlanejamentoTable({
       });
     }
 
-    // Filtro customizado por cobertura mínima (SEM considerar em_processo)
+    // Filtro customizado por cobertura mÃ­nima (SEM considerar em_processo)
     if (filtroCoberturaMinima.trim()) {
       const valorCobertura = parseFloat(filtroCoberturaMinima);
       console.log('[TABELA] Filtro cobertura recebido:', filtroCoberturaMinima, 'valor:', valorCobertura);
@@ -393,7 +396,7 @@ export default function MatrizPlanejamentoTable({
       if (!isNaN(valorCobertura)) {
         base = base.filter((i) => {
           // Cobertura ATUAL = (estoque - pedidos) / estoque_minimo
-          // NÃO inclui em_processo pois queremos saber o que NÃO precisa produzir
+          // NÃƒO inclui em_processo pois queremos saber o que NÃƒO precisa produzir
           const estoqueAtual = Number(i.estoques?.estoque_atual || 0);
           const pedidos = Number(i.demanda?.pedidos_pendentes || 0);
           const estoqueMin = Number(i.estoques?.estoque_minimo || 0);
@@ -405,7 +408,7 @@ export default function MatrizPlanejamentoTable({
       }
     }
 
-    // Filtro customizado por em processo mínimo
+    // Filtro customizado por em processo mÃ­nimo
     if (filtroEmProcessoMinimo.trim()) {
       const valorProcesso = parseFloat(filtroEmProcessoMinimo);
       if (!isNaN(valorProcesso)) {
@@ -450,7 +453,9 @@ export default function MatrizPlanejamentoTable({
         case 'estoqueMin': return t.estoqueMin;
         case 'pedidos': return t.pedidos;
         case 'disponivel': return t.disponivel;
+        case 'disponivelPosProcesso': return t.disponivelPosProcesso;
         case 'negativo': return Math.abs(t.deficit);
+        case 'negativoPosProcesso': return Math.abs(t.deficitPosProcesso);
         case 'cobertura': return t.estoqueMin > 0 ? t.disponivel / t.estoqueMin : Number.NEGATIVE_INFINITY;
         case 'taxaJan': return t.projJan > 0 ? t.vendaJan / t.projJan : Number.NEGATIVE_INFINITY;
         case 'taxaFev': return t.projFev > 0 ? t.vendaFev / t.projFev : Number.NEGATIVE_INFINITY;
@@ -493,6 +498,7 @@ export default function MatrizPlanejamentoTable({
       const vdJan = real ? (real['1'] ?? 0) : 0;
       const vdFev = real ? (real['2'] ?? 0) : 0;
       const vdMar = real ? (real['3'] ?? 0) : 0;
+      const dispPosProcesso = disp + emP;
       const dMA = disp + emP + pMA - prMA;
       const dPX = dMA + pPX - prPX;
       const dUL = dPX + pUL - prUL;
@@ -505,7 +511,9 @@ export default function MatrizPlanejamentoTable({
         case 'estoqueMin': return min;
         case 'pedidos': return i.demanda.pedidos_pendentes || 0;
         case 'disponivel': return disp;
+        case 'disponivelPosProcesso': return dispPosProcesso;
         case 'negativo': return disp < 0 ? Math.abs(disp) : 0;
+        case 'negativoPosProcesso': return dispPosProcesso < 0 ? Math.abs(dispPosProcesso) : 0;
         case 'cobertura': return min > 0 ? disp / min : Number.NEGATIVE_INFINITY;
         case 'taxaJan': return prJan > 0 ? vdJan / prJan : Number.NEGATIVE_INFINITY;
         case 'taxaFev': return prFev > 0 ? vdFev / prFev : Number.NEGATIVE_INFINITY;
@@ -586,7 +594,7 @@ export default function MatrizPlanejamentoTable({
     };
     const header = [
       'continuidade', 'referencia', 'produto', 'idproduto', 'cor', 'tamanho',
-      'estoque', 'em_processo', 'estoque_minimo', 'pedidos', 'disponivel_atual', 'negativo_atual', 'cobertura_atual',
+      'estoque_minimo', 'estoque', 'pedidos', 'disponivel_atual', 'em_processo', 'disponivel_pos_processo', 'negativo_atual', 'negativo_pos_processo', 'cobertura_atual',
       'taxa_jan_pct', 'taxa_fev_pct', 'taxa_mar_pct',
       `proj_${mNomes[0]}`, `plano_${mNomes[0]}`, `disp_${mNomes[0]}`, `neg_${mNomes[0]}`, `cob_${mNomes[0]}`,
       `proj_${mNomes[1]}`, `plano_${mNomes[1]}`, `disp_${mNomes[1]}`, `neg_${mNomes[1]}`, `cob_${mNomes[1]}`,
@@ -617,6 +625,7 @@ export default function MatrizPlanejamentoTable({
       const projJan = proj ? (proj['1'] ?? 0) : 0;
       const projFev = proj ? (proj['2'] ?? 0) : 0;
       const projMar = proj ? (proj['3'] ?? 0) * marFactor : 0;
+      const dispPosProcesso = dispAtual + emP;
       const cobAtual = min > 0 ? Number((dispAtual / min).toFixed(2)) : null;
       const cobMA = min > 0 ? Number((dMA / min).toFixed(2)) : null;
       const cobPX = min > 0 ? Number((dPX / min).toFixed(2)) : null;
@@ -630,12 +639,14 @@ export default function MatrizPlanejamentoTable({
         item.produto.idproduto || '',
         item.produto.cor || '',
         item.produto.tamanho || '',
-        Number(item.estoques.estoque_atual || 0),
-        Number(emP),
         Number(min),
+        Number(item.estoques.estoque_atual || 0),
         Number(item.demanda.pedidos_pendentes || 0),
         Number(dispAtual),
+        Number(emP),
+        Number(dispPosProcesso),
         dispAtual < 0 ? Math.abs(dispAtual) : 0,
+        dispPosProcesso < 0 ? Math.abs(dispPosProcesso) : 0,
         cobAtual,
         fmtTaxaCsv(vendaJan, projJan),
         fmtTaxaCsv(vendaFev, projFev),
@@ -681,19 +692,21 @@ export default function MatrizPlanejamentoTable({
           <thead className="sticky top-0 z-30">
             {temProjecoes ? (
               <>
-                {/* Row 1 — group labels */}
+                {/* Row 1 â€” group labels */}
                 <tr className="bg-brand-dark text-gray-200 text-[11px] font-semibold uppercase tracking-wide">
                   <th rowSpan={2} className="sticky left-0 z-40 px-2 py-2.5 text-left w-[240px] min-w-[240px] max-w-[240px] border-b border-gray-600 bg-brand-dark shadow-[1px_0_0_0_rgba(55,65,81,0.5)]">Referência / Produto</th>
                   <th rowSpan={2} className="px-2 py-2.5 text-center border-b border-gray-600 bg-brand-dark w-[50px]">Curva</th>
+                  <th rowSpan={2} onClick={() => onSortClick('estoqueMin')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Est. Mín.{sortBadge('estoqueMin')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('estoque')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Estoque{sortBadge('estoque')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('pedidos')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Pedidos{sortBadge('pedidos')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('disponivel')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Disponível{sortBadge('disponivel')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('emProcesso')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Em Proc.{sortBadge('emProcesso')}</th>
                   {excedentesLojas && excedentesLojas.size > 0 && (
                     <th rowSpan={2} className="px-3 py-3.5 text-right border-b border-gray-600 bg-purple-900 text-purple-200">Estq. Lojas</th>
                   )}
-                  <th rowSpan={2} onClick={() => onSortClick('estoqueMin')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Est. Mín.{sortBadge('estoqueMin')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('pedidos')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Pedidos{sortBadge('pedidos')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('disponivel')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Disponível{sortBadge('disponivel')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('disponivelPosProcesso')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Disp. Pós Proc.{sortBadge('disponivelPosProcesso')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('negativo')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Negativo{sortBadge('negativo')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('negativoPosProcesso')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Neg. Pós Proc.{sortBadge('negativoPosProcesso')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('cobertura')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Cobertura{sortBadge('cobertura')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('taxaJan')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Taxa Jan{sortBadge('taxaJan')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('taxaFev')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Taxa Fev{sortBadge('taxaFev')}</th>
@@ -703,7 +716,7 @@ export default function MatrizPlanejamentoTable({
                   <th colSpan={5} className="px-3 py-3.5 text-center bg-amber-700 border-b border-amber-600 font-bold">{mNomes[2]}</th>
                   <th colSpan={5} className="px-3 py-3.5 text-center bg-cyan-800 border-b border-cyan-700 font-bold">{mNomes[3]}</th>
                 </tr>
-                {/* Row 2 — sub-headers */}
+                {/* Row 2 â€” sub-headers */}
                 <tr className="text-gray-300">
                   {([
                     { bg: 'bg-indigo-900', label: 'Proj.', key: 'projMA' as const },
@@ -737,15 +750,17 @@ export default function MatrizPlanejamentoTable({
               <tr className="bg-brand-dark text-gray-200 text-[11px] font-semibold uppercase tracking-wide">
                 <th className="sticky left-0 z-40 px-2 py-2.5 text-left w-[240px] min-w-[240px] max-w-[240px] bg-brand-dark shadow-[1px_0_0_0_rgba(55,65,81,0.5)]">Referência / Produto</th>
                 <th className="px-2 py-2.5 text-center bg-brand-dark w-[50px]">Curva</th>
+                <th onClick={() => onSortClick('estoqueMin')} className="px-3 py-3 text-right cursor-pointer">Est. Mín.{sortBadge('estoqueMin')}</th>
                 <th onClick={() => onSortClick('estoque')} className="px-3 py-3 text-right cursor-pointer">Estoque{sortBadge('estoque')}</th>
+                <th onClick={() => onSortClick('pedidos')} className="px-3 py-3 text-right cursor-pointer">Pedidos{sortBadge('pedidos')}</th>
+                <th onClick={() => onSortClick('disponivel')} className="px-3 py-3 text-right cursor-pointer">Disponível{sortBadge('disponivel')}</th>
                 <th onClick={() => onSortClick('emProcesso')} className="px-3 py-3 text-right cursor-pointer">Em Proc.{sortBadge('emProcesso')}</th>
                 {excedentesLojas && excedentesLojas.size > 0 && (
                   <th className="px-3 py-3 text-right bg-purple-900 text-purple-200">Estq. Lojas</th>
                 )}
-                <th onClick={() => onSortClick('estoqueMin')} className="px-3 py-3 text-right cursor-pointer">Est. Mín.{sortBadge('estoqueMin')}</th>
-                <th onClick={() => onSortClick('pedidos')} className="px-3 py-3 text-right cursor-pointer">Pedidos{sortBadge('pedidos')}</th>
-                <th onClick={() => onSortClick('disponivel')} className="px-3 py-3 text-right cursor-pointer">Disponível{sortBadge('disponivel')}</th>
+                <th onClick={() => onSortClick('disponivelPosProcesso')} className="px-3 py-3 text-right cursor-pointer">Disp. Pós Proc.{sortBadge('disponivelPosProcesso')}</th>
                 <th onClick={() => onSortClick('negativo')} className="px-3 py-3 text-right cursor-pointer">Negativo{sortBadge('negativo')}</th>
+                <th onClick={() => onSortClick('negativoPosProcesso')} className="px-3 py-3 text-right cursor-pointer">Neg. Pós Proc.{sortBadge('negativoPosProcesso')}</th>
                 <th onClick={() => onSortClick('cobertura')} className="px-3 py-3 text-right cursor-pointer">Cobertura{sortBadge('cobertura')}</th>
                 <th onClick={() => onSortClick('taxaJan')} className="px-3 py-3 text-right cursor-pointer">Taxa Jan{sortBadge('taxaJan')}</th>
                 <th onClick={() => onSortClick('taxaFev')} className="px-3 py-3 text-right cursor-pointer">Taxa Fev{sortBadge('taxaFev')}</th>
@@ -766,7 +781,7 @@ export default function MatrizPlanejamentoTable({
               return (
                 <React.Fragment key={grupo.continuidade}>
 
-                  {/* ── continuidade ── */}
+                  {/* â”€â”€ continuidade â”€â”€ */}
                   <tr
                     onClick={() => toggleCont(grupo.continuidade)}
                     className="group cursor-pointer select-none transition-colors bg-[#585858] hover:bg-[#4a4a4a]"
@@ -777,7 +792,14 @@ export default function MatrizPlanejamentoTable({
                       <BadgeSit t={gt} />
                     </td>
                     <td className="px-2 py-2.5 text-center text-gray-500 text-[10px]">—</td>
+                    <td className="px-2 py-2.5 text-right text-gray-400 font-mono text-[11px] tabular-nums">{fmt(gt.estoqueMin)}</td>
                     <td className="px-2 py-2.5 text-right text-gray-200 font-mono text-[11px] tabular-nums font-semibold">{fmt(gt.estoque)}</td>
+                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
+                      {gt.pedidos > 0 ? <span className="text-brand-secondary font-semibold">{fmt(gt.pedidos)}</span> : <span className="text-gray-600">—</span>}
+                    </td>
+                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums font-bold">
+                      <CellDisp v={gt.disponivel} min={gt.estoqueMin} dark />
+                    </td>
                     <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
                       {gt.emProcesso > 0 ? <span className="text-gray-200 font-semibold">{fmt(gt.emProcesso)}</span> : <span className="text-gray-600">—</span>}
                     </td>
@@ -786,15 +808,14 @@ export default function MatrizPlanejamentoTable({
                         {gt.excedenteLojas > 0 ? <span className="text-purple-300 font-semibold">{fmt(gt.excedenteLojas)}</span> : <span className="text-gray-600">—</span>}
                       </td>
                     )}
-                    <td className="px-2 py-2.5 text-right text-gray-400 font-mono text-[11px] tabular-nums">{fmt(gt.estoqueMin)}</td>
-                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
-                      {gt.pedidos > 0 ? <span className="text-brand-secondary font-semibold">{fmt(gt.pedidos)}</span> : <span className="text-gray-600">—</span>}
-                    </td>
                     <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums font-bold">
-                      <CellDisp v={gt.disponivel} min={gt.estoqueMin} dark />
+                      <CellDisp v={gt.disponivelPosProcesso} min={gt.estoqueMin} dark />
                     </td>
                     <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
                       <CellNegativo v={gt.deficit} dark />
+                    </td>
+                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
+                      <CellNegativo v={gt.deficitPosProcesso} dark />
                     </td>
                     <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums font-semibold">
                       <CellCob disp={gt.disponivel} min={gt.estoqueMin} dark />
@@ -884,7 +905,7 @@ export default function MatrizPlanejamentoTable({
                     return (
                       <React.Fragment key={refKey}>
 
-                        {/* ── referência ── */}
+                        {/* â”€â”€ referÃªncia â”€â”€ */}
                         <tr
                           onClick={() => toggleRef(refKey)}
                           className={`group cursor-pointer select-none transition-colors text-xs
@@ -914,7 +935,14 @@ export default function MatrizPlanejamentoTable({
                               return <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${curvaClass}`}>{curva}</span>;
                             })()}
                           </td>
+                          <td className="px-3 py-3.5 text-right font-mono tabular-nums text-slate-500">{fmt(rt.estoqueMin)}</td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums text-slate-700 font-semibold">{fmt(rt.estoque)}</td>
+                          <td className="px-3 py-3.5 text-right font-mono tabular-nums">
+                            {rt.pedidos > 0 ? <span className="text-gray-700 font-semibold">{fmt(rt.pedidos)}</span> : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="px-3 py-3.5 text-right font-mono tabular-nums font-bold">
+                            <CellDisp v={rt.disponivel} min={rt.estoqueMin} />
+                          </td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums">
                             {rt.emProcesso > 0 ? <span className="text-gray-700 font-semibold">{fmt(rt.emProcesso)}</span> : <span className="text-slate-300">—</span>}
                           </td>
@@ -923,15 +951,14 @@ export default function MatrizPlanejamentoTable({
                               {rt.excedenteLojas > 0 ? <span className="text-purple-700 font-semibold">{fmt(rt.excedenteLojas)}</span> : <span className="text-slate-300">—</span>}
                             </td>
                           )}
-                          <td className="px-3 py-3.5 text-right font-mono tabular-nums text-slate-500">{fmt(rt.estoqueMin)}</td>
-                          <td className="px-3 py-3.5 text-right font-mono tabular-nums">
-                            {rt.pedidos > 0 ? <span className="text-gray-700 font-semibold">{fmt(rt.pedidos)}</span> : <span className="text-slate-300">—</span>}
-                          </td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums font-bold">
-                            <CellDisp v={rt.disponivel} min={rt.estoqueMin} />
+                            <CellDisp v={rt.disponivelPosProcesso} min={rt.estoqueMin} />
                           </td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums">
                             <CellNegativo v={rt.deficit} />
+                          </td>
+                          <td className="px-3 py-3.5 text-right font-mono tabular-nums">
+                            <CellNegativo v={rt.deficitPosProcesso} />
                           </td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums">
                             <CellCob disp={rt.disponivel} min={rt.estoqueMin} />
@@ -942,64 +969,64 @@ export default function MatrizPlanejamentoTable({
                           {temProjecoes ? (
                             <>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-violet-50">
-                                {rt.projCount > 0 ? <CellProj v={rt.projMA} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellProj v={rt.projMA} /> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-indigo-50">
                                 <CellPlano v={rt.planoMA} />
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-indigo-50">
-                                {rt.projCount > 0 ? <CellDispFut v={rt.dispFutMar} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellDispFut v={rt.dispFutMar} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-indigo-50">
-                                {rt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(rt.negFutMar)}</span> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(rt.negFutMar)}</span> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-indigo-50">
-                                {rt.projCount > 0 ? <CellCobFut v={rt.dispFutMar} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellCobFut v={rt.dispFutMar} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-emerald-50">
-                                {rt.projCount > 0 ? <CellProj v={rt.projPX} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellProj v={rt.projPX} /> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-emerald-50">
                                 <CellPlano v={rt.planoPX} />
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-emerald-50">
-                                {rt.projCount > 0 ? <CellDispFut v={rt.dispFutAbr} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellDispFut v={rt.dispFutAbr} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-emerald-50">
-                                {rt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(rt.negFutAbr)}</span> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(rt.negFutAbr)}</span> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-emerald-50">
-                                {rt.projCount > 0 ? <CellCobFut v={rt.dispFutAbr} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellCobFut v={rt.dispFutAbr} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-amber-50">
-                                {rt.projCount > 0 ? <CellProj v={rt.projUL} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellProj v={rt.projUL} /> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-amber-50">
                                 <CellPlano v={rt.planoUL} />
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-amber-50">
-                                {rt.projCount > 0 ? <CellDispFut v={rt.dispFutMai} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellDispFut v={rt.dispFutMai} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-amber-50">
-                                {rt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(rt.negFutMai)}</span> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(rt.negFutMai)}</span> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-amber-50">
-                                {rt.projCount > 0 ? <CellCobFut v={rt.dispFutMai} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellCobFut v={rt.dispFutMai} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
-                                {rt.projCount > 0 ? <CellProj v={rt.projQT} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellProj v={rt.projQT} /> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
                                 <CellPlano v={rt.planoQT} />
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
-                                {rt.projCount > 0 ? <CellDispFut v={rt.dispFutJun} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellDispFut v={rt.dispFutJun} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
-                                {rt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(rt.negFutJun)}</span> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(rt.negFutJun)}</span> : <span className="text-slate-300">—</span>}
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
-                                {rt.projCount > 0 ? <CellCobFut v={rt.dispFutJun} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                            {rt.projCount > 0 ? <CellCobFut v={rt.dispFutJun} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
                               </td>
                             </>
                           ) : (
@@ -1012,12 +1039,13 @@ export default function MatrizPlanejamentoTable({
                           )}
                         </tr>
 
-                        {/* ── SKUs ── */}
+                        {/* â”€â”€ SKUs â”€â”€ */}
                         {refOpen && ref.itens.map(item => {
                           const disp    = item.estoques.estoque_atual - item.demanda.pedidos_pendentes;
                           const sit     = situacao(item.estoques.estoque_atual, item.demanda.pedidos_pendentes, item.estoques.estoque_minimo);
                           const proj    = projecoes[item.produto.idproduto] ?? null;
                           const emP     = item.estoques.em_processo || 0;
+                          const dispPosProcesso = disp + emP;
                           const pMA     = item.plano?.ma || 0;
                           const pPX     = item.plano?.px || 0;
                           const pUL     = item.plano?.ul || 0;
@@ -1060,8 +1088,15 @@ export default function MatrizPlanejamentoTable({
                                   return <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${curvaClass}`}>{curva}</span>;
                                 })()}
                               </td>
+                              <td className="px-3 py-3 text-right font-mono tabular-nums text-gray-400">{fmt(eMin)}</td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
                                 {item.estoques.estoque_atual > 0 ? <span className="text-gray-700">{fmt(item.estoques.estoque_atual)}</span> : <span className="text-gray-300">0</span>}
+                              </td>
+                              <td className="px-3 py-3 text-right font-mono tabular-nums">
+                                {item.demanda.pedidos_pendentes > 0 ? <span className="text-gray-700">{fmt(item.demanda.pedidos_pendentes)}</span> : <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="px-3 py-3 text-right font-mono tabular-nums font-semibold">
+                                <CellDisp v={disp} min={eMin} />
                               </td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
                                 {emP > 0 ? (
@@ -1088,15 +1123,14 @@ export default function MatrizPlanejamentoTable({
                                   </td>
                                 );
                               })()}
-                              <td className="px-3 py-3 text-right font-mono tabular-nums text-gray-400">{fmt(eMin)}</td>
-                              <td className="px-3 py-3 text-right font-mono tabular-nums">
-                                {item.demanda.pedidos_pendentes > 0 ? <span className="text-gray-700">{fmt(item.demanda.pedidos_pendentes)}</span> : <span className="text-gray-300">—</span>}
-                              </td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums font-semibold">
-                                <CellDisp v={disp} min={eMin} />
+                                <CellDisp v={dispPosProcesso} min={eMin} />
                               </td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
                                 <CellNegativo v={disp} />
+                              </td>
+                              <td className="px-3 py-3 text-right font-mono tabular-nums">
+                                <CellNegativo v={dispPosProcesso} />
                               </td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
                                 <CellCob disp={disp} min={eMin} />
@@ -1205,10 +1239,10 @@ export default function MatrizPlanejamentoTable({
         {temProjecoes && (
           <span className="flex items-center gap-1.5 text-violet-600">
             <span className="w-2 h-2 rounded-full bg-violet-400 inline-block"/>
-            Disp. futuro = Disp. + Em Proc. + Plano − Projeção
+            Disp. futuro = Disp. + Em Proc. + Plano - Projeção
           </span>
         )}
-        <span className="ml-auto text-gray-400">Disponível = Estoque − Pedidos · Cobertura = Disp. ÷ Est. Mín.</span>
+        <span className="ml-auto text-gray-400">Disponível = Estoque - Pedidos · Disponível Pós Processo = Disponível + Em Processo · Cobertura = Disp. / Est. Mín.</span>
       </div>
 
       {/* Modal Em Processo por Local */}
