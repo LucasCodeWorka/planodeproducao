@@ -48,6 +48,27 @@ type ReprojecaoPreview = {
   recalculada: { ma: number; px: number; ul: number; qt?: number };
 };
 
+type ExecucaoPlanoItem = {
+  qtdReal: number;
+  qtdFinalizada: number;
+  percentual: number | null;
+};
+
+type ExecucaoPlanoResumo = {
+  geral: {
+    MA: ExecucaoPlanoItem | null;
+    PX: ExecucaoPlanoItem | null;
+    UL: ExecucaoPlanoItem | null;
+    QT: ExecucaoPlanoItem | null;
+  };
+  continuidade: Record<string, {
+    MA: ExecucaoPlanoItem | null;
+    PX: ExecucaoPlanoItem | null;
+    UL: ExecucaoPlanoItem | null;
+    QT: ExecucaoPlanoItem | null;
+  }>;
+};
+
 function mesNormalizado(mes: number) {
   const m = Number(mes || 0);
   if (!Number.isFinite(m) || m <= 0) return 1;
@@ -57,6 +78,12 @@ function mesNormalizado(mes: number) {
 function nomeMesCurto(mes: number) {
   return new Date(2000, mesNormalizado(mes) - 1, 1).toLocaleString('pt-BR', { month: 'short' });
 }
+
+function formatPct(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—';
+  return `${value.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
 
 function chaveItem(item: Planejamento) {
   const id = Number(item.produto.idproduto);
@@ -111,6 +138,11 @@ export default function Home() {
   const [carregandoEstoqueLojas, setCarregandoEstoqueLojas] = useState(false);
   const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
   const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
+  const [execucaoPlanoResumo, setExecucaoPlanoResumo] = useState<ExecucaoPlanoResumo | null>(null);
+  const [indicadoresLocais, setIndicadoresLocais] = useState<{
+    oficinas: { nome: string; pior_dias: number; media_dias: number }[];
+    outrosLocais: { nome: string; pior_dias: number; media_dias: number }[];
+  }>({ oficinas: [], outrosLocais: [] });
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reprojecaoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -127,8 +159,24 @@ export default function Home() {
     buscarTop30();
     buscarAprovadas();
     buscarCurvaABC();
+    buscarIndicadoresOutrosLocais();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function buscarIndicadoresOutrosLocais() {
+    try {
+      const desde = new Date();
+      desde.setDate(1);
+      const desdeStr = desde.toISOString().split('T')[0];
+      const res = await fetchNoCache(`${API_URL}/api/indicadores-op/outros-locais?desde=${desdeStr}`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      setIndicadoresLocais({
+        oficinas: Array.isArray(data.oficinas) ? data.oficinas.slice(0, 1) : [],
+        outrosLocais: Array.isArray(data.outrosLocais) ? data.outrosLocais.slice(0, 1) : [],
+      });
+    } catch { /* silencioso */ }
+  }
 
   async function buscarStatusCache() {
     try {
@@ -269,6 +317,7 @@ export default function Home() {
       if (!payload.success) throw new Error(payload.error || 'Erro no servidor');
       const rows = payload.data as Planejamento[];
       setDados(rows);
+      setExecucaoPlanoResumo((payload.execucaoPlanoResumo || null) as ExecucaoPlanoResumo | null);
       const ids = rows
         .map((i) => Number(i.produto.idproduto))
         .filter((n) => Number.isFinite(n))
@@ -277,6 +326,7 @@ export default function Home() {
       setFromCache(payload.fromCache ?? false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
+      setExecucaoPlanoResumo(null);
     } finally {
       setLoading(false);
     }
@@ -720,18 +770,20 @@ export default function Home() {
     let base = dadosPagina;
 
     let atual = 0;
+    let atualPosProcesso = 0;
     let ma = 0;
     let px = 0;
     let ul = 0;
     let qt = 0;
-    const porContinuidade = new Map<string, { atual: number; ma: number; px: number; ul: number; qt: number }>();
+    const porContinuidade = new Map<string, { atual: number; atualPosProcesso: number; ma: number; px: number; ul: number; qt: number }>();
 
     for (const i of base) {
       const continuidade = (i.produto.continuidade || 'SEM CONTINUIDADE').trim();
-      const bucket = porContinuidade.get(continuidade) || { atual: 0, ma: 0, px: 0, ul: 0, qt: 0 };
+      const bucket = porContinuidade.get(continuidade) || { atual: 0, atualPosProcesso: 0, ma: 0, px: 0, ul: 0, qt: 0 };
       const dispAtual = (i.estoques.estoque_atual || 0) - (i.demanda.pedidos_pendentes || 0);
       const proj = projecoesAtivas[i.produto.idproduto] ?? null;
       const emP = i.estoques.em_processo || 0;
+      const dispAtualPosProcesso = dispAtual + emP;
       const pMA = i.plano?.ma || 0;
       const pPX = i.plano?.px || 0;
       const pUL = i.plano?.ul || 0;
@@ -746,12 +798,14 @@ export default function Home() {
       const dispQT = dispUL + pQT - prQT;
 
       if (dispAtual < 0) atual += Math.abs(dispAtual);
+      if (dispAtualPosProcesso < 0) atualPosProcesso += Math.abs(dispAtualPosProcesso);
       if (dispMA < 0) ma += Math.abs(dispMA);
       if (dispPX < 0) px += Math.abs(dispPX);
       if (dispUL < 0) ul += Math.abs(dispUL);
       if (dispQT < 0) qt += Math.abs(dispQT);
 
       if (dispAtual < 0) bucket.atual += Math.abs(dispAtual);
+      if (dispAtualPosProcesso < 0) bucket.atualPosProcesso += Math.abs(dispAtualPosProcesso);
       if (dispMA < 0) bucket.ma += Math.abs(dispMA);
       if (dispPX < 0) bucket.px += Math.abs(dispPX);
       if (dispUL < 0) bucket.ul += Math.abs(dispUL);
@@ -761,6 +815,7 @@ export default function Home() {
 
     return {
       atual: Math.round(atual),
+      atualPosProcesso: Math.round(atualPosProcesso),
       ma: Math.round(ma),
       px: Math.round(px),
       ul: Math.round(ul),
@@ -769,6 +824,7 @@ export default function Home() {
         .map(([nome, valores]) => ({
           nome,
           atual: Math.round(valores.atual),
+          atualPosProcesso: Math.round(valores.atualPosProcesso),
           ma: Math.round(valores.ma),
           px: Math.round(valores.px),
           ul: Math.round(valores.ul),
@@ -1457,24 +1513,30 @@ export default function Home() {
             <div className="w-px bg-gray-100 my-3" />
 
             {/* Grupo: Déficits */}
-            <div className="bg-red-50/50 px-5 py-4 shrink-0">
+            <div className="bg-gradient-to-br from-red-50 via-white to-red-50/70 px-5 py-4 shrink-0">
               <div className="flex items-center gap-2 mb-3">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
                 <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Déficits por mês</span>
                 <div className="flex-1 h-px bg-red-100" />
               </div>
               <div className="space-y-3">
-                <div className="grid grid-cols-5 gap-6">
+                <div className="grid grid-cols-6 gap-5">
                   {[
-                    { label: 'Atual', value: resumoNegativos.atual },
-                    { label: nomeMesCurto(periodos.MA), value: resumoNegativos.ma },
-                    { label: nomeMesCurto(periodos.PX), value: resumoNegativos.px },
-                    { label: nomeMesCurto(periodos.UL), value: resumoNegativos.ul },
-                    { label: nomeMesCurto((periodos.UL || 0) + 1), value: resumoNegativos.qt },
+                    { label: 'Atual', value: resumoNegativos.atual, percentual: null },
+                    { label: 'Pos Proc.', value: resumoNegativos.atualPosProcesso, percentual: null },
+                    { label: nomeMesCurto(periodos.MA), value: resumoNegativos.ma, percentual: execucaoPlanoResumo?.geral?.MA?.percentual ?? null },
+                    { label: nomeMesCurto(periodos.PX), value: resumoNegativos.px, percentual: execucaoPlanoResumo?.geral?.PX?.percentual ?? null },
+                    { label: nomeMesCurto(periodos.UL), value: resumoNegativos.ul, percentual: execucaoPlanoResumo?.geral?.UL?.percentual ?? null },
+                    { label: nomeMesCurto((periodos.UL || 0) + 1), value: resumoNegativos.qt, percentual: execucaoPlanoResumo?.geral?.QT?.percentual ?? null },
                   ].map((c) => (
                     <div key={c.label}>
-                      <div className="text-[11px] text-red-400 mb-0.5">{c.label}</div>
-                      <div className="text-xl font-bold font-mono text-red-600">{c.value.toLocaleString('pt-BR')}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-[11px] text-red-400">{c.label}</div>
+                        <span className="text-[11px] font-semibold text-red-500">
+                          {c.percentual == null ? '' : `Plano ${formatPct(c.percentual)}`}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-xl font-bold font-mono text-red-600">{c.value.toLocaleString('pt-BR')}</div>
                     </div>
                   ))}
                 </div>
@@ -1482,31 +1544,70 @@ export default function Home() {
                   {resumoNegativos.continuidade
                     .filter((c) => ['PERMANENTE', 'PERMANENTE COR NOVA', 'EDICAO LIMITADA', 'EDIÇÃO LIMITADA'].includes((c.nome || '').toUpperCase()))
                     .map((c) => (
-                      <div key={c.nome} className="grid grid-cols-[160px_repeat(5,minmax(72px,1fr))] gap-4 items-center">
+                      <div key={c.nome} className="grid grid-cols-[160px_repeat(6,minmax(72px,1fr))] gap-4 items-start">
                         <div className="text-[11px] font-semibold uppercase tracking-wide text-red-500">{c.nome}</div>
                         <div>
                           <div className="text-[10px] text-red-300">Atual</div>
                           <div className="text-sm font-bold font-mono text-red-700">{c.atual.toLocaleString('pt-BR')}</div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.MA)}</div>
+                          <div className="text-[10px] text-red-300">Pos Proc.</div>
+                          <div className="text-sm font-bold font-mono text-red-700">{c.atualPosProcesso.toLocaleString('pt-BR')}</div>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.MA)}</div>
+                            <div className="text-[11px] font-semibold text-red-500">
+                              {execucaoPlanoResumo?.continuidade?.[c.nome]?.MA?.percentual == null ? '' : `Plano ${formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.MA?.percentual)}`}
+                            </div>
+                          </div>
                           <div className="text-sm font-bold font-mono text-red-700">{c.ma.toLocaleString('pt-BR')}</div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.PX)}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.PX)}</div>
+                            <div className="text-[11px] font-semibold text-red-500">
+                              {execucaoPlanoResumo?.continuidade?.[c.nome]?.PX?.percentual == null ? '' : `Plano ${formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.PX?.percentual)}`}
+                            </div>
+                          </div>
                           <div className="text-sm font-bold font-mono text-red-700">{c.px.toLocaleString('pt-BR')}</div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.UL)}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.UL)}</div>
+                            <div className="text-[11px] font-semibold text-red-500">
+                              {execucaoPlanoResumo?.continuidade?.[c.nome]?.UL?.percentual == null ? '' : `Plano ${formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.UL?.percentual)}`}
+                            </div>
+                          </div>
                           <div className="text-sm font-bold font-mono text-red-700">{c.ul.toLocaleString('pt-BR')}</div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-red-300">{nomeMesCurto((periodos.UL || 0) + 1)}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-[10px] text-red-300">{nomeMesCurto((periodos.UL || 0) + 1)}</div>
+                            <div className="text-[11px] font-semibold text-red-500">
+                              {execucaoPlanoResumo?.continuidade?.[c.nome]?.QT?.percentual == null ? '' : `Plano ${formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.QT?.percentual)}`}
+                            </div>
+                          </div>
                           <div className="text-sm font-bold font-mono text-red-700">{c.qt.toLocaleString('pt-BR')}</div>
                         </div>
                       </div>
                     ))}
                 </div>
+                {/* Indicadores de Tempo de OP */}
+                {(indicadoresLocais.oficinas.length > 0 || indicadoresLocais.outrosLocais.length > 0) && (
+                  <div className="flex items-center gap-6 pt-2 border-t border-red-100 text-[11px]">
+                    <span className="text-red-400 font-medium">Tempo OP:</span>
+                    {[...indicadoresLocais.oficinas, ...indicadoresLocais.outrosLocais].map((local) => (
+                      <span key={local.nome} className="flex items-center gap-1.5">
+                        <span className="font-semibold text-red-500 uppercase">{local.nome}</span>
+                        <span className="text-red-300">Pior</span>
+                        <span className="font-bold text-red-700">{local.pior_dias}d</span>
+                        <span className="text-red-300">Média</span>
+                        <span className="font-bold text-red-700">{local.media_dias}d</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
