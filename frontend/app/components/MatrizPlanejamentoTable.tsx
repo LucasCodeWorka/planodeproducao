@@ -163,6 +163,10 @@ function agrupar(
     });
 }
 
+function planoRiskClass(baseClass: string, flagged: boolean) {
+  return flagged ? `${baseClass} bg-orange-200/80 ring-1 ring-inset ring-orange-300` : baseClass;
+}
+
 // â”€â”€â”€ Cells â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Regra de cor: texto escuro (gray-800) no claro, claro (gray-100) no escuro.
 // Cor só para alertas: vermelho = déficit, âmbar = abaixo do mínimo.
@@ -202,9 +206,21 @@ function CellProj({ v, dark = false }: { v: number; dark?: boolean }) {
   return <span className={dark ? DK : D}>{fmt(v)}</span>;
 }
 
-function CellPlano({ v, dark = false }: { v: number; dark?: boolean }) {
+function CellPlano({ v, dark = false, onClick, title }: { v: number; dark?: boolean; onClick?: () => void; title?: string }) {
   if (v <= 0) return dash(dark);
-  return <span className={`font-semibold ${dark ? DK : D}`}>{fmt(v)}</span>;
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        className={`font-semibold ${dark ? DK : D} hover:underline hover:text-teal-600 cursor-pointer transition-colors`}
+        title={title || "Clique para verificar MPs"}
+      >
+        {fmt(v)}
+      </button>
+    );
+  }
+  return <span className={`font-semibold ${dark ? DK : D}`} title={title}>{fmt(v)}</span>;
 }
 
 function CellDispFut({ v, min, dark = false }: { v: number | null; min: number; dark?: boolean }) {
@@ -254,6 +270,13 @@ interface Props {
   filtroCoberturaMinima?: string;
   filtroEmProcessoMinimo?: string;
   curvaABC?: Record<string, 'A' | 'B' | 'C' | 'D'>;
+  riscoMpPorSku?: Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean }>;
+  detalheRiscoMpPorSku?: Record<string, {
+    ma: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
+    px: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
+    ul: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
+    qt: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
+  }>;
 }
 
 // â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -275,6 +298,8 @@ export default function MatrizPlanejamentoTable({
   filtroCoberturaMinima = '',
   filtroEmProcessoMinimo = '',
   curvaABC = {},
+  riscoMpPorSku = {},
+  detalheRiscoMpPorSku = {},
 }: Props) {
   type SortKey =
     | 'estoque' | 'emProcesso' | 'estoqueMin' | 'pedidos' | 'disponivel' | 'negativo' | 'negativoPosProcesso' | 'cobertura'
@@ -302,6 +327,34 @@ export default function MatrizPlanejamentoTable({
     data: Array<{ cd_local: number; ds_local: string; qtd_em_processo: number; qtd_op: number; qtd_finalizada: number }>;
   }>({ open: false, cdProduto: null, referencia: '', cor: '', tamanho: '', loading: false, error: null, data: [] });
 
+  // Modal de Verificação de MP
+  type MpCheckItem = {
+    idmateriaprima: string;
+    nome: string;
+    artigo: string;
+    qtd_por_unidade: number;
+    estoque: number;
+    entrada_periodo: number;
+    consumo_consolidado: number;
+    saldo_periodo: number;
+    status: 'OK' | 'FALTA';
+    deficit: number;
+  };
+  const [modalCheckMp, setModalCheckMp] = useState<{
+    open: boolean;
+    idproduto: string;
+    referencia: string;
+    cor: string;
+    tamanho: string;
+    mes: string;
+    mesNome: string;
+    planoQtd: number;
+    loading: boolean;
+    error: string | null;
+    materiasprimas: MpCheckItem[];
+    resumo: { total: number; em_risco: number; ok: number };
+  }>({ open: false, idproduto: '', referencia: '', cor: '', tamanho: '', mes: 'ma', mesNome: '', planoQtd: 0, loading: false, error: null, materiasprimas: [], resumo: { total: 0, em_risco: 0, ok: 0 } });
+
   const abrirModalEmProcesso = async (cdProduto: number, referencia: string, cor: string, tamanho: string) => {
     setModalEmProcesso({ open: true, cdProduto, referencia, cor, tamanho, loading: true, error: null, data: [] });
     try {
@@ -316,6 +369,59 @@ export default function MatrizPlanejamentoTable({
   };
 
   const fecharModalEmProcesso = () => setModalEmProcesso({ open: false, cdProduto: null, referencia: '', cor: '', tamanho: '', loading: false, error: null, data: [] });
+
+  const abrirModalCheckMp = async (
+    idproduto: string,
+    referencia: string,
+    cor: string,
+    tamanho: string,
+    mes: 'ma' | 'px' | 'ul' | 'qt',
+    mesNome: string,
+    planoQtd: number
+  ) => {
+    setModalCheckMp({
+      open: true, idproduto, referencia, cor, tamanho, mes, mesNome, planoQtd,
+      loading: true, error: null, materiasprimas: [], resumo: { total: 0, em_risco: 0, ok: 0 },
+    });
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      // Montar planos de todos os produtos para cálculo consolidado
+      const planos = dados.map((d) => ({
+        idproduto: String(d.produto.idproduto),
+        idreferencia: d.produto.referencia || '',
+        ma: d.plano?.ma || 0,
+        px: d.plano?.px || 0,
+        ul: d.plano?.ul || 0,
+        qt: d.plano?.qt || 0,
+      }));
+      const res = await fetch(`${API_URL}/api/consumo-mp/check-produto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idproduto, mes, planos }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Erro ao verificar MPs');
+      setModalCheckMp((prev) => ({
+        ...prev,
+        loading: false,
+        materiasprimas: json.materiasprimas || [],
+        resumo: json.resumo || { total: 0, em_risco: 0, ok: 0 },
+      }));
+    } catch (e) {
+      setModalCheckMp((prev) => ({ ...prev, loading: false, error: e instanceof Error ? e.message : 'Erro desconhecido' }));
+    }
+  };
+
+  const fecharModalCheckMp = () => setModalCheckMp({
+    open: false, idproduto: '', referencia: '', cor: '', tamanho: '', mes: 'ma', mesNome: '', planoQtd: 0,
+    loading: false, error: null, materiasprimas: [], resumo: { total: 0, em_risco: 0, ok: 0 },
+  });
+
+  const modalCheckMpProblemas = useMemo(
+    () => modalCheckMp.materiasprimas.filter((mp) => mp.status === 'FALTA' || Number(mp.deficit || 0) > 0 || Number(mp.saldo_periodo || 0) < 0),
+    [modalCheckMp.materiasprimas]
+  );
+
   const mesQT = useMemo(() => periodos.QT ?? (((periodos.UL || 1) - 1 + 1) % 12) + 1, [periodos.QT, periodos.UL]);
 
   const grupos = useMemo(() => {
@@ -557,6 +663,29 @@ export default function MatrizPlanejamentoTable({
 
   const totalItens   = grupos.reduce((a, g) => a + g.referencias.reduce((b, r) => b + r.itens.length, 0), 0);
   const temProjecoes = Object.keys(projecoes).length > 0;
+
+  function tooltipRiscoSku(idproduto: string, periodo: 'ma' | 'px' | 'ul' | 'qt') {
+    const detalhe = detalheRiscoMpPorSku[String(idproduto)]?.[periodo];
+    if (!detalhe?.em_risco) return 'Clique para verificar MPs';
+    const principal = detalhe.principal_mp;
+    if (!principal) return `${detalhe.quantidade_mps} MP(s) em risco no consolidado. Clique para verificar MPs`;
+    return `${detalhe.quantidade_mps} MP(s) em risco no consolidado. Principal falta: ${principal.idmateriaprima} (${fmt(principal.falta)})`;
+  }
+
+  function tooltipRiscoRef(itens: Planejamento[], periodo: 'ma' | 'px' | 'ul' | 'qt') {
+    const itensComRisco = itens
+      .map((item) => ({ detalhe: detalheRiscoMpPorSku[String(item.produto.idproduto)]?.[periodo] }))
+      .filter((entry) => entry.detalhe?.em_risco);
+    if (!itensComRisco.length) return undefined;
+    const skuCount = itensComRisco.length;
+    const somaMps = itensComRisco.reduce((acc, entry) => acc + (entry.detalhe?.quantidade_mps || 0), 0);
+    const principal = itensComRisco
+      .map((entry) => entry.detalhe?.principal_mp)
+      .filter(Boolean)
+      .sort((a, b) => (b!.falta - a!.falta))[0];
+    if (!principal) return `${skuCount} SKU(s) com risco de MP. ${somaMps} MP(s) sinalizadas no consolidado.`;
+    return `${skuCount} SKU(s) com risco de MP. ${somaMps} MP(s) sinalizadas. Principal falta: ${principal.idmateriaprima} (${fmt(principal.falta)})`;
+  }
 
   function toggleCont(c: string) { setExpandedConts(p => { const s = new Set(p); s.has(c) ? s.delete(c) : s.add(c); return s; }); }
   function toggleRef(k: string)  { setExpandedRefs(p  => { const s = new Set(p); s.has(k) ? s.delete(k) : s.add(k); return s; }); }
@@ -895,6 +1024,10 @@ export default function MatrizPlanejamentoTable({
                     const refOpen = expandedRefs.has(refKey);
                     const rt      = ref.totais;
                     const rtSit   = rt.deficit < 0 ? 'deficit' : rt.disponivel < rt.estoqueMin ? 'abaixo' : 'ok';
+                    const refRiskMa = ref.itens.some((item) => riscoMpPorSku[String(item.produto.idproduto)]?.ma);
+                    const refRiskPx = ref.itens.some((item) => riscoMpPorSku[String(item.produto.idproduto)]?.px);
+                    const refRiskUl = ref.itens.some((item) => riscoMpPorSku[String(item.produto.idproduto)]?.ul);
+                    const refRiskQt = ref.itens.some((item) => riscoMpPorSku[String(item.produto.idproduto)]?.qt);
 
                     return (
                       <React.Fragment key={refKey}>
@@ -962,8 +1095,8 @@ export default function MatrizPlanejamentoTable({
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-violet-50">
                             {rt.projCount > 0 ? <CellProj v={rt.projMA} /> : <span className="text-slate-300">—</span>}
                               </td>
-                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-indigo-50">
-                                <CellPlano v={rt.planoMA} />
+                              <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-indigo-50", refRiskMa)}>
+                                <CellPlano v={rt.planoMA} title={tooltipRiscoRef(ref.itens, 'ma')} />
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-indigo-50">
                             {rt.projCount > 0 ? <CellDispFut v={rt.dispFutMar} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
@@ -977,8 +1110,8 @@ export default function MatrizPlanejamentoTable({
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-emerald-50">
                             {rt.projCount > 0 ? <CellProj v={rt.projPX} /> : <span className="text-slate-300">—</span>}
                               </td>
-                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-emerald-50">
-                                <CellPlano v={rt.planoPX} />
+                              <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-emerald-50", refRiskPx)}>
+                                <CellPlano v={rt.planoPX} title={tooltipRiscoRef(ref.itens, 'px')} />
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-emerald-50">
                             {rt.projCount > 0 ? <CellDispFut v={rt.dispFutAbr} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
@@ -992,8 +1125,8 @@ export default function MatrizPlanejamentoTable({
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-amber-50">
                             {rt.projCount > 0 ? <CellProj v={rt.projUL} /> : <span className="text-slate-300">—</span>}
                               </td>
-                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-amber-50">
-                                <CellPlano v={rt.planoUL} />
+                              <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-amber-50", refRiskUl)}>
+                                <CellPlano v={rt.planoUL} title={tooltipRiscoRef(ref.itens, 'ul')} />
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-amber-50">
                             {rt.projCount > 0 ? <CellDispFut v={rt.dispFutMai} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
@@ -1007,8 +1140,8 @@ export default function MatrizPlanejamentoTable({
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
                             {rt.projCount > 0 ? <CellProj v={rt.projQT} /> : <span className="text-slate-300">—</span>}
                               </td>
-                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
-                                <CellPlano v={rt.planoQT} />
+                              <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50", refRiskQt)}>
+                                <CellPlano v={rt.planoQT} title={tooltipRiscoRef(ref.itens, 'qt')} />
                               </td>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
                             {rt.projCount > 0 ? <CellDispFut v={rt.dispFutJun} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
@@ -1022,10 +1155,10 @@ export default function MatrizPlanejamentoTable({
                             </>
                           ) : (
                             <>
-                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50"><CellPlano v={rt.planoMA} /></td>
-                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50"><CellPlano v={rt.planoPX} /></td>
-                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50"><CellPlano v={rt.planoUL} /></td>
-                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50"><CellPlano v={rt.planoQT} /></td>
+                              <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50", refRiskMa)}><CellPlano v={rt.planoMA} title={tooltipRiscoRef(ref.itens, 'ma')} /></td>
+                              <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50", refRiskPx)}><CellPlano v={rt.planoPX} title={tooltipRiscoRef(ref.itens, 'px')} /></td>
+                              <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50", refRiskUl)}><CellPlano v={rt.planoUL} title={tooltipRiscoRef(ref.itens, 'ul')} /></td>
+                              <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50", refRiskQt)}><CellPlano v={rt.planoQT} title={tooltipRiscoRef(ref.itens, 'qt')} /></td>
                             </>
                           )}
                         </tr>
@@ -1034,6 +1167,7 @@ export default function MatrizPlanejamentoTable({
                         {refOpen && ref.itens.map(item => {
                           const disp    = item.estoques.estoque_atual - item.demanda.pedidos_pendentes;
                           const sit     = situacao(item.estoques.estoque_atual, item.demanda.pedidos_pendentes, item.estoques.estoque_minimo);
+                          const skuRisk = riscoMpPorSku[String(item.produto.idproduto)] || { ma: false, px: false, ul: false, qt: false };
                           const proj    = projecoes[item.produto.idproduto] ?? null;
                           const emP     = item.estoques.em_processo || 0;
                           const dispPosProcesso = disp + emP;
@@ -1140,8 +1274,16 @@ export default function MatrizPlanejamentoTable({
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-violet-50/60">
                                     <CellProj v={prMA} />
                                   </td>
-                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-indigo-50/70">
-                                    <CellPlano v={pMA} />
+                                  <td className={planoRiskClass("px-3 py-3 text-right font-mono tabular-nums bg-indigo-50/70", skuRisk.ma)}>
+                                    <CellPlano v={pMA} title={tooltipRiscoSku(String(item.produto.idproduto), 'ma')} onClick={() => abrirModalCheckMp(
+                                      String(item.produto.idproduto),
+                                      item.produto.referencia || '',
+                                      item.produto.cor || '',
+                                      item.produto.tamanho || '',
+                                      'ma',
+                                      mNomes[0].toUpperCase(),
+                                      pMA
+                                    )} />
                                   </td>
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-indigo-50/70">
                                     <CellDispFut v={dFutMar} min={eMin} />
@@ -1155,8 +1297,16 @@ export default function MatrizPlanejamentoTable({
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-emerald-50/70">
                                     <CellProj v={prPX} />
                                   </td>
-                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-emerald-50/70">
-                                    <CellPlano v={pPX} />
+                                  <td className={planoRiskClass("px-3 py-3 text-right font-mono tabular-nums bg-emerald-50/70", skuRisk.px)}>
+                                    <CellPlano v={pPX} title={tooltipRiscoSku(String(item.produto.idproduto), 'px')} onClick={() => abrirModalCheckMp(
+                                      String(item.produto.idproduto),
+                                      item.produto.referencia || '',
+                                      item.produto.cor || '',
+                                      item.produto.tamanho || '',
+                                      'px',
+                                      mNomes[1].toUpperCase(),
+                                      pPX
+                                    )} />
                                   </td>
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-emerald-50/70">
                                     <CellDispFut v={dFutAbr} min={eMin} />
@@ -1170,8 +1320,16 @@ export default function MatrizPlanejamentoTable({
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-amber-50/70">
                                     <CellProj v={prUL} />
                                   </td>
-                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-amber-50/70">
-                                    <CellPlano v={pUL} />
+                                  <td className={planoRiskClass("px-3 py-3 text-right font-mono tabular-nums bg-amber-50/70", skuRisk.ul)}>
+                                    <CellPlano v={pUL} title={tooltipRiscoSku(String(item.produto.idproduto), 'ul')} onClick={() => abrirModalCheckMp(
+                                      String(item.produto.idproduto),
+                                      item.produto.referencia || '',
+                                      item.produto.cor || '',
+                                      item.produto.tamanho || '',
+                                      'ul',
+                                      mNomes[2].toUpperCase(),
+                                      pUL
+                                    )} />
                                   </td>
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-amber-50/70">
                                     <CellDispFut v={dFutMai} min={eMin} />
@@ -1185,8 +1343,16 @@ export default function MatrizPlanejamentoTable({
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-cyan-50/70">
                                     <CellProj v={prQT} />
                                   </td>
-                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-cyan-50/70">
-                                    <CellPlano v={pQT} />
+                                  <td className={planoRiskClass("px-3 py-3 text-right font-mono tabular-nums bg-cyan-50/70", skuRisk.qt)}>
+                                    <CellPlano v={pQT} title={tooltipRiscoSku(String(item.produto.idproduto), 'qt')} onClick={() => abrirModalCheckMp(
+                                      String(item.produto.idproduto),
+                                      item.produto.referencia || '',
+                                      item.produto.cor || '',
+                                      item.produto.tamanho || '',
+                                      'qt',
+                                      mNomes[3].toUpperCase(),
+                                      pQT
+                                    )} />
                                   </td>
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-cyan-50/70">
                                     <CellDispFut v={dFutJun} min={eMin} />
@@ -1200,10 +1366,18 @@ export default function MatrizPlanejamentoTable({
                                 </>
                               ) : (
                                 <>
-                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60"><CellPlano v={pMA} /></td>
-                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60"><CellPlano v={pPX} /></td>
-                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60"><CellPlano v={pUL} /></td>
-                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60"><CellPlano v={pQT} /></td>
+                                  <td className={planoRiskClass("px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60", skuRisk.ma)}>
+                                    <CellPlano v={pMA} title={tooltipRiscoSku(String(item.produto.idproduto), 'ma')} onClick={() => abrirModalCheckMp(String(item.produto.idproduto), item.produto.referencia || '', item.produto.cor || '', item.produto.tamanho || '', 'ma', mNomes[0].toUpperCase(), pMA)} />
+                                  </td>
+                                  <td className={planoRiskClass("px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60", skuRisk.px)}>
+                                    <CellPlano v={pPX} title={tooltipRiscoSku(String(item.produto.idproduto), 'px')} onClick={() => abrirModalCheckMp(String(item.produto.idproduto), item.produto.referencia || '', item.produto.cor || '', item.produto.tamanho || '', 'px', mNomes[1].toUpperCase(), pPX)} />
+                                  </td>
+                                  <td className={planoRiskClass("px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60", skuRisk.ul)}>
+                                    <CellPlano v={pUL} title={tooltipRiscoSku(String(item.produto.idproduto), 'ul')} onClick={() => abrirModalCheckMp(String(item.produto.idproduto), item.produto.referencia || '', item.produto.cor || '', item.produto.tamanho || '', 'ul', mNomes[2].toUpperCase(), pUL)} />
+                                  </td>
+                                  <td className={planoRiskClass("px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60", skuRisk.qt)}>
+                                    <CellPlano v={pQT} title={tooltipRiscoSku(String(item.produto.idproduto), 'qt')} onClick={() => abrirModalCheckMp(String(item.produto.idproduto), item.produto.referencia || '', item.produto.cor || '', item.produto.tamanho || '', 'qt', mNomes[3].toUpperCase(), pQT)} />
+                                  </td>
                                 </>
                               )}
                             </tr>
@@ -1292,6 +1466,117 @@ export default function MatrizPlanejamentoTable({
             </div>
             <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 text-right">
               <button onClick={fecharModalEmProcesso} className="px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Verificação de MP */}
+      {modalCheckMp.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={fecharModalCheckMp}>
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[85vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-gray-200 bg-teal-50 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-teal-800">Verificação de Matéria-Prima</h3>
+                <p className="text-xs text-teal-600">
+                  {modalCheckMp.referencia} · {modalCheckMp.cor} / {modalCheckMp.tamanho}
+                  <span className="ml-2 text-gray-400">ID: {modalCheckMp.idproduto}</span>
+                </p>
+                <p className="text-xs text-teal-700 mt-0.5">
+                  Plano <span className="font-semibold uppercase">{modalCheckMp.mesNome}</span>: {fmt(modalCheckMp.planoQtd)} unidades
+                </p>
+              </div>
+              <button onClick={fecharModalCheckMp} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+
+            {/* Resumo */}
+            {!modalCheckMp.loading && !modalCheckMp.error && modalCheckMp.resumo.total > 0 && (
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-4 text-xs">
+                <span className="text-gray-600">
+                  <span className="font-semibold">{modalCheckMp.resumo.total}</span> MPs na ficha técnica
+                </span>
+                {modalCheckMp.resumo.em_risco > 0 ? (
+                  <span className="text-red-600 font-semibold flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+                    {modalCheckMp.resumo.em_risco} em risco de falta
+                  </span>
+                ) : (
+                  <span className="text-green-600 font-semibold flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                    Todas as MPs com saldo suficiente
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="p-4 max-h-[55vh] overflow-auto">
+              {modalCheckMp.loading && (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  <svg className="animate-spin w-6 h-6 mx-auto mb-2 text-teal-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Verificando matérias-primas...
+                </div>
+              )}
+              {modalCheckMp.error && (
+                <div className="text-center py-8 text-red-600 text-sm">{modalCheckMp.error}</div>
+              )}
+              {!modalCheckMp.loading && !modalCheckMp.error && modalCheckMpProblemas.length === 0 && (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  Nenhuma matéria-prima com problema encontrada para este produto neste período.
+                </div>
+              )}
+              {!modalCheckMp.loading && !modalCheckMp.error && modalCheckMpProblemas.length > 0 && (
+                <table className="min-w-full text-xs">
+                  <thead className="bg-gray-100 sticky top-0">
+                    <tr>
+                      <th className="text-left px-2 py-2 font-semibold text-gray-700">Código</th>
+                      <th className="text-left px-2 py-2 font-semibold text-gray-700">Matéria-Prima</th>
+                      <th className="text-right px-2 py-2 font-semibold text-gray-600">Estoque</th>
+                      <th className="text-right px-2 py-2 font-semibold text-gray-600">Entrada</th>
+                      <th className="text-right px-2 py-2 font-semibold text-gray-600">Consumo Geral</th>
+                      <th className="text-right px-2 py-2 font-semibold text-teal-700">Saldo</th>
+                      <th className="text-center px-2 py-2 font-semibold text-gray-700">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modalCheckMpProblemas.map((mp, idx) => (
+                      <tr key={mp.idmateriaprima} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${mp.status === 'FALTA' ? 'bg-red-50' : ''}`}>
+                        <td className="px-2 py-2 text-gray-500 font-mono text-[10px]">{mp.idmateriaprima}</td>
+                        <td className="px-2 py-2 text-gray-700">
+                          <div className="font-medium truncate max-w-[180px]" title={mp.nome}>{mp.nome || '—'}</div>
+                          {mp.artigo && <div className="text-[10px] text-gray-400">{mp.artigo}</div>}
+                        </td>
+                        <td className="px-2 py-2 text-right font-mono text-gray-600">{fmt(mp.estoque)}</td>
+                        <td className="px-2 py-2 text-right font-mono text-gray-600">{fmt(mp.entrada_periodo)}</td>
+                        <td className="px-2 py-2 text-right font-mono text-gray-600">{fmt(mp.consumo_consolidado)}</td>
+                        <td className={`px-2 py-2 text-right font-mono font-semibold ${mp.saldo_periodo < 0 ? 'text-red-600' : 'text-teal-700'}`}>
+                          {fmt(mp.saldo_periodo)}
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          {mp.status === 'OK' ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700">OK</span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700">
+                              FALTA {fmt(mp.deficit)}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+              <p className="text-[10px] text-gray-400">
+                Consumo consolidado considera todos os produtos do plano, não apenas este item.
+              </p>
+              <button onClick={fecharModalCheckMp} className="px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
                 Fechar
               </button>
             </div>

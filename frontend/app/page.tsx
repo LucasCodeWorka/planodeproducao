@@ -54,6 +54,25 @@ type ExecucaoPlanoItem = {
   percentual: number | null;
 };
 
+type RiscoMpMes = {
+  em_risco: boolean;
+  quantidade_mps: number;
+  principal_mp: null | {
+    idmateriaprima: string;
+    nome: string;
+    artigo: string;
+    saldo: number;
+    falta: number;
+  };
+};
+
+type RiscoMpDetalhePorSku = Record<string, {
+  ma: RiscoMpMes;
+  px: RiscoMpMes;
+  ul: RiscoMpMes;
+  qt: RiscoMpMes;
+}>;
+
 type ExecucaoPlanoResumo = {
   geral: {
     MA: ExecucaoPlanoItem | null;
@@ -139,6 +158,9 @@ export default function Home() {
   const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
   const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
   const [execucaoPlanoResumo, setExecucaoPlanoResumo] = useState<ExecucaoPlanoResumo | null>(null);
+  const [riscoMpPorSku, setRiscoMpPorSku] = useState<Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean }>>({});
+  const [detalheRiscoMpPorSku, setDetalheRiscoMpPorSku] = useState<RiscoMpDetalhePorSku>({});
+  const [loadingRiscoMp, setLoadingRiscoMp] = useState(false);
   const [indicadoresLocais, setIndicadoresLocais] = useState<{
     oficinas: { nome: string; pior_dias: number; media_dias: number }[];
     outrosLocais: { nome: string; pior_dias: number; media_dias: number }[];
@@ -453,6 +475,46 @@ export default function Home() {
       };
     });
   }, [dados, aplicarAprovadas, planosAprovadosMap]);
+
+  useEffect(() => {
+    let active = true;
+    async function carregarRiscoMp() {
+      if (!dadosAtivos.length) {
+        if (active) setLoadingRiscoMp(false);
+        if (active) setRiscoMpPorSku({});
+        if (active) setDetalheRiscoMpPorSku({});
+        return;
+      }
+      try {
+        if (active) setLoadingRiscoMp(true);
+        const planos = dadosAtivos.map((d) => ({
+          idproduto: String(d.produto.idproduto || ''),
+          idreferencia: d.produto.referencia || '',
+          ma: d.plano?.ma || 0,
+          px: d.plano?.px || 0,
+          ul: d.plano?.ul || 0,
+          qt: d.plano?.qt || 0,
+        }));
+        const res = await fetchNoCache(`${API_URL}/api/consumo-mp/check-risco-lote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planos }),
+        });
+        const json = await res.json();
+        if (!active) return;
+        if (!res.ok || !json.success) throw new Error(json.error || 'Erro ao carregar risco de MP');
+        setRiscoMpPorSku((json.risco_por_sku || {}) as Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean }>);
+        setDetalheRiscoMpPorSku((json.detalhe_risco_por_sku || {}) as RiscoMpDetalhePorSku);
+      } catch {
+        if (active) setRiscoMpPorSku({});
+        if (active) setDetalheRiscoMpPorSku({});
+      } finally {
+        if (active) setLoadingRiscoMp(false);
+      }
+    }
+    carregarRiscoMp();
+    return () => { active = false; };
+  }, [dadosAtivos]);
 
   const dadosAtivosComEstoqueLojas = useMemo(() => {
     if (!usarEstoqueLojas || estoqueLojasDisponivel.size === 0) return dadosAtivos;
@@ -842,6 +904,53 @@ export default function Home() {
         }),
     };
   }, [dadosPagina, projecoesAtivas, periodos]);
+
+  const resumoRiscoMpPlano = useMemo(() => {
+    let planoMA = 0;
+    let planoPX = 0;
+    let planoUL = 0;
+    let planoQT = 0;
+    let riscoMA = 0;
+    let riscoPX = 0;
+    let riscoUL = 0;
+    let riscoQT = 0;
+
+    for (const i of dadosPagina) {
+      const id = String(i.produto.idproduto || '');
+      const risco = riscoMpPorSku[id];
+      const ma = Math.max(0, Number(i.plano?.ma || 0));
+      const px = Math.max(0, Number(i.plano?.px || 0));
+      const ul = Math.max(0, Number(i.plano?.ul || 0));
+      const qt = Math.max(0, Number((i.plano as { qt?: number } | undefined)?.qt || 0));
+
+      planoMA += ma;
+      planoPX += px;
+      planoUL += ul;
+      planoQT += qt;
+
+      if (risco?.ma) riscoMA += ma;
+      if (risco?.px) riscoPX += px;
+      if (risco?.ul) riscoUL += ul;
+      if (risco?.qt) riscoQT += qt;
+    }
+
+    const pct = (risco: number, plano: number) => (plano > 0 ? clampPct((risco / plano) * 100) : 0);
+
+    return {
+      riscoMA: Math.round(riscoMA),
+      riscoPX: Math.round(riscoPX),
+      riscoUL: Math.round(riscoUL),
+      riscoQT: Math.round(riscoQT),
+      planoMA: Math.round(planoMA),
+      planoPX: Math.round(planoPX),
+      planoUL: Math.round(planoUL),
+      planoQT: Math.round(planoQT),
+      pctMA: pct(riscoMA, planoMA),
+      pctPX: pct(riscoPX, planoPX),
+      pctUL: pct(riscoUL, planoUL),
+      pctQT: pct(riscoQT, planoQT),
+    };
+  }, [dadosPagina, riscoMpPorSku]);
 
   const graficosCobertura = useMemo(() => {
     type AcumSku = { total: number; cobertos: number };
@@ -1519,9 +1628,9 @@ export default function Home() {
                 <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Negativos por mes</span>
                 <div className="flex-1 h-px bg-red-100" />
               </div>
-              <div className="space-y-2">
-                {/* Cabeçalho com meses */}
-                <div className="grid grid-cols-[140px_repeat(6,1fr)] gap-2 text-[11px] text-red-400 border-b border-red-100 pb-1">
+                <div className="space-y-2">
+                  {/* Cabeçalho com meses */}
+                  <div className="grid grid-cols-[140px_repeat(6,1fr)] gap-2 text-[11px] text-red-400 border-b border-red-100 pb-1">
                   <div></div>
                   <div>Atual</div>
                   <div>Pos Proc.</div>
@@ -1560,6 +1669,23 @@ export default function Home() {
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.ul.toLocaleString('pt-BR')}</div>
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.qt.toLocaleString('pt-BR')}</div>
                 </div>
+                <div className="grid grid-cols-[140px_repeat(6,1fr)] gap-2 items-center border-t border-red-100 pt-2">
+                  <div className="text-[11px] font-bold text-amber-700 uppercase">MP (% plano)</div>
+                  <div className="text-sm font-bold font-mono text-gray-400">-</div>
+                  <div className="text-sm font-bold font-mono text-gray-400">-</div>
+                  <div className="text-sm font-bold font-mono text-amber-700">
+                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctMA.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                  </div>
+                  <div className="text-sm font-bold font-mono text-amber-700">
+                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctPX.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                  </div>
+                  <div className="text-sm font-bold font-mono text-amber-700">
+                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctUL.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                  </div>
+                  <div className="text-sm font-bold font-mono text-amber-700">
+                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctQT.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                  </div>
+                </div>
                 {/* Linhas por continuidade */}
                 <div className="space-y-1 pt-1 border-t border-red-100">
                   {resumoNegativos.continuidade
@@ -1572,25 +1698,25 @@ export default function Home() {
                         <div className="flex items-center gap-1">
                           <span className="text-sm font-bold font-mono text-red-700">{c.ma.toLocaleString('pt-BR')}</span>
                           {execucaoPlanoResumo?.continuidade?.[c.nome]?.MA?.percentual != null && (
-                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo.continuidade[c.nome].MA.percentual)}</span>
+                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.MA?.percentual)}</span>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
                           <span className="text-sm font-bold font-mono text-red-700">{c.px.toLocaleString('pt-BR')}</span>
                           {execucaoPlanoResumo?.continuidade?.[c.nome]?.PX?.percentual != null && (
-                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo.continuidade[c.nome].PX.percentual)}</span>
+                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.PX?.percentual)}</span>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
                           <span className="text-sm font-bold font-mono text-red-700">{c.ul.toLocaleString('pt-BR')}</span>
                           {execucaoPlanoResumo?.continuidade?.[c.nome]?.UL?.percentual != null && (
-                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo.continuidade[c.nome].UL.percentual)}</span>
+                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.UL?.percentual)}</span>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
                           <span className="text-sm font-bold font-mono text-red-700">{c.qt.toLocaleString('pt-BR')}</span>
                           {execucaoPlanoResumo?.continuidade?.[c.nome]?.QT?.percentual != null && (
-                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo.continuidade[c.nome].QT.percentual)}</span>
+                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.QT?.percentual)}</span>
                           )}
                         </div>
                       </div>
@@ -1633,6 +1759,12 @@ export default function Home() {
             </div>
           )}
 
+          {!loading && !error && loadingRiscoMp && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              Recalculando impacto de matéria-prima no plano de produção...
+            </div>
+          )}
+
           {/* Tabela */}
           {!loading && !error && dadosPagina.length > 0 && (
             <div className="text-xs text-gray-500 -mb-2">
@@ -1656,6 +1788,8 @@ export default function Home() {
               filtroCoberturaMinima={filtroCoberturaMinima}
               filtroEmProcessoMinimo={filtroEmProcessoMinimo}
               curvaABC={curvaABC}
+              riscoMpPorSku={riscoMpPorSku}
+              detalheRiscoMpPorSku={detalheRiscoMpPorSku}
             />
           )}
 

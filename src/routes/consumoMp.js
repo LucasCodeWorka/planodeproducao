@@ -910,4 +910,518 @@ router.post("/analise", async (req, res) => {
   }
 });
 
+/**
+ * POST /api/consumo-mp/check-produto
+ * Verifica status de MP para um produto específico no contexto do plano consolidado
+ *
+ * Body:
+ *   idproduto: string - ID do produto a verificar
+ *   mes: "ma" | "px" | "ul" | "qt" - período selecionado
+ *   planos: array - plano completo de todos os produtos (para calcular consumo consolidado)
+ *
+ * Retorna:
+ *   materiasprimas: array de MPs do produto com status no consolidado
+ *   resumo: { total, em_risco, ok }
+ */
+router.post("/check-produto", async (req, res) => {
+  try {
+    const { idproduto, mes, planos } = req.body;
+
+    if (!idproduto) {
+      return res.status(400).json({ success: false, error: "idproduto é obrigatório" });
+    }
+
+    const mesSelecionado = String(mes || "ma").toLowerCase();
+    const planosArray = Array.isArray(planos) ? planos : [];
+
+    const pool = req.app.get("pool");
+
+    // 1. Buscar MPs do produto específico
+    const estruturaProduto = await queryEstruturaPorPais(pool, [String(idproduto)]);
+    let mpsDoProduto = estruturaProduto.rows.map((r) => ({
+      idmateriaprima: String(r.idmateriaprima || ""),
+      qtdconsumo: Number(r.qtdconsumo || 0),
+    })).filter((m) => m.idmateriaprima && m.qtdconsumo > 0);
+
+    // Se não encontrou por produto, tenta por referência
+    if (mpsDoProduto.length === 0) {
+      const planoItem = planosArray.find((p) => String(p.idproduto) === String(idproduto));
+      if (planoItem?.idreferencia) {
+        const estruturaRef = await queryEstruturaPorRefs(pool, [String(planoItem.idreferencia)]);
+        mpsDoProduto = estruturaRef.rows.map((r) => ({
+          idmateriaprima: String(r.idmateriaprima || ""),
+          qtdconsumo: Number(r.qtdconsumo || 0),
+        })).filter((m) => m.idmateriaprima && m.qtdconsumo > 0);
+      }
+    }
+
+    if (mpsDoProduto.length === 0) {
+      return res.json({
+        success: true,
+        idproduto,
+        mes: mesSelecionado,
+        materiasprimas: [],
+        resumo: { total: 0, em_risco: 0, ok: 0 },
+        mensagem: "Nenhuma MP encontrada na ficha técnica deste produto",
+      });
+    }
+
+    const idsMpProduto = mpsDoProduto.map((m) => m.idmateriaprima);
+
+    // 2. Calcular consumo consolidado de TODOS os produtos (não só o clicado)
+    // Primeiro, buscar estrutura de todos os produtos do plano
+    const idsPaPlano = [...new Set(planosArray.map((p) => String(p.idproduto || "")).filter(Boolean))];
+
+    let estruturaTotal;
+    if (idsPaPlano.length > 0) {
+      estruturaTotal = await queryEstruturaPorPais(pool, idsPaPlano);
+    } else {
+      estruturaTotal = { rows: [] };
+    }
+
+    // Mapear planos por produto
+    const planoMap = new Map();
+    for (const p of planosArray) {
+      const id = String(p?.idproduto || "").trim();
+      if (!id) continue;
+      if (!planoMap.has(id)) {
+        planoMap.set(id, { ma: 0, px: 0, ul: 0, qt: 0 });
+      }
+      const acc = planoMap.get(id);
+      acc.ma += Number(p?.ma || 0);
+      acc.px += Number(p?.px || 0);
+      acc.ul += Number(p?.ul || 0);
+      acc.qt += Number(p?.qt || 0);
+    }
+
+    // Calcular consumo total por MP (consolidado de todos os produtos)
+    const consumoConsolidado = new Map();
+    for (const r of estruturaTotal.rows) {
+      const idPa = String(r.idproduto_pa || "");
+      const idMp = String(r.idmateriaprima || "");
+      const qtd = Number(r.qtdconsumo || 0);
+      if (!idPa || !idMp || qtd <= 0) continue;
+
+      const plano = planoMap.get(idPa);
+      if (!plano) continue;
+
+      if (!consumoConsolidado.has(idMp)) {
+        consumoConsolidado.set(idMp, { consumo_ma: 0, consumo_px: 0, consumo_ul: 0, consumo_qt: 0 });
+      }
+      const acc = consumoConsolidado.get(idMp);
+      acc.consumo_ma += plano.ma * qtd;
+      acc.consumo_px += plano.px * qtd;
+      acc.consumo_ul += plano.ul * qtd;
+      acc.consumo_qt += plano.qt * qtd;
+    }
+
+    // 3. Buscar estoque e entradas apenas das MPs do produto clicado
+    const estoqueRows = await pool.query(`
+      SELECT
+        a.cd_produto::TEXT AS idmateriaprima,
+        MAX(COALESCE(a.nm_produto, ''))::TEXT AS nome_materiaprima,
+        MAX(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), ''))::TEXT AS materia_prima_ds,
+        MAX(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 111::bigint), ''))::TEXT AS artigo,
+        MAX(COALESCE(f_dic_sld_prd_produto('1', '1'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquefisico,
+        MAX(COALESCE(f_dic_sld_prd_produto('1', '2'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoqueinsp,
+        MAX(COALESCE(f_dic_sld_prd_produto('1', '15'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquecorte
+      FROM public.vr_prd_prdgrade a
+      WHERE a.cd_produto::TEXT = ANY($1::TEXT[])
+      GROUP BY a.cd_produto
+    `, [idsMpProduto]);
+
+    const estoqueMap = new Map(estoqueRows.rows.map((r) => [String(r.idmateriaprima || ""), r]));
+
+    // Buscar compras
+    const comprasRows = await pool.query(`
+      SELECT
+        i.cd_produto::TEXT AS idmateriaprima,
+        COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date) AS dt_disponivel,
+        SUM(COALESCE(i.qt_pendente, 0))::FLOAT AS qt_entrada
+      FROM vr_cmp_pedidoc2 c_1
+      JOIN vr_cmp_pedidoi i
+        ON i.cd_empresa = c_1.cd_empresa
+       AND i.cd_pedido = c_1.cd_pedido
+      WHERE c_1.tp_situacao = ANY (ARRAY[1::bigint, 3::bigint])
+        AND i.cd_produto::TEXT = ANY($1::TEXT[])
+        AND COALESCE(i.qt_pendente, 0) > 0
+      GROUP BY i.cd_produto, COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date)
+    `, [idsMpProduto]);
+
+    // Buscar OPs internas
+    const opInternaRows = await pool.query(`
+      SELECT
+        CASE
+          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+          ELSE op.cd_produto::TEXT
+        END AS idmateriaprima,
+        op.dt_preventrega::date AS dt_disponivel,
+        SUM(COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0))::FLOAT AS qt_entrada
+      FROM vr_pcp_opi op
+      LEFT JOIN "de-para1"
+        ON op.cd_produto = ("de-para1"."de-CODIGO")::bigint
+      WHERE op.nr_ciclo = '99'
+        AND op.tp_situacao NOT IN (40, 30)
+        AND (COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0)) > 0
+        AND (
+          CASE
+            WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+              THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+            ELSE op.cd_produto::TEXT
+          END
+        ) = ANY($1::TEXT[])
+      GROUP BY
+        CASE
+          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+          ELSE op.cd_produto::TEXT
+        END,
+        op.dt_preventrega::date
+    `, [idsMpProduto]);
+
+    // Classificar entradas por período
+    const entradasMap = new Map();
+    for (const row of [...comprasRows.rows, ...opInternaRows.rows]) {
+      const idMp = String(row.idmateriaprima || "").trim();
+      if (!idMp) continue;
+      const periodo = classifyCompraPeriodo(row.dt_disponivel, new Date());
+      if (!periodo) continue;
+      if (!entradasMap.has(idMp)) {
+        entradasMap.set(idMp, { entrada_ma: 0, entrada_px: 0, entrada_ul: 0 });
+      }
+      const acc = entradasMap.get(idMp);
+      const qtEntrada = Number(row.qt_entrada || 0);
+      if (periodo === "ma") acc.entrada_ma += qtEntrada;
+      if (periodo === "px") acc.entrada_px += qtEntrada;
+      if (periodo === "ul") acc.entrada_ul += qtEntrada;
+    }
+
+    // 4. Montar resultado com saldos consolidados
+    const materiasprimas = mpsDoProduto
+      .filter((m) => {
+        if (EXCLUDED_MP_IDS.has(m.idmateriaprima)) return false;
+        const e = estoqueMap.get(m.idmateriaprima) || {};
+        if (contemTermoBloqueado(e.artigo, EXCLUDED_MP_ARTIGO_TERMS)) return false;
+        const nome = String(e.materia_prima_ds || e.nome_materiaprima || "");
+        if (contemTermoBloqueado(nome, EXCLUDED_MP_NOME_TERMS)) return false;
+        return true;
+      })
+      .map((m) => {
+        const e = estoqueMap.get(m.idmateriaprima) || {};
+        const entradas = entradasMap.get(m.idmateriaprima) || {};
+        const consumo = consumoConsolidado.get(m.idmateriaprima) || {};
+
+        const fis = Number(e.estoquefisico || 0);
+        const insp = Number(e.estoqueinsp || 0);
+        const corte = Number(e.estoquecorte || 0);
+        const estoquetotal = fis + insp + corte;
+
+        const entrada_ma = Number(entradas.entrada_ma || 0);
+        const entrada_px = Number(entradas.entrada_px || 0);
+        const entrada_ul = Number(entradas.entrada_ul || 0);
+
+        const consumo_ma = Number(consumo.consumo_ma || 0);
+        const consumo_px = Number(consumo.consumo_px || 0);
+        const consumo_ul = Number(consumo.consumo_ul || 0);
+        const consumo_qt = Number(consumo.consumo_qt || 0);
+
+        // Saldos progressivos
+        const saldo_ma = estoquetotal + entrada_ma - consumo_ma;
+        const saldo_px = saldo_ma + entrada_px - consumo_px;
+        const saldo_ul = saldo_px + entrada_ul - consumo_ul;
+        const saldo_qt = saldo_ul - consumo_qt; // QT não tem entrada adicional
+
+        // Determinar status no mês selecionado
+        let saldo_periodo;
+        switch (mesSelecionado) {
+          case "ma": saldo_periodo = saldo_ma; break;
+          case "px": saldo_periodo = saldo_px; break;
+          case "ul": saldo_periodo = saldo_ul; break;
+          case "qt": saldo_periodo = saldo_qt; break;
+          default: saldo_periodo = saldo_ma;
+        }
+
+        const nome = String(e.materia_prima_ds || e.nome_materiaprima || "").trim();
+        const artigo = String(e.artigo || "").trim();
+
+        return {
+          idmateriaprima: m.idmateriaprima,
+          nome: nome,
+          artigo,
+          qtd_por_unidade: m.qtdconsumo,
+          estoque: estoquetotal,
+          entrada_periodo: mesSelecionado === "ma" ? entrada_ma : mesSelecionado === "px" ? entrada_px : entrada_ul,
+          consumo_consolidado: mesSelecionado === "ma" ? consumo_ma : mesSelecionado === "px" ? consumo_px : mesSelecionado === "ul" ? consumo_ul : consumo_qt,
+          saldo_periodo,
+          status: saldo_periodo >= 0 ? "OK" : "FALTA",
+          deficit: saldo_periodo < 0 ? Math.abs(saldo_periodo) : 0,
+          // Detalhes adicionais
+          detalhe: {
+            estoquefisico: fis,
+            estoqueinsp: insp,
+            estoquecorte: corte,
+            entrada_ma,
+            entrada_px,
+            entrada_ul,
+            consumo_ma,
+            consumo_px,
+            consumo_ul,
+            consumo_qt,
+            saldo_ma,
+            saldo_px,
+            saldo_ul,
+            saldo_qt,
+          },
+        };
+      })
+      .sort((a, b) => a.saldo_periodo - b.saldo_periodo); // MPs em falta primeiro
+
+    const emRisco = materiasprimas.filter((m) => m.status === "FALTA").length;
+    const ok = materiasprimas.filter((m) => m.status === "OK").length;
+
+    return res.json({
+      success: true,
+      idproduto,
+      mes: mesSelecionado,
+      materiasprimas,
+      resumo: {
+        total: materiasprimas.length,
+        em_risco: emRisco,
+        ok,
+      },
+    });
+
+  } catch (error) {
+    console.error("[consumo-mp/check-produto] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao verificar MPs do produto",
+      details: error.message,
+    });
+  }
+});
+
+router.post("/check-risco-lote", async (req, res) => {
+  try {
+    const planosArray = Array.isArray(req.body?.planos) ? req.body.planos : [];
+    const idsPaPlano = [...new Set(planosArray.map((p) => String(p?.idproduto || "").trim()).filter(Boolean))];
+    const idsRefPlano = [...new Set(planosArray.map((p) => String(p?.idreferencia || "").trim()).filter(Boolean))];
+    const pool = req.app.get("pool");
+
+    if (!idsPaPlano.length) {
+      return res.json({ success: true, risco_por_sku: {}, detalhe_risco_por_sku: {} });
+    }
+
+    const estruturaTotal = await queryEstruturaPorPais(pool, idsPaPlano);
+    const estruturaRefs = idsRefPlano.length > 0 ? await queryEstruturaPorRefs(pool, idsRefPlano) : { rows: [] };
+
+    const planoMap = new Map();
+    const refPorProduto = new Map();
+    for (const p of planosArray) {
+      const id = String(p?.idproduto || "").trim();
+      const ref = String(p?.idreferencia || "").trim();
+      if (!id) continue;
+      refPorProduto.set(id, ref);
+      if (!planoMap.has(id)) planoMap.set(id, { ma: 0, px: 0, ul: 0, qt: 0 });
+      const acc = planoMap.get(id);
+      acc.ma += Number(p?.ma || 0);
+      acc.px += Number(p?.px || 0);
+      acc.ul += Number(p?.ul || 0);
+      acc.qt += Number(p?.qt || 0);
+    }
+
+    const consumoConsolidado = new Map();
+    for (const r of estruturaTotal.rows) {
+      const idPa = String(r.idproduto_pa || "");
+      const idMp = String(r.idmateriaprima || "");
+      const qtd = Number(r.qtdconsumo || 0);
+      if (!idPa || !idMp || qtd <= 0) continue;
+      const plano = planoMap.get(idPa);
+      if (!plano) continue;
+      if (!consumoConsolidado.has(idMp)) consumoConsolidado.set(idMp, { consumo_ma: 0, consumo_px: 0, consumo_ul: 0, consumo_qt: 0 });
+      const acc = consumoConsolidado.get(idMp);
+      acc.consumo_ma += plano.ma * qtd;
+      acc.consumo_px += plano.px * qtd;
+      acc.consumo_ul += plano.ul * qtd;
+      acc.consumo_qt += plano.qt * qtd;
+    }
+
+    const mpsPorProduto = new Map();
+    for (const r of estruturaTotal.rows) {
+      const idPa = String(r.idproduto_pa || "").trim();
+      const idMp = String(r.idmateriaprima || "").trim();
+      if (!idPa || !idMp) continue;
+      if (!mpsPorProduto.has(idPa)) mpsPorProduto.set(idPa, new Set());
+      mpsPorProduto.get(idPa).add(idMp);
+    }
+
+    const mpsPorReferencia = new Map();
+    for (const r of estruturaRefs.rows) {
+      const ref = String(r.idreferencia_pa || "").trim();
+      const idMp = String(r.idmateriaprima || "").trim();
+      if (!ref || !idMp) continue;
+      if (!mpsPorReferencia.has(ref)) mpsPorReferencia.set(ref, new Set());
+      mpsPorReferencia.get(ref).add(idMp);
+    }
+
+    const idsMp = [...new Set([
+      ...Array.from(estruturaTotal.rows, (r) => String(r.idmateriaprima || "").trim()),
+      ...Array.from(estruturaRefs.rows, (r) => String(r.idmateriaprima || "").trim()),
+    ].filter(Boolean))];
+
+    if (!idsMp.length) {
+      const vazio = Object.fromEntries(idsPaPlano.map((id) => [id, { ma: false, px: false, ul: false, qt: false }]));
+      const detalheVazio = Object.fromEntries(idsPaPlano.map((id) => [id, {
+        ma: { em_risco: false, quantidade_mps: 0, principal_mp: null },
+        px: { em_risco: false, quantidade_mps: 0, principal_mp: null },
+        ul: { em_risco: false, quantidade_mps: 0, principal_mp: null },
+        qt: { em_risco: false, quantidade_mps: 0, principal_mp: null },
+      }]));
+      return res.json({ success: true, risco_por_sku: vazio, detalhe_risco_por_sku: detalheVazio });
+    }
+
+    const estoqueRows = await pool.query(`
+      SELECT
+        a.cd_produto::TEXT AS idmateriaprima,
+        MAX(COALESCE(a.nm_produto, ''))::TEXT AS nome_materiaprima,
+        MAX(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), ''))::TEXT AS materia_prima_ds,
+        MAX(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 111::bigint), ''))::TEXT AS artigo,
+        MAX(COALESCE(f_dic_sld_prd_produto('1', '1'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquefisico,
+        MAX(COALESCE(f_dic_sld_prd_produto('1', '2'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoqueinsp,
+        MAX(COALESCE(f_dic_sld_prd_produto('1', '15'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquecorte
+      FROM public.vr_prd_prdgrade a
+      WHERE a.cd_produto::TEXT = ANY($1::TEXT[])
+      GROUP BY a.cd_produto
+    `, [idsMp]);
+
+    const comprasRows = await pool.query(`
+      SELECT
+        i.cd_produto::TEXT AS idmateriaprima,
+        COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date) AS dt_disponivel,
+        SUM(COALESCE(i.qt_pendente, 0))::FLOAT AS qt_entrada
+      FROM vr_cmp_pedidoc2 c_1
+      JOIN vr_cmp_pedidoi i
+        ON i.cd_empresa = c_1.cd_empresa
+       AND i.cd_pedido = c_1.cd_pedido
+      WHERE c_1.tp_situacao = ANY (ARRAY[1::bigint, 3::bigint])
+        AND i.cd_produto::TEXT = ANY($1::TEXT[])
+        AND COALESCE(i.qt_pendente, 0) > 0
+      GROUP BY i.cd_produto, COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date)
+    `, [idsMp]);
+
+    const opInternaRows = await pool.query(`
+      SELECT
+        CASE
+          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+          ELSE op.cd_produto::TEXT
+        END AS idmateriaprima,
+        op.dt_preventrega::date AS dt_disponivel,
+        SUM(COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0))::FLOAT AS qt_entrada
+      FROM vr_pcp_opi op
+      LEFT JOIN "de-para1"
+        ON op.cd_produto = ("de-para1"."de-CODIGO")::bigint
+      WHERE op.nr_ciclo = '99'
+        AND op.tp_situacao NOT IN (40, 30)
+        AND (COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0)) > 0
+        AND (
+          CASE
+            WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+              THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+            ELSE op.cd_produto::TEXT
+          END
+        ) = ANY($1::TEXT[])
+      GROUP BY
+        CASE
+          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+          ELSE op.cd_produto::TEXT
+        END,
+        op.dt_preventrega::date
+    `, [idsMp]);
+
+    const estoqueMap = new Map(estoqueRows.rows.map((r) => [String(r.idmateriaprima || ""), r]));
+    const entradasMap = new Map();
+    for (const row of [...comprasRows.rows, ...opInternaRows.rows]) {
+      const idMp = String(row.idmateriaprima || "").trim();
+      if (!idMp) continue;
+      const periodo = classifyCompraPeriodo(row.dt_disponivel, new Date());
+      if (!periodo) continue;
+      if (!entradasMap.has(idMp)) entradasMap.set(idMp, { entrada_ma: 0, entrada_px: 0, entrada_ul: 0 });
+      const acc = entradasMap.get(idMp);
+      const qtEntrada = Number(row.qt_entrada || 0);
+      if (periodo === "ma") acc.entrada_ma += qtEntrada;
+      if (periodo === "px") acc.entrada_px += qtEntrada;
+      if (periodo === "ul") acc.entrada_ul += qtEntrada;
+    }
+
+    const saldoPorMp = new Map();
+    for (const idMp of idsMp) {
+      const e = estoqueMap.get(idMp) || {};
+      if (EXCLUDED_MP_IDS.has(idMp)) continue;
+      if (contemTermoBloqueado(e.artigo, EXCLUDED_MP_ARTIGO_TERMS)) continue;
+      const nome = String(e.materia_prima_ds || e.nome_materiaprima || "");
+      if (contemTermoBloqueado(nome, EXCLUDED_MP_NOME_TERMS)) continue;
+
+      const entradas = entradasMap.get(idMp) || {};
+      const consumo = consumoConsolidado.get(idMp) || {};
+      const estoque = Number(e.estoquefisico || 0) + Number(e.estoqueinsp || 0) + Number(e.estoquecorte || 0);
+      const saldo_ma = estoque + Number(entradas.entrada_ma || 0) - Number(consumo.consumo_ma || 0);
+      const saldo_px = saldo_ma + Number(entradas.entrada_px || 0) - Number(consumo.consumo_px || 0);
+      const saldo_ul = saldo_px + Number(entradas.entrada_ul || 0) - Number(consumo.consumo_ul || 0);
+      const saldo_qt = saldo_ul - Number(consumo.consumo_qt || 0);
+      saldoPorMp.set(idMp, { ma: saldo_ma, px: saldo_px, ul: saldo_ul, qt: saldo_qt });
+    }
+
+    const riscoPorSku = {};
+    const detalheRiscoPorSku = {};
+    for (const id of idsPaPlano) {
+      const ref = refPorProduto.get(id) || "";
+      const mpsSet = mpsPorProduto.get(id) || mpsPorReferencia.get(ref) || new Set();
+      const risco = { ma: false, px: false, ul: false, qt: false };
+      const detalhe = {
+        ma: { em_risco: false, quantidade_mps: 0, principal_mp: null },
+        px: { em_risco: false, quantidade_mps: 0, principal_mp: null },
+        ul: { em_risco: false, quantidade_mps: 0, principal_mp: null },
+        qt: { em_risco: false, quantidade_mps: 0, principal_mp: null },
+      };
+      for (const idMp of mpsSet) {
+        const saldo = saldoPorMp.get(idMp);
+        if (!saldo) continue;
+        const estoqueInfo = estoqueMap.get(idMp) || {};
+        const nomeMp = String(estoqueInfo.materia_prima_ds || estoqueInfo.nome_materiaprima || "").trim();
+        const artigoMp = String(estoqueInfo.artigo || "").trim();
+        for (const periodo of ["ma", "px", "ul", "qt"]) {
+          const saldoPeriodo = Number(saldo[periodo] || 0);
+          if (saldoPeriodo >= 0) continue;
+          risco[periodo] = true;
+          detalhe[periodo].em_risco = true;
+          detalhe[periodo].quantidade_mps += 1;
+          if (!detalhe[periodo].principal_mp || saldoPeriodo < detalhe[periodo].principal_mp.saldo) {
+            detalhe[periodo].principal_mp = {
+              idmateriaprima: idMp,
+              nome: nomeMp,
+              artigo: artigoMp,
+              saldo: saldoPeriodo,
+              falta: Math.abs(saldoPeriodo),
+            };
+          }
+        }
+      }
+      riscoPorSku[id] = risco;
+      detalheRiscoPorSku[id] = detalhe;
+    }
+
+    return res.json({ success: true, risco_por_sku: riscoPorSku, detalhe_risco_por_sku: detalheRiscoPorSku });
+  } catch (error) {
+    console.error("[consumo-mp/check-risco-lote] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao verificar risco de MP em lote",
+      details: error.message,
+    });
+  }
+});
+
 module.exports = router;

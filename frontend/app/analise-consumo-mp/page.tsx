@@ -222,14 +222,18 @@ export default function AnaliseConsumoMpPage() {
 
   const resumo = useMemo(() => {
     let estoque = 0;
-    let consumo = 0;
+    let entradaMA = 0;
+    let consumoMA = 0;
+    let saldoMA = 0;
     let faltantes = 0;
     rows.forEach((r) => {
       estoque += r.estoquetotal;
-      consumo += r.consumo_total;
-      if (r.saldo < 0) faltantes += 1;
+      entradaMA += Number(r.entrada_ma || 0);
+      consumoMA += Number(r.consumo_ma || 0);
+      saldoMA += Number(r.saldo_ma || 0);
+      if (r.saldo_ma < 0) faltantes += 1;
     });
-    return { estoque, consumo, saldo: estoque - consumo, faltantes };
+    return { estoque, entradaMA, consumoMA, saldoMA, faltantes };
   }, [rows]);
 
   const ml = sidebarCollapsed ? 'ml-20' : 'ml-64';
@@ -262,9 +266,9 @@ export default function AnaliseConsumoMpPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="bg-white rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Estoque MP Total</div><div className="text-xl font-bold">{fmt(resumo.estoque)}</div></div>
-            <div className="bg-white rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Consumo Plano Total</div><div className="text-xl font-bold">{fmt(resumo.consumo)}</div></div>
-            <div className="bg-white rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Saldo</div><div className={`text-xl font-bold ${resumo.saldo < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{fmt(resumo.saldo)}</div></div>
-            <div className="bg-white rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">MP em Falta</div><div className="text-xl font-bold text-red-700">{fmt(resumo.faltantes)}</div></div>
+            <div className="bg-white rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Entradas MA</div><div className="text-xl font-bold text-sky-700">{fmt(resumo.entradaMA)}</div></div>
+            <div className="bg-white rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Consumo MA</div><div className="text-xl font-bold">{fmt(resumo.consumoMA)}</div></div>
+            <div className="bg-white rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Saldo MA</div><div className={`text-xl font-bold ${resumo.saldoMA < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{fmt(resumo.saldoMA)}</div><div className="text-[11px] text-gray-500 mt-0.5">MP negativas em MA: {fmt(resumo.faltantes)}</div></div>
           </div>
 
           <div className="bg-white rounded-lg border border-gray-200 p-3">

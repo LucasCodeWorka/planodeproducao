@@ -1791,6 +1791,35 @@ export default function SugestaoPlanoPage() {
     return map;
   }, [mpViab.refsBloqueadasDetalhe]);
 
+  const impactoMpNoPlano = useMemo(() => {
+    const porRef = new Map<string, { plano: number; perc: number }>();
+    let totalPlano = 0;
+    let planoBloqueado = 0;
+
+    for (const r of rowsVisiveisTela) {
+      const ref = String(r.referencia || r.idreferencia || '').trim();
+      const plano = Math.max(0, Number(r.planoSugerido || 0));
+      if (!ref || !(plano > 0)) continue;
+      totalPlano += plano;
+      porRef.set(ref, { plano: (porRef.get(ref)?.plano || 0) + plano, perc: 0 });
+      if (bloqueioRefMap.has(ref)) planoBloqueado += plano;
+    }
+
+    porRef.forEach((info, ref) => {
+      porRef.set(ref, {
+        plano: info.plano,
+        perc: totalPlano > 0 ? (info.plano / totalPlano) * 100 : 0,
+      });
+    });
+
+    return {
+      totalPlano,
+      planoBloqueado,
+      percBloqueado: totalPlano > 0 ? (planoBloqueado / totalPlano) * 100 : 0,
+      porRef,
+    };
+  }, [rowsVisiveisTela, bloqueioRefMap]);
+
   const escopoRefMap = useMemo(() => {
     const map = new Map<string, NonNullable<MpViabilidade['refsEscopoDetalhe']>[number]>();
     for (const b of mpViab.refsEscopoDetalhe || []) {
@@ -1807,6 +1836,20 @@ export default function SugestaoPlanoPage() {
     }
     return map;
   }, [mpViab.refsPlanoTotalDetalhe]);
+
+  const mpModalRefProblemas = useMemo(() => {
+    const listaBase = mpModalRef?.materiasprimas_todas_detalhe && mpModalRef.materiasprimas_todas_detalhe.length > 0
+      ? mpModalRef.materiasprimas_todas_detalhe
+      : (mpModalRef?.materiasprimas_criticas_detalhe || []);
+    return listaBase.filter((m) =>
+      Number(m.saldo_ma || 0) < 0 ||
+      Number(m.saldo_px || 0) < 0 ||
+      Number(m.saldo_ul || 0) < 0 ||
+      Number(m.deficit_ma || 0) > 0 ||
+      Number(m.deficit_px || 0) > 0 ||
+      Number(m.deficit_ul || 0) > 0
+    );
+  }, [mpModalRef]);
 
   function abrirModalMpDaLinha(r: Row) {
     if (periodoAlvo !== 'MA' || maModo !== 'EMERGENCIA') return;
@@ -2111,6 +2154,11 @@ export default function SugestaoPlanoPage() {
           {!loading && carregandoComplementos && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
               Carregando complementos da tela em segundo plano...
+            </div>
+          )}
+          {!loading && !carregandoComplementos && mpViab.loading && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              Recalculando impacto de matéria-prima no plano...
             </div>
           )}
 
@@ -2629,7 +2677,7 @@ export default function SugestaoPlanoPage() {
                 )}
 
                 <div className="pt-1 text-xs font-semibold text-gray-600 uppercase tracking-wide">Viabilidade de Matéria-Prima</div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                   <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
                     <div className="text-[11px] text-gray-500">Aumento MA (negativos)</div>
                     <div className="text-xl font-bold text-brand-dark leading-tight">{fmt(mpViab.aumentoMA)}</div>
@@ -2641,6 +2689,17 @@ export default function SugestaoPlanoPage() {
                   <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
                     <div className="text-[11px] text-gray-500">Déficit MP MA</div>
                     <div className={`text-xl font-bold leading-tight ${mpViab.deficitMA > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{fmt(mpViab.deficitMA)}</div>
+                  </div>
+                  <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
+                    <div className="text-[11px] text-gray-500">% plano travado por MP</div>
+                    <div className={`text-xl font-bold leading-tight ${impactoMpNoPlano.planoBloqueado > 0 ? 'text-red-700' : 'text-emerald-700'}`}>
+                      {mpViab.loading ? '...' : `${impactoMpNoPlano.percBloqueado.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                    </div>
+                    {!mpViab.loading && (
+                      <div className="text-[11px] text-gray-500 mt-0.5">
+                        {fmt(impactoMpNoPlano.planoBloqueado)} / {fmt(impactoMpNoPlano.totalPlano)} do plano visível
+                      </div>
+                    )}
                   </div>
                   <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
                     <div className="text-[11px] text-gray-500">Viabilidade MP (plano total)</div>
@@ -2862,13 +2921,19 @@ export default function SugestaoPlanoPage() {
                   <thead className="sticky top-0 bg-gray-100 z-10">
                     <tr>
                       <th className="text-left px-2 py-1 whitespace-nowrap">Referência</th>
+                      <th className="text-right px-2 py-1 whitespace-nowrap">% escopo</th>
                       <th className="text-left px-2 py-1 whitespace-nowrap">MPs críticas</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {mpViab.refsBloqueadasDetalhe.slice(0, 30).map((r, idx) => (
+                    {mpViab.refsBloqueadasDetalhe.slice(0, 30).map((r, idx) => {
+                      const impactoRef = impactoMpNoPlano.porRef.get(String(r.idreferencia || '').trim());
+                      return (
                       <tr key={`${r.idreferencia}-${idx}`} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200`}>
                         <td className="px-2 py-1 font-semibold whitespace-nowrap">{r.idreferencia}</td>
+                        <td className="px-2 py-1 text-right whitespace-nowrap font-semibold text-red-700">
+                          {impactoRef ? `${impactoRef.perc.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : '-'}
+                        </td>
                         <td className="px-2 py-1 whitespace-nowrap">
                           <button
                             type="button"
@@ -2933,7 +2998,7 @@ export default function SugestaoPlanoPage() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -2956,8 +3021,7 @@ export default function SugestaoPlanoPage() {
                   </button>
                 </div>
                 <div className="max-h-[72vh] overflow-auto">
-                  {(!mpModalRef.materiasprimas_todas_detalhe || mpModalRef.materiasprimas_todas_detalhe.length === 0) &&
-                   (!mpModalRef.materiasprimas_criticas_detalhe || mpModalRef.materiasprimas_criticas_detalhe.length === 0) && (
+                  {mpModalRefProblemas.length === 0 && (
                     <div className="px-4 py-3 text-xs text-emerald-700 bg-emerald-50 border-b border-emerald-100">
                       Sem MP crítica para essa referência no escopo atual do MA.
                     </div>
@@ -2985,14 +3049,8 @@ export default function SugestaoPlanoPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(mpModalRef.materiasprimas_todas_detalhe && mpModalRef.materiasprimas_todas_detalhe.length > 0
-                        ? mpModalRef.materiasprimas_todas_detalhe
-                        : (mpModalRef.materiasprimas_criticas_detalhe || [])
-                      ).length > 0 ? (
-                        (mpModalRef.materiasprimas_todas_detalhe && mpModalRef.materiasprimas_todas_detalhe.length > 0
-                          ? mpModalRef.materiasprimas_todas_detalhe
-                          : (mpModalRef.materiasprimas_criticas_detalhe || [])
-                        ).map((m, idx) => (
+                      {mpModalRefProblemas.length > 0 ? (
+                        mpModalRefProblemas.map((m, idx) => (
                           <tr key={`${m.idmateriaprima}-${idx}`} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200`}>
                             <td className="px-2 py-1 font-semibold whitespace-nowrap">{m.idmateriaprima}</td>
                             <td className="px-2 py-1 whitespace-nowrap">{String(m.nome_materiaprima || '-')}</td>
