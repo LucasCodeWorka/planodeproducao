@@ -1,0 +1,128 @@
+{
+  "curve_a": [
+    {
+      "feature": "lag_1",
+      "importance": 0.346097469329834
+    },
+    {
+      "feature": "is_cor_nova",
+      "importance": 0.11041952669620514
+    },
+    {
+      "feature": "soma_12m",
+      "importance": 0.10182555019855499
+    },
+    {
+      "feature": "media_6m",
+      "importance": 0.10097376257181168
+    },
+    {
+      "feature": "soma_6m",
+      "importance": 0.06215120851993561
+    },
+    {
+      "feature": "indice_sazonal_mes",
+      "importance": 0.04024583473801613
+    },
+    {
+      "feature": "max_6m",
+      "importance": 0.038506243377923965
+    },
+    {
+      "feature": "media_12m",
+      "importance": 0.02585563249886036
+    },
+    {
+      "feature": "media_3m",
+      "importance": 0.019258836284279823
+    },
+    {
+      "feature": "mes",
+      "importance": 0.016896193847060204
+    }
+  ],
+  "curve_b": [
+    {
+      "feature": "lag_1",
+      "importance": 0.24028880894184113
+    },
+    {
+      "feature": "is_cor_nova",
+      "importance": 0.17645950615406036
+    },
+    {
+      "feature": "media_6m",
+      "importance": 0.13582509756088257
+    },
+    {
+      "feature": "indice_sazonal_mes",
+      "importance": 0.13283954560756683
+    },
+    {
+      "feature": "media_3m",
+      "importance": 0.06850660592317581
+    },
+    {
+      "feature": "mes_sin",
+      "importance": 0.044557277113199234
+    },
+    {
+      "feature": "days_until_carnival",
+      "importance": 0.04302411153912544
+    },
+    {
+      "feature": "mes",
+      "importance": 0.03409934416413307
+    },
+    {
+      "feature": "lag_2",
+      "importance": 0.019931696355342865
+    },
+    {
+      "feature": "meses_desde_primeira_venda",
+      "importance": 0.014073072001338005
+    }
+  ],
+  "curve_cd": [
+    {
+      "feature": "media_grupo_3m",
+      "importance": 0.5283297300338745
+    },
+    {
+      "feature": "media_grupo_6m",
+      "importance": 0.34282752871513367
+    },
+    {
+      "feature": "indice_sazonal_grupo",
+      "importance": 0.049419913440942764
+    },
+    {
+      "feature": "mes",
+      "importance": 0.029572201892733574
+    },
+    {
+      "feature": "carnival_day_in_month",
+      "importance": 0.022580191493034363
+    },
+    {
+      "feature": "days_until_carnival",
+      "importance": 0.01475408673286438
+    },
+    {
+      "feature": "mes_cos",
+      "importance": 0.00655821617692709
+    },
+    {
+      "feature": "mes_sin",
+      "importance": 0.0032753213308751583
+    },
+    {
+      "feature": "trimestre",
+      "importance": 0.0014600260183215141
+    },
+    {
+      "feature": "is_carnival_month",
+      "importance": 0.0009064028854481876
+    }
+  ]
+}

@@ -1127,14 +1127,25 @@ export default function SugestaoPlanoPage() {
           : Number.POSITIVE_INFINITY;
         const folga = Math.max(0, maxPlanoPorCob - Number(row.planoSugerido || 0));
         if (!(folga > 0)) continue;
-        const extra = Math.min(restante, folga);
-        row.planoSugerido = Number(row.planoSugerido || 0) + extra;
-        row.rateioOpMinExtra = extra;
-        extrasAplicados.set(row, Number(extrasAplicados.get(row) || 0) + extra);
+        let extra = Math.min(restante, folga);
+        // Arredondar extra pelo corte mínimo
+        if (cfg.usar_corte_minimo && row.corteMin > 1) {
+          extra = roundDownByLot(extra, row.corteMin);
+        }
+        if (!(extra > 0)) continue;
+        // Garantir que resultado final seja múltiplo do corte
+        const novoPlanoOpMin = Number(row.planoSugerido || 0) + extra;
+        const planoFinalOpMin = cfg.usar_corte_minimo && row.corteMin > 1
+          ? roundUpByLot(novoPlanoOpMin, row.corteMin)
+          : novoPlanoOpMin;
+        const extraEfetivo = planoFinalOpMin - Number(row.planoSugerido || 0);
+        row.planoSugerido = planoFinalOpMin;
+        row.rateioOpMinExtra = extraEfetivo;
+        extrasAplicados.set(row, Number(extrasAplicados.get(row) || 0) + extraEfetivo);
         row.deltaPlano = row.planoSugerido - row.planoAtual;
         row.dispPos = row.dispAnterior + row.planoSugerido - row.projMes;
         row.coberturaPos = min > 0 ? row.dispPos / min : 0;
-        restante -= extra;
+        restante -= extraEfetivo;
       }
 
       if (restante > 0) {
@@ -1264,7 +1275,11 @@ export default function SugestaoPlanoPage() {
         : Math.floor(maxReducao);
       const reducaoFinal = Math.max(0, Math.min(Number(row.planoSugerido || 0), reducaoAplicada));
       if (!(reducaoFinal > 0)) continue;
-      row.planoSugerido = Math.max(0, Number(row.planoSugerido || 0) - reducaoFinal);
+      // Garantir que o resultado final seja múltiplo do corte mínimo
+      const novoPlano = Math.max(0, Number(row.planoSugerido || 0) - reducaoFinal);
+      row.planoSugerido = cfg.usar_corte_minimo && row.corteMin > 1
+        ? roundDownByLot(novoPlano, row.corteMin)
+        : novoPlano;
       row.deltaPlano = row.planoSugerido - row.planoAtual;
       row.dispPos = row.dispAnterior + row.planoSugerido - row.projMes;
       row.coberturaPos = Number(row.estoqueMin || 0) > 0 ? row.dispPos / Number(row.estoqueMin || 0) : 0;
@@ -1302,12 +1317,18 @@ export default function SugestaoPlanoPage() {
         : Math.floor(maxReducao);
       const reducaoFinal = Math.max(0, Math.min(Number(row.planoSugerido || 0), reducaoAplicada));
       if (!(reducaoFinal > 0)) continue;
-      row.planoSugerido = Math.max(0, Number(row.planoSugerido || 0) - reducaoFinal);
+      // Garantir que o resultado final seja múltiplo do corte mínimo
+      const novoPlanoComDano = Math.max(0, Number(row.planoSugerido || 0) - reducaoFinal);
+      const planoFinalComDano = cfg.usar_corte_minimo && row.corteMin > 1
+        ? roundDownByLot(novoPlanoComDano, row.corteMin)
+        : novoPlanoComDano;
+      const reducaoEfetiva = Number(row.planoSugerido || 0) - planoFinalComDano;
+      row.planoSugerido = planoFinalComDano;
       row.deltaPlano = row.planoSugerido - row.planoAtual;
       row.dispPos = row.dispAnterior + row.planoSugerido - row.projMes;
       row.coberturaPos = Number(row.estoqueMin || 0) > 0 ? row.dispPos / Number(row.estoqueMin || 0) : 0;
       row.grupoRateios.forEach((g) => {
-        const alivio = reducaoFinal * Number(row.tempoRef || 0) * g.rateio;
+        const alivio = reducaoEfetiva * Number(row.tempoRef || 0) * g.rateio;
         extraCargaPorGrupo.set(g.grupo, Number(extraCargaPorGrupo.get(g.grupo) || 0) + alivio);
       });
     }
@@ -1343,12 +1364,19 @@ export default function SugestaoPlanoPage() {
         : Math.floor(maxExtraByCap);
       const extraFinal = Math.max(0, Math.min(faltaPlano, extraAplicado));
       if (!(extraFinal > 0)) continue;
-      row.planoSugerido = Number(row.planoSugerido || 0) + extraFinal;
+      // Garantir que o resultado final seja múltiplo do corte mínimo
+      const novoPlanoIncremento = Number(row.planoSugerido || 0) + extraFinal;
+      const planoFinalIncremento = cfg.usar_corte_minimo && row.corteMin > 1
+        ? roundDownByLot(novoPlanoIncremento, row.corteMin)
+        : novoPlanoIncremento;
+      const incrementoEfetivo = planoFinalIncremento - Number(row.planoSugerido || 0);
+      if (!(incrementoEfetivo > 0)) continue;
+      row.planoSugerido = planoFinalIncremento;
       row.deltaPlano = row.planoSugerido - row.planoAtual;
       row.dispPos = row.dispAnterior + row.planoSugerido - row.projMes;
       row.coberturaPos = Number(row.estoqueMin || 0) > 0 ? row.dispPos / Number(row.estoqueMin || 0) : 0;
       row.grupoRateios.forEach((g) => {
-        const consumo = extraFinal * Number(row.tempoRef || 0) * g.rateio;
+        const consumo = incrementoEfetivo * Number(row.tempoRef || 0) * g.rateio;
         extraCargaPorGrupo.set(g.grupo, Math.max(0, Number(extraCargaPorGrupo.get(g.grupo) || 0) - consumo));
       });
     }

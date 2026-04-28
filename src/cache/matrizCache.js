@@ -7,6 +7,7 @@ let _pool = null;
 function resolveCacheCount(payload) {
   if (Array.isArray(payload)) return payload.length;
   if (Array.isArray(payload?.data)) return payload.data.length;
+  if (Array.isArray(payload?.rows)) return payload.rows.length;
   if (Number.isFinite(payload?.totalReferencias)) return Number(payload.totalReferencias);
   if (Number.isFinite(payload?.count)) return Number(payload.count);
   return 0;

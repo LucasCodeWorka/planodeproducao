@@ -16,6 +16,8 @@ const configuracoesRoutes = require("./routes/configuracoes");
 const consumoMpRoutes = require("./routes/consumoMp");
 const capacidadeRoutes = require("./routes/capacidade");
 const estoqueLojasRoutes = require("./routes/estoqueLojas");
+const mlRoutes = require("./routes/ml");
+const indicadoresOpRoutes = require("./routes/indicadores-op");
 
 const app = express();
 
@@ -104,6 +106,8 @@ app.use("/api/configuracoes",  configuracoesRoutes);
 app.use("/api/consumo-mp",     consumoMpRoutes);
 app.use("/api/capacidade",     capacidadeRoutes);
 app.use("/api/estoque-lojas",  estoqueLojasRoutes);
+app.use("/api/ml",             mlRoutes);
+app.use("/api/indicadores-op", indicadoresOpRoutes);
 
 // Rota legada mantida para compatibilidade
 app.get("/api/vr-vendas-qtd", async (req, res) => {

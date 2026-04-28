@@ -8,7 +8,8 @@ const {
   buscarMatrizPlanejamentoRapida,
   buscarEmProcessoPorLocal,
   buscarProducaoPorLocalCompleta,
-  buscarLocaisProducao
+  buscarLocaisProducao,
+  buscarExecucaoPlanoResumo
 } = require("../services/producaoService");
 
 const { readCache, filterCache } = require("../cache/matrizCache");
@@ -422,8 +423,18 @@ router.get("/matriz", async (req, res) => {
             })()
           );
 
+    const cachePayload = cached?.data;
+    const cacheRows = Array.isArray(cachePayload)
+      ? cachePayload
+      : Array.isArray(cachePayload?.rows)
+        ? cachePayload.rows
+        : [];
+    const cacheExecucaoPlanoResumo = !Array.isArray(cachePayload) && cachePayload?.execucaoPlanoResumo
+      ? cachePayload.execucaoPlanoResumo
+      : null;
+
     if (cached && cached.fresh && cacheAtendeMarca && cacheAtendeStatus) {
-      const filtrado = filterCache(cached.data, { referencias, marca, status });
+      const filtrado = filterCache(cacheRows, { referencias, marca, status });
       const pagina   = filtrado.slice(offset, offset + limit);
 
       res.set('X-Cache', 'HIT');
@@ -436,7 +447,8 @@ router.get("/matriz", async (req, res) => {
         cacheUpdatedAt: new Date(cached.timestamp).toLocaleString('pt-BR'),
         limit,
         offset,
-        data: pagina
+        data: pagina,
+        execucaoPlanoResumo: cacheExecucaoPlanoResumo
       });
     }
 
@@ -452,6 +464,11 @@ router.get("/matriz", async (req, res) => {
       status,
       referencias
     });
+    const execucaoPlanoResumo = await buscarExecucaoPlanoResumo(pool, {
+      cdEmpresa,
+      marca: marca || 'LIEBE',
+      status: status || 'EM LINHA',
+    });
 
     res.set('X-Cache', 'MISS');
     return res.status(200).json({
@@ -460,12 +477,38 @@ router.get("/matriz", async (req, res) => {
       fromCache: false,
       limit,
       offset,
-      data: resultados
+      data: resultados,
+      execucaoPlanoResumo
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
       error: "Erro ao consultar matriz"
+    });
+  }
+});
+
+router.get("/plano-execucao-resumo", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const cdEmpresa = Number(req.query.cd_empresa) || 1;
+    const marca = String(req.query.marca || 'LIEBE');
+    const status = String(req.query.status || 'EM LINHA');
+
+    const data = await buscarExecucaoPlanoResumo(pool, {
+      cdEmpresa,
+      marca,
+      status,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao consultar execucao do plano"
     });
   }
 });

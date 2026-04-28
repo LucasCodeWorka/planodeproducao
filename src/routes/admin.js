@@ -1,5 +1,5 @@
 const express  = require('express');
-const { buscarMatrizPlanejamentoRapida } = require('../services/producaoService');
+const { buscarMatrizPlanejamentoRapida, buscarExecucaoPlanoResumo } = require('../services/producaoService');
 const { writeCache, writeCacheByKey, getCacheStatus }     = require('../cache/matrizCache');
 const { calcularCurvaAbcReferencias } = require('../services/curvaAbcService');
 
@@ -84,7 +84,14 @@ router.post('/refresh', auth, (req, res) => {
     try {
       const data = await buscarMatrizPlanejamentoRapida(pool, { marca, status });
       if (data.length === 0) throw new Error('Rebuild retornou 0 produtos — cache não gravado');
-      await writeCache(data, { marca, status, geradoPor: 'admin/refresh' });
+      const execucaoPlanoResumo = await buscarExecucaoPlanoResumo(pool, {
+        marca: marca || 'LIEBE',
+        status: status || 'EM LINHA',
+      });
+      await writeCache({
+        rows: data,
+        execucaoPlanoResumo,
+      }, { marca, status, geradoPor: 'admin/refresh' });
       const curvaAbc = await calcularCurvaAbcReferencias(pool);
       await writeCacheByKey(CURVA_ABC_CACHE_KEY, curvaAbc, {
         marca: 'LIEBE',

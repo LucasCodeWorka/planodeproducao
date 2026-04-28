@@ -982,6 +982,7 @@ async function buscarProducaoPorLocalCompleta(pool, options = {}) {
     const mediaMensal = vendas ? vendas.total / 6 : 0;
     const estoqueMinimo = Math.round(mediaMensal);
     const disponivel = estoque - pedidos;
+    const disponivelPosProcesso = disponivel + (Math.round(parseFloat(row.qtd_em_processo) || 0));
     const cobertura = estoqueMinimo > 0 ? disponivel / estoqueMinimo : null;
 
     resultado.push({
@@ -1002,6 +1003,7 @@ async function buscarProducaoPorLocalCompleta(pool, options = {}) {
       estoque_minimo: estoqueMinimo,
       pedidos: Math.round(pedidos),
       disponivel: Math.round(disponivel),
+      disponivel_pos_processo: Math.round(disponivelPosProcesso),
       cobertura: cobertura !== null ? Math.round(cobertura * 100) / 100 : null,
     });
   }
@@ -1032,6 +1034,73 @@ async function buscarLocaisProducao(pool) {
   }));
 }
 
+async function buscarExecucaoPlanoResumo(pool, options = {}) {
+  const {
+    marca = 'LIEBE',
+    status = 'EM LINHA',
+  } = options;
+
+  const statusList = String(status)
+    .split(',')
+    .map((item) => String(item || '').trim().toUpperCase())
+    .filter(Boolean);
+
+  const query = `
+    SELECT
+      p.cd_auxiliar,
+      TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint), 'SEM CONTINUIDADE')) AS continuidade,
+      SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qtd_lote,
+      SUM(COALESCE(a.qt_finalizada, 0))::FLOAT AS qtd_finalizada
+    FROM vr_pcp_loteplop a
+    LEFT JOIN pcp_lotepv p
+      ON a.nr_lote = p.nr_lote
+    WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT')
+      AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint), ''))) = UPPER(TRIM($1))
+      AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) = ANY($2)
+      AND UPPER(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), '')) NOT LIKE '%MEIA DE SEDA%'
+      AND UPPER(TRIM(COALESCE(f_dic_prd_nivel(a.cd_produto, 'TM'::bpchar), ''))) <> 'PT 99'
+    GROUP BY p.cd_auxiliar, continuidade
+  `;
+
+  const result = await pool.query(query, [marca, statusList]);
+  const base = {
+    geral: { MA: null, PX: null, UL: null, QT: null },
+    continuidade: {},
+  };
+
+  for (const row of result.rows) {
+    const periodo = String(row.cd_auxiliar || '').trim().toUpperCase();
+    const continuidade = String(row.continuidade || 'SEM CONTINUIDADE').trim();
+    const qtdLote = parseFloat(row.qtd_lote) || 0;
+    const qtdFinalizada = parseFloat(row.qtd_finalizada) || 0;
+    const percentual = qtdLote > 0 ? (qtdFinalizada * 100) / qtdLote : null;
+
+    if (base.geral[periodo] === null) {
+      base.geral[periodo] = { qtdReal: 0, qtdFinalizada: 0, percentual: null };
+    }
+    base.geral[periodo].qtdReal += qtdLote;
+    base.geral[periodo].qtdFinalizada += qtdFinalizada;
+
+    if (!base.continuidade[continuidade]) {
+      base.continuidade[continuidade] = { MA: null, PX: null, UL: null, QT: null };
+    }
+    base.continuidade[continuidade][periodo] = {
+      qtdReal: qtdLote,
+      qtdFinalizada,
+      percentual,
+    };
+  }
+
+  for (const periodo of ['MA', 'PX', 'UL', 'QT']) {
+    const item = base.geral[periodo];
+    if (item) {
+      item.percentual = item.qtdReal > 0 ? (item.qtdFinalizada * 100) / item.qtdReal : null;
+    }
+  }
+
+  return base;
+}
+
 module.exports = {
   buscarEstoqueFabrica,
   buscarProdutosEmProcesso,
@@ -1042,5 +1111,6 @@ module.exports = {
   buscarMatrizPlanejamentoRapida,
   buscarEmProcessoPorLocal,
   buscarProducaoPorLocalCompleta,
-  buscarLocaisProducao
+  buscarLocaisProducao,
+  buscarExecucaoPlanoResumo
 };

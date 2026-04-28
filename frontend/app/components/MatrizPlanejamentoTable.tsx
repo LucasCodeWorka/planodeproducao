@@ -52,6 +52,8 @@ function somar(
     const hasProj = proj !== null;
     const emP = i.estoques.em_processo || 0;
     const dispPosProcesso = disp + emP;
+    const dispPositivo = disp > 0 ? disp : 0;
+    const dispPosProcessoPositivo = dispPosProcesso > 0 ? dispPosProcesso : 0;
     const pMA = i.plano?.ma || 0;
     const pPX = i.plano?.px || 0;
     const pUL = i.plano?.ul || 0;
@@ -76,8 +78,8 @@ function somar(
       emProcesso: acc.emProcesso + emP,
       estoqueMin: acc.estoqueMin + (i.estoques.estoque_minimo || 0),
       pedidos:    acc.pedidos    + (i.demanda.pedidos_pendentes || 0),
-      disponivel: acc.disponivel + disp,
-      disponivelPosProcesso: acc.disponivelPosProcesso + dispPosProcesso,
+      disponivel: acc.disponivel + dispPositivo,
+      disponivelPosProcesso: acc.disponivelPosProcesso + dispPosProcessoPositivo,
       deficit:    acc.deficit    + (disp < 0 ? disp : 0),
       deficitPosProcesso: acc.deficitPosProcesso + (dispPosProcesso < 0 ? dispPosProcesso : 0),
       abaixo:     acc.abaixo     + (disp >= 0 && disp < (i.estoques.estoque_minimo || 0) ? 1 : 0),
@@ -275,7 +277,7 @@ export default function MatrizPlanejamentoTable({
   curvaABC = {},
 }: Props) {
   type SortKey =
-    | 'estoque' | 'emProcesso' | 'estoqueMin' | 'pedidos' | 'disponivel' | 'disponivelPosProcesso' | 'negativo' | 'negativoPosProcesso' | 'cobertura'
+    | 'estoque' | 'emProcesso' | 'estoqueMin' | 'pedidos' | 'disponivel' | 'negativo' | 'negativoPosProcesso' | 'cobertura'
     | 'taxaJan' | 'taxaFev' | 'taxaMar'
     | 'projMA' | 'planoMA' | 'dispMA' | 'cobMA'
     | 'projPX' | 'planoPX' | 'dispPX' | 'cobPX'
@@ -453,7 +455,6 @@ export default function MatrizPlanejamentoTable({
         case 'estoqueMin': return t.estoqueMin;
         case 'pedidos': return t.pedidos;
         case 'disponivel': return t.disponivel;
-        case 'disponivelPosProcesso': return t.disponivelPosProcesso;
         case 'negativo': return Math.abs(t.deficit);
         case 'negativoPosProcesso': return Math.abs(t.deficitPosProcesso);
         case 'cobertura': return t.estoqueMin > 0 ? t.disponivel / t.estoqueMin : Number.NEGATIVE_INFINITY;
@@ -511,7 +512,6 @@ export default function MatrizPlanejamentoTable({
         case 'estoqueMin': return min;
         case 'pedidos': return i.demanda.pedidos_pendentes || 0;
         case 'disponivel': return disp;
-        case 'disponivelPosProcesso': return dispPosProcesso;
         case 'negativo': return disp < 0 ? Math.abs(disp) : 0;
         case 'negativoPosProcesso': return dispPosProcesso < 0 ? Math.abs(dispPosProcesso) : 0;
         case 'cobertura': return min > 0 ? disp / min : Number.NEGATIVE_INFINITY;
@@ -594,7 +594,7 @@ export default function MatrizPlanejamentoTable({
     };
     const header = [
       'continuidade', 'referencia', 'produto', 'idproduto', 'cor', 'tamanho',
-      'estoque_minimo', 'estoque', 'pedidos', 'disponivel_atual', 'em_processo', 'disponivel_pos_processo', 'negativo_atual', 'negativo_pos_processo', 'cobertura_atual',
+      'estoque_minimo', 'estoque', 'pedidos', 'disponivel_atual', 'em_processo', 'negativo_atual', 'negativo_pos_processo', 'cobertura_atual',
       'taxa_jan_pct', 'taxa_fev_pct', 'taxa_mar_pct',
       `proj_${mNomes[0]}`, `plano_${mNomes[0]}`, `disp_${mNomes[0]}`, `neg_${mNomes[0]}`, `cob_${mNomes[0]}`,
       `proj_${mNomes[1]}`, `plano_${mNomes[1]}`, `disp_${mNomes[1]}`, `neg_${mNomes[1]}`, `cob_${mNomes[1]}`,
@@ -644,7 +644,6 @@ export default function MatrizPlanejamentoTable({
         Number(item.demanda.pedidos_pendentes || 0),
         Number(dispAtual),
         Number(emP),
-        Number(dispPosProcesso),
         dispAtual < 0 ? Math.abs(dispAtual) : 0,
         dispPosProcesso < 0 ? Math.abs(dispPosProcesso) : 0,
         cobAtual,
@@ -704,7 +703,6 @@ export default function MatrizPlanejamentoTable({
                   {excedentesLojas && excedentesLojas.size > 0 && (
                     <th rowSpan={2} className="px-3 py-3.5 text-right border-b border-gray-600 bg-purple-900 text-purple-200">Estq. Lojas</th>
                   )}
-                  <th rowSpan={2} onClick={() => onSortClick('disponivelPosProcesso')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Disp. Pós Proc.{sortBadge('disponivelPosProcesso')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('negativo')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Negativo{sortBadge('negativo')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('negativoPosProcesso')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Neg. Pós Proc.{sortBadge('negativoPosProcesso')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('cobertura')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Cobertura{sortBadge('cobertura')}</th>
@@ -758,7 +756,6 @@ export default function MatrizPlanejamentoTable({
                 {excedentesLojas && excedentesLojas.size > 0 && (
                   <th className="px-3 py-3 text-right bg-purple-900 text-purple-200">Estq. Lojas</th>
                 )}
-                <th onClick={() => onSortClick('disponivelPosProcesso')} className="px-3 py-3 text-right cursor-pointer">Disp. Pós Proc.{sortBadge('disponivelPosProcesso')}</th>
                 <th onClick={() => onSortClick('negativo')} className="px-3 py-3 text-right cursor-pointer">Negativo{sortBadge('negativo')}</th>
                 <th onClick={() => onSortClick('negativoPosProcesso')} className="px-3 py-3 text-right cursor-pointer">Neg. Pós Proc.{sortBadge('negativoPosProcesso')}</th>
                 <th onClick={() => onSortClick('cobertura')} className="px-3 py-3 text-right cursor-pointer">Cobertura{sortBadge('cobertura')}</th>
@@ -808,9 +805,6 @@ export default function MatrizPlanejamentoTable({
                         {gt.excedenteLojas > 0 ? <span className="text-purple-300 font-semibold">{fmt(gt.excedenteLojas)}</span> : <span className="text-gray-600">—</span>}
                       </td>
                     )}
-                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums font-bold">
-                      <CellDisp v={gt.disponivelPosProcesso} min={gt.estoqueMin} dark />
-                    </td>
                     <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
                       <CellNegativo v={gt.deficit} dark />
                     </td>
@@ -900,7 +894,7 @@ export default function MatrizPlanejamentoTable({
                     const refKey  = `${grupo.continuidade}|${ref.referencia}`;
                     const refOpen = expandedRefs.has(refKey);
                     const rt      = ref.totais;
-                    const rtSit   = rt.disponivel < 0 ? 'deficit' : rt.disponivel < rt.estoqueMin ? 'abaixo' : 'ok';
+                    const rtSit   = rt.deficit < 0 ? 'deficit' : rt.disponivel < rt.estoqueMin ? 'abaixo' : 'ok';
 
                     return (
                       <React.Fragment key={refKey}>
@@ -951,9 +945,6 @@ export default function MatrizPlanejamentoTable({
                               {rt.excedenteLojas > 0 ? <span className="text-purple-700 font-semibold">{fmt(rt.excedenteLojas)}</span> : <span className="text-slate-300">—</span>}
                             </td>
                           )}
-                          <td className="px-3 py-3.5 text-right font-mono tabular-nums font-bold">
-                            <CellDisp v={rt.disponivelPosProcesso} min={rt.estoqueMin} />
-                          </td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums">
                             <CellNegativo v={rt.deficit} />
                           </td>
@@ -1123,9 +1114,6 @@ export default function MatrizPlanejamentoTable({
                                   </td>
                                 );
                               })()}
-                              <td className="px-3 py-3 text-right font-mono tabular-nums font-semibold">
-                                <CellDisp v={dispPosProcesso} min={eMin} />
-                              </td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
                                 <CellNegativo v={disp} />
                               </td>
@@ -1242,7 +1230,7 @@ export default function MatrizPlanejamentoTable({
             Disp. futuro = Disp. + Em Proc. + Plano - Projeção
           </span>
         )}
-        <span className="ml-auto text-gray-400">Disponível = Estoque - Pedidos · Disponível Pós Processo = Disponível + Em Processo · Cobertura = Disp. / Est. Mín.</span>
+        <span className="ml-auto text-gray-400">Disponível = Estoque - Pedidos · Cobertura = Disp. / Est. Mín.</span>
       </div>
 
       {/* Modal Em Processo por Local */}
