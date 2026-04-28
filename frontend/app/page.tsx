@@ -1070,7 +1070,7 @@ export default function Home() {
 
               {/* Filtros integrados */}
               <div className="mt-4 pt-3 border-t border-gray-100">
-                <div className="relative z-40 flex flex-wrap gap-x-4 gap-y-2 items-end justify-center">
+                <div className="relative z-[100] flex flex-wrap gap-x-4 gap-y-2 items-end justify-center">
                   <div>
                     <label className="block text-xs font-semibold text-brand-dark mb-1">Filtro rápido</label>
                     <button
@@ -1110,7 +1110,7 @@ export default function Home() {
                   <div className="border-l border-gray-200 pl-4">
                     <label className="block text-xs font-semibold text-brand-dark mb-1">Simulação aprovada</label>
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="relative z-50 w-72">
+                      <div className={`relative w-72 ${abrirSeletorAprovadas ? 'z-[200]' : 'z-10'}`}>
                         <button
                           type="button"
                           onClick={() => setAbrirSeletorAprovadas((v) => !v)}
@@ -1119,7 +1119,7 @@ export default function Home() {
                           Selecionadas: {aprovadasSelecionadasIds.length}/{aprovadas.length} {abrirSeletorAprovadas ? '▲' : '▼'}
                         </button>
                         {abrirSeletorAprovadas && (
-                          <div className="absolute z-[120] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
+                          <div className="absolute z-[200] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
                             <div className="mb-1 flex items-center justify-between">
                               <span className="text-[11px] text-gray-500">Escolha as simulações</span>
                               <div className="flex items-center gap-1">
@@ -1242,7 +1242,7 @@ export default function Home() {
 
                   <div className="border-l border-gray-200 pl-4">
                     <label className="block text-xs font-semibold text-brand-dark mb-1">Continuidade</label>
-                    <div className="relative z-50 w-56">
+                    <div className={`relative w-56 ${abrirSeletorContinuidade ? 'z-[200]' : 'z-10'}`}>
                       <button
                         type="button"
                         onClick={() => setAbrirSeletorContinuidade((v) => !v)}
@@ -1253,7 +1253,7 @@ export default function Home() {
                           : `${filtroContinuidade.length} selecionada(s)`} {abrirSeletorContinuidade ? '▲' : '▼'}
                       </button>
                       {abrirSeletorContinuidade && (
-                        <div className="absolute z-[120] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
+                        <div className="absolute z-[200] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
                           <div className="mb-1 flex items-center justify-between">
                             <span className="text-[11px] text-gray-500">Escolha as continuidades</span>
                             <div className="flex items-center gap-1">
@@ -1298,7 +1298,7 @@ export default function Home() {
 
                   <div className="border-l border-gray-200 pl-4">
                     <label className="block text-xs font-semibold text-brand-dark mb-1">Linha</label>
-                    <div className="relative z-50 w-44">
+                    <div className={`relative w-44 ${abrirSeletorLinha ? 'z-[200]' : 'z-10'}`}>
                       <button
                         type="button"
                         onClick={() => setAbrirSeletorLinha((v) => !v)}
@@ -1309,7 +1309,7 @@ export default function Home() {
                           : `${filtroLinha.length} selecionada(s)`} {abrirSeletorLinha ? '▲' : '▼'}
                       </button>
                       {abrirSeletorLinha && (
-                        <div className="absolute z-[120] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
+                        <div className="absolute z-[200] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
                           <div className="mb-1 flex items-center justify-between">
                             <span className="text-[11px] text-gray-500">Escolha as linhas</span>
                             <div className="flex items-center gap-1">
@@ -1354,7 +1354,7 @@ export default function Home() {
 
                   <div className="border-l border-gray-200 pl-4">
                     <label className="block text-xs font-semibold text-brand-dark mb-1">Familia</label>
-                    <div className="relative z-50 w-44">
+                    <div className={`relative w-44 ${abrirSeletorFamilia ? 'z-[200]' : 'z-10'}`}>
                       <button
                         type="button"
                         onClick={() => setAbrirSeletorFamilia((v) => !v)}
@@ -1365,7 +1365,7 @@ export default function Home() {
                           : `${filtroFamilia.length} selecionada(s)`} {abrirSeletorFamilia ? '▲' : '▼'}
                       </button>
                       {abrirSeletorFamilia && (
-                        <div className="absolute z-[120] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
+                        <div className="absolute z-[200] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
                           <div className="mb-1 flex items-center justify-between">
                             <span className="text-[11px] text-gray-500">Escolha as familias</span>
                             <div className="flex items-center gap-1">
@@ -1516,79 +1516,82 @@ export default function Home() {
             <div className="bg-gradient-to-br from-red-50 via-white to-red-50/70 px-5 py-4 shrink-0">
               <div className="flex items-center gap-2 mb-3">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Déficits por mês</span>
+                <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Negativos por mes</span>
                 <div className="flex-1 h-px bg-red-100" />
               </div>
-              <div className="space-y-3">
-                <div className="grid grid-cols-6 gap-5">
-                  {[
-                    { label: 'Atual', value: resumoNegativos.atual, percentual: null },
-                    { label: 'Pos Proc.', value: resumoNegativos.atualPosProcesso, percentual: null },
-                    { label: nomeMesCurto(periodos.MA), value: resumoNegativos.ma, percentual: execucaoPlanoResumo?.geral?.MA?.percentual ?? null },
-                    { label: nomeMesCurto(periodos.PX), value: resumoNegativos.px, percentual: execucaoPlanoResumo?.geral?.PX?.percentual ?? null },
-                    { label: nomeMesCurto(periodos.UL), value: resumoNegativos.ul, percentual: execucaoPlanoResumo?.geral?.UL?.percentual ?? null },
-                    { label: nomeMesCurto((periodos.UL || 0) + 1), value: resumoNegativos.qt, percentual: execucaoPlanoResumo?.geral?.QT?.percentual ?? null },
-                  ].map((c) => (
-                    <div key={c.label}>
-                      <div className="flex items-center gap-2">
-                        <div className="text-[11px] text-red-400">{c.label}</div>
-                        <span className="text-[11px] font-semibold text-red-500">
-                          {c.percentual == null ? '' : `Plano ${formatPct(c.percentual)}`}
-                        </span>
-                      </div>
-                      <div className="mt-0.5 text-xl font-bold font-mono text-red-600">{c.value.toLocaleString('pt-BR')}</div>
-                    </div>
-                  ))}
+              <div className="space-y-2">
+                {/* Cabeçalho com meses */}
+                <div className="grid grid-cols-[140px_repeat(6,1fr)] gap-2 text-[11px] text-red-400 border-b border-red-100 pb-1">
+                  <div></div>
+                  <div>Atual</div>
+                  <div>Pos Proc.</div>
+                  <div className="flex items-center gap-1">
+                    <span>{nomeMesCurto(periodos.MA)}</span>
+                    {execucaoPlanoResumo?.geral?.MA?.percentual != null && (
+                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.MA.percentual)}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span>{nomeMesCurto(periodos.PX)}</span>
+                    {execucaoPlanoResumo?.geral?.PX?.percentual != null && (
+                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.PX.percentual)}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span>{nomeMesCurto(periodos.UL)}</span>
+                    {execucaoPlanoResumo?.geral?.UL?.percentual != null && (
+                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.UL.percentual)}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span>{nomeMesCurto((periodos.UL || 0) + 1)}</span>
+                    {execucaoPlanoResumo?.geral?.QT?.percentual != null && (
+                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.QT.percentual)}</span>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2 pt-2 border-t border-red-100">
+                {/* Linha TOTAL */}
+                <div className="grid grid-cols-[140px_repeat(6,1fr)] gap-2 items-center">
+                  <div className="text-xs font-bold text-red-600 uppercase">Total</div>
+                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.atual.toLocaleString('pt-BR')}</div>
+                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.atualPosProcesso.toLocaleString('pt-BR')}</div>
+                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.ma.toLocaleString('pt-BR')}</div>
+                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.px.toLocaleString('pt-BR')}</div>
+                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.ul.toLocaleString('pt-BR')}</div>
+                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.qt.toLocaleString('pt-BR')}</div>
+                </div>
+                {/* Linhas por continuidade */}
+                <div className="space-y-1 pt-1 border-t border-red-100">
                   {resumoNegativos.continuidade
                     .filter((c) => ['PERMANENTE', 'PERMANENTE COR NOVA', 'EDICAO LIMITADA', 'EDIÇÃO LIMITADA'].includes((c.nome || '').toUpperCase()))
                     .map((c) => (
-                      <div key={c.nome} className="grid grid-cols-[160px_repeat(6,minmax(72px,1fr))] gap-4 items-start">
+                      <div key={c.nome} className="grid grid-cols-[140px_repeat(6,1fr)] gap-2 items-center">
                         <div className="text-[11px] font-semibold uppercase tracking-wide text-red-500">{c.nome}</div>
-                        <div>
-                          <div className="text-[10px] text-red-300">Atual</div>
-                          <div className="text-sm font-bold font-mono text-red-700">{c.atual.toLocaleString('pt-BR')}</div>
+                        <div className="text-sm font-bold font-mono text-red-700">{c.atual.toLocaleString('pt-BR')}</div>
+                        <div className="text-sm font-bold font-mono text-red-700">{c.atualPosProcesso.toLocaleString('pt-BR')}</div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-bold font-mono text-red-700">{c.ma.toLocaleString('pt-BR')}</span>
+                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.MA?.percentual != null && (
+                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo.continuidade[c.nome].MA.percentual)}</span>
+                          )}
                         </div>
-                        <div>
-                          <div className="text-[10px] text-red-300">Pos Proc.</div>
-                          <div className="text-sm font-bold font-mono text-red-700">{c.atualPosProcesso.toLocaleString('pt-BR')}</div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-bold font-mono text-red-700">{c.px.toLocaleString('pt-BR')}</span>
+                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.PX?.percentual != null && (
+                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo.continuidade[c.nome].PX.percentual)}</span>
+                          )}
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.MA)}</div>
-                            <div className="text-[11px] font-semibold text-red-500">
-                              {execucaoPlanoResumo?.continuidade?.[c.nome]?.MA?.percentual == null ? '' : `Plano ${formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.MA?.percentual)}`}
-                            </div>
-                          </div>
-                          <div className="text-sm font-bold font-mono text-red-700">{c.ma.toLocaleString('pt-BR')}</div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-bold font-mono text-red-700">{c.ul.toLocaleString('pt-BR')}</span>
+                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.UL?.percentual != null && (
+                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo.continuidade[c.nome].UL.percentual)}</span>
+                          )}
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.PX)}</div>
-                            <div className="text-[11px] font-semibold text-red-500">
-                              {execucaoPlanoResumo?.continuidade?.[c.nome]?.PX?.percentual == null ? '' : `Plano ${formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.PX?.percentual)}`}
-                            </div>
-                          </div>
-                          <div className="text-sm font-bold font-mono text-red-700">{c.px.toLocaleString('pt-BR')}</div>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-[10px] text-red-300">{nomeMesCurto(periodos.UL)}</div>
-                            <div className="text-[11px] font-semibold text-red-500">
-                              {execucaoPlanoResumo?.continuidade?.[c.nome]?.UL?.percentual == null ? '' : `Plano ${formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.UL?.percentual)}`}
-                            </div>
-                          </div>
-                          <div className="text-sm font-bold font-mono text-red-700">{c.ul.toLocaleString('pt-BR')}</div>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-[10px] text-red-300">{nomeMesCurto((periodos.UL || 0) + 1)}</div>
-                            <div className="text-[11px] font-semibold text-red-500">
-                              {execucaoPlanoResumo?.continuidade?.[c.nome]?.QT?.percentual == null ? '' : `Plano ${formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.QT?.percentual)}`}
-                            </div>
-                          </div>
-                          <div className="text-sm font-bold font-mono text-red-700">{c.qt.toLocaleString('pt-BR')}</div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-bold font-mono text-red-700">{c.qt.toLocaleString('pt-BR')}</span>
+                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.QT?.percentual != null && (
+                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo.continuidade[c.nome].QT.percentual)}</span>
+                          )}
                         </div>
                       </div>
                     ))}

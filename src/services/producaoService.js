@@ -2,12 +2,25 @@
  * Serviço para consultas relacionadas ao planejamento de produção
  */
 
+const fs = require('fs');
+const path = require('path');
 const { buscarProdutoComMedias } = require('./vendasService');
 const { calcularEstoqueMinimo } = require('./estoqueMinimo');
 const { isExcludedPlanningItem } = require('./planningExclusions');
 
+const DATA_DIR = path.join(__dirname, '..', '..', 'data');
+const DE_PARA_FILE = path.join(DATA_DIR, 'de_para_referencias.json');
+
 function isPt99Size(value) {
   return String(value || '').trim().toUpperCase() === 'PT 99';
+}
+
+function normalizeCompare(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
 }
 
 function normalizeStatus(value) {
@@ -16,6 +29,43 @@ function normalizeStatus(value) {
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
     .trim();
+}
+
+function lerDeParaReferencias() {
+  try {
+    if (!fs.existsSync(DE_PARA_FILE)) return [];
+    const raw = fs.readFileSync(DE_PARA_FILE, 'utf8');
+    const json = JSON.parse(raw);
+    return Array.isArray(json?.data) ? json.data : [];
+  } catch (error) {
+    console.warn('[de-para] erro ao ler arquivo de referencias:', error.message);
+    return [];
+  }
+}
+
+function escolherSkuOrigem(produtosAntigos, produtoNovo, indiceNovo) {
+  if (!Array.isArray(produtosAntigos) || !produtosAntigos.length) return null;
+
+  const cor = normalizeCompare(produtoNovo?.cor);
+  const tamanho = normalizeCompare(produtoNovo?.tamanho);
+
+  const matchExato = produtosAntigos.find((item) =>
+    normalizeCompare(item?.cor) === cor &&
+    normalizeCompare(item?.tamanho) === tamanho
+  );
+  if (matchExato) return matchExato;
+
+  const matchTamanho = produtosAntigos.find((item) =>
+    normalizeCompare(item?.tamanho) === tamanho
+  );
+  if (matchTamanho) return matchTamanho;
+
+  const matchCor = produtosAntigos.find((item) =>
+    normalizeCompare(item?.cor) === cor
+  );
+  if (matchCor) return matchCor;
+
+  return produtosAntigos[indiceNovo] || produtosAntigos[0] || null;
 }
 
 /**
@@ -731,11 +781,55 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   }
 
   // ── Montar resultado ──────────────────────────────────────────────────────
+  const dePara = lerDeParaReferencias();
+  const produtosPorReferencia = new Map();
+  for (const row of rProdutos.rows) {
+    const id = Number(row.idproduto);
+    const referencia = String(refMap.get(id) || '').trim();
+    if (!referencia) continue;
+    if (!produtosPorReferencia.has(referencia)) produtosPorReferencia.set(referencia, []);
+    produtosPorReferencia.get(referencia).push({
+      idproduto: id,
+      cor: row.cor,
+      tamanho: row.tamanho,
+    });
+  }
+
+  const antigoParaNovoId = new Map();
+  const origensUsadas = new Set();
+  for (const item of dePara) {
+    const refAntiga = String(item?.ref_antiga || '').trim();
+    const refNova = String(item?.ref_nova || '').trim();
+    if (!refAntiga || !refNova) continue;
+
+    const produtosAntigos = produtosPorReferencia.get(refAntiga) || [];
+    const produtosNovos = produtosPorReferencia.get(refNova) || [];
+    if (!produtosAntigos.length || !produtosNovos.length) continue;
+
+    for (let i = 0; i < produtosNovos.length; i += 1) {
+      const produtoNovo = produtosNovos[i];
+      const candidatos = produtosAntigos.filter((produto) => !origensUsadas.has(produto.idproduto));
+      const origem = escolherSkuOrigem(candidatos, produtoNovo, i);
+      const idAntigo = Number(origem?.idproduto || 0);
+      const idNovo = Number(produtoNovo?.idproduto || 0);
+      if (!idAntigo || !idNovo) continue;
+      origensUsadas.add(idAntigo);
+      antigoParaNovoId.set(idAntigo, idNovo);
+    }
+  }
+
+  const fontesPorNovoId = new Map();
+  for (const [idAntigo, idNovo] of antigoParaNovoId.entries()) {
+    if (!fontesPorNovoId.has(idNovo)) fontesPorNovoId.set(idNovo, []);
+    fontesPorNovoId.get(idNovo).push(idAntigo);
+  }
+
   const resultado = [];
 
   for (const row of rProdutos.rows) {
     if (isPt99Size(row.tamanho)) continue;
     const id     = Number(row.idproduto);
+    if (antigoParaNovoId.has(id)) continue;
     const referencia = refMap.get(id) || null;
     const produtoNome = prodMap.get(id) || null;
     if (isExcludedPlanningItem({
@@ -746,18 +840,40 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     const status = (statusMap.get(id) || '').trim().toUpperCase();
     const emLinha = status === 'EM LINHA' || status === 'NOVA COLECAO';
 
-    const s              = salesMap.get(id);
-    const diasVenda12m   = s ? s.total12m : 0;
-    const mediaSemestral = s ? s.sumSem / 6 : 0;  // média mensal do semestre (total ÷ 6 meses)
-    const media3m        = s ? s.sum3m  / 3 : 0;  // média mensal dos 3 meses fechados (total ÷ 3 meses)
+    const idsFonte = [id, ...(fontesPorNovoId.get(id) || [])];
+    let diasVenda12m = 0;
+    let sumSem = 0;
+    let sum3m = 0;
+    let estoqueAtual = 0;
+    let emProcesso = 0;
+    let qtPendente = 0;
+    let saldoAdicional = 0;
+    let planoMA = 0;
+    let planoPX = 0;
+    let planoUL = 0;
+    let planoQT = 0;
+
+    for (const idFonte of idsFonte) {
+      const s = salesMap.get(idFonte);
+      diasVenda12m += s ? s.total12m : 0;
+      sumSem += s ? s.sumSem : 0;
+      sum3m += s ? s.sum3m : 0;
+      estoqueAtual += estMap.get(idFonte) || 0;
+      emProcesso += emprocMap.get(idFonte) || 0;
+      qtPendente += pedMap.get(idFonte) || 0;
+      saldoAdicional += saldoMap.get(idFonte) || 0;
+      planoMA += planoMap.get(idFonte)?.MA || 0;
+      planoPX += planoMap.get(idFonte)?.PX || 0;
+      planoUL += planoMap.get(idFonte)?.UL || 0;
+      planoQT += planoMap.get(idFonte)?.QT || 0;
+    }
+
+    const mediaSemestral = sumSem / 6;  // média mensal do semestre (total ÷ 6 meses)
+    const media3m        = sum3m  / 3;  // média mensal dos 3 meses fechados (total ÷ 3 meses)
 
     // Filtro: precisa ter vendas nos últimos 12m OU estar em linha/nova coleção
     if (!diasVenda12m && !emLinha) continue;
 
-    const estoqueAtual     = estMap.get(id)    || 0;
-    const emProcesso       = emprocMap.get(id) || 0;
-    const qtPendente       = pedMap.get(id)    || 0;
-    const saldoAdicional   = saldoMap.get(id)  || 0;
     const pedidosPendentes = qtPendente + saldoAdicional;
     const estoqueDisponivel = estoqueAtual + emProcesso;
 
@@ -796,10 +912,10 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
         media_vendas_3m:     media3m           // últimos 3 meses fechados
       },
       plano: {
-        ma: planoMap.get(id)?.MA || 0,   // mês atual
-        px: planoMap.get(id)?.PX || 0,   // próximo mês
-        ul: planoMap.get(id)?.UL || 0,   // mês seguinte
-        qt: planoMap.get(id)?.QT || 0    // quarto mês
+        ma: planoMA,   // mês atual
+        px: planoPX,   // próximo mês
+        ul: planoUL,   // mês seguinte
+        qt: planoQT    // quarto mês
       },
       planejamento: {
         necessidade_total:    necessidadeTotal,

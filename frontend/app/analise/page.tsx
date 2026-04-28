@@ -29,6 +29,13 @@ type SavedAnalise = {
     negativosMA: number;
     negativosPX: number;
     negativosUL: number;
+    negativosQT: number;
+    negativosMesAlvo: number;
+    pecasNegativasMA: number;
+    pecasNegativasPX: number;
+    pecasNegativasUL: number;
+    pecasNegativasQT: number;
+    pecasNegativasMesAlvo: number;
     deficitTotal: number;
     gargalos: number;
     coberturasMelhorar: number;
@@ -45,12 +52,15 @@ type CalcRow = {
   projMA: number;
   projPX: number;
   projUL: number;
+  projQT: number;
   dispMA: number;
   dispPX: number;
   dispUL: number;
+  dispQT: number;
   cobMA: number | null;
   cobPX: number | null;
   cobUL: number | null;
+  cobQT: number | null;
   tendenciaPct: number;
 };
 
@@ -223,6 +233,7 @@ export default function AnalisePage() {
   const calcRows = useMemo<CalcRow[]>(() => {
     const fatorProj = 1 + projecaoPct / 100;
     const fatorPlano = 1 + planoPct / 100;
+    const mesQT = periodos.QT ?? (((periodos.UL || 1) - 1 + 1) % 12) + 1;
     const hoje = new Date();
     const mesAtual = hoje.getMonth() + 1;
     const anoAtual = hoje.getFullYear();
@@ -237,20 +248,24 @@ export default function AnalisePage() {
       const projMA = (proj[String(periodos.MA)] || 0) * fatorProj * fatorProjecaoMA;
       const projPX = (proj[String(periodos.PX)] || 0) * fatorProj;
       const projUL = (proj[String(periodos.UL)] || 0) * fatorProj;
+      const projQT = (proj[String(mesQT)] || 0) * fatorProj;
 
       const planoMA = (i.plano?.ma || 0) * fatorPlano;
       const planoPX = (i.plano?.px || 0) * fatorPlano;
       const planoUL = (i.plano?.ul || 0) * fatorPlano;
+      const planoQT = (i.plano?.qt || 0) * fatorPlano;
 
       const dispBase = (i.estoques.estoque_atual || 0) - (i.demanda.pedidos_pendentes || 0);
       const dispMA = dispBase + (i.estoques.em_processo || 0) + planoMA - projMA;
       const dispPX = dispMA + planoPX - projPX;
       const dispUL = dispPX + planoUL - projUL;
+      const dispQT = dispUL + planoQT - projQT;
       const estMin = i.estoques.estoque_minimo || 0;
 
       const cobMA = estMin > 0 ? dispMA / estMin : null;
       const cobPX = estMin > 0 ? dispPX / estMin : null;
       const cobUL = estMin > 0 ? dispUL / estMin : null;
+      const cobQT = estMin > 0 ? dispQT / estMin : null;
       const tendenciaPct = projMA > 0 ? ((projUL - projMA) / projMA) * 100 : 0;
 
       return {
@@ -262,31 +277,63 @@ export default function AnalisePage() {
         projMA,
         projPX,
         projUL,
+        projQT,
         dispMA,
         dispPX,
         dispUL,
+        dispQT,
         cobMA,
         cobPX,
         cobUL,
+        cobQT,
         tendenciaPct,
       };
     });
   }, [dados, projecoes, periodos, projecaoPct, planoPct]);
 
   const resumo = useMemo(() => {
-    const negativosMA = calcRows.filter((r) => r.dispMA < 0).length;
-    const negativosPX = calcRows.filter((r) => r.dispPX < 0).length;
-    const negativosUL = calcRows.filter((r) => r.dispUL < 0).length;
+    const mesQT = periodos.QT ?? (((periodos.UL || 1) - 1 + 1) % 12) + 1;
+    const getDispMes = (r: CalcRow, mes: number) => {
+      if (mes === periodos.MA) return r.dispMA;
+      if (mes === periodos.PX) return r.dispPX;
+      if (mes === periodos.UL) return r.dispUL;
+      if (mes === mesQT) return r.dispQT;
+      return r.dispUL;
+    };
+    const contarNegativos = (mes: number) => calcRows.filter((r) => getDispMes(r, mes) < 0).length;
+    const somarPecasNegativas = (mes: number) => calcRows.reduce((acc, r) => acc + Math.abs(Math.min(0, getDispMes(r, mes))), 0);
+    const negativosMA = contarNegativos(periodos.MA);
+    const negativosPX = contarNegativos(periodos.PX);
+    const negativosUL = contarNegativos(periodos.UL);
+    const negativosQT = contarNegativos(mesQT);
+    const negativosMesAlvo = contarNegativos(mesAlvo);
+    const pecasNegativasMA = somarPecasNegativas(periodos.MA);
+    const pecasNegativasPX = somarPecasNegativas(periodos.PX);
+    const pecasNegativasUL = somarPecasNegativas(periodos.UL);
+    const pecasNegativasQT = somarPecasNegativas(mesQT);
+    const pecasNegativasMesAlvo = somarPecasNegativas(mesAlvo);
     const deficitTotal = calcRows.reduce((acc, r) => {
-      const menor = Math.min(r.dispMA, r.dispPX, r.dispUL);
+      const menor = Math.min(r.dispMA, r.dispPX, r.dispUL, r.dispQT);
       return acc + (menor < 0 ? menor : 0);
     }, 0);
-    return { negativosMA, negativosPX, negativosUL, deficitTotal };
-  }, [calcRows]);
+    return {
+      negativosMA,
+      negativosPX,
+      negativosUL,
+      negativosQT,
+      negativosMesAlvo,
+      pecasNegativasMA,
+      pecasNegativasPX,
+      pecasNegativasUL,
+      pecasNegativasQT,
+      pecasNegativasMesAlvo,
+      deficitTotal,
+    };
+  }, [calcRows, periodos, mesAlvo]);
 
   const gargalos = useMemo(() => {
     return [...calcRows]
-      .map((r) => ({ ...r, piorDisp: Math.min(r.dispMA, r.dispPX, r.dispUL) }))
+      .map((r) => ({ ...r, piorDisp: Math.min(r.dispMA, r.dispPX, r.dispUL, r.dispQT) }))
       .filter((r) => r.piorDisp < 0)
       .sort((a, b) => a.piorDisp - b.piorDisp)
       .slice(0, 20);
@@ -301,6 +348,7 @@ export default function AnalisePage() {
 
   const sugestaoMesAlvo = useMemo(() => {
     const fatorProj = 1 + projecaoPct / 100;
+    const mesQT = periodos.QT ?? (((periodos.UL || 1) - 1 + 1) % 12) + 1;
 
     const rows = calcRows.map((r) => {
       const projSku = projecoes[r.idproduto] || {};
@@ -310,9 +358,21 @@ export default function AnalisePage() {
       const coberturaTarget = isPeca ? coberturaPecas : coberturaDemais;
       const targetEstoque = Math.max(0, (r.estoqueMin || 0) * coberturaTarget);
 
-      // dispUL = posição após MA/PX/UL. Mês alvo parte desse saldo.
-      const planoSugerido = Math.max(0, targetEstoque + projMesAlvo - r.dispUL);
-      const dispPosMesAlvo = r.dispUL + planoSugerido - projMesAlvo;
+      const base = dados.find((d) => d.produto.idproduto === r.idproduto);
+      const planoMesAlvoAtual =
+        mesAlvo === periodos.MA ? Number(base?.plano?.ma || 0) :
+        mesAlvo === periodos.PX ? Number(base?.plano?.px || 0) :
+        mesAlvo === periodos.UL ? Number(base?.plano?.ul || 0) :
+        mesAlvo === mesQT ? Number(base?.plano?.qt || 0) :
+        0;
+      const dispAnteriorMesAlvo =
+        mesAlvo === periodos.MA ? r.dispMA - planoMesAlvoAtual + projMesAlvo :
+        mesAlvo === periodos.PX ? r.dispMA :
+        mesAlvo === periodos.UL ? r.dispPX :
+        mesAlvo === mesQT ? r.dispUL :
+        r.dispUL;
+      const planoSugerido = Math.max(0, targetEstoque + projMesAlvo - dispAnteriorMesAlvo);
+      const dispPosMesAlvo = dispAnteriorMesAlvo + planoSugerido - projMesAlvo;
       const coberturaPosMesAlvo = r.estoqueMin > 0 ? dispPosMesAlvo / r.estoqueMin : null;
 
       return {
@@ -320,6 +380,7 @@ export default function AnalisePage() {
         isPeca,
         coberturaTarget,
         projMesAlvo,
+        planoMesAlvoAtual,
         planoSugerido,
         dispPosMesAlvo,
         coberturaPosMesAlvo,
@@ -331,7 +392,7 @@ export default function AnalisePage() {
     const comSugestao = rowsOrdenadas.filter((r) => r.planoSugerido > 0);
     const comPlanoAtual = rows.filter((r) => {
       const base = dados.find((d) => d.produto.idproduto === r.idproduto);
-      const somaPlanoAtual = (base?.plano?.ma || 0) + (base?.plano?.px || 0) + (base?.plano?.ul || 0);
+      const somaPlanoAtual = (base?.plano?.ma || 0) + (base?.plano?.px || 0) + (base?.plano?.ul || 0) + (base?.plano?.qt || 0);
       return somaPlanoAtual > 0;
     }).length;
 
@@ -958,6 +1019,13 @@ export default function AnalisePage() {
           negativosMA: resumo.negativosMA,
           negativosPX: resumo.negativosPX,
           negativosUL: resumo.negativosUL,
+          negativosQT: resumo.negativosQT,
+          negativosMesAlvo: resumo.negativosMesAlvo,
+          pecasNegativasMA: resumo.pecasNegativasMA,
+          pecasNegativasPX: resumo.pecasNegativasPX,
+          pecasNegativasUL: resumo.pecasNegativasUL,
+          pecasNegativasQT: resumo.pecasNegativasQT,
+          pecasNegativasMesAlvo: resumo.pecasNegativasMesAlvo,
           deficitTotal: resumo.deficitTotal,
           gargalos: gargalos.length,
           coberturasMelhorar: coberturasMelhorar.length,
