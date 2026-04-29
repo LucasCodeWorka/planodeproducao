@@ -196,10 +196,15 @@ export default function AnaliseConsumoMpPage() {
       acc.entrada_px += Number(r.entrada_px || 0);
       acc.entrada_ul += Number(r.entrada_ul || 0);
       acc.consumo_total += Number(r.consumo_total || 0);
-      acc.saldo_ma += Number(r.saldo_ma || 0);
-      acc.saldo_px += Number(r.saldo_px || 0);
-      acc.saldo_ul += Number(r.saldo_ul || 0);
-      acc.saldo += Number(r.saldo || 0);
+      // Quando somenteFalta está ativo, soma apenas os saldos negativos
+      const saldoMa = Number(r.saldo_ma || 0);
+      const saldoPx = Number(r.saldo_px || 0);
+      const saldoUl = Number(r.saldo_ul || 0);
+      const saldoTotal = Number(r.saldo || 0);
+      acc.saldo_ma += somenteFalta ? Math.min(0, saldoMa) : saldoMa;
+      acc.saldo_px += somenteFalta ? Math.min(0, saldoPx) : saldoPx;
+      acc.saldo_ul += somenteFalta ? Math.min(0, saldoUl) : saldoUl;
+      acc.saldo += somenteFalta ? Math.min(0, saldoTotal) : saldoTotal;
     }
 
     const out = Array.from(map.values());
@@ -209,7 +214,7 @@ export default function AnaliseConsumoMpPage() {
       return sortArtigoDir === 'asc' ? av - bv : bv - av;
     });
     return out;
-  }, [rows, sortArtigoBy, sortArtigoDir]);
+  }, [rows, somenteFalta, sortArtigoBy, sortArtigoDir]);
 
   function toggleSortArtigo(col: 'saldo_ma' | 'saldo_px' | 'saldo_ul' | 'saldo') {
     if (sortArtigoBy === col) {
@@ -230,11 +235,13 @@ export default function AnaliseConsumoMpPage() {
       estoque += r.estoquetotal;
       entradaMA += Number(r.entrada_ma || 0);
       consumoMA += Number(r.consumo_ma || 0);
-      saldoMA += Number(r.saldo_ma || 0);
+      const saldo = Number(r.saldo_ma || 0);
+      // Quando somenteFalta está ativo, soma apenas os saldos negativos
+      saldoMA += somenteFalta ? Math.min(0, saldo) : saldo;
       if (r.saldo_ma < 0) faltantes += 1;
     });
     return { estoque, entradaMA, consumoMA, saldoMA, faltantes };
-  }, [rows]);
+  }, [rows, somenteFalta]);
 
   const ml = sidebarCollapsed ? 'ml-20' : 'ml-64';
 
