@@ -260,6 +260,7 @@ interface Props {
   vendasReais?: Record<string, Record<string, number>>;
   periodos?:    PeriodosPlano;
   apenasNegativos?: boolean;
+  filtroNegativoPeriodo?: 'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT';
   filtroContinuidade?: string | string[];
   filtroReferencia?: string;
   filtroCor?: string;
@@ -288,6 +289,7 @@ export default function MatrizPlanejamentoTable({
   vendasReais = {},
   periodos    = { MA: new Date().getMonth() + 1, PX: new Date().getMonth() + 2, UL: new Date().getMonth() + 3, QT: new Date().getMonth() + 4 },
   apenasNegativos = false,
+  filtroNegativoPeriodo = 'TODOS',
   filtroContinuidade = [],
   filtroReferencia = '',
   filtroCor = 'TODAS',
@@ -531,6 +533,12 @@ export default function MatrizPlanejamentoTable({
       base = base.filter((i) => {
         const dispAtual = (i.estoques.estoque_atual || 0) - (i.demanda.pedidos_pendentes || 0);
         const proj = projecoes[i.produto.idproduto] ?? null;
+
+        // Se filtro por periodo ATUAL, verificar apenas o disponivel atual
+        if (filtroNegativoPeriodo === 'ATUAL') {
+          return dispAtual < 0;
+        }
+
         if (!proj) return dispAtual < 0;
 
         const emP  = i.estoques.em_processo || 0;
@@ -547,6 +555,13 @@ export default function MatrizPlanejamentoTable({
         const dispUL = dispPX + pUL - prUL;
         const dispQT = dispUL + pQT - prQT;
 
+        // Filtrar por periodo especifico
+        if (filtroNegativoPeriodo === 'MA') return dispMA < 0;
+        if (filtroNegativoPeriodo === 'PX') return dispPX < 0;
+        if (filtroNegativoPeriodo === 'UL') return dispUL < 0;
+        if (filtroNegativoPeriodo === 'QT') return dispQT < 0;
+
+        // TODOS: qualquer periodo negativo
         return dispAtual < 0 || dispMA < 0 || dispPX < 0 || dispUL < 0 || dispQT < 0;
       });
     }
@@ -652,7 +667,7 @@ export default function MatrizPlanejamentoTable({
         }))
         .sort((a, b) => (refMetric(a.totais, sortKey) - refMetric(b.totais, sortKey)) * sortFactor),
     }));
-  }, [dados, filtroTexto, projecoes, vendasReais, periodos, apenasNegativos, filtroContinuidade, filtroReferencia, filtroCor, filtroCobertura, filtroCoberturaBase, filtroTaxa, filtroCoberturaMinima, filtroEmProcessoMinimo, sortKey, sortDir, marFactor, mesQT]);
+  }, [dados, filtroTexto, projecoes, vendasReais, periodos, apenasNegativos, filtroNegativoPeriodo, filtroContinuidade, filtroReferencia, filtroCor, filtroCobertura, filtroCoberturaBase, filtroTaxa, filtroCoberturaMinima, filtroEmProcessoMinimo, sortKey, sortDir, marFactor, mesQT]);
 
   useEffect(() => {
     if (grupos.length === 0) return;

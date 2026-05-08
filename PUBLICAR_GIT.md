@@ -138,20 +138,10 @@ git commit -m "Remove .env do repositório"
 
 ---
 
-## 📝 Exemplo de .env.example
+## 📝 Ambiente
 
-O arquivo `.env.example` está incluído como modelo:
-
-```env
-DB_HOST=seu_host
-DB_PORT=5432
-DB_NAME=seu_banco
-DB_USER=seu_usuario
-DB_PASSWORD=sua_senha
-
-API_PORT=8000
-API_HOST=0.0.0.0
-```
+Não mantenha exemplos com credenciais ou estrutura de acesso em arquivos públicos do repositório.
+As variáveis de ambiente devem ser cadastradas diretamente no provedor de deploy ou em arquivos locais ignorados pelo git.
 
 ---
 

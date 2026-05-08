@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
 const util = require('util');
+const projecoesService = require('../services/projecoesService');
 
 const router = express.Router();
 const execFileAsync = util.promisify(execFile);
@@ -13,6 +14,9 @@ const MODELS_DIR = path.join(ML_DIR, 'models');
 const OUTPUT_DIR = path.join(ML_DIR, 'output');
 const DATA_DIR = path.join(ROOT_DIR, 'data');
 const PROJECOES_FILE = path.join(DATA_DIR, 'projecoes.json');
+
+// Flag para usar banco de dados
+const USAR_BANCO = true;
 const BACKTEST_FILE = path.join(OUTPUT_DIR, 'backtest_jan_abr_2026.json');
 const PYTHON_BIN = process.env.PYTHON_BIN || 'python';
 const ML_RUNS_TABLE = 'app_ml_runs';
@@ -528,9 +532,23 @@ router.get('/backtest-status', auth, (_req, res) => {
   }
 });
 
-function loadOfficialProjections() {
+function loadOfficialProjectionsFromJSON() {
   const parsed = readJsonIfExists(PROJECOES_FILE, { data: {} });
   return parsed?.data && typeof parsed.data === 'object' ? parsed.data : {};
+}
+
+async function loadOfficialProjections(pool = null) {
+  if (USAR_BANCO && pool) {
+    try {
+      const anoAtual = new Date().getFullYear();
+      const data = await projecoesService.lerProjecoesMultiplosAnos(pool, [anoAtual, anoAtual + 1]);
+      return data;
+    } catch (error) {
+      console.warn('[ml] Erro ao ler projeções do banco, usando JSON:', error.message);
+      return loadOfficialProjectionsFromJSON();
+    }
+  }
+  return loadOfficialProjectionsFromJSON();
 }
 
 function computeMonthElapsedFactor(year, month, refDate = new Date()) {
@@ -602,7 +620,7 @@ router.get('/validacao-ytd', auth, async (req, res) => {
     const currentMonth = refDate.getMonth() + 1;
     const finalMonth = year === refDate.getFullYear() ? currentMonth : 12;
 
-    const official = loadOfficialProjections();
+    const official = await loadOfficialProjections(pool);
     const ids = Object.keys(official).map((id) => Number(id)).filter((id) => Number.isFinite(id));
 
     if (!ids.length) {
@@ -758,7 +776,7 @@ router.get('/monitor-v1', auth, async (req, res) => {
       });
     }
 
-    const official = loadOfficialProjections();
+    const official = await loadOfficialProjections(pool);
     const refDate = new Date();
     const endActualDate = refDate < new Date(`${MONITOR_END_DATE}T00:00:00`) ? refDate : new Date(`${MONITOR_END_DATE}T00:00:00`);
 

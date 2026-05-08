@@ -3,6 +3,11 @@ const fs      = require('fs');
 const path    = require('path');
 const { aplicarReprojecaoMes, REPROJECAO_REGRAS_FIXAS } = require('../services/reprojecaoFechada');
 const { isExcludedReference, isExcludedPlanningItem } = require('../services/planningExclusions');
+const { readCache } = require('../cache/matrizCache');
+const projecoesService = require('../services/projecoesService');
+
+// Flag para usar banco de dados (true) ou JSON (false)
+const USAR_BANCO = true;
 
 const router = express.Router();
 
@@ -56,7 +61,11 @@ function auth(req, res, next) {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-function lerProjecoes() {
+
+/**
+ * Lê projeções do JSON (modo legado)
+ */
+function lerProjecoesJSON() {
   try {
     const raw = fs.readFileSync(PROJ_FILE, 'utf-8');
     return JSON.parse(raw);
@@ -65,9 +74,79 @@ function lerProjecoes() {
   }
 }
 
-function salvarProjecoes(data) {
+/**
+ * Lê projeções - escolhe entre banco ou JSON baseado na flag USAR_BANCO
+ * @param {Pool} pool - Pool de conexão (opcional se usar JSON)
+ */
+async function lerProjecoes(pool = null) {
+  if (USAR_BANCO && pool) {
+    try {
+      const anoAtual = new Date().getFullYear();
+      // Buscar ano atual e próximo para cobrir virada de ano
+      const data = await projecoesService.lerProjecoesMultiplosAnos(pool, [anoAtual, anoAtual + 1]);
+      const ultimaAtualizacao = await projecoesService.obterUltimaAtualizacao(pool);
+      return {
+        timestamp: ultimaAtualizacao ? new Date(ultimaAtualizacao).getTime() : Date.now(),
+        data
+      };
+    } catch (error) {
+      console.warn('[projecoes] Erro ao ler do banco, usando JSON:', error.message);
+      return lerProjecoesJSON();
+    }
+  }
+  return lerProjecoesJSON();
+}
+
+/**
+ * Salva projeções no JSON (modo legado)
+ */
+function salvarProjecoesJSON(data) {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(PROJ_FILE, JSON.stringify({ timestamp: Date.now(), data }, null, 2), 'utf-8');
+}
+
+/**
+ * Salva projeções - escolhe entre banco ou JSON baseado na flag USAR_BANCO
+ * @param {Pool} pool - Pool de conexão (opcional se usar JSON)
+ * @param {Object} data - Dados no formato { idproduto: { mes: qtd, ... }, ... }
+ * @param {number} ano - Ano das projeções
+ */
+async function salvarProjecoes(pool, data, ano = null) {
+  // Sempre salvar no JSON como backup
+  salvarProjecoesJSON(data);
+
+  if (USAR_BANCO && pool) {
+    const anoProjecao = ano || new Date().getFullYear();
+    const registros = [];
+
+    for (const [idproduto, meses] of Object.entries(data)) {
+      if (!meses || typeof meses !== 'object') continue;
+
+      for (const [mes, quantidade] of Object.entries(meses)) {
+        const mesNum = Number(mes);
+        const qtdNum = Number(quantidade);
+
+        if (mesNum >= 1 && mesNum <= 12 && !isNaN(qtdNum) && qtdNum >= 0) {
+          registros.push({
+            idproduto: String(idproduto),
+            mes: mesNum,
+            ano: anoProjecao,
+            quantidade: Math.round(qtdNum)
+          });
+        }
+      }
+    }
+
+    if (registros.length > 0) {
+      try {
+        await projecoesService.ensureTabelas(pool);
+        await projecoesService.importarRegistrosEmLotes(pool, registros, 'API');
+        console.log(`[projecoes] ${registros.length} registros salvos no banco`);
+      } catch (error) {
+        console.error('[projecoes] Erro ao salvar no banco:', error.message);
+      }
+    }
+  }
 }
 
 function lerMatrizCache() {
@@ -78,6 +157,24 @@ function lerMatrizCache() {
   } catch {
     return [];
   }
+}
+
+async function lerMatrizCacheCompleta(pool) {
+  if (pool) {
+    try {
+      const cached = await readCache();
+      const rows = cached?.data?.rows;
+      if (Array.isArray(rows) && rows.length) return rows;
+      const data = cached?.data?.data;
+      if (Array.isArray(data) && data.length) return data;
+    } catch (error) {
+      console.warn('[projecoes] Erro ao ler cache da matriz:', error.message);
+    }
+  }
+
+  const local = lerMatrizCache();
+  if (Array.isArray(local) && local.length) return local;
+  return [];
 }
 
 function lerDeParaReferencias() {
@@ -199,7 +296,7 @@ function transferirProjecaoNovaColecao(projecaoAntiga, projecaoNova) {
 }
 
 async function montarProjecoesEfetivas(pool) {
-  const { data: projecoesOriginais, timestamp } = lerProjecoes();
+  const { data: projecoesOriginais, timestamp } = await lerProjecoes(pool);
   const dePara = lerDeParaReferencias();
 
   if (!pool) {
@@ -385,6 +482,90 @@ async function montarMetaPorId(pool, ids) {
   return metaPorId;
 }
 
+async function montarContextoMatrizPorId(pool, ids) {
+  const idsValidos = new Set(
+    (Array.isArray(ids) ? ids : [])
+      .map((id) => String(id || '').trim())
+      .filter(Boolean)
+  );
+  const contexto = new Map();
+  if (!idsValidos.size) return contexto;
+
+  const rows = await lerMatrizCacheCompleta(pool);
+  for (const item of rows) {
+    const id = String(item?.produto?.idproduto || '').trim();
+    if (!id || !idsValidos.has(id)) continue;
+    contexto.set(id, {
+      estoque_atual: Number(item?.estoques?.estoque_atual || 0),
+      em_processo: Number(item?.estoques?.em_processo || 0),
+      pedidos_pendentes: Number(item?.demanda?.pedidos_pendentes || 0),
+      plano_ma: Number(item?.plano?.ma || 0),
+      plano_px: Number(item?.plano?.px || 0),
+      plano_ul: Number(item?.plano?.ul || 0),
+      plano_qt: Number(item?.plano?.qt || 0),
+      estoque_minimo: Number(item?.estoques?.estoque_minimo || 0),
+    });
+  }
+
+  return contexto;
+}
+
+function calcularFatorProjecaoMA(periodos, hoje = new Date()) {
+  const mesAtual = hoje.getMonth() + 1;
+  if (Number(periodos?.MA || 0) !== mesAtual) return 1;
+  const anoAtual = hoje.getFullYear();
+  const diasNoMesAtual = new Date(anoAtual, mesAtual, 0).getDate();
+  const diaAtual = Math.min(hoje.getDate(), diasNoMesAtual);
+  return Math.max(0, (diasNoMesAtual - diaAtual) / diasNoMesAtual);
+}
+
+function calcularDisponibilidadeReprojecao(contexto, periodos, projecoesMes, fatorProjecaoMA) {
+  const dispBase = Number(contexto?.estoque_atual || 0) - Number(contexto?.pedidos_pendentes || 0);
+  const dispMA = dispBase
+    + Number(contexto?.em_processo || 0)
+    + Number(contexto?.plano_ma || 0)
+    - (Number(projecoesMes?.ma || 0) * fatorProjecaoMA);
+  const dispPX = dispMA + Number(contexto?.plano_px || 0) - Number(projecoesMes?.px || 0);
+  const dispUL = dispPX + Number(contexto?.plano_ul || 0) - Number(projecoesMes?.ul || 0);
+  const dispQT = dispUL + Number(contexto?.plano_qt || 0) - Number(projecoesMes?.qt || 0);
+  return { dispMA, dispPX, dispUL, dispQT };
+}
+
+function aplicarTravaNegativoReprojecao(originais, recalculadas, contexto, periodos) {
+  if (!contexto) {
+    return {
+      ...recalculadas,
+      travaNegativoAplicada: false,
+      fatorTravaNegativo: 1,
+    };
+  }
+
+  const fatorProjecaoMA = calcularFatorProjecaoMA(periodos);
+  const dispOriginal = calcularDisponibilidadeReprojecao(contexto, periodos, originais, fatorProjecaoMA);
+  const deltaMA = (Number(recalculadas.ma || 0) - Number(originais.ma || 0)) * fatorProjecaoMA;
+  const deltaPX = deltaMA + (Number(recalculadas.px || 0) - Number(originais.px || 0));
+  const deltaUL = deltaPX + (Number(recalculadas.ul || 0) - Number(originais.ul || 0));
+  const deltaQT = deltaUL + (Number(recalculadas.qt || 0) - Number(originais.qt || 0));
+
+  let lambda = 1;
+  if (deltaMA > 0) lambda = Math.min(lambda, dispOriginal.dispMA / deltaMA);
+  if (deltaPX > 0) lambda = Math.min(lambda, dispOriginal.dispPX / deltaPX);
+  if (deltaUL > 0) lambda = Math.min(lambda, dispOriginal.dispUL / deltaUL);
+  if (deltaQT > 0) lambda = Math.min(lambda, dispOriginal.dispQT / deltaQT);
+  lambda = Math.max(0, Math.min(1, lambda));
+
+  const ajustada = {
+    ma: Math.max(0, Math.round(Number(originais.ma || 0) + (Number(recalculadas.ma || 0) - Number(originais.ma || 0)) * lambda)),
+    px: Math.max(0, Math.round(Number(originais.px || 0) + (Number(recalculadas.px || 0) - Number(originais.px || 0)) * lambda)),
+    ul: Math.max(0, Math.round(Number(originais.ul || 0) + (Number(recalculadas.ul || 0) - Number(originais.ul || 0)) * lambda)),
+    qt: Math.max(0, Math.round(Number(originais.qt || 0) + (Number(recalculadas.qt || 0) - Number(originais.qt || 0)) * lambda)),
+    travaNegativoAplicada: lambda < 0.999,
+    fatorTravaNegativo: Number(lambda.toFixed(3)),
+  };
+
+  return ajustada;
+}
+
 /**
  * Converte qualquer representação de mês para número 1-12.
  * Aceita: número ("1"–"12"), abrev PT ("JAN"–"DEZ"), nome completo PT, MA/PX/UL/QT.
@@ -472,6 +653,36 @@ function parsearCSV(texto) {
   return { registros, erros };
 }
 
+// ── GET /api/projecoes/de-para ────────────────────────────────────────────────
+// Retorna todas as referências do de-para (antigas e novas)
+router.get('/de-para', auth, async (req, res) => {
+  try {
+    const dePara = lerDeParaReferencias();
+    const referencias = new Set();
+
+    for (const item of dePara) {
+      const refAntiga = String(item?.ref_antiga || '').trim();
+      const refNova = String(item?.ref_nova || '').trim();
+      if (refAntiga) referencias.add(refAntiga);
+      if (refNova) referencias.add(refNova);
+    }
+
+    return res.json({
+      success: true,
+      count: referencias.size,
+      referencias: Array.from(referencias).sort(),
+      detalhes: dePara.map(item => ({
+        ref_antiga: String(item?.ref_antiga || '').trim(),
+        ref_nova: String(item?.ref_nova || '').trim(),
+        descricao: item?.descricao || ''
+      }))
+    });
+  } catch (err) {
+    console.error('[projecoes/de-para] Erro:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── GET /api/projecoes ────────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
   try {
@@ -537,6 +748,7 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
       `, [ids, anoBase, mesBase]),
       montarMetaPorId(pool, ids.map(String)),
     ]);
+    const contextoMatrizPorId = await montarContextoMatrizPorId(pool, ids.map(String));
 
     const vendasMap = new Map(vendasResult.rows.map((r) => [String(r.idproduto), Number(r.quantidade) || 0]));
 
@@ -550,10 +762,39 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
       const projBase = Number(proj[String(mesBase)] || 0);
       const vendaBase = Number(vendasMap.get(String(id)) || 0);
       const percentualAtendido = projBase > 0 ? (vendaBase / projBase) * 100 : 0;
-      const ma = aplicarReprojecaoMes(Number(proj[String(periodos.MA)] || 0), percentualAtendido);
-      const px = aplicarReprojecaoMes(Number(proj[String(periodos.PX)] || 0), percentualAtendido);
-      const ul = aplicarReprojecaoMes(Number(proj[String(periodos.UL)] || 0), percentualAtendido);
-      const qt = aplicarReprojecaoMes(Number(proj[String(periodos.QT)] || 0), percentualAtendido);
+      const originalMeses = {
+        ma: Number(proj[String(periodos.MA)] || 0),
+        px: Number(proj[String(periodos.PX)] || 0),
+        ul: Number(proj[String(periodos.UL)] || 0),
+        qt: Number(proj[String(periodos.QT)] || 0),
+      };
+      const ma = aplicarReprojecaoMes(originalMeses.ma, percentualAtendido);
+      const px = aplicarReprojecaoMes(originalMeses.px, percentualAtendido);
+      const ul = aplicarReprojecaoMes(originalMeses.ul, percentualAtendido);
+      const qt = aplicarReprojecaoMes(originalMeses.qt, percentualAtendido);
+
+      const usaPonderadaComTrava = ma.regra.acao === 'AUMENTO_CHEIO';
+      const recalculadaPonderada = {
+        ma: Math.round((originalMeses.ma * 0.7) + (Number(ma.valorCorrigido || 0) * 0.3)),
+        px: Math.round((originalMeses.px * 0.7) + (Number(px.valorCorrigido || 0) * 0.3)),
+        ul: Math.round((originalMeses.ul * 0.7) + (Number(ul.valorCorrigido || 0) * 0.3)),
+        qt: Math.round((originalMeses.qt * 0.7) + (Number(qt.valorCorrigido || 0) * 0.3)),
+      };
+      const recalculadaBase = usaPonderadaComTrava
+        ? recalculadaPonderada
+        : { ma: ma.valor, px: px.valor, ul: ul.valor, qt: qt.valor };
+      const recalculadaFinal = usaPonderadaComTrava
+        ? aplicarTravaNegativoReprojecao(
+            originalMeses,
+            recalculadaBase,
+            contextoMatrizPorId.get(String(id)),
+            periodos
+          )
+        : {
+            ...recalculadaBase,
+            travaNegativoAplicada: false,
+            fatorTravaNegativo: 1,
+          };
 
       if (ma.regra.acao === 'AUMENTO_CHEIO') resumo.aumentoForte += 1;
       else if (ma.regra.acao === 'MEDIA_ENTRE_ORIGINAL_E_CORRIGIDA') resumo.media += 1;
@@ -575,21 +816,27 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
         },
         regra: {
           faixa: ma.regra.faixa,
-          acao: ma.regra.acao,
-          descricao: ma.regra.descricao,
+          acao: usaPonderadaComTrava ? 'PONDERADA_70_30_COM_TRAVA_NEGATIVO' : ma.regra.acao,
+          descricao: usaPonderadaComTrava
+            ? 'Aplicar 70% da projeção original + 30% da corrigida e reduzir o aumento se algum período ficar negativo.'
+            : ma.regra.descricao,
           sinalOperacional: ma.sinalOperacional || null,
         },
         original: {
-          ma: Math.round(Number(proj[String(periodos.MA)] || 0)),
-          px: Math.round(Number(proj[String(periodos.PX)] || 0)),
-          ul: Math.round(Number(proj[String(periodos.UL)] || 0)),
-          qt: Math.round(Number(proj[String(periodos.QT)] || 0)),
+          ma: Math.round(originalMeses.ma),
+          px: Math.round(originalMeses.px),
+          ul: Math.round(originalMeses.ul),
+          qt: Math.round(originalMeses.qt),
         },
         recalculada: {
-          ma: ma.valor,
-          px: px.valor,
-          ul: ul.valor,
-          qt: qt.valor,
+          ma: recalculadaFinal.ma,
+          px: recalculadaFinal.px,
+          ul: recalculadaFinal.ul,
+          qt: recalculadaFinal.qt,
+        },
+        travaNegativo: {
+          aplicada: Boolean(recalculadaFinal.travaNegativoAplicada),
+          fator: Number(recalculadaFinal.fatorTravaNegativo || 1),
         },
       });
     }
@@ -629,17 +876,20 @@ router.post('/upload', auth, async (req, res) => {
     }
 
     const { registros, erros } = parsearCSV(csvTexto);
+    const pool = req.app.get('pool');
+    const anoAtual = new Date().getFullYear();
 
     // Merge: substitui por produto+mês, preserva outros meses
-    const { data: existente } = lerProjecoes();
+    const { data: existente } = await lerProjecoes(pool);
     for (const r of registros) {
       if (!existente[r.idproduto]) existente[r.idproduto] = {};
       existente[r.idproduto][String(r.mes)] = r.qtd;
     }
 
-    const pool = req.app.get('pool');
     const saneado = await filtrarProjecoesExcluidas(pool, existente);
-    salvarProjecoes(saneado);
+
+    // Salvar no banco e JSON
+    await salvarProjecoes(pool, saneado, anoAtual);
 
     // Contagem de meses importados por número
     const mesesImportados = [...new Set(registros.map(r => r.mes))].sort((a,b) => a-b);
@@ -650,7 +900,8 @@ router.post('/upload', auth, async (req, res) => {
       produtos:   new Set(registros.map(r => r.idproduto)).size,
       meses:      mesesImportados,
       avisos:     erros,
-      total:      Object.keys(saneado).length
+      total:      Object.keys(saneado).length,
+      banco:      USAR_BANCO ? 'PostgreSQL' : 'JSON'
     });
   } catch (err) {
     return res.status(400).json({ success: false, error: err.message });
@@ -658,9 +909,24 @@ router.post('/upload', auth, async (req, res) => {
 });
 
 // ── DELETE /api/projecoes ─────────────────────────────────────────────────────
-router.delete('/', auth, (req, res) => {
-  salvarProjecoes({});
-  return res.json({ success: true, message: 'Projeções removidas' });
+router.delete('/', auth, async (req, res) => {
+  try {
+    const pool = req.app.get('pool');
+    const ano = Number(req.query.ano) || new Date().getFullYear();
+
+    // Limpar JSON
+    salvarProjecoesJSON({});
+
+    // Limpar banco se estiver usando
+    if (USAR_BANCO && pool) {
+      const deletados = await projecoesService.deletarProjecoesAno(pool, ano);
+      return res.json({ success: true, message: `Projeções de ${ano} removidas`, deletados });
+    }
+
+    return res.json({ success: true, message: 'Projeções removidas' });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ── POST /api/projecoes/reajustes ────────────────────────────────────────────
@@ -828,6 +1094,110 @@ router.post('/reajustes', auth, async (req, res) => {
       error: 'Erro ao gerar reajustes de projeção',
       details: error.message,
     });
+  }
+});
+
+// ── GET /api/projecoes/stats ──────────────────────────────────────────────────
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const pool = req.app.get('pool');
+    const ano = Number(req.query.ano) || new Date().getFullYear();
+
+    if (USAR_BANCO && pool) {
+      await projecoesService.ensureTabelas(pool);
+      const stats = await projecoesService.obterEstatisticas(pool, ano);
+      const statsGeral = await projecoesService.obterEstatisticas(pool);
+
+      return res.json({
+        success: true,
+        modo: 'PostgreSQL',
+        ano,
+        estatisticas: stats,
+        porAno: statsGeral
+      });
+    }
+
+    // Modo JSON
+    const { data, timestamp } = lerProjecoesJSON();
+    const produtos = Object.keys(data).length;
+    const meses = new Set();
+    let totalQuantidade = 0;
+
+    for (const mesesProd of Object.values(data)) {
+      for (const [mes, qtd] of Object.entries(mesesProd)) {
+        meses.add(Number(mes));
+        totalQuantidade += Number(qtd) || 0;
+      }
+    }
+
+    return res.json({
+      success: true,
+      modo: 'JSON',
+      timestamp: timestamp ? new Date(timestamp).toLocaleString('pt-BR') : null,
+      estatisticas: {
+        produtos,
+        registros: produtos * meses.size,
+        meses: [...meses].sort((a, b) => a - b),
+        total_quantidade: totalQuantidade
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── POST /api/projecoes/migrar-json ───────────────────────────────────────────
+router.post('/migrar-json', auth, async (req, res) => {
+  try {
+    const pool = req.app.get('pool');
+    const ano = Number(req.body?.ano) || new Date().getFullYear();
+
+    if (!pool) {
+      return res.status(500).json({ success: false, error: 'Pool de conexão não disponível' });
+    }
+
+    // Garantir que tabelas existem
+    await projecoesService.ensureTabelas(pool);
+
+    // Ler JSON atual
+    const { data, timestamp } = lerProjecoesJSON();
+
+    if (!data || Object.keys(data).length === 0) {
+      return res.json({ success: true, message: 'Nenhum dado no JSON para migrar', importados: 0 });
+    }
+
+    // Converter para registros
+    const registros = [];
+    for (const [idproduto, meses] of Object.entries(data)) {
+      if (!meses || typeof meses !== 'object') continue;
+
+      for (const [mes, quantidade] of Object.entries(meses)) {
+        const mesNum = Number(mes);
+        const qtdNum = Number(quantidade);
+
+        if (mesNum >= 1 && mesNum <= 12 && !isNaN(qtdNum) && qtdNum >= 0) {
+          registros.push({
+            idproduto: String(idproduto),
+            mes: mesNum,
+            ano,
+            quantidade: Math.round(qtdNum)
+          });
+        }
+      }
+    }
+
+    // Importar para o banco
+    const importados = await projecoesService.importarRegistrosEmLotes(pool, registros, 'MIGRACAO');
+
+    return res.json({
+      success: true,
+      message: `Migração concluída: ${importados} registros importados para ${ano}`,
+      importados,
+      produtos: new Set(registros.map(r => r.idproduto)).size,
+      timestampOriginal: timestamp ? new Date(timestamp).toLocaleString('pt-BR') : null
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

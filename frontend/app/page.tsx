@@ -124,6 +124,7 @@ export default function Home() {
   const [building,     setBuilding]     = useState(false);
   const [buildElapsed, setBuildElapsed] = useState(0);
   const [apenasNegativos, setApenasNegativos] = useState(false);
+  const [filtroNegativoPeriodo, setFiltroNegativoPeriodo] = useState<'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT'>('TODOS');
   const [filtroNaoPrecisaProduzir, setFiltroNaoPrecisaProduzir] = useState(false);
   const [filtroContinuidade, setFiltroContinuidade] = useState<string[]>([]);
   const [filtroSuspensos, setFiltroSuspensos] = useState<'INCLUIR' | 'EXCLUIR'>('INCLUIR');
@@ -157,6 +158,7 @@ export default function Home() {
   const [carregandoEstoqueLojas, setCarregandoEstoqueLojas] = useState(false);
   const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
   const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
+  const [referenciasDeParaSet, setReferenciasDeParaSet] = useState<Set<string>>(new Set());
   const [execucaoPlanoResumo, setExecucaoPlanoResumo] = useState<ExecucaoPlanoResumo | null>(null);
   const [riscoMpPorSku, setRiscoMpPorSku] = useState<Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean }>>({});
   const [detalheRiscoMpPorSku, setDetalheRiscoMpPorSku] = useState<RiscoMpDetalhePorSku>({});
@@ -181,6 +183,7 @@ export default function Home() {
     buscarTop30();
     buscarAprovadas();
     buscarCurvaABC();
+    buscarReferenciasDePara();
     buscarIndicadoresOutrosLocais();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -253,6 +256,17 @@ export default function Home() {
     } catch {
       setReprojecaoPreview([]);
     }
+  }
+
+  async function buscarReferenciasDePara() {
+    try {
+      const res = await fetchNoCache(`${API_URL}/api/projecoes/de-para`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && Array.isArray(data.referencias)) {
+        setReferenciasDeParaSet(new Set(data.referencias.map((r: string) => String(r).trim().toUpperCase())));
+      }
+    } catch { /* silencioso */ }
   }
 
   async function buscarAprovadas() {
@@ -581,8 +595,16 @@ export default function Home() {
       });
     }
 
+    // Filtro para excluir referências do de-para
+    if (referenciasDeParaSet.size > 0) {
+      base = base.filter((i) => {
+        const ref = (i.produto.referencia || '').trim().toUpperCase();
+        return !referenciasDeParaSet.has(ref);
+      });
+    }
+
     return base;
-  }, [dadosAtivosComEstoqueLojas, filtroContinuidade, filtroSuspensos, filtroLinha, filtroFamilia, filtroCurvaABC, curvaABC]);
+  }, [dadosAtivosComEstoqueLojas, filtroContinuidade, filtroSuspensos, filtroLinha, filtroFamilia, filtroCurvaABC, curvaABC, referenciasDeParaSet]);
 
   const projecoesAtivas = useMemo<ProjecoesMap>(() => {
     if (!considerarProjecaoNova || reprojecaoPreview.length === 0) return projecoes;
@@ -1182,16 +1204,32 @@ export default function Home() {
                 <div className="relative z-[100] flex flex-wrap gap-x-4 gap-y-2 items-end justify-center">
                   <div>
                     <label className="block text-xs font-semibold text-brand-dark mb-1">Filtro rápido</label>
-                    <button
-                      onClick={() => setApenasNegativos((v) => !v)}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
-                        apenasNegativos
-                          ? 'bg-red-600 text-white border-red-600'
-                          : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      Negativos
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setApenasNegativos((v) => !v)}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-l border transition-colors ${
+                          apenasNegativos
+                            ? 'bg-red-600 text-white border-red-600'
+                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Negativos
+                      </button>
+                      {apenasNegativos && (
+                        <select
+                          value={filtroNegativoPeriodo}
+                          onChange={(e) => setFiltroNegativoPeriodo(e.target.value as 'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT')}
+                          className="px-2 py-1.5 text-xs border border-l-0 border-red-600 rounded-r bg-red-50 text-red-800 font-semibold"
+                        >
+                          <option value="TODOS">Todos</option>
+                          <option value="ATUAL">Atual</option>
+                          <option value="MA">{nomeMesCurto(periodos.MA).toUpperCase()}</option>
+                          <option value="PX">{nomeMesCurto(periodos.PX).toUpperCase()}</option>
+                          <option value="UL">{nomeMesCurto(periodos.UL).toUpperCase()}</option>
+                          <option value="QT">{nomeMesCurto(periodos.QT || ((periodos.UL % 12) + 1)).toUpperCase()}</option>
+                        </select>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -1778,6 +1816,7 @@ export default function Home() {
               vendasReais={vendasReais}
               periodos={periodos}
               apenasNegativos={apenasNegativos}
+              filtroNegativoPeriodo={filtroNegativoPeriodo}
               filtroContinuidade={filtroContinuidade}
               filtroReferencia={filtroReferencia}
               filtroCor={filtroCor}

@@ -6,6 +6,9 @@ frontend/node_modules/
 .env
 .env.local
 .env.production
+frontend/.env.local
+frontend/.env.production
+frontend/.env.development
 
 # Logs
 logs
@@ -32,13 +35,19 @@ build/
 # Cache
 .cache/
 *.cache
+__pycache__/
+ml/__pycache__/
 
 # Temporary files
 *.tmp
 *.temp
+nul
 
 # Cache de dados (gerado em runtime)
 data/*.json
+
+# Local tool settings
+.claude/settings.local.json
 
 # TypeScript build info
 frontend/tsconfig.tsbuildinfo

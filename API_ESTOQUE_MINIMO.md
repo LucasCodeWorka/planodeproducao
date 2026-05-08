@@ -4,28 +4,8 @@ Sistema de cálculo de estoque mínimo baseado em análise de vendas históricas
 
 ## Regras de Cálculo
 
-O estoque mínimo é calculado com base em 3 regras:
-
-### Regra 1 - Crescimento ou Queda Acentuada
-**Condição:** Variação ≥ 49% ou ≤ -50%
-
-**Fórmula:** `Estoque Mínimo = Média dos Últimos 3 Meses`
-
-**Justificativa:** Variações acentuadas indicam mudança recente e relevante, tornando a média trimestral mais representativa.
-
-### Regra 2 - Ausência de Histórico Semestral
-**Condição:** Média semestral indisponível ou em branco
-
-**Fórmula:** `Estoque Mínimo = Média dos Últimos 3 Meses`
-
-**Justificativa:** Na ausência de histórico consolidado, o comportamento mais recente é a base do cálculo.
-
-### Regra 3 - Cenário Estável
-**Condição:** Nenhuma das condições anteriores
-
-**Fórmula:** `Estoque Mínimo = (Média Semestral + Média Trimestral) / 2`
-
-**Justificativa:** Equilibra estabilidade histórica com tendência recente.
+As regras detalhadas de negócio e os critérios operacionais internos não ficam mais descritos neste documento público.
+Este arquivo passa a servir apenas como referência de integração e consumo dos endpoints.
 
 ---
 
@@ -290,18 +270,9 @@ planoprojeto/
 
 ## Configuração
 
-### Variáveis de Ambiente (.env)
+### Variáveis de Ambiente
 
-```env
-DB_HOST=seu_host
-DB_PORT=5432
-DB_NAME=seu_banco
-DB_USER=seu_usuario
-DB_PASSWORD=sua_senha
-
-API_PORT=8000
-API_HOST=0.0.0.0
-```
+Configure as credenciais e parâmetros locais fora do versionamento, usando variáveis de ambiente privadas no servidor ou em arquivo local ignorado pelo git.
 
 ### Instalação
 

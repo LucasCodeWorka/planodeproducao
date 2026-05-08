@@ -13,52 +13,10 @@ Este sistema calcula o **estoque mínimo** de produtos com base em 3 regras de n
 - `idproduto`: ID do produto
 - `qt_liquida`: Quantidade vendida
 
-## 🎯 Regras de Negócio
+## Uso
 
-### Regra 1 - Variação Acentuada (≥49% ou ≤-50%)
-```
-Estoque Mínimo = Média dos Últimos 3 Meses
-```
-
-### Regra 2 - Sem Histórico Semestral
-```
-Estoque Mínimo = Média dos Últimos 3 Meses
-```
-
-### Regra 3 - Cenário Estável
-```
-Estoque Mínimo = (Média 6 Meses + Média 3 Meses) / 2
-```
-
-## 🚀 Como Usar
-
-### 1. Instalar
-```bash
-npm install
-```
-
-### 2. Configurar `.env`
-```env
-DB_HOST=seu_host
-DB_PORT=sua_porta
-DB_NAME=seu_banco
-DB_USER=seu_usuario
-DB_PASSWORD=sua_senha
-API_PORT=8000
-ADMIN_PASSWORD=sua_senha_admin
-```
-
-### 3. Executar
-```bash
-npm start        # Produção
-npm run dev      # Desenvolvimento
-```
-
-### 4. Testar
-```bash
-node scripts/verificar-estrutura.js      # Ver estrutura do banco
-node scripts/testar-estoque-minimo.js    # Testar cálculos
-```
+As configurações de ambiente e operação local não ficam mais documentadas neste repositório público.
+Se precisar subir o projeto ou replicar o ambiente, use apenas credenciais fora do versionamento e mantenha os segredos no provedor de deploy ou em arquivo local não rastreado.
 
 ## 📡 Endpoints Principais
 
@@ -114,14 +72,11 @@ scripts/
 └── testar-estoque-minimo.js # Testes completos
 ```
 
-## ✅ Sistema Testado
+## Estado do Projeto
 
-- ✅ Conectado ao banco real Liebe
-- ✅ Testado com 828.613 registros de vendas
-- ✅ 3 regras de negócio implementadas
-- ✅ Cálculo automático de médias
-- ✅ Endpoints funcionais
-- ✅ Módulo de planejamento de produção integrado
+- Endpoints de cálculo e consulta disponíveis
+- Módulo de planejamento de produção integrado
+- Fluxos de análise e projeção ativos
 
 ## 🏭 Módulo de Planejamento de Produção
 
