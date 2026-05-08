@@ -39,12 +39,13 @@ npm install
 
 ### 2. Configurar `.env`
 ```env
-DB_HOST=dbexp.vcenter.com.br
-DB_PORT=20168
-DB_NAME=liebe
-DB_USER=liebe_ro
-DB_PASSWORD=%eTS$33qPO8XZNMc
+DB_HOST=seu_host
+DB_PORT=sua_porta
+DB_NAME=seu_banco
+DB_USER=seu_usuario
+DB_PASSWORD=sua_senha
 API_PORT=8000
+ADMIN_PASSWORD=sua_senha_admin
 ```
 
 ### 3. Executar

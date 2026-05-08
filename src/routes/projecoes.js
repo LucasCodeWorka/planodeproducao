@@ -10,7 +10,7 @@ const DATA_DIR  = path.join(__dirname, '../../data');
 const PROJ_FILE = path.join(DATA_DIR, 'projecoes.json');
 const MATRIZ_FILE = path.join(DATA_DIR, 'matriz_cache.json');
 const DE_PARA_FILE = path.join(DATA_DIR, 'de_para_referencias.json');
-const MESES_TRANSICAO_NOVA_COLECAO = ['7', '8', '9', '10', '11', '12'];
+const MESES_TRANSICAO_NOVA_COLECAO = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
 // ── Calcula períodos automaticamente ────────────────────────────────────────
 /**
