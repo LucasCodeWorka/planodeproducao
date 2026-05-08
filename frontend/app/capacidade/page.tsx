@@ -9,7 +9,7 @@ import { PeriodosPlano, Planejamento } from '../types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MARCA_FIXA = 'LIEBE';
-const STATUS_FIXO = 'EM LINHA';
+const STATUS_FIXO = 'EM LINHA,NOVA COLECAO';
 
 type GrupoCapacidadeRow = {
   grupo: string;
@@ -402,11 +402,12 @@ export default function CapacidadePage() {
   }
 
   const matrizBase = useMemo(() => {
+    const statusPermitidos = STATUS_FIXO.split(',').map((s) => norm(s));
     return dados.filter((item) => {
       const marca = norm(item.produto?.marca || '');
       const status = norm(item.produto?.status || '');
       const descricao = norm(item.produto?.produto || '');
-      return marca === MARCA_FIXA && status.startsWith(STATUS_FIXO) && !descricao.includes('MEIA DE SEDA');
+      return marca === MARCA_FIXA && statusPermitidos.includes(status) && !descricao.includes('MEIA DE SEDA');
     });
   }, [dados]);
 
@@ -472,6 +473,229 @@ export default function CapacidadePage() {
     return map;
   }, [matrizAplicada]);
 
+  // Debug: total de planos e em processo
+  const debugTotaisPlano = useMemo(() => {
+    let totalMatrizBase = { ma: 0, px: 0, ul: 0, qt: 0, itensComPlano: 0, emProcesso: 0 };
+    let totalMatrizAplicada = { ma: 0, px: 0, ul: 0, qt: 0, itensComPlano: 0, emProcesso: 0 };
+
+    for (const item of matrizBase) {
+      const ma = Number(item.plano?.ma || 0);
+      const px = Number(item.plano?.px || 0);
+      const ul = Number(item.plano?.ul || 0);
+      const qt = Number(item.plano?.qt || 0);
+      const emProc = Number(item.estoques?.em_processo || 0);
+      totalMatrizBase.ma += ma;
+      totalMatrizBase.px += px;
+      totalMatrizBase.ul += ul;
+      totalMatrizBase.qt += qt;
+      totalMatrizBase.emProcesso += emProc;
+      if (ma > 0 || px > 0 || ul > 0 || qt > 0) totalMatrizBase.itensComPlano++;
+    }
+
+    for (const item of matrizAplicada) {
+      const ma = Number(item.plano?.ma || 0);
+      const px = Number(item.plano?.px || 0);
+      const ul = Number(item.plano?.ul || 0);
+      const qt = Number(item.plano?.qt || 0);
+      const emProc = Number(item.estoques?.em_processo || 0);
+      totalMatrizAplicada.ma += ma;
+      totalMatrizAplicada.px += px;
+      totalMatrizAplicada.ul += ul;
+      totalMatrizAplicada.qt += qt;
+      totalMatrizAplicada.emProcesso += emProc;
+      if (ma > 0 || px > 0 || ul > 0 || qt > 0) totalMatrizAplicada.itensComPlano++;
+    }
+
+    // Verificar quanto está mapeado vs não mapeado
+    const refsMapeadas = new Set(grupoRefs.map((r) => norm(r.referencia)));
+    let emProcessoMapeado = 0;
+    let emProcessoNaoMapeado = 0;
+    let planoMapeado = { ma: 0, px: 0, ul: 0, qt: 0 };
+    let planoNaoMapeado = { ma: 0, px: 0, ul: 0, qt: 0 };
+
+    for (const item of matrizAplicada) {
+      const ref = norm(item.produto?.referencia || '');
+      const emProc = Number(item.estoques?.em_processo || 0);
+      const ma = Number(item.plano?.ma || 0);
+      const px = Number(item.plano?.px || 0);
+      const ul = Number(item.plano?.ul || 0);
+      const qt = Number(item.plano?.qt || 0);
+
+      if (refsMapeadas.has(ref)) {
+        emProcessoMapeado += emProc;
+        planoMapeado.ma += ma;
+        planoMapeado.px += px;
+        planoMapeado.ul += ul;
+        planoMapeado.qt += qt;
+      } else {
+        emProcessoNaoMapeado += emProc;
+        planoNaoMapeado.ma += ma;
+        planoNaoMapeado.px += px;
+        planoNaoMapeado.ul += ul;
+        planoNaoMapeado.qt += qt;
+      }
+    }
+
+    return {
+      base: totalMatrizBase,
+      aplicada: totalMatrizAplicada,
+      totalItens: matrizBase.length,
+      emProcessoMapeado,
+      emProcessoNaoMapeado,
+      planoMapeado,
+      planoNaoMapeado,
+    };
+  }, [matrizBase, matrizAplicada, grupoRefs]);
+
+  // Mapa de tempo por referência (precisa estar antes de refNaoMapeadas)
+  const tempoPorRefMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const row of temposRef) {
+      const ref = norm(row.idreferencia || '');
+      if (!ref) continue;
+      map.set(ref, Number(row.tempo_segundos || 0));
+    }
+    return map;
+  }, [temposRef]);
+
+  // Referências não mapeadas com detalhes e tempo
+  type RefNaoMapeada = {
+    referencia: string;
+    idreferencia: string;
+    linha: string;
+    familia: string;
+    continuidade: string;
+    emProcesso: number;
+    planoMA: number;
+    planoPX: number;
+    planoUL: number;
+    planoQT: number;
+    planoTotal: number;
+    skus: number;
+    tempoSegundos: number;
+    cargaProcesso: number;
+    cargaMA: number;
+    cargaPX: number;
+    cargaUL: number;
+    cargaQT: number;
+    cargaTotal: number;
+  };
+
+  const refNaoMapeadas = useMemo<RefNaoMapeada[]>(() => {
+    const refsMapeadas = new Set(grupoRefs.map((r) => norm(r.referencia)));
+    const porRef = new Map<string, RefNaoMapeada>();
+
+    // Primeiro passo: coletar dados por referência
+    for (const item of matrizAplicada) {
+      const ref = norm(item.produto?.referencia || '');
+      if (!ref || refsMapeadas.has(ref)) continue;
+
+      const idreferencia = norm(item.produto?.cd_seqgrupo || '');
+      const emProc = Number(item.estoques?.em_processo || 0);
+      const ma = Number(item.plano?.ma || 0);
+      const px = Number(item.plano?.px || 0);
+      const ul = Number(item.plano?.ul || 0);
+      const qt = Number(item.plano?.qt || 0);
+
+      if (!porRef.has(ref)) {
+        porRef.set(ref, {
+          referencia: ref,
+          idreferencia: idreferencia,
+          linha: (item.produto?.linha || '').trim(),
+          familia: (item.produto?.idfamilia || '').trim(),
+          continuidade: (item.produto?.continuidade || '').trim(),
+          emProcesso: 0,
+          planoMA: 0,
+          planoPX: 0,
+          planoUL: 0,
+          planoQT: 0,
+          planoTotal: 0,
+          skus: 0,
+          tempoSegundos: 0,
+          cargaProcesso: 0,
+          cargaMA: 0,
+          cargaPX: 0,
+          cargaUL: 0,
+          cargaQT: 0,
+          cargaTotal: 0,
+        });
+      }
+
+      const r = porRef.get(ref)!;
+      r.emProcesso += emProc;
+      r.planoMA += ma;
+      r.planoPX += px;
+      r.planoUL += ul;
+      r.planoQT += qt;
+      r.planoTotal += ma + px + ul + qt;
+      r.skus += 1;
+      // Guardar o idreferencia se ainda não tiver
+      if (!r.idreferencia && idreferencia) {
+        r.idreferencia = idreferencia;
+      }
+    }
+
+    // Segundo passo: calcular tempo e carga usando tempoPorRefMap
+    const resultado = Array.from(porRef.values()).map((r) => {
+      const tempo = Number(tempoPorRefMap.get(r.idreferencia) || 0);
+      return {
+        ...r,
+        tempoSegundos: tempo,
+        cargaProcesso: tempo * r.emProcesso,
+        cargaMA: tempo * r.planoMA,
+        cargaPX: tempo * r.planoPX,
+        cargaUL: tempo * r.planoUL,
+        cargaQT: tempo * r.planoQT,
+        cargaTotal: tempo * (r.emProcesso + r.planoTotal),
+      };
+    });
+
+    return resultado
+      .filter((r) => r.emProcesso > 0 || r.planoTotal > 0)
+      .sort((a, b) => b.cargaTotal - a.cargaTotal);
+  }, [matrizAplicada, grupoRefs, tempoPorRefMap]);
+
+  // Capacidade diária total (calculada diretamente dos grupos para evitar dependência circular)
+  const capacidadeDiariaTotal = useMemo(() => {
+    return grupos.reduce((acc, g) => acc + Number(g.capacidade_diaria || 0), 0);
+  }, [grupos]);
+
+  // Resumo das não mapeadas
+  const resumoNaoMapeadas = useMemo(() => {
+    const totais = refNaoMapeadas.reduce((acc, r) => ({
+      emProcesso: acc.emProcesso + r.emProcesso,
+      planoTotal: acc.planoTotal + r.planoTotal,
+      cargaProcesso: acc.cargaProcesso + r.cargaProcesso,
+      cargaMA: acc.cargaMA + r.cargaMA,
+      cargaPX: acc.cargaPX + r.cargaPX,
+      cargaUL: acc.cargaUL + r.cargaUL,
+      cargaQT: acc.cargaQT + r.cargaQT,
+      cargaTotal: acc.cargaTotal + r.cargaTotal,
+      comTempo: acc.comTempo + (r.tempoSegundos > 0 ? 1 : 0),
+      semTempo: acc.semTempo + (r.tempoSegundos === 0 ? 1 : 0),
+    }), {
+      emProcesso: 0,
+      planoTotal: 0,
+      cargaProcesso: 0,
+      cargaMA: 0,
+      cargaPX: 0,
+      cargaUL: 0,
+      cargaQT: 0,
+      cargaTotal: 0,
+      comTempo: 0,
+      semTempo: 0,
+    });
+
+    const diasProcesso = capacidadeDiariaTotal > 0 ? totais.cargaProcesso / capacidadeDiariaTotal : 0;
+    const diasMA = capacidadeDiariaTotal > 0 ? totais.cargaMA / capacidadeDiariaTotal : 0;
+    const diasPX = capacidadeDiariaTotal > 0 ? totais.cargaPX / capacidadeDiariaTotal : 0;
+    const diasUL = capacidadeDiariaTotal > 0 ? totais.cargaUL / capacidadeDiariaTotal : 0;
+    const diasQT = capacidadeDiariaTotal > 0 ? totais.cargaQT / capacidadeDiariaTotal : 0;
+    const diasTotal = capacidadeDiariaTotal > 0 ? totais.cargaTotal / capacidadeDiariaTotal : 0;
+
+    return { ...totais, diasProcesso, diasMA, diasPX, diasUL, diasQT, diasTotal };
+  }, [refNaoMapeadas, capacidadeDiariaTotal]);
+
   const processoPorRefMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const item of matrizAplicada) {
@@ -523,16 +747,6 @@ export default function CapacidadePage() {
     }
     return map;
   }, [grupoRefs]);
-
-  const tempoPorRefMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const row of temposRef) {
-      const ref = norm(row.idreferencia || '');
-      if (!ref) continue;
-      map.set(ref, Number(row.tempo_segundos || 0));
-    }
-    return map;
-  }, [temposRef]);
 
   const detalhesRef = useMemo<RefAnaliseRow[]>(() => {
     return grupoRefs.map((row) => {
@@ -914,8 +1128,22 @@ export default function CapacidadePage() {
               {aplicarAprovadas ? 'Aplicada' : 'Aplicar cálculos'}
             </button>
 
-            <div className="text-xs text-gray-600">
-              Itens com plano aprovado: <strong>{planosAprovadosMap.size.toLocaleString('pt-BR')}</strong>
+            <div className="text-xs text-gray-600 space-y-1">
+              <div>Itens com plano aprovado: <strong>{planosAprovadosMap.size.toLocaleString('pt-BR')}</strong></div>
+              <div className="text-[10px] text-gray-500">
+                Total matriz: {debugTotaisPlano.totalItens.toLocaleString('pt-BR')} itens |
+                Plano aplicado: {(debugTotaisPlano.aplicada.ma + debugTotaisPlano.aplicada.px + debugTotaisPlano.aplicada.ul + debugTotaisPlano.aplicada.qt).toLocaleString('pt-BR')} pcs |
+                Em Processo total: <strong>{debugTotaisPlano.aplicada.emProcesso.toLocaleString('pt-BR')}</strong> pcs
+              </div>
+              <div className="text-[10px] text-amber-600 font-medium">
+                ⚠️ Refs mapeamento: {grupoRefs.length} | Refs matriz: {new Set(matrizAplicada.map(i => norm(i.produto?.referencia || ''))).size} |
+                Grupos cap: {grupos.length} | Grupos mapeamento: {new Set(grupoRefs.map(r => r.grupo)).size} |
+                Em Proc debug: {debugTotaisPlano.emProcessoMapeado.toLocaleString('pt-BR')} pcs
+              </div>
+              <div className="text-[10px] text-gray-400">
+                Plano mapeado: {(debugTotaisPlano.planoMapeado.ma + debugTotaisPlano.planoMapeado.px + debugTotaisPlano.planoMapeado.ul + debugTotaisPlano.planoMapeado.qt).toLocaleString('pt-BR')} pcs |
+                Plano não mapeado: <span className="text-red-500">{(debugTotaisPlano.planoNaoMapeado.ma + debugTotaisPlano.planoNaoMapeado.px + debugTotaisPlano.planoNaoMapeado.ul + debugTotaisPlano.planoNaoMapeado.qt).toLocaleString('pt-BR')} pcs</span>
+              </div>
             </div>
           </div>
 
@@ -1001,6 +1229,75 @@ export default function CapacidadePage() {
                     </div>
                   </div>
 
+                  {/* Detalhamento por período */}
+                  <div className="mt-4 border-t border-stone-200 pt-4">
+                    <div className="text-[11px] uppercase tracking-wide text-stone-500 mb-3">Detalhamento por Período</div>
+                    <div className="space-y-2 text-xs">
+                      {/* Em Processo */}
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-amber-50 border border-amber-200">
+                        <span className="font-medium text-amber-800">Em Processo</span>
+                        <div className="text-right">
+                          <span className="font-bold text-amber-900">{fmtInt(debugTotaisPlano.aplicada.emProcesso)} pcs</span>
+                          <span className="text-amber-600 ml-2">
+                            (mapeado: {fmtInt(auditoriaDetalheResumo.processoPecas)} · {resumo.capacidadeDiariaTotal > 0 ? (auditoriaDetalheResumo.processoCarga / resumo.capacidadeDiariaTotal).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : 0} dias)
+                          </span>
+                        </div>
+                      </div>
+                      {/* MA */}
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-teal-50 border border-teal-200">
+                        <span className="font-medium text-teal-800">Plano {nomeMes(periodos.MA)}</span>
+                        <div className="text-right">
+                          <span className="font-bold text-teal-900">{fmtInt(auditoriaDetalheResumo.planoMA)} pcs</span>
+                          <span className="text-teal-600 ml-2">
+                            ({resumo.capacidadeDiariaTotal > 0 ? (auditoriaDetalheResumo.cargaMA / resumo.capacidadeDiariaTotal).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : 0} dias)
+                          </span>
+                        </div>
+                      </div>
+                      {/* PX */}
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50 border border-blue-200">
+                        <span className="font-medium text-blue-800">Plano {nomeMes(periodos.PX)}</span>
+                        <div className="text-right">
+                          <span className="font-bold text-blue-900">{fmtInt(auditoriaDetalheResumo.planoPX)} pcs</span>
+                          <span className="text-blue-600 ml-2">
+                            ({resumo.capacidadeDiariaTotal > 0 ? (auditoriaDetalheResumo.cargaPX / resumo.capacidadeDiariaTotal).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : 0} dias)
+                          </span>
+                        </div>
+                      </div>
+                      {/* UL */}
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-purple-50 border border-purple-200">
+                        <span className="font-medium text-purple-800">Plano {nomeMes(periodos.UL)}</span>
+                        <div className="text-right">
+                          <span className="font-bold text-purple-900">{fmtInt(auditoriaDetalheResumo.planoUL)} pcs</span>
+                          <span className="text-purple-600 ml-2">
+                            ({resumo.capacidadeDiariaTotal > 0 ? (auditoriaDetalheResumo.cargaUL / resumo.capacidadeDiariaTotal).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : 0} dias)
+                          </span>
+                        </div>
+                      </div>
+                      {/* QT/JUN */}
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-pink-50 border border-pink-200">
+                        <span className="font-medium text-pink-800">Plano {nomeMes(mesJunho)}</span>
+                        <div className="text-right">
+                          <span className="font-bold text-pink-900">{fmtInt(auditoriaDetalheResumo.planoJUN)} pcs</span>
+                          <span className="text-pink-600 ml-2">
+                            ({resumo.capacidadeDiariaTotal > 0 ? (auditoriaDetalheResumo.cargaJUN / resumo.capacidadeDiariaTotal).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : 0} dias)
+                          </span>
+                        </div>
+                      </div>
+                      {/* Total */}
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-stone-100 border border-stone-300 mt-2">
+                        <span className="font-bold text-stone-800">TOTAL</span>
+                        <div className="text-right">
+                          <span className="font-bold text-stone-900">
+                            {fmtInt(auditoriaDetalheResumo.processoPecas + auditoriaDetalheResumo.planoMA + auditoriaDetalheResumo.planoPX + auditoriaDetalheResumo.planoUL + auditoriaDetalheResumo.planoJUN)} pcs
+                          </span>
+                          <span className="text-stone-600 ml-2">
+                            ({resumo.diasNecessariosTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4">
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <span className="text-stone-500">Tempo total / Cap. diária total</span>
@@ -1013,6 +1310,109 @@ export default function CapacidadePage() {
               </section>
             </div>
           </div>
+
+          {/* Referências não mapeadas */}
+          {refNaoMapeadas.length > 0 && (
+            <div className="bg-white rounded-[20px] border border-red-200 shadow-sm overflow-hidden">
+              <div className="p-4 bg-red-50 border-b border-red-200">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <div className="text-sm font-bold text-red-800">⚠️ Referências sem grupo mapeado ({refNaoMapeadas.length})</div>
+                    <div className="text-xs text-red-600 mt-1">
+                      {resumoNaoMapeadas.comTempo} com tempo cadastrado · {resumoNaoMapeadas.semTempo} sem tempo
+                    </div>
+                  </div>
+                  {/* Resumo de carga não mapeada */}
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <div className="px-3 py-2 rounded-lg bg-amber-100 border border-amber-300">
+                      <div className="text-amber-600 text-[10px]">Em Processo</div>
+                      <div className="font-bold text-amber-800">{fmtInt(debugTotaisPlano.emProcessoNaoMapeado)} pcs</div>
+                      <div className="text-amber-600">{resumoNaoMapeadas.diasProcesso.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias</div>
+                    </div>
+                    <div className="px-3 py-2 rounded-lg bg-teal-100 border border-teal-300">
+                      <div className="text-teal-600 text-[10px]">{nomeMes(periodos.MA)}</div>
+                      <div className="font-bold text-teal-800">{fmtInt(refNaoMapeadas.reduce((a, r) => a + r.planoMA, 0))} pcs</div>
+                      <div className="text-teal-600">{resumoNaoMapeadas.diasMA.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias</div>
+                    </div>
+                    <div className="px-3 py-2 rounded-lg bg-blue-100 border border-blue-300">
+                      <div className="text-blue-600 text-[10px]">{nomeMes(periodos.PX)}</div>
+                      <div className="font-bold text-blue-800">{fmtInt(refNaoMapeadas.reduce((a, r) => a + r.planoPX, 0))} pcs</div>
+                      <div className="text-blue-600">{resumoNaoMapeadas.diasPX.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias</div>
+                    </div>
+                    <div className="px-3 py-2 rounded-lg bg-purple-100 border border-purple-300">
+                      <div className="text-purple-600 text-[10px]">{nomeMes(periodos.UL)}</div>
+                      <div className="font-bold text-purple-800">{fmtInt(refNaoMapeadas.reduce((a, r) => a + r.planoUL, 0))} pcs</div>
+                      <div className="text-purple-600">{resumoNaoMapeadas.diasUL.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias</div>
+                    </div>
+                    <div className="px-3 py-2 rounded-lg bg-pink-100 border border-pink-300">
+                      <div className="text-pink-600 text-[10px]">{nomeMes(mesJunho)}</div>
+                      <div className="font-bold text-pink-800">{fmtInt(refNaoMapeadas.reduce((a, r) => a + r.planoQT, 0))} pcs</div>
+                      <div className="text-pink-600">{resumoNaoMapeadas.diasQT.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias</div>
+                    </div>
+                    <div className="px-3 py-2 rounded-lg bg-red-200 border border-red-400">
+                      <div className="text-red-700 text-[10px]">TOTAL FORA</div>
+                      <div className="font-bold text-red-900">{fmtInt(debugTotaisPlano.emProcessoNaoMapeado + debugTotaisPlano.planoNaoMapeado.ma + debugTotaisPlano.planoNaoMapeado.px + debugTotaisPlano.planoNaoMapeado.ul + debugTotaisPlano.planoNaoMapeado.qt)} pcs</div>
+                      <div className="text-red-700 font-semibold">{resumoNaoMapeadas.diasTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="max-h-[400px] overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-red-100 sticky top-0">
+                    <tr>
+                      <th className="px-2 py-2 text-left font-semibold text-red-800">Ref</th>
+                      <th className="px-2 py-2 text-left font-semibold text-red-800">Linha</th>
+                      <th className="px-2 py-2 text-left font-semibold text-red-800">Família</th>
+                      <th className="px-2 py-2 text-left font-semibold text-red-800">Cont.</th>
+                      <th className="px-2 py-2 text-right font-semibold text-red-800">Tempo</th>
+                      <th className="px-2 py-2 text-right font-semibold text-red-800">Em Proc.</th>
+                      <th className="px-2 py-2 text-right font-semibold text-red-800">{nomeMes(periodos.MA)}</th>
+                      <th className="px-2 py-2 text-right font-semibold text-red-800">{nomeMes(periodos.PX)}</th>
+                      <th className="px-2 py-2 text-right font-semibold text-red-800">{nomeMes(periodos.UL)}</th>
+                      <th className="px-2 py-2 text-right font-semibold text-red-800">{nomeMes(mesJunho)}</th>
+                      <th className="px-2 py-2 text-right font-semibold text-red-800">Total Pcs</th>
+                      <th className="px-2 py-2 text-right font-semibold text-red-800">Carga</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {refNaoMapeadas.map((r, idx) => (
+                      <tr key={r.referencia} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-red-50/50'} ${r.tempoSegundos === 0 ? 'opacity-60' : ''}`}>
+                        <td className="px-2 py-1.5 font-mono font-semibold text-red-700">{r.referencia}</td>
+                        <td className="px-2 py-1.5 text-gray-700 truncate max-w-[100px]" title={r.linha}>{r.linha || '-'}</td>
+                        <td className="px-2 py-1.5 text-gray-700 truncate max-w-[80px]" title={r.familia}>{r.familia || '-'}</td>
+                        <td className="px-2 py-1.5 text-gray-700 truncate max-w-[80px]" title={r.continuidade}>{r.continuidade || '-'}</td>
+                        <td className={`px-2 py-1.5 text-right ${r.tempoSegundos > 0 ? 'text-green-700' : 'text-red-500 font-semibold'}`}>
+                          {r.tempoSegundos > 0 ? r.tempoSegundos.toLocaleString('pt-BR') : 'SEM'}
+                        </td>
+                        <td className="px-2 py-1.5 text-right font-semibold text-amber-700">{fmtInt(r.emProcesso)}</td>
+                        <td className="px-2 py-1.5 text-right text-teal-700">{fmtInt(r.planoMA)}</td>
+                        <td className="px-2 py-1.5 text-right text-blue-700">{fmtInt(r.planoPX)}</td>
+                        <td className="px-2 py-1.5 text-right text-purple-700">{fmtInt(r.planoUL)}</td>
+                        <td className="px-2 py-1.5 text-right text-pink-700">{fmtInt(r.planoQT)}</td>
+                        <td className="px-2 py-1.5 text-right font-bold text-gray-800">{fmtInt(r.emProcesso + r.planoTotal)}</td>
+                        <td className="px-2 py-1.5 text-right font-bold text-red-800">{r.cargaTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-red-100 font-semibold sticky bottom-0">
+                    <tr>
+                      <td className="px-2 py-2 text-red-800">TOTAL ({refNaoMapeadas.length})</td>
+                      <td className="px-2 py-2" colSpan={3}></td>
+                      <td className="px-2 py-2 text-right text-green-700">{resumoNaoMapeadas.comTempo}/{refNaoMapeadas.length}</td>
+                      <td className="px-2 py-2 text-right text-amber-800">{fmtInt(debugTotaisPlano.emProcessoNaoMapeado)}</td>
+                      <td className="px-2 py-2 text-right text-teal-800">{fmtInt(debugTotaisPlano.planoNaoMapeado.ma)}</td>
+                      <td className="px-2 py-2 text-right text-blue-800">{fmtInt(debugTotaisPlano.planoNaoMapeado.px)}</td>
+                      <td className="px-2 py-2 text-right text-purple-800">{fmtInt(debugTotaisPlano.planoNaoMapeado.ul)}</td>
+                      <td className="px-2 py-2 text-right text-pink-800">{fmtInt(debugTotaisPlano.planoNaoMapeado.qt)}</td>
+                      <td className="px-2 py-2 text-right text-gray-900">{fmtInt(debugTotaisPlano.emProcessoNaoMapeado + debugTotaisPlano.planoNaoMapeado.ma + debugTotaisPlano.planoNaoMapeado.px + debugTotaisPlano.planoNaoMapeado.ul + debugTotaisPlano.planoNaoMapeado.qt)}</td>
+                      <td className="px-2 py-2 text-right text-red-900">{resumoNaoMapeadas.cargaTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
