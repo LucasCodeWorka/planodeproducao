@@ -654,23 +654,21 @@ function parsearCSV(texto) {
 }
 
 // ── GET /api/projecoes/de-para ────────────────────────────────────────────────
-// Retorna todas as referências do de-para (antigas e novas)
+// Retorna as referências do de-para (apenas antigas para exclusão da tabela)
 router.get('/de-para', auth, async (req, res) => {
   try {
     const dePara = lerDeParaReferencias();
-    const referencias = new Set();
+    const referenciasAntigas = new Set();
 
     for (const item of dePara) {
       const refAntiga = String(item?.ref_antiga || '').trim();
-      const refNova = String(item?.ref_nova || '').trim();
-      if (refAntiga) referencias.add(refAntiga);
-      if (refNova) referencias.add(refNova);
+      if (refAntiga) referenciasAntigas.add(refAntiga);
     }
 
     return res.json({
       success: true,
-      count: referencias.size,
-      referencias: Array.from(referencias).sort(),
+      count: referenciasAntigas.size,
+      referencias: Array.from(referenciasAntigas).sort(),
       detalhes: dePara.map(item => ({
         ref_antiga: String(item?.ref_antiga || '').trim(),
         ref_nova: String(item?.ref_nova || '').trim(),
