@@ -26,6 +26,11 @@
       "ref_antiga": "703010",
       "ref_nova": "703021",
       "descricao": "SUTIA 1/2 TACA EM RENDA TACA B"
+    },
+    {
+      "ref_antiga": "303602",
+      "ref_nova": "303603",
+      "descricao": "SUTIA TQC EM descontinuada - migrar para SUTIA TQC (julho/2026)"
     }
   ]
 }
