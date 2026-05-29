@@ -578,7 +578,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     pool.query(
       `SELECT a.cd_produto::BIGINT AS idproduto,
               p.cd_auxiliar,
-              COALESCE(SUM(GREATEST(a.qt_lote - a.qt_gerouop, 0)), 0)::FLOAT AS plano
+              COALESCE(SUM(GREATEST(a.qt_lote - COALESCE(a.qt_gerouop, 0), 0)), 0)::FLOAT AS plano
        FROM vr_pcp_lotepl2 a
        LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
        WHERE p.tp_situacao = 1
@@ -588,10 +588,32 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     ),
   ]);
 
-  const ids = rProdutos.rows.map(r => Number(r.idproduto));
+  let ids = rProdutos.rows.map(r => Number(r.idproduto));
   console.log(`[matriz/paralela] Fase 1 concluída em ${((Date.now()-t0)/1000).toFixed(1)}s — ${ids.length} produtos`);
 
   if (ids.length === 0) return [];
+
+  // ── Incluir IDs das refs antigas do de-para (podem estar em outra marca) ──
+  const deParaPreload = lerDeParaReferencias();
+  const refsAntigasPreload = deParaPreload
+    .map(item => String(item?.ref_antiga || '').trim())
+    .filter(Boolean);
+
+  if (refsAntigasPreload.length > 0) {
+    const rIdsAntigos = await pool.query(`
+      SELECT cd_produto::BIGINT AS idproduto
+      FROM vr_prd_prdgrade
+      WHERE f_dic_prd_nivel(cd_produto, 'CD'::bpchar)::TEXT = ANY($1::TEXT[])
+    `, [refsAntigasPreload]);
+
+    const idsAntigos = rIdsAntigos.rows.map(r => Number(r.idproduto));
+    const idsSet = new Set(ids);
+    const idsNovos = idsAntigos.filter(id => !idsSet.has(id));
+    if (idsNovos.length > 0) {
+      ids = [...ids, ...idsNovos];
+      console.log(`[de-para] Adicionados ${idsNovos.length} IDs de refs antigas para busca de dados`);
+    }
+  }
 
   // ── Períodos fixos para cálculo de estoque mínimo ────────────────────────
   // Semestral: mesmo semestre do ANO ANTERIOR (ex: março/2026 → H1 2025 = jan–jun/2025)
@@ -793,6 +815,33 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
       cor: row.cor,
       tamanho: row.tamanho,
     });
+  }
+
+  // ── Buscar produtos das refs antigas do de-para (podem estar em outra marca) ──
+  const refsAntigasDePara = dePara
+    .map(item => String(item?.ref_antiga || '').trim())
+    .filter(ref => ref && !produtosPorReferencia.has(ref));
+
+  if (refsAntigasDePara.length > 0) {
+    const rProdutosAntigos = await pool.query(`
+      SELECT a.cd_produto::BIGINT AS idproduto,
+             f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar)::TEXT AS referencia,
+             a.ds_cor AS cor, a.ds_tamanho AS tamanho
+      FROM vr_prd_prdgrade a
+      WHERE f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar)::TEXT = ANY($1::TEXT[])
+    `, [refsAntigasDePara]);
+
+    for (const row of rProdutosAntigos.rows) {
+      const referencia = String(row.referencia || '').trim();
+      if (!referencia) continue;
+      if (!produtosPorReferencia.has(referencia)) produtosPorReferencia.set(referencia, []);
+      produtosPorReferencia.get(referencia).push({
+        idproduto: Number(row.idproduto),
+        cor: row.cor,
+        tamanho: row.tamanho,
+      });
+    }
+    console.log(`[de-para] Buscou ${rProdutosAntigos.rows.length} produtos de ${refsAntigasDePara.length} refs antigas em outras marcas`);
   }
 
   const antigoParaNovoId = new Map();
