@@ -124,14 +124,14 @@ export default function Home() {
   const [building,     setBuilding]     = useState(false);
   const [buildElapsed, setBuildElapsed] = useState(0);
   const [apenasNegativos, setApenasNegativos] = useState(false);
-  const [filtroNegativoPeriodo, setFiltroNegativoPeriodo] = useState<'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT'>('TODOS');
+  const [filtroNegativoPeriodo, setFiltroNegativoPeriodo] = useState<'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT' | 'QU'>('TODOS');
   const [filtroNaoPrecisaProduzir, setFiltroNaoPrecisaProduzir] = useState(false);
   const [filtroContinuidade, setFiltroContinuidade] = useState<string[]>([]);
   const [filtroSuspensos, setFiltroSuspensos] = useState<'INCLUIR' | 'EXCLUIR'>('INCLUIR');
   const [filtroReferencia, setFiltroReferencia] = useState('');
   const [filtroCor, setFiltroCor] = useState('TODAS');
   const [filtroCobertura, setFiltroCobertura] = useState<'TODAS' | 'NEGATIVA' | 'ZERO_UM' | 'MAIOR_UM' | 'MAIOR_2'>('TODAS');
-  const [filtroCoberturaBase, setFiltroCoberturaBase] = useState<'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT'>('ATUAL');
+  const [filtroCoberturaBase, setFiltroCoberturaBase] = useState<'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT' | 'QU'>('ATUAL');
   const [filtroTaxa, setFiltroTaxa] = useState<'TODAS' | 'ATE_70'>('TODAS');
   const [filtroCoberturaMinima, setFiltroCoberturaMinima] = useState<string>('');
   const [filtroEmProcessoMinimo, setFiltroEmProcessoMinimo] = useState<string>('');
@@ -1000,7 +1000,7 @@ export default function Home() {
       refKissme: new Map(),
     });
 
-    const meses = { MA: initMes(), PX: initMes(), UL: initMes(), QT: initMes() };
+    const meses = { MA: initMes(), PX: initMes(), UL: initMes(), QT: initMes(), QU: initMes() };
     const addRef = (mapa: Map<string, AcumRef>, ref: string, disp: number, min: number) => {
       const atual = mapa.get(ref) || { totalDisp: 0, totalMin: 0 };
       atual.totalDisp += disp;
@@ -1034,21 +1034,25 @@ export default function Home() {
       const pPX = i.plano?.px || 0;
       const pUL = i.plano?.ul || 0;
       const pQT = (i.plano as { qt?: number } | undefined)?.qt || 0;
+      const pQU = (i.plano as { qu?: number } | undefined)?.qu || 0;
       const proj = projecoesAtivas[i.produto.idproduto] ?? null;
       const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
       const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
       const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
       const prQT = proj ? (proj[String(mesNormalizado((periodos.UL || 0) + 1))] ?? 0) : 0;
+      const prQU = proj ? (proj[String(mesNormalizado((periodos.UL || 0) + 2))] ?? 0) : 0;
       const dispMA = dispAtual + emP + pMA - prMA;
       const dispPX = dispMA + pPX - prPX;
       const dispUL = dispPX + pUL - prUL;
       const dispQT = dispUL + pQT - prQT;
+      const dispQU = dispQT + pQU - prQU;
 
-      const porMes: Array<{ mes: 'MA' | 'PX' | 'UL' | 'QT'; cob: number; disp: number }> = [
+      const porMes: Array<{ mes: 'MA' | 'PX' | 'UL' | 'QT' | 'QU'; cob: number; disp: number }> = [
         { mes: 'MA', cob: dispMA / min, disp: dispMA },
         { mes: 'PX', cob: dispPX / min, disp: dispPX },
         { mes: 'UL', cob: dispUL / min, disp: dispUL },
         { mes: 'QT', cob: dispQT / min, disp: dispQT },
+        { mes: 'QU', cob: dispQU / min, disp: dispQU },
       ];
 
       porMes.forEach(({ mes, cob, disp }) => {
@@ -1069,16 +1073,16 @@ export default function Home() {
       });
     });
 
-    const toSku = (mes: 'MA' | 'PX' | 'UL' | 'QT', x: AcumMes): SerieMes => ({
+    const toSku = (mes: 'MA' | 'PX' | 'UL' | 'QT' | 'QU', x: AcumMes): SerieMes => ({
       mes, total: pctSku(x.total), top30: pctSku(x.top30), demais: pctSku(x.demais), kissme: pctSku(x.kissme),
     });
-    const toRef = (mes: 'MA' | 'PX' | 'UL' | 'QT', x: AcumMes): SerieMes => ({
+    const toRef = (mes: 'MA' | 'PX' | 'UL' | 'QT' | 'QU', x: AcumMes): SerieMes => ({
       mes, total: pctRef(x.refTotal), top30: pctRef(x.refTop30), demais: pctRef(x.refDemais), kissme: pctRef(x.refKissme),
     });
 
     return {
-      sku: [toSku('MA', meses.MA), toSku('PX', meses.PX), toSku('UL', meses.UL), toSku('QT', meses.QT)],
-      ref: [toRef('MA', meses.MA), toRef('PX', meses.PX), toRef('UL', meses.UL), toRef('QT', meses.QT)],
+      sku: [toSku('MA', meses.MA), toSku('PX', meses.PX), toSku('UL', meses.UL), toSku('QT', meses.QT), toSku('QU', meses.QU)],
+      ref: [toRef('MA', meses.MA), toRef('PX', meses.PX), toRef('UL', meses.UL), toRef('QT', meses.QT), toRef('QU', meses.QU)],
     };
   }, [dadosPagina, projecoesAtivas, periodos, top30Ids, top30Refs]);
 
