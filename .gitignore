@@ -43,8 +43,8 @@ ml/__pycache__/
 *.temp
 nul
 
-# Cache de dados (gerado em runtime)
-data/*.json
+# Cache de dados (gerado em runtime) - REMOVIDO para persistir capacidade
+# data/*.json
 
 # Local tool settings
 .claude/settings.local.json

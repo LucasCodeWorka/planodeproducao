@@ -582,7 +582,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
        FROM vr_pcp_lotepl2 a
        LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
        WHERE p.tp_situacao = 1
-         AND p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT')
+         AND p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
        GROUP BY a.cd_produto, p.cd_auxiliar`,
       []
     ),
@@ -777,8 +777,8 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   for (const row of rPlano.rows) {
     const id  = Number(row.idproduto);
     const per = String(row.cd_auxiliar || '').trim().toUpperCase();
-    if (!planoMap.has(id)) planoMap.set(id, { MA: 0, PX: 0, UL: 0, QT: 0 });
-    if (per === 'MA' || per === 'PX' || per === 'UL' || per === 'QT') {
+    if (!planoMap.has(id)) planoMap.set(id, { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
+    if (per === 'MA' || per === 'PX' || per === 'UL' || per === 'QT' || per === 'QU') {
       planoMap.get(id)[per] = parseFloat(row.plano) || 0;
     }
   }
@@ -901,6 +901,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     let planoPX = 0;
     let planoUL = 0;
     let planoQT = 0;
+    let planoQU = 0;
 
     for (const idFonte of idsFonte) {
       const s = salesMap.get(idFonte);
@@ -915,6 +916,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
       planoPX += planoMap.get(idFonte)?.PX || 0;
       planoUL += planoMap.get(idFonte)?.UL || 0;
       planoQT += planoMap.get(idFonte)?.QT || 0;
+      planoQU += planoMap.get(idFonte)?.QU || 0;
     }
 
     const mediaSemestral = sumSem / 6;  // média mensal do semestre (total ÷ 6 meses)
@@ -964,7 +966,8 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
         ma: planoMA,   // mês atual
         px: planoPX,   // próximo mês
         ul: planoUL,   // mês seguinte
-        qt: planoQT    // quarto mês
+        qt: planoQT,   // quarto mês
+        qu: planoQU    // quinto mês
       },
       planejamento: {
         necessidade_total:    necessidadeTotal,
@@ -1219,7 +1222,7 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
     FROM vr_pcp_loteplop a
     LEFT JOIN pcp_lotepv p
       ON a.nr_lote = p.nr_lote
-    WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT')
+    WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
       AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint), ''))) = UPPER(TRIM($1))
       AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) = ANY($2)
       AND UPPER(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), '')) NOT LIKE '%MEIA DE SEDA%'
@@ -1229,7 +1232,7 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
 
   const result = await pool.query(query, [marca, statusList]);
   const base = {
-    geral: { MA: null, PX: null, UL: null, QT: null },
+    geral: { MA: null, PX: null, UL: null, QT: null, QU: null },
     continuidade: {},
   };
 
@@ -1247,7 +1250,7 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
     base.geral[periodo].qtdFinalizada += qtdFinalizada;
 
     if (!base.continuidade[continuidade]) {
-      base.continuidade[continuidade] = { MA: null, PX: null, UL: null, QT: null };
+      base.continuidade[continuidade] = { MA: null, PX: null, UL: null, QT: null, QU: null };
     }
     base.continuidade[continuidade][periodo] = {
       qtdReal: qtdLote,
@@ -1256,7 +1259,7 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
     };
   }
 
-  for (const periodo of ['MA', 'PX', 'UL', 'QT']) {
+  for (const periodo of ['MA', 'PX', 'UL', 'QT', 'QU']) {
     const item = base.geral[periodo];
     if (item) {
       item.percentual = item.qtdReal > 0 ? (item.qtdFinalizada * 100) / item.qtdReal : null;

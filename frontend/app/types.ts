@@ -46,10 +46,11 @@ export interface CalculoEstoqueMinimo {
 }
 
 export interface Plano {
-  ma: number;  // mês atual (março)
-  px: number;  // próximo mês (abril)
-  ul: number;  // mês seguinte (maio)
-  qt?: number; // quarto mês (junho)
+  ma: number;  // mês atual
+  px: number;  // próximo mês
+  ul: number;  // mês seguinte
+  qt?: number; // quarto mês
+  qu?: number; // quinto mês
 }
 
 export interface Planejamento {
@@ -77,8 +78,9 @@ export interface ProjecoesMap {
 export interface PeriodosPlano {
   MA: number;  // mês atual (ex: 3 para março)
   PX: number;  // próximo mês
-  UL: number;  // último mês do plano
-  QT?: number; // mês seguinte ao UL (opcional)
+  UL: number;  // mês seguinte
+  QT?: number; // quarto mês (opcional)
+  QU?: number; // quinto mês (opcional)
 }
 
 /** Excedente de estoque das lojas por produto */

@@ -1,14 +1,10 @@
 {
-  "timestamp": 1773146875385,
-  "total": 331,
+  "timestamp": 1781176915040,
+  "total": 943,
   "data": [
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
-      "referencia": "103802"
-    },
-    {
-      "grupo": "03 - ALEGRIA SU LUXE MODA",
-      "referencia": "103803"
+      "referencia": "136109"
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
@@ -16,11 +12,23 @@
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
-      "referencia": "136116"
+      "referencia": "136112"
+    },
+    {
+      "grupo": "03 - ALEGRIA SU LUXE MODA",
+      "referencia": "136113"
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
       "referencia": "136117"
+    },
+    {
+      "grupo": "03 - ALEGRIA SU LUXE MODA",
+      "referencia": "136118"
+    },
+    {
+      "grupo": "03 - ALEGRIA SU LUXE MODA",
+      "referencia": "136119"
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
@@ -32,11 +40,19 @@
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
+      "referencia": "136200"
+    },
+    {
+      "grupo": "03 - ALEGRIA SU LUXE MODA",
+      "referencia": "136209"
+    },
+    {
+      "grupo": "03 - ALEGRIA SU LUXE MODA",
       "referencia": "136213"
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
-      "referencia": "136217"
+      "referencia": "136218"
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
@@ -44,15 +60,11 @@
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
+      "referencia": "136220"
+    },
+    {
+      "grupo": "03 - ALEGRIA SU LUXE MODA",
       "referencia": "136221"
-    },
-    {
-      "grupo": "03 - ALEGRIA SU LUXE MODA",
-      "referencia": "136908"
-    },
-    {
-      "grupo": "03 - ALEGRIA SU LUXE MODA",
-      "referencia": "136909"
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
@@ -60,15 +72,31 @@
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
-      "referencia": "136916"
+      "referencia": "505244"
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
-      "referencia": "606177"
+      "referencia": "506120"
     },
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
-      "referencia": "606180"
+      "referencia": "506124"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "103006"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "103008"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "103009"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "103010"
     },
     {
       "grupo": "03 - EXCELENCIA SU BASICO",
@@ -79,8 +107,144 @@
       "referencia": "103102"
     },
     {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "103204"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "103602"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "103605"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "103801"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "123007"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "123008"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "123009"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "123013"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "123101"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "123301"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "123405"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "123603"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "123604"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "203300"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "203601"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "303100"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "303600"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "303602"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "303603"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "341001"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "411001"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "413401"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "703001"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "703014"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "703015"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "703016"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "703020"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "703313"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "703314"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "703602"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "703604"
+    },
+    {
+      "grupo": "03 - EXCELENCIA SU BASICO",
+      "referencia": "703801"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "106601"
+    },
+    {
       "grupo": "03 - FELICIDADE SU LUXE",
       "referencia": "413400"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "503049"
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
@@ -88,15 +252,7 @@
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "503439"
-    },
-    {
-      "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "503539"
-    },
-    {
-      "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "503543"
+      "referencia": "503449"
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
@@ -104,15 +260,7 @@
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "504041"
-    },
-    {
-      "grupo": "03 - FELICIDADE SU LUXE",
       "referencia": "504047"
-    },
-    {
-      "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "506643"
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
@@ -124,7 +272,7 @@
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "603174"
+      "referencia": "603082"
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
@@ -140,19 +288,7 @@
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "603332"
-    },
-    {
-      "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "603374"
-    },
-    {
-      "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "603375"
-    },
-    {
-      "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "603376"
+      "referencia": "603182"
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
@@ -160,7 +296,15 @@
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "603475"
+      "referencia": "603381"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "603382"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "603385"
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
@@ -184,7 +328,11 @@
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "603877"
+      "referencia": "603584"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "603878"
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
@@ -196,11 +344,39 @@
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "604084"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "606177"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "606180"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "606678"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "606681"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "606775"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
       "referencia": "606780"
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "703010"
+      "referencia": "606785"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "606786"
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
@@ -208,7 +384,11 @@
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
-      "referencia": "703305"
+      "referencia": "703320"
+    },
+    {
+      "grupo": "03 - FELICIDADE SU LUXE",
+      "referencia": "703384"
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
@@ -216,11 +396,19 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "103802"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
       "referencia": "106601"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
-      "referencia": "136108"
+      "referencia": "136109"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "136110"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
@@ -232,7 +420,31 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "136117"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "136118"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "136120"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "136121"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
       "referencia": "136200"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "136209"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "136213"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
@@ -240,7 +452,35 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "136219"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "136220"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "136221"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "136910"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
       "referencia": "306602"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "406610"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "413400"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "503049"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
@@ -248,7 +488,11 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
-      "referencia": "503539"
+      "referencia": "503449"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "503547"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
@@ -256,7 +500,15 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
-      "referencia": "506141"
+      "referencia": "506643"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "506644"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "603022"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
@@ -264,7 +516,15 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "603082"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
       "referencia": "603179"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "603180"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
@@ -272,11 +532,15 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "603377"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
       "referencia": "603381"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
-      "referencia": "603474"
+      "referencia": "603382"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
@@ -284,11 +548,11 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
-      "referencia": "603575"
+      "referencia": "603478"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
-      "referencia": "603576"
+      "referencia": "603479"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
@@ -300,6 +564,18 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "603583"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "603584"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "603586"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
       "referencia": "603878"
     },
     {
@@ -308,7 +584,11 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
-      "referencia": "606176"
+      "referencia": "604079"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "604084"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
@@ -320,11 +600,7 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
-      "referencia": "606674"
-    },
-    {
-      "grupo": "03 - FUTURO SU LUXE",
-      "referencia": "606676"
+      "referencia": "606186"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
@@ -336,15 +612,51 @@
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "606682"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "606683"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "606780"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "606786"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
       "referencia": "703047"
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
-      "referencia": "703374"
+      "referencia": "703320"
+    },
+    {
+      "grupo": "03 - FUTURO SU LUXE",
+      "referencia": "703404"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "103006"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "103008"
     },
     {
       "grupo": "04 - HARMONIA SU BASICO",
       "referencia": "103009"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "103010"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "103101"
     },
     {
       "grupo": "04 - HARMONIA SU BASICO",
@@ -356,6 +668,18 @@
     },
     {
       "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "103602"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "103605"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "103801"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
       "referencia": "123007"
     },
     {
@@ -364,15 +688,111 @@
     },
     {
       "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "123009"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
       "referencia": "123013"
     },
     {
       "grupo": "04 - HARMONIA SU BASICO",
-      "referencia": "503001"
+      "referencia": "123101"
     },
     {
       "grupo": "04 - HARMONIA SU BASICO",
-      "referencia": "503810"
+      "referencia": "123301"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "123405"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "123603"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "123604"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "203300"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "203601"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "303100"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "303600"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "303602"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "303603"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "341001"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "411001"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "413401"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "703001"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "703014"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "703015"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "703016"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "703020"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "703313"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "703314"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "703602"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "703604"
+    },
+    {
+      "grupo": "04 - HARMONIA SU BASICO",
+      "referencia": "703801"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "103010"
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
@@ -380,11 +800,15 @@
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
-      "referencia": "103801"
+      "referencia": "106601"
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
-      "referencia": "203601"
+      "referencia": "203700"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "413400"
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
@@ -392,15 +816,11 @@
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
-      "referencia": "503039"
+      "referencia": "503040"
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
-      "referencia": "503043"
-    },
-    {
-      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
-      "referencia": "503141"
+      "referencia": "503120"
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
@@ -412,11 +832,27 @@
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "503149"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
       "referencia": "503303"
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "503348"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
       "referencia": "503400"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "503503"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "503547"
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
@@ -428,7 +864,79 @@
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "504047"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603022"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603081"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603083"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603086"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603179"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603180"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603181"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603185"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603322"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603377"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603381"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
       "referencia": "603422"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603477"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603478"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603479"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603483"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603578"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603580"
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
@@ -436,7 +944,47 @@
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "603878"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "604078"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "604079"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "606177"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "606180"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "606678"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "606681"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "606775"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "606780"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
       "referencia": "703008"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "703010"
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
@@ -444,7 +992,27 @@
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "703017"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "703018"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "703021"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "703047"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
       "referencia": "703048"
+    },
+    {
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "703302"
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
@@ -452,23 +1020,23 @@
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
-      "referencia": "703341"
-    },
-    {
-      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
       "referencia": "703402"
     },
     {
-      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
-      "referencia": "103006"
+      "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+      "referencia": "703404"
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
-      "referencia": "103008"
+      "referencia": "103010"
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
-      "referencia": "123101"
+      "referencia": "103400"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "106601"
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
@@ -476,7 +1044,19 @@
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
-      "referencia": "503141"
+      "referencia": "413400"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "503001"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "503040"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "503120"
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
@@ -488,11 +1068,75 @@
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "503149"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
       "referencia": "503303"
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
-      "referencia": "603032"
+      "referencia": "503320"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "503348"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "503400"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "503547"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "503805"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "503810"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "504047"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603022"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603081"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603086"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603179"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603180"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603181"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603182"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603184"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603185"
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
@@ -500,15 +1144,79 @@
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603377"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603381"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
       "referencia": "603422"
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
-      "referencia": "603432"
+      "referencia": "603477"
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
-      "referencia": "703001"
+      "referencia": "603478"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603479"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603578"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603580"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603877"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "603878"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "604078"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "604079"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "606177"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "606180"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "606678"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "606681"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "606780"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "703008"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "703010"
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
@@ -516,11 +1224,27 @@
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
-      "referencia": "703015"
+      "referencia": "703017"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "703018"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "703021"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "703047"
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
       "referencia": "703048"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "703049"
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
@@ -532,7 +1256,47 @@
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "703384"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
       "referencia": "703402"
+    },
+    {
+      "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+      "referencia": "703404"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "103006"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "103008"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "103009"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "103010"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "103101"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "103102"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "103204"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "103400"
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
@@ -544,7 +1308,11 @@
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
-      "referencia": "103606"
+      "referencia": "103801"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "123007"
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
@@ -552,7 +1320,31 @@
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "123009"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "123013"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "123101"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
       "referencia": "123301"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "123405"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "123603"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "123604"
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
@@ -560,7 +1352,15 @@
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
-      "referencia": "213402"
+      "referencia": "203601"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "203700"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "303100"
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
@@ -572,15 +1372,139 @@
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "303603"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "341001"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
       "referencia": "411001"
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
-      "referencia": "503439"
+      "referencia": "413401"
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
-      "referencia": "503443"
+      "referencia": "503001"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "503040"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "503147"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "503148"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "503303"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "503400"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "503805"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "503810"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "603322"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "603422"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "603877"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703001"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703008"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703010"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703013"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703014"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703015"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703016"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703017"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703018"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703020"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703021"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703048"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703302"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703305"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703313"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703314"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703402"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703602"
+    },
+    {
+      "grupo": "05 - MOTIVACAO SU BASICO",
+      "referencia": "703604"
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
@@ -588,11 +1512,71 @@
     },
     {
       "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "103006"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "103008"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "103009"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "103010"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "103101"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "103102"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "103204"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "103400"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
       "referencia": "103602"
     },
     {
       "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "103605"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "103801"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "123007"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "123008"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
       "referencia": "123009"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "123013"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "123101"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "123301"
     },
     {
       "grupo": "05 - POSITIVO SU BASICO",
@@ -616,11 +1600,147 @@
     },
     {
       "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "203700"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "303100"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "303600"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "303602"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "303603"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "341001"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
       "referencia": "411001"
     },
     {
       "grupo": "05 - POSITIVO SU BASICO",
       "referencia": "413401"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "503001"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "503040"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "503147"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "503148"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "503303"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "503400"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "503805"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "503810"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "603322"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "603422"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "603877"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703001"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703008"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703010"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703013"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703014"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703015"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703016"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703017"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703018"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703020"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703021"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703048"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703302"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703305"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703313"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703314"
+    },
+    {
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703402"
     },
     {
       "grupo": "05 - POSITIVO SU BASICO",
@@ -631,56 +1751,64 @@
       "referencia": "703604"
     },
     {
-      "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "301700"
+      "grupo": "05 - POSITIVO SU BASICO",
+      "referencia": "703801"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "501039"
+      "referencia": "301103"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "501041"
+      "referencia": "301502"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "501048"
+      "referencia": "301600"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "501147"
+      "referencia": "301701"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "501539"
+      "referencia": "302003"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "501723"
+      "referencia": "302104"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "501739"
+      "referencia": "303402"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "501741"
+      "referencia": "303805"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "501745"
+      "referencia": "501021"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "501747"
+      "referencia": "501049"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "601074"
+      "referencia": "501149"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "601075"
+      "referencia": "501201"
+    },
+    {
+      "grupo": "06 - UNIAO CA LUXE",
+      "referencia": "501220"
+    },
+    {
+      "grupo": "06 - UNIAO CA LUXE",
+      "referencia": "501749"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
@@ -688,19 +1816,19 @@
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "601177"
+      "referencia": "601083"
+    },
+    {
+      "grupo": "06 - UNIAO CA LUXE",
+      "referencia": "601084"
+    },
+    {
+      "grupo": "06 - UNIAO CA LUXE",
+      "referencia": "601085"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
       "referencia": "601179"
-    },
-    {
-      "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "601275"
-    },
-    {
-      "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "601276"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
@@ -716,7 +1844,23 @@
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
+      "referencia": "601283"
+    },
+    {
+      "grupo": "06 - UNIAO CA LUXE",
+      "referencia": "601284"
+    },
+    {
+      "grupo": "06 - UNIAO CA LUXE",
+      "referencia": "601286"
+    },
+    {
+      "grupo": "06 - UNIAO CA LUXE",
       "referencia": "601745"
+    },
+    {
+      "grupo": "06 - UNIAO CA LUXE",
+      "referencia": "601754"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
@@ -724,19 +1868,7 @@
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "601772"
-    },
-    {
-      "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "601774"
-    },
-    {
-      "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "601775"
-    },
-    {
-      "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "601776"
+      "referencia": "601764"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
@@ -756,23 +1888,31 @@
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "605366"
+      "referencia": "601782"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "701141"
+      "referencia": "601783"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "701147"
+      "referencia": "601784"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "701306"
+      "referencia": "601785"
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "referencia": "701709"
+      "referencia": "601786"
+    },
+    {
+      "grupo": "06 - UNIAO CA LUXE",
+      "referencia": "701184"
+    },
+    {
+      "grupo": "06 - UNIAO CA LUXE",
+      "referencia": "701749"
     },
     {
       "grupo": "07 - DESAFIO CA FASHION",
@@ -792,11 +1932,7 @@
     },
     {
       "grupo": "07 - DESAFIO CA FASHION",
-      "referencia": "101702"
-    },
-    {
-      "grupo": "07 - DESAFIO CA FASHION",
-      "referencia": "101704"
+      "referencia": "121000"
     },
     {
       "grupo": "07 - DESAFIO CA FASHION",
@@ -808,15 +1944,155 @@
     },
     {
       "grupo": "07 - DESAFIO CA FASHION",
-      "referencia": "201001"
+      "referencia": "301700"
     },
     {
       "grupo": "07 - DESAFIO CA FASHION",
-      "referencia": "211702"
+      "referencia": "302104"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "411301"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "501000"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "501003"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "501048"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "501147"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "501302"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "501700"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "501715"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "501723"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "501745"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "501747"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601079"
     },
     {
       "grupo": "07 - DESAFIO CA FASHION",
       "referencia": "601172"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601177"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601178"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601179"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601277"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601278"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601281"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601678"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601745"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601755"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601772"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601777"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601779"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601780"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "601781"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "701147"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "701306"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "701310"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "701502"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "701708"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "701709"
+    },
+    {
+      "grupo": "07 - DESAFIO CA FASHION",
+      "referencia": "701748"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "101000"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "101500"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
@@ -824,35 +2100,23 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "101701"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
       "referencia": "121000"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "163101"
+      "referencia": "121301"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "211003"
+      "referencia": "121704"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "211303"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "211702"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "211703"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "301309"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "301706"
+      "referencia": "301700"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
@@ -860,11 +2124,19 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "501039"
+      "referencia": "501000"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "501043"
+      "referencia": "501003"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "501004"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "501021"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
@@ -872,19 +2144,31 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "501049"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
       "referencia": "501147"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "501539"
+      "referencia": "501149"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "501543"
+      "referencia": "501201"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "501720"
+      "referencia": "501302"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "501700"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "501715"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
@@ -892,27 +2176,7 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "501739"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "501741"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "501742"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "501743"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
       "referencia": "501745"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "501746"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
@@ -920,11 +2184,23 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "501748"
+      "referencia": "501749"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
       "referencia": "601079"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "601083"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "601084"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "601085"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
@@ -944,10 +2220,6 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "601274"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
       "referencia": "601277"
     },
     {
@@ -956,7 +2228,23 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "601281"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
       "referencia": "601678"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "601745"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "601754"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "601755"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
@@ -964,7 +2252,7 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "601774"
+      "referencia": "601777"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
@@ -972,11 +2260,19 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "601780"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
       "referencia": "601781"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "701141"
+      "referencia": "601783"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "601786"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
@@ -984,11 +2280,11 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "701306"
+      "referencia": "701184"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "701308"
+      "referencia": "701306"
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
@@ -1000,14 +2296,6 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "701507"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
-      "referencia": "701574"
-    },
-    {
-      "grupo": "07 - EVOLUCAO CA FASHION",
       "referencia": "701708"
     },
     {
@@ -1016,19 +2304,19 @@
     },
     {
       "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "701720"
+    },
+    {
+      "grupo": "07 - EVOLUCAO CA FASHION",
       "referencia": "701748"
     },
     {
-      "grupo": "08 - CONQUISTA CA BASICO/FASHION",
-      "referencia": "213001"
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "referencia": "701749"
     },
     {
       "grupo": "08 - CONQUISTA CA BASICO/FASHION",
       "referencia": "301103"
-    },
-    {
-      "grupo": "08 - CONQUISTA CA BASICO/FASHION",
-      "referencia": "301307"
     },
     {
       "grupo": "08 - CONQUISTA CA BASICO/FASHION",
@@ -1044,83 +2332,239 @@
     },
     {
       "grupo": "08 - CONQUISTA CA BASICO/FASHION",
-      "referencia": "301705"
-    },
-    {
-      "grupo": "08 - CONQUISTA CA BASICO/FASHION",
       "referencia": "302003"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "101704"
+      "grupo": "08 - CONQUISTA CA BASICO/FASHION",
+      "referencia": "303402"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
+      "grupo": "08 - CONQUISTA CA BASICO/FASHION",
+      "referencia": "303805"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "103006"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "103008"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "103009"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "103010"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "103101"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "103102"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "103204"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "103602"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "103605"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "103801"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "103802"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "123007"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "123008"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "123009"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "123013"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "123101"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "123301"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "123405"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "123603"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "123604"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
       "referencia": "136109"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "136110"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "136112"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "136113"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "136117"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
       "referencia": "136118"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "136120"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "136200"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
       "referencia": "136209"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "136213"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "136218"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "136219"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
       "referencia": "136220"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "163101"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "203300"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "211300"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "203601"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "301309"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "303100"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "301310"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "303600"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "301707"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "303602"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "302000"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "303603"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "501039"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "341001"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "501742"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "411001"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "501748"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "413401"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "701308"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "703001"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "701702"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "703014"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "701705"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "703015"
     },
     {
-      "grupo": "08 - OBJETIVO CA BASICO",
-      "referencia": "701709"
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "703016"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "703020"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "703313"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "703314"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "703602"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "703604"
+    },
+    {
+      "grupo": "08 - OBJETIVO SO BASICO",
+      "referencia": "703801"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "103006"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "103008"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "103009"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "103010"
     },
     {
       "grupo": "08 - PROGRESSO SO BASICO",
@@ -1128,7 +2572,135 @@
     },
     {
       "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "103102"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "103204"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "103602"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "103605"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "103801"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "123007"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "123008"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "123009"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "123013"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "123101"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "123301"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "123405"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "123603"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "123604"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "203300"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "203601"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "303100"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "303600"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "303602"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "303603"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
       "referencia": "341001"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "411001"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "413401"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "703001"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "703014"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "703015"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "703016"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "703020"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "703313"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "703314"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "703602"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "703604"
+    },
+    {
+      "grupo": "08 - PROGRESSO SO BASICO",
+      "referencia": "703801"
     },
     {
       "grupo": "09 - LIDERANCA ANATOMIC",
@@ -1136,31 +2708,7 @@
     },
     {
       "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "302103"
-    },
-    {
-      "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "302104"
-    },
-    {
-      "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "303100"
-    },
-    {
-      "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "303402"
-    },
-    {
-      "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "303409"
-    },
-    {
-      "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "303802"
-    },
-    {
-      "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "303805"
+      "referencia": "301311"
     },
     {
       "grupo": "09 - LIDERANCA ANATOMIC",
@@ -1192,139 +2740,1039 @@
     },
     {
       "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "406610"
-    },
-    {
-      "grupo": "09 - LIDERANCA ANATOMIC",
       "referencia": "701307"
     },
     {
-      "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "703014"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "101000"
     },
     {
-      "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "703307"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "101500"
     },
     {
-      "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "703308"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "101700"
     },
     {
-      "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "703313"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "101701"
     },
     {
-      "grupo": "09 - LIDERANCA ANATOMIC",
-      "referencia": "703314"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "101702"
     },
     {
-      "grupo": "NOVO OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "101704"
     },
     {
-      "grupo": "NOVO OFICINA",
-      "referencia": "201301"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "121000"
     },
     {
-      "grupo": "NOVO OFICINA",
-      "referencia": "201702"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "121301"
     },
     {
-      "grupo": "NOVO OFICINA",
-      "referencia": "501700"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "121704"
     },
     {
-      "grupo": "NOVO OFICINA",
-      "referencia": "501701"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "163101"
     },
     {
-      "grupo": "NOVO OFICINA",
-      "referencia": "501715"
-    },
-    {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "201001"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "201301"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "201702"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "211003"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
+      "referencia": "211300"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
       "referencia": "211303"
     },
     {
-      "grupo": "OFICINA",
-      "referencia": "211702"
-    },
-    {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "211703"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
+      "referencia": "213001"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "301307"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "301310"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
       "referencia": "301700"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
+      "referencia": "301705"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "301707"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
       "referencia": "302000"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
+      "referencia": "411301"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
       "referencia": "501000"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "501003"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
+      "referencia": "501048"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "501147"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
       "referencia": "501302"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "501602"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "501700"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "501701"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "501715"
     },
     {
-      "grupo": "OFICINA",
-      "referencia": "501720"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "501723"
     },
     {
-      "grupo": "OFICINA",
-      "referencia": "501746"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "501742"
     },
     {
-      "grupo": "OFICINA",
-      "referencia": "701141"
+      "grupo": "OFICINA - ATILA",
+      "referencia": "501745"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
+      "referencia": "501747"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "501748"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "601172"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "601177"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "601178"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "601678"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "601772"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "605366"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "701147"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
       "referencia": "701302"
     },
     {
-      "grupo": "OFICINA",
+      "grupo": "OFICINA - ATILA",
       "referencia": "701306"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "701308"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "701310"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "701502"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "701705"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "701708"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "701709"
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "referencia": "701748"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "101000"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "101500"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "101700"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "101701"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "101702"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "101704"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "121000"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "121301"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "121704"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "163101"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "201001"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "201301"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "201702"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "211003"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "211300"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "211303"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "211703"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "213001"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "301103"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "301307"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "301310"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "301502"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "301600"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "301700"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "301701"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "301705"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "301707"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "302000"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "302003"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "303402"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "303805"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "411301"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501000"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501003"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501048"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501147"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501302"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501602"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501700"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501701"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501715"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501723"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501742"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501745"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501747"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "501748"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "601172"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "601177"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "601178"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "601678"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "601772"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "605366"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "701147"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "701302"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "701306"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "701308"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "701310"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "701502"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "701705"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "701708"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "701709"
+    },
+    {
+      "grupo": "OFICINA - GLEDSON SOARES",
+      "referencia": "701748"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "101000"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "101500"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "101700"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "101701"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "101702"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "101704"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "121000"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "121301"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "121704"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "163101"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "201001"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "201301"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "201702"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "211003"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "211300"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "211303"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "211703"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "213001"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "301307"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "301310"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "301700"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "301705"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "301707"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "302000"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "411301"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501000"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501003"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501048"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501147"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501302"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501602"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501700"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501701"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501715"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501723"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501742"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501745"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501747"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "501748"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "601172"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "601177"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "601178"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "601678"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "601772"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "605366"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "701147"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "701302"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "701306"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "701308"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "701310"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "701502"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "701705"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "701708"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "701709"
+    },
+    {
+      "grupo": "OFICINA - IANA",
+      "referencia": "701748"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "101702"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "101704"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "163101"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "201001"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "201301"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "201702"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "211003"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "211300"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "211303"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "211703"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "213001"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "301103"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "301307"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "301310"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "301502"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "301600"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "301701"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "301705"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "301707"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "302000"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "302003"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "303402"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "303805"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "501602"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "501701"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "501742"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "501748"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "605366"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "701302"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "701308"
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "referencia": "701705"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "101000"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "101500"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "101700"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "101701"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "101702"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "101704"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "121000"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "121301"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "121704"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "163101"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "201001"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "201301"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "201702"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "211003"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "211300"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "211303"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "211703"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "213001"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "301307"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "301310"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "301700"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "301705"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "301707"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "302000"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "411301"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501000"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501003"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501048"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501147"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501302"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501602"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501700"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501701"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501715"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501723"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501742"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501745"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501747"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "501748"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "601172"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "601177"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "601178"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "601678"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "601772"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "605366"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "701147"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "701302"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "701306"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "701308"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "701310"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "701502"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "701705"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "701708"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "701709"
+    },
+    {
+      "grupo": "OFICINA - PAULO BRUNO",
+      "referencia": "701748"
     }
   ]
 }

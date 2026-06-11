@@ -139,7 +139,7 @@ export default function Home() {
   const [vendasReais,  setVendasReais]  = useState<Record<string, Record<string, number>>>({});
   const [top30Ids,     setTop30Ids]     = useState<Set<string>>(new Set());
   const [top30Refs,    setTop30Refs]    = useState<Set<string>>(new Set());
-  const [periodos,     setPeriodos]     = useState<PeriodosPlano>({ MA: new Date().getMonth() + 1, PX: new Date().getMonth() + 2, UL: new Date().getMonth() + 3 });
+  const [periodos,     setPeriodos]     = useState<PeriodosPlano>({ MA: new Date().getMonth() + 1, PX: new Date().getMonth() + 2, UL: new Date().getMonth() + 3, QT: new Date().getMonth() + 4, QU: new Date().getMonth() + 5 });
   const [aplicarAprovadas, setAplicarAprovadas] = useState(false);
   const [aprovadas, setAprovadas] = useState<AnaliseAprovada[]>([]);
   const [aprovadasSelecionadasIds, setAprovadasSelecionadasIds] = useState<string[]>([]);
@@ -1218,7 +1218,7 @@ export default function Home() {
                       {apenasNegativos && (
                         <select
                           value={filtroNegativoPeriodo}
-                          onChange={(e) => setFiltroNegativoPeriodo(e.target.value as 'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT')}
+                          onChange={(e) => setFiltroNegativoPeriodo(e.target.value as 'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT' | 'QU')}
                           className="px-2 py-1.5 text-xs border border-l-0 border-red-600 rounded-r bg-red-50 text-red-800 font-semibold"
                         >
                           <option value="TODOS">Todos</option>
@@ -1227,6 +1227,7 @@ export default function Home() {
                           <option value="PX">{nomeMesCurto(periodos.PX).toUpperCase()}</option>
                           <option value="UL">{nomeMesCurto(periodos.UL).toUpperCase()}</option>
                           <option value="QT">{nomeMesCurto(periodos.QT || ((periodos.UL % 12) + 1)).toUpperCase()}</option>
+                          <option value="QU">{nomeMesCurto(periodos.QU || (((periodos.QT || ((periodos.UL % 12) + 1)) % 12) + 1)).toUpperCase()}</option>
                         </select>
                       )}
                     </div>

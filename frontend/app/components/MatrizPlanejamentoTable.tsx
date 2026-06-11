@@ -24,12 +24,12 @@ function situacao(estoque: number, pedidos: number, estoqueMin: number): Situaca
 interface GrupoTotais {
   estoque: number; emProcesso: number; estoqueMin: number;
   pedidos: number; disponivel: number; disponivelPosProcesso: number; deficit: number; deficitPosProcesso: number; abaixo: number;
-  planoMA: number; planoPX: number; planoUL: number; planoQT: number;
-  projMA:  number; projPX:  number; projUL:  number; projQT: number;
+  planoMA: number; planoPX: number; planoUL: number; planoQT: number; planoQU: number;
+  projMA:  number; projPX:  number; projUL:  number; projQT: number; projQU: number;
   projJan: number; projFev: number; projMarProp: number;
   vendaJan: number; vendaFev: number; vendaMar: number;
-  dispFutMar: number; dispFutAbr: number; dispFutMai: number; dispFutJun: number;
-  negFutMar: number; negFutAbr: number; negFutMai: number; negFutJun: number;
+  dispFutMar: number; dispFutAbr: number; dispFutMai: number; dispFutJun: number; dispFutJul: number;
+  negFutMar: number; negFutAbr: number; negFutMai: number; negFutJun: number; negFutJul: number;
   projCount: number;
   excedenteLojas: number;
 }
@@ -45,6 +45,7 @@ function somar(
   excedentesLojas: Map<number, EstoqueLojaDisponivelAggregado> | null = null
 ): GrupoTotais {
   const mesQT = periodos.QT ?? (((periodos.UL || 1) - 1 + 1) % 12) + 1;
+  const mesQU = periodos.QU ?? (((mesQT) % 12) + 1);
   return itens.reduce((acc, i) => {
     const disp    = (i.estoques.estoque_atual || 0) - (i.demanda.pedidos_pendentes || 0);
     const proj    = projecoes[i.produto.idproduto] ?? null;
@@ -58,10 +59,12 @@ function somar(
     const pPX = i.plano?.px || 0;
     const pUL = i.plano?.ul || 0;
     const pQT = i.plano?.qt || 0;
+    const pQU = i.plano?.qu || 0;
     const prMA = hasProj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
     const prPX = hasProj ? (proj[String(periodos.PX)] ?? 0) : 0;
     const prUL = hasProj ? (proj[String(periodos.UL)] ?? 0) : 0;
     const prQT = hasProj ? (proj[String(mesQT)] ?? 0) : 0;
+    const prQU = hasProj ? (proj[String(mesQU)] ?? 0) : 0;
     const prJan = hasProj ? (proj['1'] ?? 0) : 0;
     const prFev = hasProj ? (proj['2'] ?? 0) : 0;
     const prMarProp = hasProj ? projecaoMesDecorrida((proj['3'] ?? 0), 3) : 0;
@@ -72,6 +75,7 @@ function somar(
     const dAbr = hasProj ? dMar + pPX - prPX : 0;
     const dMai = hasProj ? dAbr + pUL - prUL : 0;
     const dJun = hasProj ? dMai + pQT - prQT : 0;
+    const dJul = hasProj ? dJun + pQU - prQU : 0;
     const excLoja = excedentesLojas?.get(Number(i.produto.idproduto))?.qtd_disponivel_total || 0;
     return {
       estoque:    acc.estoque    + (i.estoques.estoque_atual || 0),
@@ -87,10 +91,12 @@ function somar(
       planoPX:    acc.planoPX    + pPX,
       planoUL:    acc.planoUL    + pUL,
       planoQT:    acc.planoQT    + pQT,
+      planoQU:    acc.planoQU    + pQU,
       projMA:     acc.projMA     + prMA,
       projPX:     acc.projPX     + prPX,
       projUL:     acc.projUL     + prUL,
       projQT:     acc.projQT     + prQT,
+      projQU:     acc.projQU     + prQU,
       projJan:    acc.projJan    + prJan,
       projFev:    acc.projFev    + prFev,
       projMarProp:acc.projMarProp+ prMarProp,
@@ -101,18 +107,20 @@ function somar(
       dispFutAbr: acc.dispFutAbr + dAbr,
       dispFutMai: acc.dispFutMai + dMai,
       dispFutJun: acc.dispFutJun + dJun,
+      dispFutJul: acc.dispFutJul + dJul,
       negFutMar: acc.negFutMar + (dMar < 0 ? Math.abs(dMar) : 0),
       negFutAbr: acc.negFutAbr + (dAbr < 0 ? Math.abs(dAbr) : 0),
       negFutMai: acc.negFutMai + (dMai < 0 ? Math.abs(dMai) : 0),
       negFutJun: acc.negFutJun + (dJun < 0 ? Math.abs(dJun) : 0),
+      negFutJul: acc.negFutJul + (dJul < 0 ? Math.abs(dJul) : 0),
       projCount:  acc.projCount  + (hasProj ? 1 : 0),
       excedenteLojas: acc.excedenteLojas + excLoja,
     };
   }, {
     estoque:0, emProcesso:0, estoqueMin:0, pedidos:0, disponivel:0, disponivelPosProcesso:0, deficit:0, deficitPosProcesso:0, abaixo:0,
-    planoMA:0, planoPX:0, planoUL:0, planoQT:0, projMA:0, projPX:0, projUL:0, projQT:0,
+    planoMA:0, planoPX:0, planoUL:0, planoQT:0, planoQU:0, projMA:0, projPX:0, projUL:0, projQT:0, projQU:0,
     projJan:0, projFev:0, projMarProp:0, vendaJan:0, vendaFev:0, vendaMar:0,
-    dispFutMar:0, dispFutAbr:0, dispFutMai:0, dispFutJun:0, negFutMar:0, negFutAbr:0, negFutMai:0, negFutJun:0, projCount:0,
+    dispFutMar:0, dispFutAbr:0, dispFutMai:0, dispFutJun:0, dispFutJul:0, negFutMar:0, negFutAbr:0, negFutMai:0, negFutJun:0, negFutJul:0, projCount:0,
     excedenteLojas:0,
   });
 }
@@ -260,23 +268,24 @@ interface Props {
   vendasReais?: Record<string, Record<string, number>>;
   periodos?:    PeriodosPlano;
   apenasNegativos?: boolean;
-  filtroNegativoPeriodo?: 'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT';
+  filtroNegativoPeriodo?: 'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT' | 'QU';
   filtroContinuidade?: string | string[];
   filtroReferencia?: string;
   filtroCor?: string;
   filtroCobertura?: 'TODAS' | 'NEGATIVA' | 'ZERO_UM' | 'MAIOR_UM' | 'MAIOR_2';
-  filtroCoberturaBase?: 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT';
+  filtroCoberturaBase?: 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT' | 'QU';
   filtroTaxa?: 'TODAS' | 'ATE_70';
   excedentesLojas?: Map<number, EstoqueLojaDisponivelAggregado> | null;
   filtroCoberturaMinima?: string;
   filtroEmProcessoMinimo?: string;
   curvaABC?: Record<string, 'A' | 'B' | 'C' | 'D'>;
-  riscoMpPorSku?: Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean }>;
+  riscoMpPorSku?: Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean; qu: boolean }>;
   detalheRiscoMpPorSku?: Record<string, {
     ma: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
     px: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
     ul: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
     qt: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
+    qu: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
   }>;
 }
 
@@ -287,7 +296,7 @@ export default function MatrizPlanejamentoTable({
   filtroTexto = '',
   projecoes   = {},
   vendasReais = {},
-  periodos    = { MA: new Date().getMonth() + 1, PX: new Date().getMonth() + 2, UL: new Date().getMonth() + 3, QT: new Date().getMonth() + 4 },
+  periodos    = { MA: new Date().getMonth() + 1, PX: new Date().getMonth() + 2, UL: new Date().getMonth() + 3, QT: new Date().getMonth() + 4, QU: new Date().getMonth() + 5 },
   apenasNegativos = false,
   filtroNegativoPeriodo = 'TODOS',
   filtroContinuidade = [],
@@ -309,7 +318,8 @@ export default function MatrizPlanejamentoTable({
     | 'projMA' | 'planoMA' | 'dispMA' | 'cobMA'
     | 'projPX' | 'planoPX' | 'dispPX' | 'cobPX'
     | 'projUL' | 'planoUL' | 'dispUL' | 'cobUL'
-    | 'projQT' | 'planoQT' | 'dispQT' | 'cobQT';
+    | 'projQT' | 'planoQT' | 'dispQT' | 'cobQT'
+    | 'projQU' | 'planoQU' | 'dispQU' | 'cobQU';
 
   const [expandedConts, setExpandedConts] = useState<Set<string>>(new Set());
   const [expandedRefs,  setExpandedRefs ] = useState<Set<string>>(new Set());
@@ -377,7 +387,7 @@ export default function MatrizPlanejamentoTable({
     referencia: string,
     cor: string,
     tamanho: string,
-    mes: 'ma' | 'px' | 'ul' | 'qt',
+    mes: 'ma' | 'px' | 'ul' | 'qt' | 'qu',
     mesNome: string,
     planoQtd: number
   ) => {
@@ -395,6 +405,7 @@ export default function MatrizPlanejamentoTable({
         px: d.plano?.px || 0,
         ul: d.plano?.ul || 0,
         qt: d.plano?.qt || 0,
+        qu: d.plano?.qu || 0,
       }));
       const res = await fetch(`${API_URL}/api/consumo-mp/check-produto`, {
         method: 'POST',
@@ -425,6 +436,7 @@ export default function MatrizPlanejamentoTable({
   );
 
   const mesQT = useMemo(() => periodos.QT ?? (((periodos.UL || 1) - 1 + 1) % 12) + 1, [periodos.QT, periodos.UL]);
+  const mesQU = useMemo(() => periodos.QU ?? ((mesQT % 12) + 1), [periodos.QU, mesQT]);
 
   const grupos = useMemo(() => {
     let base = dados;
@@ -462,19 +474,23 @@ export default function MatrizPlanejamentoTable({
         const pPX  = i.plano?.px || 0;
         const pUL  = i.plano?.ul || 0;
         const pQT  = i.plano?.qt || 0;
+        const pQU  = i.plano?.qu || 0;
         const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
         const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
         const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
         const prQT = proj ? (proj[String(mesQT)] ?? 0) : 0;
+        const prQU = proj ? (proj[String(mesQU)] ?? 0) : 0;
         const dispMA = dispAtual + emP + pMA - prMA;
         const dispPX = dispMA + pPX - prPX;
         const dispUL = dispPX + pUL - prUL;
         const dispQT = dispUL + pQT - prQT;
+        const dispQU = dispQT + pQU - prQU;
         const disp =
           filtroCoberturaBase === 'MA' ? dispMA :
           filtroCoberturaBase === 'PX' ? dispPX :
           filtroCoberturaBase === 'UL' ? dispUL :
           filtroCoberturaBase === 'QT' ? dispQT :
+          filtroCoberturaBase === 'QU' ? dispQU :
           dispAtual;
         const cob = disp / min;
         if (filtroCobertura === 'NEGATIVA') return cob < 0;
@@ -546,23 +562,27 @@ export default function MatrizPlanejamentoTable({
         const pPX  = i.plano?.px || 0;
         const pUL  = i.plano?.ul || 0;
         const pQT  = i.plano?.qt || 0;
+        const pQU  = i.plano?.qu || 0;
         const prMA = projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA);
         const prPX = proj[String(periodos.PX)] ?? 0;
         const prUL = proj[String(periodos.UL)] ?? 0;
         const prQT = proj[String(mesQT)] ?? 0;
+        const prQU = proj[String(mesQU)] ?? 0;
         const dispMA = dispAtual + emP + pMA - prMA;
         const dispPX = dispMA + pPX - prPX;
         const dispUL = dispPX + pUL - prUL;
         const dispQT = dispUL + pQT - prQT;
+        const dispQU = dispQT + pQU - prQU;
 
         // Filtrar por periodo especifico
         if (filtroNegativoPeriodo === 'MA') return dispMA < 0;
         if (filtroNegativoPeriodo === 'PX') return dispPX < 0;
         if (filtroNegativoPeriodo === 'UL') return dispUL < 0;
         if (filtroNegativoPeriodo === 'QT') return dispQT < 0;
+        if (filtroNegativoPeriodo === 'QU') return dispQU < 0;
 
         // TODOS: qualquer periodo negativo
-        return dispAtual < 0 || dispMA < 0 || dispPX < 0 || dispUL < 0 || dispQT < 0;
+        return dispAtual < 0 || dispMA < 0 || dispPX < 0 || dispUL < 0 || dispQT < 0 || dispQU < 0;
       });
     }
     const grouped = agrupar(base, projecoes, vendasReais, periodos, excedentesLojas);
@@ -598,6 +618,10 @@ export default function MatrizPlanejamentoTable({
         case 'planoQT': return t.planoQT;
         case 'dispQT': return t.dispFutJun;
         case 'cobQT': return t.estoqueMin > 0 ? t.dispFutJun / t.estoqueMin : Number.NEGATIVE_INFINITY;
+        case 'projQU': return t.projQU;
+        case 'planoQU': return t.planoQU;
+        case 'dispQU': return t.dispFutJul;
+        case 'cobQU': return t.estoqueMin > 0 ? t.dispFutJul / t.estoqueMin : Number.NEGATIVE_INFINITY;
       }
     };
 
@@ -610,10 +634,12 @@ export default function MatrizPlanejamentoTable({
       const pPX = i.plano?.px || 0;
       const pUL = i.plano?.ul || 0;
       const pQT = i.plano?.qt || 0;
+      const pQU = i.plano?.qu || 0;
       const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
       const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
       const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
       const prQT = proj ? (proj[String(mesQT)] ?? 0) : 0;
+      const prQU = proj ? (proj[String(mesQU)] ?? 0) : 0;
       const prJan = proj ? (proj['1'] ?? 0) : 0;
       const prFev = proj ? (proj['2'] ?? 0) : 0;
       const prMar = proj ? (proj['3'] ?? 0) * marFactor : 0;
@@ -625,6 +651,7 @@ export default function MatrizPlanejamentoTable({
       const dPX = dMA + pPX - prPX;
       const dUL = dPX + pUL - prUL;
       const dQT = dUL + pQT - prQT;
+      const dQU = dQT + pQU - prQU;
       const min = i.estoques.estoque_minimo || 0;
 
       switch (key) {
@@ -655,6 +682,10 @@ export default function MatrizPlanejamentoTable({
         case 'planoQT': return pQT;
         case 'dispQT': return dQT;
         case 'cobQT': return min > 0 ? dQT / min : Number.NEGATIVE_INFINITY;
+        case 'projQU': return prQU;
+        case 'planoQU': return pQU;
+        case 'dispQU': return dQU;
+        case 'cobQU': return min > 0 ? dQU / min : Number.NEGATIVE_INFINITY;
       }
     };
 
@@ -667,7 +698,7 @@ export default function MatrizPlanejamentoTable({
         }))
         .sort((a, b) => (refMetric(a.totais, sortKey) - refMetric(b.totais, sortKey)) * sortFactor),
     }));
-  }, [dados, filtroTexto, projecoes, vendasReais, periodos, apenasNegativos, filtroNegativoPeriodo, filtroContinuidade, filtroReferencia, filtroCor, filtroCobertura, filtroCoberturaBase, filtroTaxa, filtroCoberturaMinima, filtroEmProcessoMinimo, sortKey, sortDir, marFactor, mesQT]);
+  }, [dados, filtroTexto, projecoes, vendasReais, periodos, apenasNegativos, filtroNegativoPeriodo, filtroContinuidade, filtroReferencia, filtroCor, filtroCobertura, filtroCoberturaBase, filtroTaxa, filtroCoberturaMinima, filtroEmProcessoMinimo, sortKey, sortDir, marFactor, mesQT, mesQU]);
 
   useEffect(() => {
     if (grupos.length === 0) return;
@@ -679,7 +710,7 @@ export default function MatrizPlanejamentoTable({
   const totalItens   = grupos.reduce((a, g) => a + g.referencias.reduce((b, r) => b + r.itens.length, 0), 0);
   const temProjecoes = Object.keys(projecoes).length > 0;
 
-  function tooltipRiscoSku(idproduto: string, periodo: 'ma' | 'px' | 'ul' | 'qt') {
+  function tooltipRiscoSku(idproduto: string, periodo: 'ma' | 'px' | 'ul' | 'qt' | 'qu') {
     const detalhe = detalheRiscoMpPorSku[String(idproduto)]?.[periodo];
     if (!detalhe?.em_risco) return 'Clique para verificar MPs';
     const principal = detalhe.principal_mp;
@@ -687,7 +718,7 @@ export default function MatrizPlanejamentoTable({
     return `${detalhe.quantidade_mps} MP(s) em risco no consolidado. Principal falta: ${principal.idmateriaprima} (${fmt(principal.falta)})`;
   }
 
-  function tooltipRiscoRef(itens: Planejamento[], periodo: 'ma' | 'px' | 'ul' | 'qt') {
+  function tooltipRiscoRef(itens: Planejamento[], periodo: 'ma' | 'px' | 'ul' | 'qt' | 'qu') {
     const itensComRisco = itens
       .map((item) => ({ detalhe: detalheRiscoMpPorSku[String(item.produto.idproduto)]?.[periodo] }))
       .filter((entry) => entry.detalhe?.em_risco);
@@ -725,6 +756,7 @@ export default function MatrizPlanejamentoTable({
     MESES_PT[((periodos.PX - 1) % 12) + 1],
     MESES_PT[((periodos.UL - 1) % 12) + 1],
     MESES_PT[((mesQT - 1) % 12) + 1],
+    MESES_PT[((mesQU - 1) % 12) + 1],
   ];
 
   // th style helpers
@@ -744,6 +776,7 @@ export default function MatrizPlanejamentoTable({
       `proj_${mNomes[1]}`, `plano_${mNomes[1]}`, `disp_${mNomes[1]}`, `neg_${mNomes[1]}`, `cob_${mNomes[1]}`,
       `proj_${mNomes[2]}`, `plano_${mNomes[2]}`, `disp_${mNomes[2]}`, `neg_${mNomes[2]}`, `cob_${mNomes[2]}`,
       `proj_${mNomes[3]}`, `plano_${mNomes[3]}`, `disp_${mNomes[3]}`, `neg_${mNomes[3]}`, `cob_${mNomes[3]}`,
+      `proj_${mNomes[4]}`, `plano_${mNomes[4]}`, `disp_${mNomes[4]}`, `neg_${mNomes[4]}`, `cob_${mNomes[4]}`,
     ];
     const rows = grupos.flatMap((g) => g.referencias.flatMap((r) => r.itens.map((item) => {
       const dispAtual = (item.estoques.estoque_atual || 0) - (item.demanda.pedidos_pendentes || 0);
@@ -755,14 +788,17 @@ export default function MatrizPlanejamentoTable({
       const pPX = item.plano?.px || 0;
       const pUL = item.plano?.ul || 0;
       const pQT = item.plano?.qt || 0;
+      const pQU = item.plano?.qu || 0;
       const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
       const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
       const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
       const prQT = proj ? (proj[String(mesQT)] ?? 0) : 0;
+      const prQU = proj ? (proj[String(mesQU)] ?? 0) : 0;
       const dMA = dispAtual + emP + pMA - prMA;
       const dPX = dMA + pPX - prPX;
       const dUL = dPX + pUL - prUL;
       const dQT = dUL + pQT - prQT;
+      const dQU = dQT + pQU - prQU;
       const vendaJan = real ? (real['1'] ?? 0) : 0;
       const vendaFev = real ? (real['2'] ?? 0) : 0;
       const vendaMar = real ? (real['3'] ?? 0) : 0;
@@ -775,6 +811,7 @@ export default function MatrizPlanejamentoTable({
       const cobPX = min > 0 ? Number((dPX / min).toFixed(2)) : null;
       const cobUL = min > 0 ? Number((dUL / min).toFixed(2)) : null;
       const cobQT = min > 0 ? Number((dQT / min).toFixed(2)) : null;
+      const cobQU = min > 0 ? Number((dQU / min).toFixed(2)) : null;
 
       return [
         g.continuidade,
@@ -798,6 +835,7 @@ export default function MatrizPlanejamentoTable({
         Number(prPX), Number(pPX), Number(dPX), dPX < 0 ? Math.abs(dPX) : 0, cobPX,
         Number(prUL), Number(pUL), Number(dUL), dUL < 0 ? Math.abs(dUL) : 0, cobUL,
         Number(prQT), Number(pQT), Number(dQT), dQT < 0 ? Math.abs(dQT) : 0, cobQT,
+        Number(prQU), Number(pQU), Number(dQU), dQU < 0 ? Math.abs(dQU) : 0, cobQU,
       ];
     })));
 
@@ -857,6 +895,7 @@ export default function MatrizPlanejamentoTable({
                   <th colSpan={5} className="px-3 py-3.5 text-center bg-emerald-800 border-b border-emerald-700 font-bold">{mNomes[1]}</th>
                   <th colSpan={5} className="px-3 py-3.5 text-center bg-amber-700 border-b border-amber-600 font-bold">{mNomes[2]}</th>
                   <th colSpan={5} className="px-3 py-3.5 text-center bg-cyan-800 border-b border-cyan-700 font-bold">{mNomes[3]}</th>
+                  <th colSpan={5} className="px-3 py-3.5 text-center bg-rose-800 border-b border-rose-700 font-bold">{mNomes[4]}</th>
                 </tr>
                 {/* Row 2 â€” sub-headers */}
                 <tr className="text-gray-300">
@@ -881,6 +920,11 @@ export default function MatrizPlanejamentoTable({
                     { bg: 'bg-cyan-800', label: 'Disp.', key: 'dispQT' as const },
                     { bg: 'bg-cyan-800', label: 'Neg.', key: 'dispQT' as const },
                     { bg: 'bg-cyan-800', label: 'Cob.', key: 'cobQT' as const },
+                    { bg: 'bg-rose-800', label: 'Proj.', key: 'projQU' as const },
+                    { bg: 'bg-rose-800', label: 'Plano', key: 'planoQU' as const },
+                    { bg: 'bg-rose-800', label: 'Disp.', key: 'dispQU' as const },
+                    { bg: 'bg-rose-800', label: 'Neg.', key: 'dispQU' as const },
+                    { bg: 'bg-rose-800', label: 'Cob.', key: 'cobQU' as const },
                   ]).map((h, i) => (
                     <th key={i} onClick={() => onSortClick(h.key)} className={`${thBase} ${h.bg} border-b border-gray-600 cursor-pointer`}>
                       {h.label}{sortBadge(h.key)}
@@ -910,6 +954,7 @@ export default function MatrizPlanejamentoTable({
                 <th onClick={() => onSortClick('planoPX')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[1]}{sortBadge('planoPX')}</th>
                 <th onClick={() => onSortClick('planoUL')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[2]}{sortBadge('planoUL')}</th>
                 <th onClick={() => onSortClick('planoQT')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[3]}{sortBadge('planoQT')}</th>
+                <th onClick={() => onSortClick('planoQU')} className="px-3 py-3 text-right bg-rose-800 cursor-pointer">{mNomes[4]}{sortBadge('planoQU')}</th>
               </tr>
             )}
           </thead>
@@ -1023,6 +1068,22 @@ export default function MatrizPlanejamentoTable({
                         <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-cyan-900">
                           {gt.projCount > 0 ? <CellCobFut v={gt.dispFutJun} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
                         </td>
+                        {/* QU - Outubro */}
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900">
+                          {gt.projCount > 0 ? <CellProj v={gt.projQU} dark /> : <span className="text-gray-700">—</span>}
+                        </td>
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900">
+                          <CellPlano v={gt.planoQU} dark />
+                        </td>
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900">
+                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutJul} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        </td>
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900">
+                          {gt.projCount > 0 ? <span className="text-red-300 font-semibold">{fmt(gt.negFutJul)}</span> : <span className="text-gray-700">—</span>}
+                        </td>
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900">
+                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutJul} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        </td>
                       </>
                     ) : (
                       <>
@@ -1030,6 +1091,7 @@ export default function MatrizPlanejamentoTable({
                         <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-teal-900"><CellPlano v={gt.planoPX} dark /></td>
                         <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-teal-900"><CellPlano v={gt.planoUL} dark /></td>
                         <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-teal-900"><CellPlano v={gt.planoQT} dark /></td>
+                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900"><CellPlano v={gt.planoQU} dark /></td>
                       </>
                     )}
                   </tr>
@@ -1043,6 +1105,7 @@ export default function MatrizPlanejamentoTable({
                     const refRiskPx = ref.itens.some((item) => riscoMpPorSku[String(item.produto.idproduto)]?.px);
                     const refRiskUl = ref.itens.some((item) => riscoMpPorSku[String(item.produto.idproduto)]?.ul);
                     const refRiskQt = ref.itens.some((item) => riscoMpPorSku[String(item.produto.idproduto)]?.qt);
+                    const refRiskQu = ref.itens.some((item) => riscoMpPorSku[String(item.produto.idproduto)]?.qu);
 
                     return (
                       <React.Fragment key={refKey}>
@@ -1167,6 +1230,22 @@ export default function MatrizPlanejamentoTable({
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-cyan-50">
                             {rt.projCount > 0 ? <CellCobFut v={rt.dispFutJun} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
                               </td>
+                              {/* QU - Outubro */}
+                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-rose-50">
+                            {rt.projCount > 0 ? <CellProj v={rt.projQU} /> : <span className="text-slate-300">—</span>}
+                              </td>
+                              <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-rose-50", refRiskQu)}>
+                                <CellPlano v={rt.planoQU} title={tooltipRiscoRef(ref.itens, 'qu')} />
+                              </td>
+                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-rose-50">
+                            {rt.projCount > 0 ? <CellDispFut v={rt.dispFutJul} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                              </td>
+                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-rose-50">
+                            {rt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(rt.negFutJul)}</span> : <span className="text-slate-300">—</span>}
+                              </td>
+                              <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-rose-50">
+                            {rt.projCount > 0 ? <CellCobFut v={rt.dispFutJul} min={rt.estoqueMin} /> : <span className="text-slate-300">—</span>}
+                              </td>
                             </>
                           ) : (
                             <>
@@ -1174,6 +1253,7 @@ export default function MatrizPlanejamentoTable({
                               <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50", refRiskPx)}><CellPlano v={rt.planoPX} title={tooltipRiscoRef(ref.itens, 'px')} /></td>
                               <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50", refRiskUl)}><CellPlano v={rt.planoUL} title={tooltipRiscoRef(ref.itens, 'ul')} /></td>
                               <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-teal-50", refRiskQt)}><CellPlano v={rt.planoQT} title={tooltipRiscoRef(ref.itens, 'qt')} /></td>
+                              <td className={planoRiskClass("px-3 py-3.5 text-right font-mono tabular-nums bg-rose-50", refRiskQu)}><CellPlano v={rt.planoQU} title={tooltipRiscoRef(ref.itens, 'qu')} /></td>
                             </>
                           )}
                         </tr>
@@ -1182,7 +1262,7 @@ export default function MatrizPlanejamentoTable({
                         {refOpen && ref.itens.map(item => {
                           const disp    = item.estoques.estoque_atual - item.demanda.pedidos_pendentes;
                           const sit     = situacao(item.estoques.estoque_atual, item.demanda.pedidos_pendentes, item.estoques.estoque_minimo);
-                          const skuRisk = riscoMpPorSku[String(item.produto.idproduto)] || { ma: false, px: false, ul: false, qt: false };
+                          const skuRisk = riscoMpPorSku[String(item.produto.idproduto)] || { ma: false, px: false, ul: false, qt: false, qu: false };
                           const proj    = projecoes[item.produto.idproduto] ?? null;
                           const emP     = item.estoques.em_processo || 0;
                           const dispPosProcesso = disp + emP;
@@ -1190,14 +1270,17 @@ export default function MatrizPlanejamentoTable({
                           const pPX     = item.plano?.px || 0;
                           const pUL     = item.plano?.ul || 0;
                           const pQT     = item.plano?.qt || 0;
+                          const pQU     = item.plano?.qu || 0;
                           const prMA    = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
                           const prPX    = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
                           const prUL    = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
                           const prQT    = proj ? (proj[String(mesQT)] ?? 0) : 0;
+                          const prQU    = proj ? (proj[String(mesQU)] ?? 0) : 0;
                           const dFutMar = proj !== null ? disp + emP + pMA - prMA : null;
                           const dFutAbr = proj !== null && dFutMar !== null ? dFutMar + pPX - prPX : null;
                           const dFutMai = proj !== null && dFutAbr !== null ? dFutAbr + pUL - prUL : null;
                           const dFutJun = proj !== null && dFutMai !== null ? dFutMai + pQT - prQT : null;
+                          const dFutJul = proj !== null && dFutJun !== null ? dFutJun + pQU - prQU : null;
                           const eMin    = item.estoques.estoque_minimo;
 
                           return (
@@ -1378,6 +1461,30 @@ export default function MatrizPlanejamentoTable({
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-cyan-50/70">
                                     <CellCobFut v={dFutJun} min={eMin} />
                                   </td>
+                                  {/* QU - Outubro */}
+                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-rose-50/70">
+                                    <CellProj v={prQU} />
+                                  </td>
+                                  <td className={planoRiskClass("px-3 py-3 text-right font-mono tabular-nums bg-rose-50/70", skuRisk.qu)}>
+                                    <CellPlano v={pQU} title={tooltipRiscoSku(String(item.produto.idproduto), 'qu')} onClick={() => abrirModalCheckMp(
+                                      String(item.produto.idproduto),
+                                      item.produto.referencia || '',
+                                      item.produto.cor || '',
+                                      item.produto.tamanho || '',
+                                      'qu',
+                                      mNomes[4].toUpperCase(),
+                                      pQU
+                                    )} />
+                                  </td>
+                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-rose-50/70">
+                                    <CellDispFut v={dFutJul} min={eMin} />
+                                  </td>
+                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-rose-50/70">
+                                    {dFutJul !== null && dFutJul < 0 ? <span className="text-red-700 font-semibold">{fmt(Math.abs(dFutJul))}</span> : <span className="text-gray-300">—</span>}
+                                  </td>
+                                  <td className="px-3 py-3 text-right font-mono tabular-nums bg-rose-50/70">
+                                    <CellCobFut v={dFutJul} min={eMin} />
+                                  </td>
                                 </>
                               ) : (
                                 <>
@@ -1392,6 +1499,9 @@ export default function MatrizPlanejamentoTable({
                                   </td>
                                   <td className={planoRiskClass("px-3 py-3 text-right font-mono tabular-nums bg-teal-50/60", skuRisk.qt)}>
                                     <CellPlano v={pQT} title={tooltipRiscoSku(String(item.produto.idproduto), 'qt')} onClick={() => abrirModalCheckMp(String(item.produto.idproduto), item.produto.referencia || '', item.produto.cor || '', item.produto.tamanho || '', 'qt', mNomes[3].toUpperCase(), pQT)} />
+                                  </td>
+                                  <td className={planoRiskClass("px-3 py-3 text-right font-mono tabular-nums bg-rose-50/60", skuRisk.qu)}>
+                                    <CellPlano v={pQU} title={tooltipRiscoSku(String(item.produto.idproduto), 'qu')} onClick={() => abrirModalCheckMp(String(item.produto.idproduto), item.produto.referencia || '', item.produto.cor || '', item.produto.tamanho || '', 'qu', mNomes[4].toUpperCase(), pQU)} />
                                   </td>
                                 </>
                               )}
