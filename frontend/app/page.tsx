@@ -487,6 +487,7 @@ export default function Home() {
           px: p.px,
           ul: p.ul,
           qt: p.qt,
+          qu: p.qu,
         },
       };
     });
@@ -510,6 +511,7 @@ export default function Home() {
           px: d.plano?.px || 0,
           ul: d.plano?.ul || 0,
           qt: d.plano?.qt || 0,
+          qu: d.plano?.qu || 0,
         }));
         const res = await fetchNoCache(`${API_URL}/api/consumo-mp/check-risco-lote`, {
           method: 'POST',
