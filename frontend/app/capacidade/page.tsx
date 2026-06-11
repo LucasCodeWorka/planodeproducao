@@ -423,7 +423,7 @@ export default function CapacidadePage() {
   }, [dados]);
 
   const planosAprovadosMap = useMemo(() => {
-    const map = new Map<string, { ma: number; px: number; ul: number; qt: number }>();
+    const map = new Map<string, { ma: number; px: number; ul: number; qt: number; qu: number }>();
     const base = aprovadas.filter((a) => aprovadasSelecionadasIds.includes(a.id));
     const ordenadas = [...base].sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
     for (const a of ordenadas) {
@@ -436,6 +436,7 @@ export default function CapacidadePage() {
           px: Number(p?.px || 0),
           ul: Number(p?.ul || 0),
           qt: Number(p?.qt || 0),
+          qu: Number(p?.qu || 0),
         });
       }
     }
@@ -455,6 +456,7 @@ export default function CapacidadePage() {
           px: Number(aprovado.px || 0),
           ul: Number(aprovado.ul || 0),
           qt: Number(aprovado.qt || 0),
+          qu: Number(aprovado.qu || 0),
         },
       };
     });
@@ -470,7 +472,7 @@ export default function CapacidadePage() {
         px: Number(item.plano?.px || 0),
         ul: Number(item.plano?.ul || 0),
         jun: Number(item.plano?.qt || 0),
-        out: Number((item.plano as { qu?: number } | undefined)?.qu || 0),
+        out: Number(item.plano?.qu || 0),
       };
       for (const chave of [refPadrao, refSistema]) {
         if (!chave) continue;
