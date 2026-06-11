@@ -71,6 +71,7 @@ type RiscoMpDetalhePorSku = Record<string, {
   px: RiscoMpMes;
   ul: RiscoMpMes;
   qt: RiscoMpMes;
+  qu: RiscoMpMes;
 }>;
 
 type ExecucaoPlanoResumo = {
