@@ -944,10 +944,12 @@ export default function Home() {
     let planoPX = 0;
     let planoUL = 0;
     let planoQT = 0;
+    let planoQU = 0;
     let riscoMA = 0;
     let riscoPX = 0;
     let riscoUL = 0;
     let riscoQT = 0;
+    let riscoQU = 0;
 
     for (const i of dadosPagina) {
       const id = String(i.produto.idproduto || '');
@@ -956,16 +958,19 @@ export default function Home() {
       const px = Math.max(0, Number(i.plano?.px || 0));
       const ul = Math.max(0, Number(i.plano?.ul || 0));
       const qt = Math.max(0, Number((i.plano as { qt?: number } | undefined)?.qt || 0));
+      const qu = Math.max(0, Number((i.plano as { qu?: number } | undefined)?.qu || 0));
 
       planoMA += ma;
       planoPX += px;
       planoUL += ul;
       planoQT += qt;
+      planoQU += qu;
 
       if (risco?.ma) riscoMA += ma;
       if (risco?.px) riscoPX += px;
       if (risco?.ul) riscoUL += ul;
       if (risco?.qt) riscoQT += qt;
+      if (risco?.qu) riscoQU += qu;
     }
 
     const pct = (risco: number, plano: number) => (plano > 0 ? clampPct((risco / plano) * 100) : 0);
@@ -975,14 +980,17 @@ export default function Home() {
       riscoPX: Math.round(riscoPX),
       riscoUL: Math.round(riscoUL),
       riscoQT: Math.round(riscoQT),
+      riscoQU: Math.round(riscoQU),
       planoMA: Math.round(planoMA),
       planoPX: Math.round(planoPX),
       planoUL: Math.round(planoUL),
       planoQT: Math.round(planoQT),
+      planoQU: Math.round(planoQU),
       pctMA: pct(riscoMA, planoMA),
       pctPX: pct(riscoPX, planoPX),
       pctUL: pct(riscoUL, planoUL),
       pctQT: pct(riscoQT, planoQT),
+      pctQU: pct(riscoQU, planoQU),
     };
   }, [dadosPagina, riscoMpPorSku]);
 
@@ -1685,7 +1693,7 @@ export default function Home() {
               </div>
                 <div className="space-y-2">
                   {/* Cabeçalho com meses */}
-                  <div className="grid grid-cols-[140px_repeat(6,1fr)] gap-2 text-[11px] text-red-400 border-b border-red-100 pb-1">
+                  <div className="grid grid-cols-[140px_repeat(7,1fr)] gap-2 text-[11px] text-red-400 border-b border-red-100 pb-1">
                   <div></div>
                   <div>Atual</div>
                   <div>Pos Proc.</div>
@@ -1713,9 +1721,15 @@ export default function Home() {
                       <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.QT.percentual)}</span>
                     )}
                   </div>
+                  <div className="flex items-center gap-1">
+                    <span>{nomeMesCurto((periodos.UL || 0) + 2)}</span>
+                    {execucaoPlanoResumo?.geral?.QU?.percentual != null && (
+                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.QU.percentual)}</span>
+                    )}
+                  </div>
                 </div>
                 {/* Linha TOTAL */}
-                <div className="grid grid-cols-[140px_repeat(6,1fr)] gap-2 items-center">
+                <div className="grid grid-cols-[140px_repeat(7,1fr)] gap-2 items-center">
                   <div className="text-xs font-bold text-red-600 uppercase">Total</div>
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.atual.toLocaleString('pt-BR')}</div>
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.atualPosProcesso.toLocaleString('pt-BR')}</div>
@@ -1723,8 +1737,9 @@ export default function Home() {
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.px.toLocaleString('pt-BR')}</div>
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.ul.toLocaleString('pt-BR')}</div>
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.qt.toLocaleString('pt-BR')}</div>
+                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.qu.toLocaleString('pt-BR')}</div>
                 </div>
-                <div className="grid grid-cols-[140px_repeat(6,1fr)] gap-2 items-center border-t border-red-100 pt-2">
+                <div className="grid grid-cols-[140px_repeat(7,1fr)] gap-2 items-center border-t border-red-100 pt-2">
                   <div className="text-[11px] font-bold text-amber-700 uppercase">MP (% plano)</div>
                   <div className="text-sm font-bold font-mono text-gray-400">-</div>
                   <div className="text-sm font-bold font-mono text-gray-400">-</div>
@@ -1740,13 +1755,16 @@ export default function Home() {
                   <div className="text-sm font-bold font-mono text-amber-700">
                     {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctQT.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
                   </div>
+                  <div className="text-sm font-bold font-mono text-amber-700">
+                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctQU.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                  </div>
                 </div>
                 {/* Linhas por continuidade */}
                 <div className="space-y-1 pt-1 border-t border-red-100">
                   {resumoNegativos.continuidade
                     .filter((c) => ['PERMANENTE', 'PERMANENTE COR NOVA', 'EDICAO LIMITADA', 'EDIÇÃO LIMITADA'].includes((c.nome || '').toUpperCase()))
                     .map((c) => (
-                      <div key={c.nome} className="grid grid-cols-[140px_repeat(6,1fr)] gap-2 items-center">
+                      <div key={c.nome} className="grid grid-cols-[140px_repeat(7,1fr)] gap-2 items-center">
                         <div className="text-[11px] font-semibold uppercase tracking-wide text-red-500">{c.nome}</div>
                         <div className="text-sm font-bold font-mono text-red-700">{c.atual.toLocaleString('pt-BR')}</div>
                         <div className="text-sm font-bold font-mono text-red-700">{c.atualPosProcesso.toLocaleString('pt-BR')}</div>
@@ -1772,6 +1790,12 @@ export default function Home() {
                           <span className="text-sm font-bold font-mono text-red-700">{c.qt.toLocaleString('pt-BR')}</span>
                           {execucaoPlanoResumo?.continuidade?.[c.nome]?.QT?.percentual != null && (
                             <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.QT?.percentual)}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-bold font-mono text-red-700">{c.qu.toLocaleString('pt-BR')}</span>
+                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.QU?.percentual != null && (
+                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.QU?.percentual)}</span>
                           )}
                         </div>
                       </div>
