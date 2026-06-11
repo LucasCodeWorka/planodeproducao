@@ -160,7 +160,7 @@ export default function Home() {
   const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
   const [referenciasDeParaSet, setReferenciasDeParaSet] = useState<Set<string>>(new Set());
   const [execucaoPlanoResumo, setExecucaoPlanoResumo] = useState<ExecucaoPlanoResumo | null>(null);
-  const [riscoMpPorSku, setRiscoMpPorSku] = useState<Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean }>>({});
+  const [riscoMpPorSku, setRiscoMpPorSku] = useState<Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean; qu: boolean }>>({});
   const [detalheRiscoMpPorSku, setDetalheRiscoMpPorSku] = useState<RiscoMpDetalhePorSku>({});
   const [loadingRiscoMp, setLoadingRiscoMp] = useState(false);
   const [indicadoresLocais, setIndicadoresLocais] = useState<{
@@ -452,7 +452,7 @@ export default function Home() {
   }
 
   const planosAprovadosMap = useMemo(() => {
-    const map = new Map<string, { ma: number; px: number; ul: number; qt: number }>();
+    const map = new Map<string, { ma: number; px: number; ul: number; qt: number; qu: number }>();
     const base = aprovadas.filter((a) => aprovadasSelecionadasIds.includes(a.id));
     const ordenadas = [...base].sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
     for (const a of ordenadas) {
@@ -465,6 +465,7 @@ export default function Home() {
           px: Number(p?.px || 0),
           ul: Number(p?.ul || 0),
           qt: Number(p?.qt || 0),
+          qu: Number(p?.qu || 0),
         });
       }
     }
@@ -517,7 +518,7 @@ export default function Home() {
         const json = await res.json();
         if (!active) return;
         if (!res.ok || !json.success) throw new Error(json.error || 'Erro ao carregar risco de MP');
-        setRiscoMpPorSku((json.risco_por_sku || {}) as Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean }>);
+        setRiscoMpPorSku((json.risco_por_sku || {}) as Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean; qu: boolean }>);
         setDetalheRiscoMpPorSku((json.detalhe_risco_por_sku || {}) as RiscoMpDetalhePorSku);
       } catch {
         if (active) setRiscoMpPorSku({});
@@ -859,11 +860,12 @@ export default function Home() {
     let px = 0;
     let ul = 0;
     let qt = 0;
-    const porContinuidade = new Map<string, { atual: number; atualPosProcesso: number; ma: number; px: number; ul: number; qt: number }>();
+    let qu = 0;
+    const porContinuidade = new Map<string, { atual: number; atualPosProcesso: number; ma: number; px: number; ul: number; qt: number; qu: number }>();
 
     for (const i of base) {
       const continuidade = (i.produto.continuidade || 'SEM CONTINUIDADE').trim();
-      const bucket = porContinuidade.get(continuidade) || { atual: 0, atualPosProcesso: 0, ma: 0, px: 0, ul: 0, qt: 0 };
+      const bucket = porContinuidade.get(continuidade) || { atual: 0, atualPosProcesso: 0, ma: 0, px: 0, ul: 0, qt: 0, qu: 0 };
       const dispAtual = (i.estoques.estoque_atual || 0) - (i.demanda.pedidos_pendentes || 0);
       const proj = projecoesAtivas[i.produto.idproduto] ?? null;
       const emP = i.estoques.em_processo || 0;
@@ -872,14 +874,17 @@ export default function Home() {
       const pPX = i.plano?.px || 0;
       const pUL = i.plano?.ul || 0;
       const pQT = (i.plano as { qt?: number } | undefined)?.qt || 0;
+      const pQU = (i.plano as { qu?: number } | undefined)?.qu || 0;
       const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
       const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
       const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
       const prQT = proj ? (proj[String(mesNormalizado((periodos.UL || 0) + 1))] ?? 0) : 0;
+      const prQU = proj ? (proj[String(mesNormalizado((periodos.UL || 0) + 2))] ?? 0) : 0;
       const dispMA = dispAtual + emP + pMA - prMA;
       const dispPX = dispMA + pPX - prPX;
       const dispUL = dispPX + pUL - prUL;
       const dispQT = dispUL + pQT - prQT;
+      const dispQU = dispQT + pQU - prQU;
 
       if (dispAtual < 0) atual += Math.abs(dispAtual);
       if (dispAtualPosProcesso < 0) atualPosProcesso += Math.abs(dispAtualPosProcesso);
@@ -887,6 +892,7 @@ export default function Home() {
       if (dispPX < 0) px += Math.abs(dispPX);
       if (dispUL < 0) ul += Math.abs(dispUL);
       if (dispQT < 0) qt += Math.abs(dispQT);
+      if (dispQU < 0) qu += Math.abs(dispQU);
 
       if (dispAtual < 0) bucket.atual += Math.abs(dispAtual);
       if (dispAtualPosProcesso < 0) bucket.atualPosProcesso += Math.abs(dispAtualPosProcesso);
@@ -894,6 +900,7 @@ export default function Home() {
       if (dispPX < 0) bucket.px += Math.abs(dispPX);
       if (dispUL < 0) bucket.ul += Math.abs(dispUL);
       if (dispQT < 0) bucket.qt += Math.abs(dispQT);
+      if (dispQU < 0) bucket.qu += Math.abs(dispQU);
       porContinuidade.set(continuidade, bucket);
     }
 
@@ -904,6 +911,7 @@ export default function Home() {
       px: Math.round(px),
       ul: Math.round(ul),
       qt: Math.round(qt),
+      qu: Math.round(qu),
       continuidade: Array.from(porContinuidade.entries())
         .map(([nome, valores]) => ({
           nome,
@@ -913,6 +921,7 @@ export default function Home() {
           px: Math.round(valores.px),
           ul: Math.round(valores.ul),
           qt: Math.round(valores.qt),
+          qu: Math.round(valores.qu),
         }))
         .sort((a, b) => {
           const ordem: Record<string, number> = {
