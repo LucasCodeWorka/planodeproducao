@@ -8,7 +8,7 @@ import { fetchNoCache } from '../lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number };
+type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number; qu?: number };
 type SavedSugestaoPlano = {
   id: string;
   nome: string;

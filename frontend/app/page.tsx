@@ -32,7 +32,7 @@ interface CacheStatus {
   count?:     number;
 }
 
-type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number };
+type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number; qu?: number };
 type AnaliseAprovada = {
   id: string;
   createdAt: number;

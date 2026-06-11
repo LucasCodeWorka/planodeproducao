@@ -17,7 +17,7 @@ type CoberturaBase = 'ATUAL' | 'MA' | 'PX' | 'UL';
 type TaxaFaixa = 'TODAS' | 'ATE_70';
 type NivelMatriz = 'CONTINUIDADE' | 'ITEM';
 type ResumoPeriodo = { base: number; cenario: number; retirado: number };
-type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number };
+type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number; qu?: number };
 type ReprojecaoPreviewItem = {
   idproduto: string;
   recalculada: { ma: number; px: number; ul: number; qt?: number };
