@@ -77,34 +77,42 @@ type GrupoAnaliseRow = {
   planoPX: number;
   planoUL: number;
   planoJUN: number;
+  planoOUT: number;
   cargaMA: number;
   cargaPX: number;
   cargaUL: number;
   cargaJUN: number;
+  cargaOUT: number;
   capacidadeMA: number;
   capacidadePX: number;
   capacidadeUL: number;
   capacidadeJUN: number;
+  capacidadeOUT: number;
   saldoMA: number;
   saldoPX: number;
   saldoUL: number;
   saldoJUN: number;
+  saldoOUT: number;
   saldoAcumMA: number;
   saldoAcumPX: number;
   saldoAcumUL: number;
   saldoAcumJUN: number;
+  saldoAcumOUT: number;
   atendimentoMA: number;
   atendimentoPX: number;
   atendimentoUL: number;
   atendimentoJUN: number;
+  atendimentoOUT: number;
   diasNecMA: number;
   diasNecPX: number;
   diasNecUL: number;
   diasNecJUN: number;
+  diasNecOUT: number;
   diasFaltMA: number;
   diasFaltPX: number;
   diasFaltUL: number;
   diasFaltJUN: number;
+  diasFaltOUT: number;
 };
 
 type RefAnaliseRow = {
@@ -121,10 +129,12 @@ type RefAnaliseRow = {
   planoPX: number;
   planoUL: number;
   planoJUN: number;
+  planoOUT: number;
   cargaMA: number;
   cargaPX: number;
   cargaUL: number;
   cargaJUN: number;
+  cargaOUT: number;
 };
 
 function parseNumberFlexible(raw: string): number {
@@ -236,6 +246,7 @@ export default function CapacidadePage() {
   const [abrirSeletorAprovadas, setAbrirSeletorAprovadas] = useState(false);
   const [aplicarAprovadas, setAplicarAprovadas] = useState(false);
   const mesJunho = useMemo(() => ((Number(periodos.UL) % 12) + 1), [periodos.UL]);
+  const mesOutubro = useMemo(() => ((mesJunho % 12) + 1), [mesJunho]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -450,7 +461,7 @@ export default function CapacidadePage() {
   }, [matrizBase, aplicarAprovadas, planosAprovadosMap]);
 
   const planoPorRefMap = useMemo(() => {
-    const map = new Map<string, { ma: number; px: number; ul: number; jun: number }>();
+    const map = new Map<string, { ma: number; px: number; ul: number; jun: number; out: number }>();
     for (const item of matrizAplicada) {
       const refPadrao = norm(item.produto?.referencia || '');
       const refSistema = norm(item.produto?.cd_seqgrupo || '');
@@ -459,14 +470,16 @@ export default function CapacidadePage() {
         px: Number(item.plano?.px || 0),
         ul: Number(item.plano?.ul || 0),
         jun: Number(item.plano?.qt || 0),
+        out: Number((item.plano as { qu?: number } | undefined)?.qu || 0),
       };
       for (const chave of [refPadrao, refSistema]) {
         if (!chave) continue;
-        const atual = map.get(chave) || { ma: 0, px: 0, ul: 0, jun: 0 };
+        const atual = map.get(chave) || { ma: 0, px: 0, ul: 0, jun: 0, out: 0 };
         atual.ma += plano.ma;
         atual.px += plano.px;
         atual.ul += plano.ul;
         atual.jun += plano.jun;
+        atual.out += plano.out;
         map.set(chave, atual);
       }
     }
@@ -570,6 +583,7 @@ export default function CapacidadePage() {
     planoPX: number;
     planoUL: number;
     planoQT: number;
+    planoQU: number;
     planoTotal: number;
     skus: number;
     tempoSegundos: number;
@@ -578,6 +592,7 @@ export default function CapacidadePage() {
     cargaPX: number;
     cargaUL: number;
     cargaQT: number;
+    cargaQU: number;
     cargaTotal: number;
   };
 
@@ -596,6 +611,7 @@ export default function CapacidadePage() {
       const px = Number(item.plano?.px || 0);
       const ul = Number(item.plano?.ul || 0);
       const qt = Number(item.plano?.qt || 0);
+      const qu = Number((item.plano as { qu?: number } | undefined)?.qu || 0);
 
       if (!porRef.has(ref)) {
         porRef.set(ref, {
@@ -609,6 +625,7 @@ export default function CapacidadePage() {
           planoPX: 0,
           planoUL: 0,
           planoQT: 0,
+          planoQU: 0,
           planoTotal: 0,
           skus: 0,
           tempoSegundos: 0,
@@ -617,6 +634,7 @@ export default function CapacidadePage() {
           cargaPX: 0,
           cargaUL: 0,
           cargaQT: 0,
+          cargaQU: 0,
           cargaTotal: 0,
         });
       }
@@ -627,7 +645,8 @@ export default function CapacidadePage() {
       r.planoPX += px;
       r.planoUL += ul;
       r.planoQT += qt;
-      r.planoTotal += ma + px + ul + qt;
+      r.planoQU += qu;
+      r.planoTotal += ma + px + ul + qt + qu;
       r.skus += 1;
       // Guardar o idreferencia se ainda não tiver
       if (!r.idreferencia && idreferencia) {
@@ -646,6 +665,7 @@ export default function CapacidadePage() {
         cargaPX: tempo * r.planoPX,
         cargaUL: tempo * r.planoUL,
         cargaQT: tempo * r.planoQT,
+        cargaQU: tempo * r.planoQU,
         cargaTotal: tempo * (r.emProcesso + r.planoTotal),
       };
     });
@@ -753,7 +773,7 @@ export default function CapacidadePage() {
       const referencia = norm(row.referencia);
       const grupo = norm(row.grupo);
       const idreferencia = norm(seqgrupoPorRefMap.get(referencia) || '');
-      const planoBase = planoPorRefMap.get(referencia) || { ma: 0, px: 0, ul: 0, jun: 0 };
+      const planoBase = planoPorRefMap.get(referencia) || { ma: 0, px: 0, ul: 0, jun: 0, out: 0 };
       const tempo = Number((idreferencia && tempoPorRefMap.get(idreferencia)) || 0);
       const processoBase = Number(processoPorRefMap.get(referencia) || 0);
       const gruposDaReferencia = gruposPorReferenciaMap.get(referencia) || [];
@@ -767,6 +787,7 @@ export default function CapacidadePage() {
         px: planoBase.px * rateio,
         ul: planoBase.ul * rateio,
         jun: planoBase.jun * rateio,
+        out: planoBase.out * rateio,
       };
       const processoPecas = processoBase * rateio;
       const processoCarga = tempo * processoPecas;
@@ -778,16 +799,18 @@ export default function CapacidadePage() {
         tempoSegundos: tempo,
         processoPecas,
         processoCarga,
-        cargaTotal: processoCarga + (tempo * plano.ma) + (tempo * plano.px) + (tempo * plano.ul) + (tempo * plano.jun),
-        diasTotal: tempo > 0 ? (processoPecas + plano.ma + plano.px + plano.ul + plano.jun) : 0,
+        cargaTotal: processoCarga + (tempo * plano.ma) + (tempo * plano.px) + (tempo * plano.ul) + (tempo * plano.jun) + (tempo * plano.out),
+        diasTotal: tempo > 0 ? (processoPecas + plano.ma + plano.px + plano.ul + plano.jun + plano.out) : 0,
         planoMA: plano.ma,
         planoPX: plano.px,
         planoUL: plano.ul,
         planoJUN: plano.jun,
+        planoOUT: plano.out,
         cargaMA: tempo * plano.ma,
         cargaPX: tempo * plano.px,
         cargaUL: tempo * plano.ul,
         cargaJUN: tempo * plano.jun,
+        cargaOUT: tempo * plano.out,
       };
     });
   }, [grupoRefs, planoPorRefMap, processoPorRefMap, tempoPorRefMap, seqgrupoPorRefMap, gruposPorReferenciaMap, capacidadeDiariaPorGrupoMap]);
@@ -811,33 +834,40 @@ export default function CapacidadePage() {
         const cargaPX = refs.reduce((acc, r) => acc + r.cargaPX, 0);
         const cargaUL = refs.reduce((acc, r) => acc + r.cargaUL, 0);
         const cargaJUN = refs.reduce((acc, r) => acc + r.cargaJUN, 0);
+        const cargaOUT = refs.reduce((acc, r) => acc + r.cargaOUT, 0);
         const capacidadeJUN = Number(grupo.capacidade_diaria || 0) * Number(dias[String(mesJunho)] || 0);
+        const capacidadeOUT = Number(grupo.capacidade_diaria || 0) * Number(dias[String(mesOutubro)] || 0);
         const planoMA = refs.reduce((acc, r) => acc + r.planoMA, 0);
         const planoPX = refs.reduce((acc, r) => acc + r.planoPX, 0);
         const planoUL = refs.reduce((acc, r) => acc + r.planoUL, 0);
         const planoJUN = refs.reduce((acc, r) => acc + r.planoJUN, 0);
+        const planoOUT = refs.reduce((acc, r) => acc + r.planoOUT, 0);
         const refsComTempo = refs.filter((r) => r.tempoSegundos > 0).length;
-        const cargaTotal = cargaMA + cargaPX + cargaUL + cargaJUN;
-        const capacidadeTotal = capacidadeMA + capacidadePX + capacidadeUL + capacidadeJUN;
+        const cargaTotal = cargaMA + cargaPX + cargaUL + cargaJUN + cargaOUT;
+        const capacidadeTotal = capacidadeMA + capacidadePX + capacidadeUL + capacidadeJUN + capacidadeOUT;
         const saldoMA = capacidadeMA - cargaMA;
         const saldoAcumMA = saldoMA;
         const saldoAcumPX = saldoAcumMA + capacidadePX - cargaPX;
         const saldoAcumUL = saldoAcumPX + capacidadeUL - cargaUL;
         const saldoAcumJUN = saldoAcumUL + capacidadeJUN - cargaJUN;
+        const saldoAcumOUT = saldoAcumJUN + capacidadeOUT - cargaOUT;
         const atendimentoMA = cargaMA > 0 ? Math.max(0, Math.min(100, (capacidadeMA / cargaMA) * 100)) : 100;
         const atendimentoPX = cargaPX > 0 ? Math.max(0, Math.min(100, ((Math.max(0, saldoAcumMA) + capacidadePX) / cargaPX) * 100)) : 100;
         const atendimentoUL = cargaUL > 0 ? Math.max(0, Math.min(100, ((Math.max(0, saldoAcumPX) + capacidadeUL) / cargaUL) * 100)) : 100;
         const atendimentoJUN = cargaJUN > 0 ? Math.max(0, Math.min(100, ((Math.max(0, saldoAcumUL) + capacidadeJUN) / cargaJUN) * 100)) : 100;
+        const atendimentoOUT = cargaOUT > 0 ? Math.max(0, Math.min(100, ((Math.max(0, saldoAcumJUN) + capacidadeOUT) / cargaOUT) * 100)) : 100;
         const diasNecMA = Number(grupo.capacidade_diaria || 0) > 0 ? (cargaMA / Number(grupo.capacidade_diaria || 0)) : 0;
         const diasNecPX = Number(grupo.capacidade_diaria || 0) > 0 ? (cargaPX / Number(grupo.capacidade_diaria || 0)) : 0;
         const diasNecUL = Number(grupo.capacidade_diaria || 0) > 0 ? (cargaUL / Number(grupo.capacidade_diaria || 0)) : 0;
         const diasNecJUN = Number(grupo.capacidade_diaria || 0) > 0 ? (cargaJUN / Number(grupo.capacidade_diaria || 0)) : 0;
-        const diasTotal = diasNecMA + diasNecPX + diasNecUL + diasNecJUN;
+        const diasNecOUT = Number(grupo.capacidade_diaria || 0) > 0 ? (cargaOUT / Number(grupo.capacidade_diaria || 0)) : 0;
+        const diasTotal = diasNecMA + diasNecPX + diasNecUL + diasNecJUN + diasNecOUT;
         const atendimentoTotal = cargaTotal > 0 ? Math.max(0, Math.min(100, (capacidadeTotal / cargaTotal) * 100)) : 100;
         const diasFaltMA = Math.max(0, diasNecMA - Number(dias[String(periodos.MA)] || 0));
         const diasFaltPX = Math.max(0, diasNecPX - Number(dias[String(periodos.PX)] || 0) - Math.max(0, saldoAcumMA / Math.max(1, Number(grupo.capacidade_diaria || 0))));
         const diasFaltUL = Math.max(0, diasNecUL - Number(dias[String(periodos.UL)] || 0) - Math.max(0, saldoAcumPX / Math.max(1, Number(grupo.capacidade_diaria || 0))));
         const diasFaltJUN = Math.max(0, diasNecJUN - Number(dias[String(mesJunho)] || 0) - Math.max(0, saldoAcumUL / Math.max(1, Number(grupo.capacidade_diaria || 0))));
+        const diasFaltOUT = Math.max(0, diasNecOUT - Number(dias[String(mesOutubro)] || 0) - Math.max(0, saldoAcumJUN / Math.max(1, Number(grupo.capacidade_diaria || 0))));
         const difCapacidadeAteAbr = (capacidadeMA + capacidadePX) - (processoCarga + cargaMAPlano + cargaPX);
         return {
           grupo: grupo.grupo,
@@ -855,10 +885,10 @@ export default function CapacidadePage() {
           tempoMarco: cargaMAPlano,
           tempoAbril: cargaPX,
           tempoMaio: cargaUL,
-          tempoPrp: processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN,
-          difCapacidadeFinal: (capacidadeMA + capacidadePX + capacidadeUL + capacidadeJUN) - (processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN),
+          tempoPrp: processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN + cargaOUT,
+          difCapacidadeFinal: (capacidadeMA + capacidadePX + capacidadeUL + capacidadeJUN + capacidadeOUT) - (processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN + cargaOUT),
           diasDif: Number(grupo.capacidade_diaria || 0) > 0
-            ? (((capacidadeMA + capacidadePX + capacidadeUL + capacidadeJUN) - (processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN)) / Number(grupo.capacidade_diaria || 0))
+            ? (((capacidadeMA + capacidadePX + capacidadeUL + capacidadeJUN + capacidadeOUT) - (processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN + cargaOUT)) / Number(grupo.capacidade_diaria || 0))
             : 0,
           difCapacidadeAteAbr,
           diasDifAteAbr: Number(grupo.capacidade_diaria || 0) > 0
@@ -868,44 +898,52 @@ export default function CapacidadePage() {
           planoPX,
           planoUL,
           planoJUN,
+          planoOUT,
           cargaMA,
           cargaPX,
           cargaUL,
           cargaJUN,
+          cargaOUT,
           capacidadeMA,
           capacidadePX,
           capacidadeUL,
           capacidadeJUN,
+          capacidadeOUT,
           saldoMA,
           saldoPX: capacidadePX - cargaPX,
           saldoUL: capacidadeUL - cargaUL,
           saldoJUN: capacidadeJUN - cargaJUN,
+          saldoOUT: capacidadeOUT - cargaOUT,
           saldoAcumMA,
           saldoAcumPX,
           saldoAcumUL,
           saldoAcumJUN,
+          saldoAcumOUT,
           atendimentoMA,
           atendimentoPX,
           atendimentoUL,
           atendimentoJUN,
+          atendimentoOUT,
           diasNecMA,
           diasNecPX,
           diasNecUL,
           diasNecJUN,
+          diasNecOUT,
           diasFaltMA,
           diasFaltPX,
           diasFaltUL,
           diasFaltJUN,
+          diasFaltOUT,
         };
       })
       .filter((row) => {
         if (filtroGrupo && !row.grupo.includes(norm(filtroGrupo))) return false;
         if (filtroTipo !== 'TODOS' && row.tipo !== filtroTipo) return false;
-        if (somenteEstourados && !(row.saldoAcumMA < 0 || row.saldoAcumPX < 0 || row.saldoAcumUL < 0 || row.saldoAcumJUN < 0)) return false;
+        if (somenteEstourados && !(row.saldoAcumMA < 0 || row.saldoAcumPX < 0 || row.saldoAcumUL < 0 || row.saldoAcumJUN < 0 || row.saldoAcumOUT < 0)) return false;
         return true;
       })
       .sort((a, b) => a.grupo.localeCompare(b.grupo));
-  }, [detalhesRef, grupos, dias, periodos, mesJunho, filtroGrupo, filtroTipo, somenteEstourados]);
+  }, [detalhesRef, grupos, dias, periodos, mesJunho, mesOutubro, filtroGrupo, filtroTipo, somenteEstourados]);
 
   const detalhesRefFiltrados = useMemo(() => {
     const gruposVisiveis = new Set(gruposAnalise.map((g) => g.grupo));
@@ -927,6 +965,8 @@ export default function CapacidadePage() {
       cargaUL: acc.cargaUL + row.cargaUL,
       planoJUN: acc.planoJUN + row.planoJUN,
       cargaJUN: acc.cargaJUN + row.cargaJUN,
+      planoOUT: acc.planoOUT + row.planoOUT,
+      cargaOUT: acc.cargaOUT + row.cargaOUT,
       cargaTotal: acc.cargaTotal + row.cargaTotal,
     }), {
       refs: 0,
@@ -940,6 +980,8 @@ export default function CapacidadePage() {
       cargaUL: 0,
       planoJUN: 0,
       cargaJUN: 0,
+      planoOUT: 0,
+      cargaOUT: 0,
       cargaTotal: 0,
     });
   }, [detalhesRefFiltrados]);
@@ -954,10 +996,12 @@ export default function CapacidadePage() {
       capPX: acc.capPX + row.capacidadePX,
       capUL: acc.capUL + row.capacidadeUL,
       capJUN: acc.capJUN + row.capacidadeJUN,
+      capOUT: acc.capOUT + row.capacidadeOUT,
       cargaMA: acc.cargaMA + row.cargaMA,
       cargaPX: acc.cargaPX + row.cargaPX,
       cargaUL: acc.cargaUL + row.cargaUL,
       cargaJUN: acc.cargaJUN + row.cargaJUN,
+      cargaOUT: acc.cargaOUT + row.cargaOUT,
       tempoTotal: acc.tempoTotal + row.tempoPrp,
       capacidadeTotal: acc.capacidadeTotal + row.capacidadeTotal,
     }), {
@@ -969,17 +1013,20 @@ export default function CapacidadePage() {
       capPX: 0,
       capUL: 0,
       capJUN: 0,
+      capOUT: 0,
       cargaMA: 0,
       cargaPX: 0,
       cargaUL: 0,
       cargaJUN: 0,
+      cargaOUT: 0,
       tempoTotal: 0,
       capacidadeTotal: 0,
     });
     const diasDisponiveis = Number(dias[String(periodos.MA)] || 0)
       + Number(dias[String(periodos.PX)] || 0)
       + Number(dias[String(periodos.UL)] || 0)
-      + (base.capJUN > 0 ? Number(dias[String(mesJunho)] || 0) : 0);
+      + (base.capJUN > 0 ? Number(dias[String(mesJunho)] || 0) : 0)
+      + (base.capOUT > 0 ? Number(dias[String(mesOutubro)] || 0) : 0);
     const diasNecessariosTotal = base.capacidadeDiariaTotal > 0
       ? (base.tempoTotal / base.capacidadeDiariaTotal)
       : 0;
@@ -990,7 +1037,7 @@ export default function CapacidadePage() {
       diasNecessariosTotal,
       diasFaltantesHoje,
     };
-  }, [gruposAnalise, dias, periodos, mesJunho]);
+  }, [gruposAnalise, dias, periodos, mesJunho, mesOutubro]);
 
   const gruposPorTipo = useMemo(() => {
     const map = new Map<string, {
@@ -1011,6 +1058,9 @@ export default function CapacidadePage() {
       capacidadeJUN: number;
       cargaJUN: number;
       saldoAcumJUN: number;
+      capacidadeOUT: number;
+      cargaOUT: number;
+      saldoAcumOUT: number;
     }>();
 
     for (const row of gruposAnalise) {
@@ -1033,6 +1083,9 @@ export default function CapacidadePage() {
         capacidadeJUN: 0,
         cargaJUN: 0,
         saldoAcumJUN: 0,
+        capacidadeOUT: 0,
+        cargaOUT: 0,
+        saldoAcumOUT: 0,
       };
       acc.grupos += 1;
       acc.refsMapeadas += row.refsMapeadas;
@@ -1050,6 +1103,9 @@ export default function CapacidadePage() {
       acc.capacidadeJUN += row.capacidadeJUN;
       acc.cargaJUN += row.cargaJUN;
       acc.saldoAcumJUN += row.saldoAcumJUN;
+      acc.capacidadeOUT += row.capacidadeOUT;
+      acc.cargaOUT += row.cargaOUT;
+      acc.saldoAcumOUT += row.saldoAcumOUT;
       map.set(key, acc);
     }
     return Array.from(map.values()).sort((a, b) => a.tipo.localeCompare(b.tipo));
@@ -1180,6 +1236,7 @@ export default function CapacidadePage() {
                     { label: nomeMes(periodos.PX), carga: resumo.cargaPX, cap: resumo.capPX },
                     { label: nomeMes(periodos.UL), carga: resumo.cargaUL, cap: resumo.capUL },
                     { label: nomeMes(mesJunho), carga: resumo.cargaJUN, cap: resumo.capJUN },
+                    { label: nomeMes(mesOutubro), carga: resumo.cargaOUT, cap: resumo.capOUT },
                   ].map((card) => {
                     const delta = card.carga - card.cap;
                     return (
@@ -1283,12 +1340,22 @@ export default function CapacidadePage() {
                           </span>
                         </div>
                       </div>
+                      {/* QU/OUT */}
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-rose-50 border border-rose-200">
+                        <span className="font-medium text-rose-800">Plano {nomeMes(mesOutubro)}</span>
+                        <div className="text-right">
+                          <span className="font-bold text-rose-900">{fmtInt(auditoriaDetalheResumo.planoOUT)} pcs</span>
+                          <span className="text-rose-600 ml-2">
+                            ({resumo.capacidadeDiariaTotal > 0 ? (auditoriaDetalheResumo.cargaOUT / resumo.capacidadeDiariaTotal).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : 0} dias)
+                          </span>
+                        </div>
+                      </div>
                       {/* Total */}
                       <div className="flex items-center justify-between p-2 rounded-lg bg-stone-100 border border-stone-300 mt-2">
                         <span className="font-bold text-stone-800">TOTAL</span>
                         <div className="text-right">
                           <span className="font-bold text-stone-900">
-                            {fmtInt(auditoriaDetalheResumo.processoPecas + auditoriaDetalheResumo.planoMA + auditoriaDetalheResumo.planoPX + auditoriaDetalheResumo.planoUL + auditoriaDetalheResumo.planoJUN)} pcs
+                            {fmtInt(auditoriaDetalheResumo.processoPecas + auditoriaDetalheResumo.planoMA + auditoriaDetalheResumo.planoPX + auditoriaDetalheResumo.planoUL + auditoriaDetalheResumo.planoJUN + auditoriaDetalheResumo.planoOUT)} pcs
                           </span>
                           <span className="text-stone-600 ml-2">
                             ({resumo.diasNecessariosTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias)
@@ -1371,6 +1438,7 @@ export default function CapacidadePage() {
                       <th className="px-2 py-2 text-right font-semibold text-red-800">{nomeMes(periodos.PX)}</th>
                       <th className="px-2 py-2 text-right font-semibold text-red-800">{nomeMes(periodos.UL)}</th>
                       <th className="px-2 py-2 text-right font-semibold text-red-800">{nomeMes(mesJunho)}</th>
+                      <th className="px-2 py-2 text-right font-semibold text-red-800">{nomeMes(mesOutubro)}</th>
                       <th className="px-2 py-2 text-right font-semibold text-red-800">Total Pcs</th>
                       <th className="px-2 py-2 text-right font-semibold text-red-800">Carga</th>
                     </tr>
@@ -1390,6 +1458,7 @@ export default function CapacidadePage() {
                         <td className="px-2 py-1.5 text-right text-blue-700">{fmtInt(r.planoPX)}</td>
                         <td className="px-2 py-1.5 text-right text-purple-700">{fmtInt(r.planoUL)}</td>
                         <td className="px-2 py-1.5 text-right text-pink-700">{fmtInt(r.planoQT)}</td>
+                        <td className="px-2 py-1.5 text-right text-rose-700">{fmtInt(r.planoQU)}</td>
                         <td className="px-2 py-1.5 text-right font-bold text-gray-800">{fmtInt(r.emProcesso + r.planoTotal)}</td>
                         <td className="px-2 py-1.5 text-right font-bold text-red-800">{r.cargaTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</td>
                       </tr>
@@ -1531,6 +1600,7 @@ export default function CapacidadePage() {
                     <th className="text-right px-3 py-2">Saldo Ac. {nomeMes(periodos.PX)}</th>
                     <th className="text-right px-3 py-2">Saldo Ac. {nomeMes(periodos.UL)}</th>
                     <th className="text-right px-3 py-2">Saldo Ac. {nomeMes(mesJunho)}</th>
+                    <th className="text-right px-3 py-2">Saldo Ac. {nomeMes(mesOutubro)}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1545,11 +1615,12 @@ export default function CapacidadePage() {
                       <td className={`px-3 py-2 text-right font-semibold ${row.saldoAcumPX < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{fmtInt(row.saldoAcumPX)}</td>
                       <td className={`px-3 py-2 text-right font-semibold ${row.saldoAcumUL < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{fmtInt(row.saldoAcumUL)}</td>
                       <td className={`px-3 py-2 text-right font-semibold ${row.saldoAcumJUN < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{fmtInt(row.saldoAcumJUN)}</td>
+                      <td className={`px-3 py-2 text-right font-semibold ${row.saldoAcumOUT < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{fmtInt(row.saldoAcumOUT)}</td>
                     </tr>
                   ))}
                   {gruposPorTipo.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="px-3 py-8 text-center text-gray-500">Sem tipos para exibir.</td>
+                      <td colSpan={10} className="px-3 py-8 text-center text-gray-500">Sem tipos para exibir.</td>
                     </tr>
                   )}
                 </tbody>
@@ -1573,6 +1644,7 @@ export default function CapacidadePage() {
 	                    <th className="text-right px-3 py-2">Soma tempo {nomeMes(periodos.PX)}</th>
 	                    <th className="text-right px-3 py-2">Soma tempo {nomeMes(periodos.UL)}</th>
 	                    <th className="text-right px-3 py-2">Soma tempo {nomeMes(mesJunho)}</th>
+	                    <th className="text-right px-3 py-2">Soma tempo {nomeMes(mesOutubro)}</th>
 	                    <th className="text-right px-3 py-2">Tempo PRP</th>
 	                    <th className="text-right px-3 py-2">Capacidade</th>
 	                    <th className="text-right px-3 py-2">Dias</th>
@@ -1594,8 +1666,9 @@ export default function CapacidadePage() {
 	                      <td className="px-3 py-2 text-right">{row.tempoAbril.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
 	                      <td className="px-3 py-2 text-right">{row.tempoMaio.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
 	                      <td className="px-3 py-2 text-right">{row.cargaJUN.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+	                      <td className="px-3 py-2 text-right">{row.cargaOUT.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
 	                      <td className="px-3 py-2 text-right font-semibold text-brand-dark">{row.tempoPrp.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
-	                      <td className="px-3 py-2 text-right">{fmtInt(row.capacidadeMA + row.capacidadePX + row.capacidadeUL + row.capacidadeJUN)}</td>
+	                      <td className="px-3 py-2 text-right">{fmtInt(row.capacidadeMA + row.capacidadePX + row.capacidadeUL + row.capacidadeJUN + row.capacidadeOUT)}</td>
 	                      <td className="px-3 py-2 text-right">{row.diasTotal.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
 	                      <td className={`px-3 py-2 text-right font-semibold ${row.difCapacidadeFinal < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{row.difCapacidadeFinal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
 	                      <td className={`px-3 py-2 text-right font-semibold ${row.diasDif < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{row.diasDif.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
@@ -1604,7 +1677,7 @@ export default function CapacidadePage() {
 	                  ))}
 	                  {gruposAnalise.length === 0 && (
 	                    <tr>
-	                      <td colSpan={16} className="px-3 py-8 text-center text-gray-500">Sem grupos para exibir.</td>
+	                      <td colSpan={17} className="px-3 py-8 text-center text-gray-500">Sem grupos para exibir.</td>
 	                    </tr>
 	                  )}
                 </tbody>
@@ -1620,6 +1693,7 @@ export default function CapacidadePage() {
                       <td className="px-3 py-2 text-right">{gruposAnalise.reduce((acc, row) => acc + row.tempoAbril, 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
                       <td className="px-3 py-2 text-right">{gruposAnalise.reduce((acc, row) => acc + row.tempoMaio, 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
                       <td className="px-3 py-2 text-right">{gruposAnalise.reduce((acc, row) => acc + row.cargaJUN, 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+                      <td className="px-3 py-2 text-right">{gruposAnalise.reduce((acc, row) => acc + row.cargaOUT, 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
                       <td className="px-3 py-2 text-right">{resumo.tempoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
                       <td className="px-3 py-2 text-right">{fmtInt(resumo.capacidadeTotal)}</td>
                       <td className="px-3 py-2 text-right">{resumo.diasNecessariosTotal.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
@@ -1658,6 +1732,8 @@ export default function CapacidadePage() {
                     <th className="text-right px-3 py-2">Tempo {nomeMes(periodos.UL)}</th>
                     <th className="text-right px-3 py-2">Plano {nomeMes(mesJunho)}</th>
                     <th className="text-right px-3 py-2">Tempo {nomeMes(mesJunho)}</th>
+                    <th className="text-right px-3 py-2">Plano {nomeMes(mesOutubro)}</th>
+                    <th className="text-right px-3 py-2">Tempo {nomeMes(mesOutubro)}</th>
                     <th className="text-right px-3 py-2">Tempo total</th>
                   </tr>
                 </thead>
@@ -1687,12 +1763,14 @@ export default function CapacidadePage() {
                       <td className="px-3 py-2 text-right">{row.cargaUL.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                       <td className="px-3 py-2 text-right">{fmtInt(row.planoJUN)}</td>
                       <td className="px-3 py-2 text-right">{row.cargaJUN.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right">{fmtInt(row.planoOUT)}</td>
+                      <td className="px-3 py-2 text-right">{row.cargaOUT.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                       <td className="px-3 py-2 text-right font-semibold text-brand-dark">{row.cargaTotal.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                     </tr>
                   ))}
                   {detalhesRefFiltrados.length === 0 && (
                     <tr>
-                      <td colSpan={16} className="px-3 py-8 text-center text-gray-500">Sem vínculos grupo/ref para exibir.</td>
+                      <td colSpan={18} className="px-3 py-8 text-center text-gray-500">Sem vínculos grupo/ref para exibir.</td>
                     </tr>
                   )}
                 </tbody>
@@ -1712,6 +1790,8 @@ export default function CapacidadePage() {
                       <td className="px-3 py-2 text-right">{auditoriaDetalheResumo.cargaUL.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                       <td className="px-3 py-2 text-right">{fmtInt(auditoriaDetalheResumo.planoJUN)}</td>
                       <td className="px-3 py-2 text-right">{auditoriaDetalheResumo.cargaJUN.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right">{fmtInt(auditoriaDetalheResumo.planoOUT)}</td>
+                      <td className="px-3 py-2 text-right">{auditoriaDetalheResumo.cargaOUT.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                       <td className="px-3 py-2 text-right">{auditoriaDetalheResumo.cargaTotal.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
                     </tr>
                   </tfoot>
