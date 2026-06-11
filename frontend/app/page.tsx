@@ -80,12 +80,14 @@ type ExecucaoPlanoResumo = {
     PX: ExecucaoPlanoItem | null;
     UL: ExecucaoPlanoItem | null;
     QT: ExecucaoPlanoItem | null;
+    QU: ExecucaoPlanoItem | null;
   };
   continuidade: Record<string, {
     MA: ExecucaoPlanoItem | null;
     PX: ExecucaoPlanoItem | null;
     UL: ExecucaoPlanoItem | null;
     QT: ExecucaoPlanoItem | null;
+    QU: ExecucaoPlanoItem | null;
   }>;
 };
 
