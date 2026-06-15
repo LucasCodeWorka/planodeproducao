@@ -397,7 +397,7 @@ export default function MatrizPlanejamentoTable({
     referencia: string,
     cor: string,
     tamanho: string,
-    mes: 'ma' | 'px' | 'ul' | 'qt' | 'qu',
+    mes: 'ma' | 'px' | 'ul' | 'qt' | 'qu' | 'sx',
     mesNome: string,
     planoQtd: number
   ) => {
