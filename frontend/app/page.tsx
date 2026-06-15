@@ -32,7 +32,7 @@ interface CacheStatus {
   count?:     number;
 }
 
-type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number; qu?: number };
+type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number; qu?: number; sx?: number };
 type AnaliseAprovada = {
   id: string;
   createdAt: number;
@@ -72,6 +72,7 @@ type RiscoMpDetalhePorSku = Record<string, {
   ul: RiscoMpMes;
   qt: RiscoMpMes;
   qu: RiscoMpMes;
+  sx: RiscoMpMes;
 }>;
 
 type ExecucaoPlanoResumo = {
@@ -81,6 +82,7 @@ type ExecucaoPlanoResumo = {
     UL: ExecucaoPlanoItem | null;
     QT: ExecucaoPlanoItem | null;
     QU: ExecucaoPlanoItem | null;
+    SX: ExecucaoPlanoItem | null;
   };
   continuidade: Record<string, {
     MA: ExecucaoPlanoItem | null;
@@ -88,6 +90,7 @@ type ExecucaoPlanoResumo = {
     UL: ExecucaoPlanoItem | null;
     QT: ExecucaoPlanoItem | null;
     QU: ExecucaoPlanoItem | null;
+    SX: ExecucaoPlanoItem | null;
   }>;
 };
 
@@ -127,14 +130,14 @@ export default function Home() {
   const [building,     setBuilding]     = useState(false);
   const [buildElapsed, setBuildElapsed] = useState(0);
   const [apenasNegativos, setApenasNegativos] = useState(false);
-  const [filtroNegativoPeriodo, setFiltroNegativoPeriodo] = useState<'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT' | 'QU'>('TODOS');
+  const [filtroNegativoPeriodo, setFiltroNegativoPeriodo] = useState<'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT' | 'QU' | 'SX'>('TODOS');
   const [filtroNaoPrecisaProduzir, setFiltroNaoPrecisaProduzir] = useState(false);
   const [filtroContinuidade, setFiltroContinuidade] = useState<string[]>([]);
   const [filtroSuspensos, setFiltroSuspensos] = useState<'INCLUIR' | 'EXCLUIR'>('INCLUIR');
   const [filtroReferencia, setFiltroReferencia] = useState('');
   const [filtroCor, setFiltroCor] = useState('TODAS');
   const [filtroCobertura, setFiltroCobertura] = useState<'TODAS' | 'NEGATIVA' | 'ZERO_UM' | 'MAIOR_UM' | 'MAIOR_2'>('TODAS');
-  const [filtroCoberturaBase, setFiltroCoberturaBase] = useState<'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT' | 'QU'>('ATUAL');
+  const [filtroCoberturaBase, setFiltroCoberturaBase] = useState<'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT' | 'QU' | 'SX'>('ATUAL');
   const [filtroTaxa, setFiltroTaxa] = useState<'TODAS' | 'ATE_70'>('TODAS');
   const [filtroCoberturaMinima, setFiltroCoberturaMinima] = useState<string>('');
   const [filtroEmProcessoMinimo, setFiltroEmProcessoMinimo] = useState<string>('');
@@ -163,7 +166,7 @@ export default function Home() {
   const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
   const [referenciasDeParaSet, setReferenciasDeParaSet] = useState<Set<string>>(new Set());
   const [execucaoPlanoResumo, setExecucaoPlanoResumo] = useState<ExecucaoPlanoResumo | null>(null);
-  const [riscoMpPorSku, setRiscoMpPorSku] = useState<Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean; qu: boolean }>>({});
+  const [riscoMpPorSku, setRiscoMpPorSku] = useState<Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean; qu: boolean; sx: boolean }>>({});
   const [detalheRiscoMpPorSku, setDetalheRiscoMpPorSku] = useState<RiscoMpDetalhePorSku>({});
   const [loadingRiscoMp, setLoadingRiscoMp] = useState(false);
   const [indicadoresLocais, setIndicadoresLocais] = useState<{
@@ -455,7 +458,7 @@ export default function Home() {
   }
 
   const planosAprovadosMap = useMemo(() => {
-    const map = new Map<string, { ma: number; px: number; ul: number; qt: number; qu: number }>();
+    const map = new Map<string, { ma: number; px: number; ul: number; qt: number; qu: number; sx: number }>();
     const base = aprovadas.filter((a) => aprovadasSelecionadasIds.includes(a.id));
     const ordenadas = [...base].sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
     for (const a of ordenadas) {
@@ -469,6 +472,7 @@ export default function Home() {
           ul: Number(p?.ul || 0),
           qt: Number(p?.qt || 0),
           qu: Number(p?.qu || 0),
+          sx: Number(p?.sx || 0),
         });
       }
     }
@@ -490,6 +494,7 @@ export default function Home() {
           ul: p.ul,
           qt: p.qt,
           qu: p.qu,
+          sx: p.sx,
         },
       };
     });
@@ -514,6 +519,7 @@ export default function Home() {
           ul: d.plano?.ul || 0,
           qt: d.plano?.qt || 0,
           qu: d.plano?.qu || 0,
+          sx: d.plano?.sx || 0,
         }));
         const res = await fetchNoCache(`${API_URL}/api/consumo-mp/check-risco-lote`, {
           method: 'POST',
@@ -523,7 +529,7 @@ export default function Home() {
         const json = await res.json();
         if (!active) return;
         if (!res.ok || !json.success) throw new Error(json.error || 'Erro ao carregar risco de MP');
-        setRiscoMpPorSku((json.risco_por_sku || {}) as Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean; qu: boolean }>);
+        setRiscoMpPorSku((json.risco_por_sku || {}) as Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean; qu: boolean; sx: boolean }>);
         setDetalheRiscoMpPorSku((json.detalhe_risco_por_sku || {}) as RiscoMpDetalhePorSku);
       } catch {
         if (active) setRiscoMpPorSku({});
@@ -866,11 +872,12 @@ export default function Home() {
     let ul = 0;
     let qt = 0;
     let qu = 0;
-    const porContinuidade = new Map<string, { atual: number; atualPosProcesso: number; ma: number; px: number; ul: number; qt: number; qu: number }>();
+    let sx = 0;
+    const porContinuidade = new Map<string, { atual: number; atualPosProcesso: number; ma: number; px: number; ul: number; qt: number; qu: number; sx: number }>();
 
     for (const i of base) {
       const continuidade = (i.produto.continuidade || 'SEM CONTINUIDADE').trim();
-      const bucket = porContinuidade.get(continuidade) || { atual: 0, atualPosProcesso: 0, ma: 0, px: 0, ul: 0, qt: 0, qu: 0 };
+      const bucket = porContinuidade.get(continuidade) || { atual: 0, atualPosProcesso: 0, ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
       const dispAtual = (i.estoques.estoque_atual || 0) - (i.demanda.pedidos_pendentes || 0);
       const proj = projecoesAtivas[i.produto.idproduto] ?? null;
       const emP = i.estoques.em_processo || 0;
@@ -880,16 +887,19 @@ export default function Home() {
       const pUL = i.plano?.ul || 0;
       const pQT = (i.plano as { qt?: number } | undefined)?.qt || 0;
       const pQU = (i.plano as { qu?: number } | undefined)?.qu || 0;
+      const pSX = (i.plano as { sx?: number } | undefined)?.sx || 0;
       const prMA = proj ? projecaoMesPlanejamento((proj[String(periodos.MA)] ?? 0), periodos.MA) : 0;
       const prPX = proj ? (proj[String(periodos.PX)] ?? 0) : 0;
       const prUL = proj ? (proj[String(periodos.UL)] ?? 0) : 0;
       const prQT = proj ? (proj[String(mesNormalizado((periodos.UL || 0) + 1))] ?? 0) : 0;
       const prQU = proj ? (proj[String(mesNormalizado((periodos.UL || 0) + 2))] ?? 0) : 0;
+      const prSX = proj ? (proj[String(mesNormalizado((periodos.UL || 0) + 3))] ?? 0) : 0;
       const dispMA = dispAtual + emP + pMA - prMA;
       const dispPX = dispMA + pPX - prPX;
       const dispUL = dispPX + pUL - prUL;
       const dispQT = dispUL + pQT - prQT;
       const dispQU = dispQT + pQU - prQU;
+      const dispSX = dispQU + pSX - prSX;
 
       if (dispAtual < 0) atual += Math.abs(dispAtual);
       if (dispAtualPosProcesso < 0) atualPosProcesso += Math.abs(dispAtualPosProcesso);
@@ -898,6 +908,7 @@ export default function Home() {
       if (dispUL < 0) ul += Math.abs(dispUL);
       if (dispQT < 0) qt += Math.abs(dispQT);
       if (dispQU < 0) qu += Math.abs(dispQU);
+      if (dispSX < 0) sx += Math.abs(dispSX);
 
       if (dispAtual < 0) bucket.atual += Math.abs(dispAtual);
       if (dispAtualPosProcesso < 0) bucket.atualPosProcesso += Math.abs(dispAtualPosProcesso);
@@ -906,6 +917,7 @@ export default function Home() {
       if (dispUL < 0) bucket.ul += Math.abs(dispUL);
       if (dispQT < 0) bucket.qt += Math.abs(dispQT);
       if (dispQU < 0) bucket.qu += Math.abs(dispQU);
+      if (dispSX < 0) bucket.sx += Math.abs(dispSX);
       porContinuidade.set(continuidade, bucket);
     }
 
@@ -917,6 +929,7 @@ export default function Home() {
       ul: Math.round(ul),
       qt: Math.round(qt),
       qu: Math.round(qu),
+      sx: Math.round(sx),
       continuidade: Array.from(porContinuidade.entries())
         .map(([nome, valores]) => ({
           nome,
@@ -927,6 +940,7 @@ export default function Home() {
           ul: Math.round(valores.ul),
           qt: Math.round(valores.qt),
           qu: Math.round(valores.qu),
+          sx: Math.round(valores.sx),
         }))
         .sort((a, b) => {
           const ordem: Record<string, number> = {
@@ -947,11 +961,13 @@ export default function Home() {
     let planoUL = 0;
     let planoQT = 0;
     let planoQU = 0;
+    let planoSX = 0;
     let riscoMA = 0;
     let riscoPX = 0;
     let riscoUL = 0;
     let riscoQT = 0;
     let riscoQU = 0;
+    let riscoSX = 0;
 
     for (const i of dadosPagina) {
       const id = String(i.produto.idproduto || '');
@@ -961,18 +977,21 @@ export default function Home() {
       const ul = Math.max(0, Number(i.plano?.ul || 0));
       const qt = Math.max(0, Number((i.plano as { qt?: number } | undefined)?.qt || 0));
       const qu = Math.max(0, Number((i.plano as { qu?: number } | undefined)?.qu || 0));
+      const sx = Math.max(0, Number((i.plano as { sx?: number } | undefined)?.sx || 0));
 
       planoMA += ma;
       planoPX += px;
       planoUL += ul;
       planoQT += qt;
       planoQU += qu;
+      planoSX += sx;
 
       if (risco?.ma) riscoMA += ma;
       if (risco?.px) riscoPX += px;
       if (risco?.ul) riscoUL += ul;
       if (risco?.qt) riscoQT += qt;
       if (risco?.qu) riscoQU += qu;
+      if (risco?.sx) riscoSX += sx;
     }
 
     const pct = (risco: number, plano: number) => (plano > 0 ? clampPct((risco / plano) * 100) : 0);
@@ -983,16 +1002,19 @@ export default function Home() {
       riscoUL: Math.round(riscoUL),
       riscoQT: Math.round(riscoQT),
       riscoQU: Math.round(riscoQU),
+      riscoSX: Math.round(riscoSX),
       planoMA: Math.round(planoMA),
       planoPX: Math.round(planoPX),
       planoUL: Math.round(planoUL),
       planoQT: Math.round(planoQT),
       planoQU: Math.round(planoQU),
+      planoSX: Math.round(planoSX),
       pctMA: pct(riscoMA, planoMA),
       pctPX: pct(riscoPX, planoPX),
       pctUL: pct(riscoUL, planoUL),
       pctQT: pct(riscoQT, planoQT),
       pctQU: pct(riscoQU, planoQU),
+      pctSX: pct(riscoSX, planoSX),
     };
   }, [dadosPagina, riscoMpPorSku]);
 
@@ -1695,7 +1717,7 @@ export default function Home() {
               </div>
                 <div className="space-y-2">
                   {/* Cabeçalho com meses */}
-                  <div className="grid grid-cols-[140px_repeat(7,1fr)] gap-2 text-[11px] text-red-400 border-b border-red-100 pb-1">
+                  <div className="grid grid-cols-[140px_repeat(8,1fr)] gap-2 text-[11px] text-red-400 border-b border-red-100 pb-1">
                   <div></div>
                   <div>Atual</div>
                   <div>Pos Proc.</div>
@@ -1729,9 +1751,15 @@ export default function Home() {
                       <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.QU.percentual)}</span>
                     )}
                   </div>
+                  <div className="flex items-center gap-1">
+                    <span>{nomeMesCurto((periodos.UL || 0) + 3)}</span>
+                    {execucaoPlanoResumo?.geral?.SX?.percentual != null && (
+                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.SX.percentual)}</span>
+                    )}
+                  </div>
                 </div>
                 {/* Linha TOTAL */}
-                <div className="grid grid-cols-[140px_repeat(7,1fr)] gap-2 items-center">
+                <div className="grid grid-cols-[140px_repeat(8,1fr)] gap-2 items-center">
                   <div className="text-xs font-bold text-red-600 uppercase">Total</div>
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.atual.toLocaleString('pt-BR')}</div>
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.atualPosProcesso.toLocaleString('pt-BR')}</div>
@@ -1740,8 +1768,9 @@ export default function Home() {
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.ul.toLocaleString('pt-BR')}</div>
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.qt.toLocaleString('pt-BR')}</div>
                   <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.qu.toLocaleString('pt-BR')}</div>
+                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.sx.toLocaleString('pt-BR')}</div>
                 </div>
-                <div className="grid grid-cols-[140px_repeat(7,1fr)] gap-2 items-center border-t border-red-100 pt-2">
+                <div className="grid grid-cols-[140px_repeat(8,1fr)] gap-2 items-center border-t border-red-100 pt-2">
                   <div className="text-[11px] font-bold text-amber-700 uppercase">MP (% plano)</div>
                   <div className="text-sm font-bold font-mono text-gray-400">-</div>
                   <div className="text-sm font-bold font-mono text-gray-400">-</div>
@@ -1760,13 +1789,16 @@ export default function Home() {
                   <div className="text-sm font-bold font-mono text-amber-700">
                     {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctQU.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
                   </div>
+                  <div className="text-sm font-bold font-mono text-amber-700">
+                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctSX.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                  </div>
                 </div>
                 {/* Linhas por continuidade */}
                 <div className="space-y-1 pt-1 border-t border-red-100">
                   {resumoNegativos.continuidade
                     .filter((c) => ['PERMANENTE', 'PERMANENTE COR NOVA', 'EDICAO LIMITADA', 'EDIÇÃO LIMITADA'].includes((c.nome || '').toUpperCase()))
                     .map((c) => (
-                      <div key={c.nome} className="grid grid-cols-[140px_repeat(7,1fr)] gap-2 items-center">
+                      <div key={c.nome} className="grid grid-cols-[140px_repeat(8,1fr)] gap-2 items-center">
                         <div className="text-[11px] font-semibold uppercase tracking-wide text-red-500">{c.nome}</div>
                         <div className="text-sm font-bold font-mono text-red-700">{c.atual.toLocaleString('pt-BR')}</div>
                         <div className="text-sm font-bold font-mono text-red-700">{c.atualPosProcesso.toLocaleString('pt-BR')}</div>
@@ -1798,6 +1830,12 @@ export default function Home() {
                           <span className="text-sm font-bold font-mono text-red-700">{c.qu.toLocaleString('pt-BR')}</span>
                           {execucaoPlanoResumo?.continuidade?.[c.nome]?.QU?.percentual != null && (
                             <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.QU?.percentual)}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-bold font-mono text-red-700">{c.sx.toLocaleString('pt-BR')}</span>
+                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.SX?.percentual != null && (
+                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.SX?.percentual)}</span>
                           )}
                         </div>
                       </div>

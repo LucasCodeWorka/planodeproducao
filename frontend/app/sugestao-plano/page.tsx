@@ -32,7 +32,7 @@ function logTempoSugestao(label: string, startedAt: number, extra?: string) {
   console.log(`[sugestao-plano] ${label}: ${elapsed.toFixed(1)}ms${extra ? ` — ${extra}` : ''}`);
 }
 
-type PeriodoAlvo = 'MA' | 'PX' | 'UL' | 'QT' | 'QU';
+type PeriodoAlvo = 'MA' | 'PX' | 'UL' | 'QT' | 'QU' | 'SX';
 type MAModo = 'EMERGENCIA' | 'COBERTURA';
 type SugestaoCfg = {
   cobertura_min_a: number;
@@ -85,6 +85,7 @@ type Row = {
   dispUL: number;
   dispQT: number;
   dispQU: number;
+  dispSX: number;
   dispMesAlvo: number;
   coberturaMA: number;
   planoMA: number;
@@ -92,6 +93,7 @@ type Row = {
   planoUL: number;
   planoQT: number;
   planoQU: number;
+  planoSX: number;
   planoAtual: number;
   planoSugerido: number;
   planoBaseSemOpMin: number;
@@ -724,7 +726,8 @@ export default function SugestaoPlanoPage() {
   const resumoMudancaProjecao = useMemo(() => {
     const mesQT = mesSeguinte(Number(periodos.UL || 0));
     const mesQU = mesSeguinte(mesQT);
-    const targetMes = String(periodoAlvo === 'QT' ? mesQT : (periodoAlvo === 'QU' ? mesQU : periodos[periodoAlvo]));
+    const mesSX = mesSeguinte(mesQU);
+    const targetMes = String(periodoAlvo === 'QT' ? mesQT : (periodoAlvo === 'QU' ? mesQU : (periodoAlvo === 'SX' ? mesSX : periodos[periodoAlvo])));
     let alterados = 0;
     let originalTotal = 0;
     let novoTotal = 0;
@@ -773,7 +776,8 @@ export default function SugestaoPlanoPage() {
     const tRows = nowMs();
     const mesQT = mesSeguinte(Number(periodos.UL || 0));
     const mesQU = mesSeguinte(mesQT);
-    // Agora todos os períodos (MA, PX, UL, QT, QU) usam OP mínima e capacidade
+    const mesSX = mesSeguinte(mesQU);
+    // Agora todos os períodos (MA, PX, UL, QT, QU, SX) usam OP mínima e capacidade
     const alvoComOpMinECapacidade = true;
     const capacidadeDiariaByGrupo = new Map<string, number>();
     capacidadeGrupos.forEach((g) => {
@@ -860,21 +864,26 @@ export default function SugestaoPlanoPage() {
       const pUL = Number(item.plano?.ul || 0);
       const pQT = Number((item.plano as { qt?: number } | undefined)?.qt || 0);
       const pQU = Number((item.plano as { qu?: number } | undefined)?.qu || 0);
+      const pSX = Number((item.plano as { sx?: number } | undefined)?.sx || 0);
       const prMA = projecaoMesPlanejamento(Number(projecoesAtivas[id]?.[String(periodos.MA)] || 0), periodos.MA);
       const prPX = Number(projecoesAtivas[id]?.[String(periodos.PX)] || 0);
       const prUL = Number(projecoesAtivas[id]?.[String(periodos.UL)] || 0);
       const prQT = Number(projecoesAtivas[id]?.[String(mesQT)] || 0);
       const prQU = Number(projecoesAtivas[id]?.[String(mesQU)] || 0);
+      const prSX = Number(projecoesAtivas[id]?.[String(mesSX)] || 0);
       const dispMA = dispAtual + emP + pMA - prMA;
       const dispPX = dispMA + pPX - prPX;
       const dispUL = dispPX + pUL - prUL;
       const dispQT = dispUL + pQT - prQT;
       const dispQU = dispQT + pQU - prQU;
+      const dispSX = dispQU + pSX - prSX;
 
-      const mesAlvo = periodoAlvo === 'QT' ? mesQT : (periodoAlvo === 'QU' ? mesQU : periodos[periodoAlvo]);
+      const mesAlvo = periodoAlvo === 'QT' ? mesQT : (periodoAlvo === 'QU' ? mesQU : (periodoAlvo === 'SX' ? mesSX : periodos[periodoAlvo]));
       const projMes = Number(projecoesAtivas[id]?.[String(mesAlvo)] || 0);
-      const dispAnterior = periodoAlvo === 'MA' ? dispAtualComProcesso : (periodoAlvo === 'PX' ? dispMA : (periodoAlvo === 'UL' ? dispPX : (periodoAlvo === 'QT' ? dispUL : dispQT)));
-      const dispMesAlvo = periodoAlvo === 'MA' ? dispMA : (periodoAlvo === 'PX' ? dispPX : (periodoAlvo === 'UL' ? dispUL : (periodoAlvo === 'QT' ? dispQT : dispQU)));
+      // dispAnterior = disponível ANTES do período alvo (entrada do mês)
+      const dispAnterior = periodoAlvo === 'MA' ? dispAtualComProcesso : (periodoAlvo === 'PX' ? dispMA : (periodoAlvo === 'UL' ? dispPX : (periodoAlvo === 'QT' ? dispUL : (periodoAlvo === 'QU' ? dispQT : dispQU))));
+      // dispMesAlvo = disponível APÓS o período alvo (saída do mês, com plano atual)
+      const dispMesAlvo = periodoAlvo === 'MA' ? dispMA : (periodoAlvo === 'PX' ? dispPX : (periodoAlvo === 'UL' ? dispUL : (periodoAlvo === 'QT' ? dispQT : (periodoAlvo === 'QU' ? dispQU : dispSX))));
 
       // Para MA, o comportamento depende do modo selecionado.
       let cobAlvo = cobAlvoBase;
@@ -954,8 +963,8 @@ export default function SugestaoPlanoPage() {
           }
         }
 
-        // Para UL, QT e QU: aplicar lógica de meio lote baseada na cobertura máxima por curva ABC (ou IDEAL)
-        if ((periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU') && cfg.usar_corte_minimo && lote > 1 && min > 0 && planoSugerido > 0) {
+        // Para UL, QT, QU e SX: aplicar lógica de meio lote baseada na cobertura máxima por curva ABC (ou IDEAL)
+        if ((periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && cfg.usar_corte_minimo && lote > 1 && min > 0 && planoSugerido > 0) {
           const cobMax = getCoberturaMaxPorCurva(curvaRef, cfg, linhaItem);
           const cobMaxTolerada = getCoberturaMaxToleradaParaCorteMinimo(curvaRef, cobMax);
           const dispPosAtual = dispAnterior + planoSugerido - projMes;
@@ -979,7 +988,7 @@ export default function SugestaoPlanoPage() {
       }
 
       const planoSemCorte = Math.ceil(necessidadeBruta);
-      const planoAtual = periodoAlvo === 'MA' ? pMA : (periodoAlvo === 'PX' ? pPX : (periodoAlvo === 'UL' ? pUL : (periodoAlvo === 'QT' ? pQT : pQU)));
+      const planoAtual = periodoAlvo === 'MA' ? pMA : (periodoAlvo === 'PX' ? pPX : (periodoAlvo === 'UL' ? pUL : (periodoAlvo === 'QT' ? pQT : (periodoAlvo === 'QU' ? pQU : pSX))));
       const dispPos = dispAnterior + planoSugerido - projMes;
       const coberturaMA = min > 0 ? dispMA / min : 0;
       const coberturaPos = min > 0 ? dispPos / min : 0;
@@ -1022,6 +1031,7 @@ export default function SugestaoPlanoPage() {
         dispUL,
         dispQT,
         dispQU,
+        dispSX,
         dispMesAlvo,
         coberturaMA,
         planoMA: pMA,
@@ -1029,6 +1039,7 @@ export default function SugestaoPlanoPage() {
         planoUL: pUL,
         planoQT: pQT,
         planoQU: pQU,
+        planoSX: pSX,
         planoAtual,
         planoSugerido,
         planoBaseSemOpMin: planoSugerido,
@@ -1541,8 +1552,8 @@ export default function SugestaoPlanoPage() {
 
   // Conta SKUs que usaram corte_min / 2 (MA Emergência, UL, QT e QU)
   const resumoMeioLote = useMemo(() => {
-    // Funciona para MA Emergência, UL, QT e QU
-    const habilitado = (periodoAlvo === 'MA' && maModo === 'EMERGENCIA') || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU';
+    // Funciona para MA Emergência, UL, QT, QU e SX
+    const habilitado = (periodoAlvo === 'MA' && maModo === 'EMERGENCIA') || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX';
     if (!habilitado) {
       return { skus: 0, pecas: 0 };
     }
@@ -1576,7 +1587,7 @@ export default function SugestaoPlanoPage() {
   }, [rowsVisiveisTela]);
 
   const resumoCapacidadeUL = useMemo(() => {
-    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU')) {
+    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX')) {
       return { ligado: false, cortados: 0, qtdCortada: 0, qtdMantida: 0, itensNegativos: 0, pecasNegativas: 0 };
     }
     let cortados = 0;
@@ -1586,7 +1597,7 @@ export default function SugestaoPlanoPage() {
     let pecasNegativas = 0;
     rowsVisiveisTela.forEach((r) => {
       const base = Math.max(0, Number(r.planoSugerido || 0));
-      const atual = Math.max(0, Number((periodoAlvo === 'UL' ? r.planoUL : (periodoAlvo === 'QT' ? r.planoQT : r.planoQU)) || 0));
+      const atual = Math.max(0, Number((periodoAlvo === 'UL' ? r.planoUL : (periodoAlvo === 'QT' ? r.planoQT : (periodoAlvo === 'QU' ? r.planoQU : r.planoSX))) || 0));
       if (base > 0) qtdMantida += base;
       if (considerarCapacidade && base < atual) {
         cortados += 1;
@@ -1608,7 +1619,7 @@ export default function SugestaoPlanoPage() {
   }, [periodoAlvo, rowsVisiveisTela, considerarCapacidade]);
 
   const diagnosticoCapacidadeUL = useMemo(() => {
-    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU')) {
+    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX')) {
       return {
         cargaDisponivelUL: 0,
         cargaSugeridaUL: 0,
@@ -1626,8 +1637,10 @@ export default function SugestaoPlanoPage() {
     const diasUL = Number(capacidadeDias[String(periodos.UL)] || 0);
     const mesQTCalc = mesSeguinte(Number(periodos.UL || 0));
     const mesQUCalc = mesSeguinte(mesQTCalc);
+    const mesSXCalc = mesSeguinte(mesQUCalc);
     const diasQT = Number(capacidadeDias[String(mesQTCalc)] || 0);
     const diasQU = Number(capacidadeDias[String(mesQUCalc)] || 0);
+    const diasSX = Number(capacidadeDias[String(mesSXCalc)] || 0);
     let cargaDisponivelUL = 0;
     let cargaSugeridaUL = 0;
     const gruposEstourados: Array<{ grupo: string; saldo: number; diasFaltantes: number; cargaUL: number; capacidadeUL: number }> = [];
@@ -1640,6 +1653,7 @@ export default function SugestaoPlanoPage() {
       const capUL = capDiaria * diasUL;
       const capQT = capDiaria * diasQT;
       const capQU = capDiaria * diasQU;
+      const capSX = capDiaria * diasSX;
 
       let processoCarga = 0;
       let cargaMA = 0;
@@ -1647,6 +1661,7 @@ export default function SugestaoPlanoPage() {
       let cargaUL = 0;
       let cargaQT = 0;
       let cargaQU = 0;
+      let cargaSX = 0;
 
       rows.forEach((row) => {
         const rateio = row.grupoRateios.find((g) => g.grupo === grupoKey)?.rateio || 0;
@@ -1663,13 +1678,17 @@ export default function SugestaoPlanoPage() {
         cargaQU += Number((periodoAlvo === 'QU'
           ? (considerarCapacidade ? row.planoAntesCapacidade : row.planoSugerido)
           : row.planoQU) || 0) * Number(row.tempoRef || 0) * rateio;
+        cargaSX += Number((periodoAlvo === 'SX'
+          ? (considerarCapacidade ? row.planoAntesCapacidade : row.planoSugerido)
+          : row.planoSX) || 0) * Number(row.tempoRef || 0) * rateio;
       });
 
       const disponivelUL = Math.max(0, (capMA - (processoCarga + cargaMA)) + (capPX - cargaPX) + capUL);
       const disponivelQT = Math.max(0, disponivelUL - cargaUL + capQT);
       const disponivelQU = Math.max(0, disponivelQT - cargaQT + capQU);
-      const disponibilidadeAlvo = periodoAlvo === 'UL' ? disponivelUL : (periodoAlvo === 'QT' ? disponivelQT : disponivelQU);
-      const cargaAlvo = periodoAlvo === 'UL' ? cargaUL : (periodoAlvo === 'QT' ? cargaQT : cargaQU);
+      const disponivelSX = Math.max(0, disponivelQU - cargaQU + capSX);
+      const disponibilidadeAlvo = periodoAlvo === 'UL' ? disponivelUL : (periodoAlvo === 'QT' ? disponivelQT : (periodoAlvo === 'QU' ? disponivelQU : disponivelSX));
+      const cargaAlvo = periodoAlvo === 'UL' ? cargaUL : (periodoAlvo === 'QT' ? cargaQT : (periodoAlvo === 'QU' ? cargaQU : cargaSX));
       const saldoFinal = disponibilidadeAlvo - cargaAlvo;
       cargaDisponivelUL += disponibilidadeAlvo;
       cargaSugeridaUL += cargaAlvo;
@@ -1701,7 +1720,7 @@ export default function SugestaoPlanoPage() {
   }, [periodoAlvo, capacidadeDias, periodos, capacidadeGrupos, rows, cfg, considerarCapacidade]);
 
   const coberturaSugeridaAutomatica = useMemo(() => {
-    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU')) {
+    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX')) {
       return {
         curvaA: Number(cfg.cobertura_min_a || 0),
         curvaB: Number(cfg.cobertura_min_b || 0),
@@ -1918,6 +1937,7 @@ export default function SugestaoPlanoPage() {
           const ulAjustado = periodoAlvo === 'UL' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoUL || 0));
           const qtAjustado = periodoAlvo === 'QT' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoQT || 0));
           const quAjustado = periodoAlvo === 'QU' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoQU || 0));
+          const sxAjustado = periodoAlvo === 'SX' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoSX || 0));
           return {
             idproduto: String(r.idproduto || '').trim(),
             idreferencia: String(r.idreferencia || '').trim(),
@@ -1926,16 +1946,18 @@ export default function SugestaoPlanoPage() {
             ul: ulAjustado,
             qt: qtAjustado,
             qu: quAjustado,
+            sx: sxAjustado,
             ma_scope: 0,
           };
         })
-        .filter((p) => p.idproduto && (p.ma > 0 || p.px > 0 || p.ul > 0 || p.qt > 0 || p.qu > 0));
+        .filter((p) => p.idproduto && (p.ma > 0 || p.px > 0 || p.ul > 0 || p.qt > 0 || p.qu > 0 || p.sx > 0));
 
       const aumentoMA = rowsVisiveis.reduce((acc, r) => {
         if (periodoAlvo === 'PX') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoPX || 0));
         if (periodoAlvo === 'UL') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoUL || 0));
         if (periodoAlvo === 'QT') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoQT || 0));
-        return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoQU || 0));
+        if (periodoAlvo === 'QU') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoQU || 0));
+        return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoSX || 0));
       }, 0);
       if (!planos.length) {
         setMpViab({
@@ -2072,9 +2094,10 @@ export default function SugestaoPlanoPage() {
         ul: Math.round(periodoAlvo === 'UL' && aplicarSugestao ? r.planoSugerido : r.planoUL),
         qt: Math.round(periodoAlvo === 'QT' && aplicarSugestao ? r.planoSugerido : r.planoQT),
         qu: Math.round(periodoAlvo === 'QU' && aplicarSugestao ? r.planoSugerido : r.planoQU),
+        sx: Math.round(periodoAlvo === 'SX' && aplicarSugestao ? r.planoSugerido : r.planoSX),
       });
 
-      const planosMap = new Map<string, { chave: string; ma: number; px: number; ul: number; qt: number; qu: number }>();
+      const planosMap = new Map<string, { chave: string; ma: number; px: number; ul: number; qt: number; qu: number; sx: number }>();
 
       // Sempre levar plano completo de PERMANENTE e PERMANENTE COR NOVA.
       rows
@@ -2203,6 +2226,7 @@ export default function SugestaoPlanoPage() {
                     <option value="UL">UL</option>
                     <option value="QT">QT</option>
                     <option value="QU">QU</option>
+                    <option value="SX">SX</option>
                   </select>
                 </label>
                 {periodoAlvo === 'MA' && (
@@ -2792,7 +2816,7 @@ export default function SugestaoPlanoPage() {
                     </div>
                   </div>
                 </div>
-                {(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU') && resumoMeioLote.skus > 0 && (
+                {(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && resumoMeioLote.skus > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5">
                       <div className="text-[11px] text-amber-700">SKUs com Corte Mín ÷ 2</div>
@@ -2806,7 +2830,7 @@ export default function SugestaoPlanoPage() {
                     </div>
                   </div>
                 )}
-                {(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU') && (
+                {(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && (
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                     <div className={`rounded-md border px-3 py-2.5 ${considerarCapacidade ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="text-[11px] text-gray-500">Capacidade ativa ({periodoAlvo})</div>
@@ -2839,7 +2863,7 @@ export default function SugestaoPlanoPage() {
                     </div>
                   </div>
                 )}
-                {(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU') && (
+                {(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && (
                   <>
                     <div className="pt-1 text-xs font-semibold text-gray-600 uppercase tracking-wide">Ajuste estimado pela capacidade</div>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-3">

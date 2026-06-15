@@ -51,6 +51,7 @@ export interface Plano {
   ul: number;  // mês seguinte
   qt?: number; // quarto mês
   qu?: number; // quinto mês
+  sx?: number; // sexto mês
 }
 
 export interface Planejamento {

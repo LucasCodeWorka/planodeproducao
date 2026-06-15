@@ -493,16 +493,20 @@ export default function ConfiguracoesPage() {
                 Regras fixas de reprojeção por último mês fechado ({REPROJECAO_REGRAS_FIXAS.length.toLocaleString('pt-BR')})
               </div>
               <div className="mt-1 text-[11px] text-gray-500">
-                Base operacional: sempre usar o último mês fechado. Hoje, a análise usa fevereiro para recalcular março, abril e maio.
+                Base operacional: compara a venda real contra a projeção do último mês fechado. Variação = (venda real / projeção - 1). Ex: 170% atendido vira +70% de variação.
+              </div>
+              <div className="mt-1 text-[11px] text-gray-500">
+                A virada do mês fechado acontece no dia 1: em 01/02 o sistema passa a usar janeiro como base. No último dia do mês, o plano já antecipa o próximo mês como MA.
               </div>
             </div>
             <div className="max-h-[60vh] overflow-auto">
               <table className="min-w-full text-xs">
                 <thead className="sticky top-0 bg-gray-100 z-10">
                   <tr>
-                    <th className="text-left px-3 py-2">% atendido</th>
+                    <th className="text-left px-3 py-2">variação vs projeção</th>
                     <th className="text-left px-3 py-2">ação</th>
                     <th className="text-left px-3 py-2">descrição</th>
+                    <th className="text-left px-3 py-2">exemplo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -511,6 +515,7 @@ export default function ConfiguracoesPage() {
                       <td className="px-3 py-2 font-semibold">{r.faixa}</td>
                       <td className="px-3 py-2">{r.acao}</td>
                       <td className="px-3 py-2 text-gray-600">{r.descricao}</td>
+                      <td className="px-3 py-2 text-gray-600">{r.exemplo}</td>
                     </tr>
                   ))}
                 </tbody>

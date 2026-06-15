@@ -11,7 +11,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MARCA_FIXA = 'LIEBE';
 const STATUS_FIXO = 'EM LINHA';
 
-type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number; qu?: number };
+type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number; qu?: number; sx?: number };
 type Suggestion = {
   id: string;
   nome: string;

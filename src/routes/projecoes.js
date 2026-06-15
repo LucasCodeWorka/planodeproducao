@@ -760,6 +760,7 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
       const projBase = Number(proj[String(mesBase)] || 0);
       const vendaBase = Number(vendasMap.get(String(id)) || 0);
       const percentualAtendido = projBase > 0 ? (vendaBase / projBase) * 100 : 0;
+      const variacaoPercentual = percentualAtendido - 100;
       const originalMeses = {
         ma: Number(proj[String(periodos.MA)] || 0),
         px: Number(proj[String(periodos.PX)] || 0),
@@ -772,6 +773,8 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
       const qt = aplicarReprojecaoMes(originalMeses.qt, percentualAtendido);
 
       const usaPonderadaComTrava = ma.regra.acao === 'AUMENTO_CHEIO';
+      const usaMediaNoMesSubsequente = ma.regra.acao === 'MEDIA_ENTRE_ORIGINAL_E_CORRIGIDA';
+      const usaQuedaLeveNoMesSubsequente = ma.regra.acao === 'QUEDA_LEVE';
       const recalculadaPonderada = {
         ma: Math.round((originalMeses.ma * 0.7) + (Number(ma.valorCorrigido || 0) * 0.3)),
         px: Math.round((originalMeses.px * 0.7) + (Number(px.valorCorrigido || 0) * 0.3)),
@@ -780,7 +783,9 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
       };
       const recalculadaBase = usaPonderadaComTrava
         ? recalculadaPonderada
-        : { ma: ma.valor, px: px.valor, ul: ul.valor, qt: qt.valor };
+        : (usaMediaNoMesSubsequente || usaQuedaLeveNoMesSubsequente)
+          ? { ma: originalMeses.ma, px: px.valor, ul: ul.valor, qt: qt.valor }
+          : { ma: ma.valor, px: px.valor, ul: ul.valor, qt: qt.valor };
       const recalculadaFinal = usaPonderadaComTrava
         ? aplicarTravaNegativoReprojecao(
             originalMeses,
@@ -811,12 +816,13 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
           projecao: Math.round(projBase),
           venda: Math.round(vendaBase),
           percentualAtendido: Number(percentualAtendido.toFixed(1)),
+          variacaoPercentual: Number(variacaoPercentual.toFixed(1)),
         },
         regra: {
           faixa: ma.regra.faixa,
           acao: usaPonderadaComTrava ? 'PONDERADA_70_30_COM_TRAVA_NEGATIVO' : ma.regra.acao,
           descricao: usaPonderadaComTrava
-            ? 'Aplicar 70% da projeção original + 30% da corrigida e reduzir o aumento se algum período ficar negativo.'
+            ? 'A partir do mes seguinte, usar 70% da projecao original + 30% da projecao corrigida pela variacao e reduzir o aumento se algum periodo ficar negativo.'
             : ma.regra.descricao,
           sinalOperacional: ma.sinalOperacional || null,
         },
@@ -839,7 +845,7 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
       });
     }
 
-    sugestoes.sort((a, b) => Math.abs(b.base.percentualAtendido - 100) - Math.abs(a.base.percentualAtendido - 100));
+    sugestoes.sort((a, b) => Math.abs(b.base.variacaoPercentual) - Math.abs(a.base.variacaoPercentual));
 
     return res.json({
       success: true,

@@ -25,7 +25,7 @@ type ReprojecaoPreview = {
   referencia: string;
   produto: string;
   continuidade: string;
-  base: { ano: number; mes: number; projecao: number; venda: number; percentualAtendido: number };
+  base: { ano: number; mes: number; projecao: number; venda: number; percentualAtendido: number; variacaoPercentual?: number };
   regra: { faixa: string; acao: string; descricao: string; sinalOperacional?: string | null };
   original: { ma: number; px: number; ul: number; qt?: number };
   recalculada: { ma: number; px: number; ul: number; qt?: number };
@@ -293,6 +293,19 @@ export default function ProjecoesPage() {
     .sort(([a], [b]) => Number(a) - Number(b));
 
   const fmt = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  const fmtVariacao = (percentualAtendido: number, variacaoPercentual?: number) => {
+    const variacao = Number.isFinite(Number(variacaoPercentual))
+      ? Number(variacaoPercentual)
+      : Number(percentualAtendido || 0) - 100;
+    const sinal = variacao > 0 ? '+' : '';
+    return `${sinal}${variacao.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+  };
+  const variacaoClass = (percentualAtendido: number) =>
+    percentualAtendido >= 130
+      ? 'text-emerald-700'
+      : percentualAtendido <= 69.99
+        ? 'text-red-700'
+        : 'text-gray-700';
 
   const { meses, periodos } = projecoes;
   const mesMA = mesNorm(periodos.MA);
@@ -355,7 +368,10 @@ export default function ProjecoesPage() {
               <div className="text-sm font-semibold text-brand-dark">Reprojeção por último mês fechado</div>
               <div className="mt-1 text-xs text-gray-500">
                 Base atual: {reprojecao.base ? `${MESES_PT[mesNorm(reprojecao.base.mes)]}/${reprojecao.base.ano}` : '-'} ·
-                {' '}regras aplicadas sobre projeção enviada para {MESES_PT[mesMA]}, {MESES_PT[mesPX]}, {MESES_PT[mesUL]} e {MESES_PT[mesQT]}
+                {' '}variação = (venda real / projeção - 1), aplicada sobre a projeção enviada para {MESES_PT[mesMA]}, {MESES_PT[mesPX]}, {MESES_PT[mesUL]} e {MESES_PT[mesQT]}
+              </div>
+              <div className="mt-1 text-xs text-gray-500">
+                O mês fechado vira no dia 1. No último dia do mês, o plano já considera o próximo mês como MA.
               </div>
             </div>
             <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-5 gap-3 border-b border-gray-100">
@@ -373,13 +389,14 @@ export default function ProjecoesPage() {
               ))}
             </div>
             <div className="px-5 py-4 border-b border-gray-100">
-              <div className="text-xs font-semibold text-brand-dark mb-2">Regras fixas</div>
+              <div className="text-xs font-semibold text-brand-dark mb-2">Regras fixas por variação vs projeção</div>
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
                 {REPROJECAO_REGRAS_FIXAS.map((r) => (
                   <div key={r.faixa} className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
                     <div className="text-xs font-bold text-brand-dark">{r.faixa}</div>
                     <div className="text-[11px] text-gray-600 mt-1">{r.acao}</div>
                     <div className="text-[11px] text-gray-500 mt-1">{r.descricao}</div>
+                    <div className="text-[11px] text-gray-500 mt-2 border-t border-gray-200 pt-2">{r.exemplo}</div>
                   </div>
                 ))}
               </div>
@@ -435,7 +452,7 @@ export default function ProjecoesPage() {
                     <th className="px-3 py-2 text-left font-semibold text-gray-600">cont.</th>
                     <th className="px-3 py-2 text-right font-semibold text-gray-600">proj. base</th>
                     <th className="px-3 py-2 text-right font-semibold text-gray-600">venda base</th>
-                    <th className="px-3 py-2 text-right font-semibold text-gray-600">% atend.</th>
+                    <th className="px-3 py-2 text-right font-semibold text-gray-600">variação</th>
                     <th className="px-3 py-2 text-left font-semibold text-gray-600">regra</th>
                     <th className="px-3 py-2 text-right font-semibold text-violet-700 bg-violet-50">{MESES_PT[mesMA]} original</th>
                     <th className="px-3 py-2 text-right font-semibold text-violet-700 bg-violet-50">{MESES_PT[mesMA]} corrigido</th>
@@ -466,7 +483,7 @@ export default function ProjecoesPage() {
                             <td className="px-3 py-2">-</td>
                             <td className="px-3 py-2 text-right font-semibold">{fmt(tNivel.baseProj)}</td>
                             <td className="px-3 py-2 text-right font-semibold">{fmt(tNivel.baseVenda)}</td>
-                            <td className="px-3 py-2 text-right font-semibold">{atendNivel.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</td>
+                            <td className={`px-3 py-2 text-right font-semibold ${variacaoClass(atendNivel)}`}>{fmtVariacao(atendNivel)}</td>
                             <td className="px-3 py-2">-</td>
                             <td className="px-3 py-2 text-right bg-violet-50 font-semibold">{fmt(tNivel.maOrig)}</td>
                             <td className="px-3 py-2 text-right bg-violet-50 font-semibold">{fmt(tNivel.maCorr)}</td>
@@ -523,7 +540,7 @@ export default function ProjecoesPage() {
                                         <td className="px-3 py-2">-</td>
                                         <td className="px-3 py-2 text-right font-semibold">{fmt(tRef.baseProj)}</td>
                                         <td className="px-3 py-2 text-right font-semibold">{fmt(tRef.baseVenda)}</td>
-                                        <td className="px-3 py-2 text-right font-semibold">{atendRef.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</td>
+                                        <td className={`px-3 py-2 text-right font-semibold ${variacaoClass(atendRef)}`}>{fmtVariacao(atendRef)}</td>
                                         <td className="px-3 py-2">-</td>
                                         <td className="px-3 py-2 text-right bg-violet-50">{fmt(tRef.maOrig)}</td>
                                         <td className="px-3 py-2 text-right bg-violet-50">{fmt(tRef.maCorr)}</td>
@@ -542,8 +559,8 @@ export default function ProjecoesPage() {
                                           <td className="px-3 py-1.5 text-gray-600">{r.continuidade || '—'}</td>
                                           <td className="px-3 py-1.5 text-right font-mono">{fmt(r.base.projecao)}</td>
                                           <td className="px-3 py-1.5 text-right font-mono">{fmt(r.base.venda)}</td>
-                                          <td className={`px-3 py-1.5 text-right font-mono font-semibold ${r.base.percentualAtendido >= 130 ? 'text-emerald-700' : r.base.percentualAtendido <= 69.99 ? 'text-red-700' : 'text-gray-700'}`}>
-                                            {r.base.percentualAtendido.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+                                          <td className={`px-3 py-1.5 text-right font-mono font-semibold ${variacaoClass(r.base.percentualAtendido)}`}>
+                                            {fmtVariacao(r.base.percentualAtendido, r.base.variacaoPercentual)}
                                           </td>
                                           <td className="px-3 py-1.5">
                                             <div className="font-semibold text-gray-800">{r.regra.faixa}</div>
