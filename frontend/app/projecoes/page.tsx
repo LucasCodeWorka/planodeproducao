@@ -40,6 +40,53 @@ type ReprojecaoState = {
 
 type NivelProduto = 'TOP30' | 'KISS ME' | 'DEMAIS';
 
+type ItemSemProjecao = {
+  idproduto: string;
+  referencia: string;
+  produto: string;
+  cor: string;
+  tamanho: string;
+  curva: string;
+  continuidade: string;
+  linha: string;
+  status: string;
+  vendas: {
+    media_3m: number;
+    media_6m: number;
+    pedidos_pendentes: number;
+    teve_venda_12m: boolean;
+    historico_ma?: number;
+    historico_px?: number;
+    historico_ul?: number;
+    historico_qt?: number;
+  };
+  estoque: {
+    atual: number;
+    em_processo: number;
+    disponivel: number;
+    minimo: number;
+  };
+  projecao_sugerida: number;
+  projecao_ma?: number;
+  projecao_px?: number;
+  projecao_ul?: number;
+  projecao_qt?: number;
+  impacto: 'ALTO' | 'MEDIO' | 'BAIXO';
+};
+
+type SemProjecaoState = {
+  loading: boolean;
+  resumo: {
+    totalAnalisados: number;
+    comProjecao: number;
+    semProjecao: number;
+    semProjecaoComVendas: number;
+    porCurva: { A: number; B: number; C: number; D: number; SEM: number };
+  };
+  itens: ItemSemProjecao[];
+  selecionados: Set<string>;
+};
+
 export default function ProjecoesPage() {
   const router  = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -71,12 +118,27 @@ export default function ProjecoesPage() {
     resumo: { aumentoForte: 0, media: 0, manter: 0, quedaLeve: 0, quedaForte: 0 },
     sugestoes: [],
   });
+  const [semProjecao, setSemProjecao] = useState<SemProjecaoState>({
+    loading: true,
+    resumo: {
+      totalAnalisados: 0,
+      comProjecao: 0,
+      semProjecao: 0,
+      semProjecaoComVendas: 0,
+      porCurva: { A: 0, B: 0, C: 0, D: 0, SEM: 0 },
+    },
+    itens: [],
+    selecionados: new Set(),
+  });
+  const [filtroSemProj, setFiltroSemProj] = useState({ curva: 'TODAS', continuidade: 'TODAS', impacto: 'TODOS' });
+  const [aplicandoSugestoes, setAplicandoSugestoes] = useState(false);
 
   useEffect(() => {
     if (!getToken()) { router.replace('/login'); return; }
     buscarProjecoes();
     buscarReprojecaoFechada();
     buscarTop30();
+    buscarSemProjecao();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -157,6 +219,119 @@ export default function ProjecoesPage() {
       // silencioso
     } finally {
       endLoadingRequest();
+    }
+  }
+
+  async function buscarSemProjecao() {
+    beginLoadingRequest();
+    setSemProjecao((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await fetchNoCache(`${API_URL}/api/projecoes/sem-projecao`, { headers: authHeaders() });
+      const data = await res.json();
+      if (data.success) {
+        setSemProjecao({
+          loading: false,
+          resumo: data.resumo || {
+            totalAnalisados: 0,
+            comProjecao: 0,
+            semProjecao: 0,
+            semProjecaoComVendas: 0,
+            porCurva: { A: 0, B: 0, C: 0, D: 0, SEM: 0 },
+          },
+          itens: Array.isArray(data.itens) ? data.itens : [],
+          selecionados: new Set(),
+        });
+      }
+    } catch {
+      // silencioso
+    } finally {
+      setSemProjecao((prev) => ({ ...prev, loading: false }));
+      endLoadingRequest();
+    }
+  }
+
+  function toggleSelecionarItem(idproduto: string) {
+    setSemProjecao((prev) => {
+      const novoSet = new Set(prev.selecionados);
+      if (novoSet.has(idproduto)) {
+        novoSet.delete(idproduto);
+      } else {
+        novoSet.add(idproduto);
+      }
+      return { ...prev, selecionados: novoSet };
+    });
+  }
+
+  function selecionarTodosFiltrados(itens: ItemSemProjecao[]) {
+    setSemProjecao((prev) => {
+      const novoSet = new Set(prev.selecionados);
+      const todosJaSelecionados = itens.every((i) => novoSet.has(i.idproduto));
+      if (todosJaSelecionados) {
+        itens.forEach((i) => novoSet.delete(i.idproduto));
+      } else {
+        itens.forEach((i) => novoSet.add(i.idproduto));
+      }
+      return { ...prev, selecionados: novoSet };
+    });
+  }
+
+  async function aplicarSugestoesSelecionadas() {
+    const itensSelecionados = semProjecao.itens.filter((i) => semProjecao.selecionados.has(i.idproduto));
+    if (itensSelecionados.length === 0) {
+      setMsg({ type: 'err', text: 'Selecione pelo menos um item para aplicar sugestão.' });
+      return;
+    }
+
+    if (!confirm(`Aplicar projeção sugerida para ${itensSelecionados.length} item(s)?\n\nA projeção será baseada na sazonalidade histórica de vendas e aplicada para os 4 meses do plano (MA, PX, UL, QT).`)) {
+      return;
+    }
+
+    setAplicandoSugestoes(true);
+    setMsg(null);
+
+    try {
+      // Montar CSV com as sugestões (usando projeções por mês com sazonalidade)
+      const linhas = ['idproduto,mes,qtd'];
+      const { periodos } = projecoes;
+
+      for (const item of itensSelecionados) {
+        // Usar projeções específicas por mês (com sazonalidade) ou fallback para valor uniforme
+        const projMA = item.projecao_ma ?? item.projecao_sugerida;
+        const projPX = item.projecao_px ?? item.projecao_sugerida;
+        const projUL = item.projecao_ul ?? item.projecao_sugerida;
+        const projQT = item.projecao_qt ?? item.projecao_sugerida;
+
+        // Aplicar para os 4 meses do plano (MA, PX, UL, QT)
+        if (projMA > 0) linhas.push(`${item.idproduto},${periodos.MA},${projMA}`);
+        if (projPX > 0) linhas.push(`${item.idproduto},${periodos.PX},${projPX}`);
+        if (projUL > 0) linhas.push(`${item.idproduto},${periodos.UL},${projUL}`);
+        // QT = UL + 1
+        const mesQT = ((periodos.UL || 0) + 1) > 12 ? ((periodos.UL || 0) + 1) - 12 : (periodos.UL || 0) + 1;
+        if (projQT > 0) linhas.push(`${item.idproduto},${mesQT},${projQT}`);
+      }
+
+      const csvTexto = linhas.join('\n');
+      const res = await fetchNoCache(`${API_URL}/api/projecoes/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain', ...authHeaders() },
+        body: csvTexto,
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setMsg({ type: 'err', text: data.error || 'Erro ao aplicar sugestões' });
+      } else {
+        setMsg({
+          type: 'ok',
+          text: `Sugestões aplicadas: ${itensSelecionados.length} produtos com projeção baseada na média de vendas.`,
+        });
+        // Recarregar dados
+        await Promise.all([buscarProjecoes(), buscarSemProjecao()]);
+      }
+    } catch (err) {
+      setMsg({ type: 'err', text: err instanceof Error ? err.message : 'Erro ao aplicar sugestões' });
+    } finally {
+      setAplicandoSugestoes(false);
     }
   }
 
@@ -291,6 +466,23 @@ export default function ProjecoesPage() {
   const entradas = Object.entries(projecoes.data)
     .filter(([id]) => !filtro || id.includes(filtro.trim()))
     .sort(([a], [b]) => Number(a) - Number(b));
+
+  const itensSemProjecaoFiltrados = useMemo(() => {
+    return semProjecao.itens.filter((item) => {
+      const matchCurva = filtroSemProj.curva === 'TODAS' || item.curva === filtroSemProj.curva;
+      const matchCont = filtroSemProj.continuidade === 'TODAS' || item.continuidade === filtroSemProj.continuidade;
+      const matchImpacto = filtroSemProj.impacto === 'TODOS' || item.impacto === filtroSemProj.impacto;
+      return matchCurva && matchCont && matchImpacto;
+    });
+  }, [semProjecao.itens, filtroSemProj]);
+
+  const continuidadesSemProj = useMemo(() => {
+    const set = new Set<string>();
+    semProjecao.itens.forEach((i) => {
+      if (i.continuidade) set.add(i.continuidade);
+    });
+    return Array.from(set).sort();
+  }, [semProjecao.itens]);
 
   const fmt = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
   const fmtVariacao = (percentualAtendido: number, variacaoPercentual?: number) => {
@@ -632,6 +824,206 @@ export default function ProjecoesPage() {
                   : 'bg-red-50 border border-red-200 text-red-700'
               }`}>
                 {msg.text}
+              </div>
+            )}
+          </div>
+
+          {/* Itens sem projeção com vendas */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 bg-amber-50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-amber-800 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Itens SEM projeção mas COM vendas
+                  </div>
+                  <div className="text-xs text-amber-700 mt-1">
+                    Estes itens têm vendas nos últimos meses mas não possuem projeção configurada. Isso pode prejudicar o plano de produção.
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-amber-800">{semProjecao.resumo.semProjecaoComVendas}</span>
+                  <span className="text-xs text-amber-600">itens</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Resumo por curva */}
+            <div className="px-5 py-3 border-b border-gray-100 grid grid-cols-2 md:grid-cols-5 gap-2">
+              {[
+                { label: 'Curva A', value: semProjecao.resumo.porCurva.A, accent: 'bg-red-100 text-red-700 border-red-200' },
+                { label: 'Curva B', value: semProjecao.resumo.porCurva.B, accent: 'bg-orange-100 text-orange-700 border-orange-200' },
+                { label: 'Curva C', value: semProjecao.resumo.porCurva.C, accent: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+                { label: 'Curva D', value: semProjecao.resumo.porCurva.D, accent: 'bg-slate-100 text-slate-700 border-slate-200' },
+                { label: 'Sem curva', value: semProjecao.resumo.porCurva.SEM, accent: 'bg-gray-100 text-gray-700 border-gray-200' },
+              ].map((c) => (
+                <div key={c.label} className={`rounded border px-3 py-2 ${c.accent}`}>
+                  <div className="text-[11px] font-medium">{c.label}</div>
+                  <div className="text-lg font-bold">{c.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Filtros e ações */}
+            <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap items-center gap-3">
+              <label className="text-xs text-gray-600">
+                Curva
+                <select
+                  value={filtroSemProj.curva}
+                  onChange={(e) => setFiltroSemProj((p) => ({ ...p, curva: e.target.value }))}
+                  className="ml-2 border border-gray-300 rounded px-2 py-1 text-xs"
+                >
+                  <option value="TODAS">Todas</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                  <option value="D">D</option>
+                </select>
+              </label>
+              <label className="text-xs text-gray-600">
+                Continuidade
+                <select
+                  value={filtroSemProj.continuidade}
+                  onChange={(e) => setFiltroSemProj((p) => ({ ...p, continuidade: e.target.value }))}
+                  className="ml-2 border border-gray-300 rounded px-2 py-1 text-xs"
+                >
+                  <option value="TODAS">Todas</option>
+                  {continuidadesSemProj.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs text-gray-600">
+                Impacto
+                <select
+                  value={filtroSemProj.impacto}
+                  onChange={(e) => setFiltroSemProj((p) => ({ ...p, impacto: e.target.value }))}
+                  className="ml-2 border border-gray-300 rounded px-2 py-1 text-xs"
+                >
+                  <option value="TODOS">Todos</option>
+                  <option value="ALTO">Alto (Curva A)</option>
+                  <option value="MEDIO">Médio (Curva B)</option>
+                  <option value="BAIXO">Baixo (Curva C/D)</option>
+                </select>
+              </label>
+
+              <div className="ml-auto flex items-center gap-2">
+                <span className="text-xs text-gray-500">
+                  {semProjecao.selecionados.size} de {itensSemProjecaoFiltrados.length} selecionados
+                </span>
+                <button
+                  onClick={() => selecionarTodosFiltrados(itensSemProjecaoFiltrados)}
+                  className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                >
+                  {itensSemProjecaoFiltrados.every((i) => semProjecao.selecionados.has(i.idproduto)) ? 'Desmarcar todos' : 'Selecionar todos'}
+                </button>
+                <button
+                  onClick={aplicarSugestoesSelecionadas}
+                  disabled={semProjecao.selecionados.size === 0 || aplicandoSugestoes}
+                  className="px-4 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {aplicandoSugestoes ? 'Aplicando...' : `Aplicar sugestões (${semProjecao.selecionados.size})`}
+                </button>
+              </div>
+            </div>
+
+            {/* Tabela */}
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-3 py-2 text-center w-8">
+                      <input
+                        type="checkbox"
+                        checked={itensSemProjecaoFiltrados.length > 0 && itensSemProjecaoFiltrados.every((i) => semProjecao.selecionados.has(i.idproduto))}
+                        onChange={() => selecionarTodosFiltrados(itensSemProjecaoFiltrados)}
+                        className="rounded"
+                      />
+                    </th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Referência</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Produto</th>
+                    <th className="px-3 py-2 text-center font-semibold text-gray-600">Curva</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600">Continuidade</th>
+                    <th className="px-3 py-2 text-right font-semibold text-gray-600">Média 3m</th>
+                    <th className="px-3 py-2 text-right font-semibold text-gray-600">Estoque</th>
+                    <th className="px-3 py-2 text-right font-semibold text-emerald-700 bg-emerald-50">{MESES_PT[mesMA]}</th>
+                    <th className="px-3 py-2 text-right font-semibold text-emerald-700 bg-emerald-50">{MESES_PT[mesPX]}</th>
+                    <th className="px-3 py-2 text-right font-semibold text-emerald-700 bg-emerald-50">{MESES_PT[mesUL]}</th>
+                    <th className="px-3 py-2 text-right font-semibold text-emerald-700 bg-emerald-50">{MESES_PT[mesQT]}</th>
+                    <th className="px-3 py-2 text-center font-semibold text-gray-600">Impacto</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {semProjecao.loading ? (
+                    <tr><td colSpan={12} className="px-4 py-8 text-center text-gray-500">Carregando análise...</td></tr>
+                  ) : itensSemProjecaoFiltrados.length === 0 ? (
+                    <tr><td colSpan={12} className="px-4 py-8 text-center text-gray-500">Nenhum item sem projeção encontrado com os filtros atuais.</td></tr>
+                  ) : (
+                    itensSemProjecaoFiltrados.slice(0, 500).map((item) => (
+                      <tr
+                        key={item.idproduto}
+                        className={`hover:bg-gray-50 transition-colors ${semProjecao.selecionados.has(item.idproduto) ? 'bg-emerald-50' : ''}`}
+                      >
+                        <td className="px-3 py-1.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={semProjecao.selecionados.has(item.idproduto)}
+                            onChange={() => toggleSelecionarItem(item.idproduto)}
+                            className="rounded"
+                          />
+                        </td>
+                        <td className="px-3 py-1.5 font-mono text-gray-700">{item.referencia}</td>
+                        <td className="px-3 py-1.5 text-gray-600 max-w-xs truncate" title={item.produto}>
+                          {item.produto}
+                          {item.cor && <span className="text-gray-400 ml-1">/ {item.cor}</span>}
+                          {item.tamanho && <span className="text-gray-400 ml-1">/ {item.tamanho}</span>}
+                        </td>
+                        <td className="px-3 py-1.5 text-center">
+                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold ${
+                            item.curva === 'A' ? 'bg-red-100 text-red-700' :
+                            item.curva === 'B' ? 'bg-orange-100 text-orange-700' :
+                            item.curva === 'C' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-slate-100 text-slate-700'
+                          }`}>
+                            {item.curva}
+                          </span>
+                        </td>
+                        <td className="px-3 py-1.5 text-gray-600">{item.continuidade}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">{fmt(item.vendas.media_3m)}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">{fmt(item.estoque.atual)}</td>
+                        <td className="px-3 py-1.5 text-right font-mono font-semibold text-emerald-700 bg-emerald-50/50">
+                          {fmt(item.projecao_ma ?? item.projecao_sugerida)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono font-semibold text-emerald-700 bg-emerald-50/50">
+                          {fmt(item.projecao_px ?? item.projecao_sugerida)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono font-semibold text-emerald-700 bg-emerald-50/50">
+                          {fmt(item.projecao_ul ?? item.projecao_sugerida)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono font-semibold text-emerald-700 bg-emerald-50/50">
+                          {fmt(item.projecao_qt ?? item.projecao_sugerida)}
+                        </td>
+                        <td className="px-3 py-1.5 text-center">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            item.impacto === 'ALTO' ? 'bg-red-100 text-red-700' :
+                            item.impacto === 'MEDIO' ? 'bg-orange-100 text-orange-700' :
+                            'bg-slate-100 text-slate-700'
+                          }`}>
+                            {item.impacto}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {itensSemProjecaoFiltrados.length > 500 && (
+              <div className="px-5 py-2 border-t border-gray-100 text-xs text-gray-500 text-center">
+                Mostrando 500 de {itensSemProjecaoFiltrados.length} itens. Use os filtros para refinar a lista.
               </div>
             )}
           </div>

@@ -333,4 +333,375 @@ router.get("/config", auth, (_req, res) => {
   });
 });
 
+// ── GET /api/capacidade/matriz ─────────────────────────────────────────────────
+// Endpoint otimizado que retorna a matriz de capacidade já calculada
+// Faz todos os cálculos no backend para melhor performance
+router.get("/matriz", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const { readCache } = require('../cache/matrizCache');
+    const projecoesService = require('../services/projecoesService');
+
+    // 1. Carregar todas as configurações em paralelo
+    const grupos = readGrupos();
+    const grupoRefs = readGrupoRefs();
+    const dias = readDias();
+
+    // 2. Carregar tempos por referência
+    const temposResult = await queryTempoBaseRows(pool, {});
+    const tempoPorRef = new Map();
+    for (const row of temposResult.rows || []) {
+      const idreferencia = String(row.idreferencia || "").trim().toUpperCase();
+      if (!idreferencia) continue;
+      const base = resolveTempoLikePowerBi(row.hr_tempo, row.hr_tempopadrao);
+      const total = Number.isFinite(base) ? base : 0;
+      const atual = tempoPorRef.get(idreferencia) || 0;
+      tempoPorRef.set(idreferencia, atual + total);
+    }
+
+    // 3. Carregar matriz da cache
+    const matrizCache = await readCache();
+    const matrizRows = Array.isArray(matrizCache?.data?.rows)
+      ? matrizCache.data.rows
+      : (Array.isArray(matrizCache?.data?.data) ? matrizCache.data.data : []);
+
+    // 4. Carregar projeções
+    const anoAtual = new Date().getFullYear();
+    let projecoes = {};
+    try {
+      projecoes = await projecoesService.lerProjecoesMultiplosAnos(pool, [anoAtual, anoAtual + 1]);
+    } catch { /* silencioso */ }
+
+    // 5. Calcular períodos
+    const hoje = new Date();
+    const mesAtualJs = hoje.getMonth();
+    const ano = hoje.getFullYear();
+    const diaAtual = hoje.getDate();
+    const ultimoDia = new Date(ano, mesAtualJs + 1, 0).getDate();
+    const eUltimoDia = diaAtual === ultimoDia;
+    let ma = eUltimoDia ? mesAtualJs + 2 : mesAtualJs + 1;
+    if (ma > 12) ma -= 12;
+    const px = ma + 1 > 12 ? ma + 1 - 12 : ma + 1;
+    const ul = ma + 2 > 12 ? ma + 2 - 12 : ma + 2;
+    const qt = ma + 3 > 12 ? ma + 3 - 12 : ma + 3;
+    const qu = ma + 4 > 12 ? ma + 4 - 12 : ma + 4;
+    const sx = ma + 5 > 12 ? ma + 5 - 12 : ma + 5;
+    const periodos = { MA: ma, PX: px, UL: ul, QT: qt, QU: qu, SX: sx };
+
+    // 6. Criar mapa de planos por referência (agregado da matriz)
+    const planoPorRefMap = new Map();
+    const processoPorRefMap = new Map();
+    const seqgrupoPorRefMap = new Map();
+
+    for (const item of matrizRows) {
+      const marca = String(item?.produto?.marca || '').trim().toUpperCase();
+      const status = String(item?.produto?.status || '').trim().toUpperCase();
+      const descricao = String(item?.produto?.produto || '').trim().toUpperCase();
+
+      // Filtro de marca e status
+      if (marca !== 'LIEBE') continue;
+      if (!['EM LINHA', 'NOVA COLECAO'].includes(status)) continue;
+      if (descricao.includes('MEIA DE SEDA')) continue;
+
+      const refPadrao = String(item?.produto?.referencia || '').trim().toUpperCase();
+      const refSistema = String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase();
+      const emProcesso = Number(item?.estoques?.em_processo || 0);
+      const planoMA = Number(item?.plano?.ma || 0);
+      const planoPX = Number(item?.plano?.px || 0);
+      const planoUL = Number(item?.plano?.ul || 0);
+      const planoQT = Number(item?.plano?.qt || 0);
+      const planoQU = Number(item?.plano?.qu || 0);
+      const planoSX = Number(item?.plano?.sx || 0);
+
+      // Agregar por referência
+      for (const chave of [refPadrao, refSistema]) {
+        if (!chave) continue;
+        const atual = planoPorRefMap.get(chave) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
+        atual.ma += planoMA;
+        atual.px += planoPX;
+        atual.ul += planoUL;
+        atual.qt += planoQT;
+        atual.qu += planoQU;
+        atual.sx += planoSX;
+        planoPorRefMap.set(chave, atual);
+
+        const processoAtual = processoPorRefMap.get(chave) || 0;
+        processoPorRefMap.set(chave, processoAtual + emProcesso);
+      }
+
+      // Mapear seqgrupo
+      if (refPadrao && refSistema && !seqgrupoPorRefMap.has(refPadrao)) {
+        seqgrupoPorRefMap.set(refPadrao, refSistema);
+      }
+    }
+
+    // 7. Criar mapa de capacidade por grupo
+    const capacidadePorGrupo = new Map();
+    for (const g of grupos) {
+      capacidadePorGrupo.set(g.grupo.toUpperCase(), g.capacidade_diaria);
+    }
+
+    // 8. Criar mapa de grupos por referência (para rateio)
+    const gruposPorRef = new Map();
+    for (const row of grupoRefs) {
+      const ref = row.referencia.toUpperCase();
+      const grupo = row.grupo.toUpperCase();
+      const atual = gruposPorRef.get(ref) || [];
+      if (!atual.includes(grupo)) atual.push(grupo);
+      gruposPorRef.set(ref, atual);
+    }
+
+    // 9. Calcular detalhes por referência dentro de cada grupo
+    const detalhesPorGrupo = new Map();
+
+    for (const row of grupoRefs) {
+      const referencia = row.referencia.toUpperCase();
+      const grupo = row.grupo.toUpperCase();
+      const idreferencia = seqgrupoPorRefMap.get(referencia) || '';
+      const planoBase = planoPorRefMap.get(referencia) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
+      const tempo = tempoPorRef.get(idreferencia) || 0;
+      const processoBase = processoPorRefMap.get(referencia) || 0;
+      const gruposDaRef = gruposPorRef.get(referencia) || [];
+
+      // Calcular rateio
+      const capacidadeTotalRateio = gruposDaRef.reduce((acc, g) => acc + (capacidadePorGrupo.get(g) || 0), 0);
+      const capacidadeGrupoAtual = capacidadePorGrupo.get(grupo) || 0;
+      const rateio = gruposDaRef.length <= 1
+        ? 1
+        : (capacidadeTotalRateio > 0 ? (capacidadeGrupoAtual / capacidadeTotalRateio) : (1 / gruposDaRef.length));
+
+      // Aplicar rateio aos planos
+      const plano = {
+        ma: planoBase.ma * rateio,
+        px: planoBase.px * rateio,
+        ul: planoBase.ul * rateio,
+        qt: planoBase.qt * rateio,
+        qu: planoBase.qu * rateio,
+        sx: planoBase.sx * rateio,
+      };
+      const processoPecas = processoBase * rateio;
+      const processoCarga = tempo * processoPecas;
+
+      const detalhe = {
+        referencia,
+        idreferencia,
+        rateio: Number((rateio * 100).toFixed(2)),
+        tempo: Number(tempo.toFixed(2)),
+        processoPecas: Math.round(processoPecas),
+        processoCarga: Number(processoCarga.toFixed(2)),
+        planoMA: Math.round(plano.ma),
+        planoPX: Math.round(plano.px),
+        planoUL: Math.round(plano.ul),
+        planoQT: Math.round(plano.qt),
+        planoQU: Math.round(plano.qu),
+        planoSX: Math.round(plano.sx),
+        cargaMA: Number((tempo * plano.ma).toFixed(2)),
+        cargaPX: Number((tempo * plano.px).toFixed(2)),
+        cargaUL: Number((tempo * plano.ul).toFixed(2)),
+        cargaQT: Number((tempo * plano.qt).toFixed(2)),
+        cargaQU: Number((tempo * plano.qu).toFixed(2)),
+        cargaSX: Number((tempo * plano.sx).toFixed(2)),
+        cargaTotal: Number((processoCarga + tempo * (plano.ma + plano.px + plano.ul + plano.qt + plano.qu + plano.sx)).toFixed(2)),
+      };
+
+      if (!detalhesPorGrupo.has(grupo)) detalhesPorGrupo.set(grupo, []);
+      detalhesPorGrupo.get(grupo).push(detalhe);
+    }
+
+    // 10. Calcular análise por grupo
+    const gruposAnalise = [];
+    let totalGeral = {
+      grupos: 0,
+      refs: 0,
+      refsComTempo: 0,
+      capacidadeDiaria: 0,
+      processoPecas: 0,
+      processoCarga: 0,
+      planoMA: 0, planoPX: 0, planoUL: 0, planoQT: 0, planoQU: 0, planoSX: 0,
+      cargaMA: 0, cargaPX: 0, cargaUL: 0, cargaQT: 0, cargaQU: 0, cargaSX: 0,
+      capacidadeMA: 0, capacidadePX: 0, capacidadeUL: 0, capacidadeQT: 0, capacidadeQU: 0, capacidadeSX: 0,
+    };
+
+    for (const g of grupos) {
+      const grupo = g.grupo.toUpperCase();
+      const refs = detalhesPorGrupo.get(grupo) || [];
+      const capacidadeDiaria = g.capacidade_diaria;
+
+      // Capacidades por mês
+      const capacidadeMA = capacidadeDiaria * (dias[String(periodos.MA)] || 0);
+      const capacidadePX = capacidadeDiaria * (dias[String(periodos.PX)] || 0);
+      const capacidadeUL = capacidadeDiaria * (dias[String(periodos.UL)] || 0);
+      const capacidadeQT = capacidadeDiaria * (dias[String(periodos.QT)] || 0);
+      const capacidadeQU = capacidadeDiaria * (dias[String(periodos.QU)] || 0);
+      const capacidadeSX = capacidadeDiaria * (dias[String(periodos.SX)] || 0);
+
+      // Somar referências
+      const processoPecas = refs.reduce((acc, r) => acc + r.processoPecas, 0);
+      const processoCarga = refs.reduce((acc, r) => acc + r.processoCarga, 0);
+      const planoMA = refs.reduce((acc, r) => acc + r.planoMA, 0);
+      const planoPX = refs.reduce((acc, r) => acc + r.planoPX, 0);
+      const planoUL = refs.reduce((acc, r) => acc + r.planoUL, 0);
+      const planoQT = refs.reduce((acc, r) => acc + r.planoQT, 0);
+      const planoQU = refs.reduce((acc, r) => acc + r.planoQU, 0);
+      const planoSX = refs.reduce((acc, r) => acc + r.planoSX, 0);
+      const cargaMAPlano = refs.reduce((acc, r) => acc + r.cargaMA, 0);
+      const cargaMA = cargaMAPlano + processoCarga; // Processo entra em MA
+      const cargaPX = refs.reduce((acc, r) => acc + r.cargaPX, 0);
+      const cargaUL = refs.reduce((acc, r) => acc + r.cargaUL, 0);
+      const cargaQT = refs.reduce((acc, r) => acc + r.cargaQT, 0);
+      const cargaQU = refs.reduce((acc, r) => acc + r.cargaQU, 0);
+      const cargaSX = refs.reduce((acc, r) => acc + r.cargaSX, 0);
+      const refsComTempo = refs.filter(r => r.tempo > 0).length;
+
+      // Saldos
+      const saldoMA = capacidadeMA - cargaMA;
+      const saldoPX = capacidadePX - cargaPX;
+      const saldoUL = capacidadeUL - cargaUL;
+      const saldoQT = capacidadeQT - cargaQT;
+      const saldoQU = capacidadeQU - cargaQU;
+      const saldoSX = capacidadeSX - cargaSX;
+
+      // Saldos acumulados
+      const saldoAcumMA = saldoMA;
+      const saldoAcumPX = saldoAcumMA + saldoPX;
+      const saldoAcumUL = saldoAcumPX + saldoUL;
+      const saldoAcumQT = saldoAcumUL + saldoQT;
+      const saldoAcumQU = saldoAcumQT + saldoQU;
+      const saldoAcumSX = saldoAcumQU + saldoSX;
+
+      // Atendimento (%)
+      const atendimentoMA = cargaMA > 0 ? Math.min(100, (capacidadeMA / cargaMA) * 100) : 100;
+      const atendimentoPX = cargaPX > 0 ? Math.min(100, ((Math.max(0, saldoAcumMA) + capacidadePX) / cargaPX) * 100) : 100;
+      const atendimentoUL = cargaUL > 0 ? Math.min(100, ((Math.max(0, saldoAcumPX) + capacidadeUL) / cargaUL) * 100) : 100;
+      const atendimentoQT = cargaQT > 0 ? Math.min(100, ((Math.max(0, saldoAcumUL) + capacidadeQT) / cargaQT) * 100) : 100;
+      const atendimentoQU = cargaQU > 0 ? Math.min(100, ((Math.max(0, saldoAcumQT) + capacidadeQU) / cargaQU) * 100) : 100;
+      const atendimentoSX = cargaSX > 0 ? Math.min(100, ((Math.max(0, saldoAcumQU) + capacidadeSX) / cargaSX) * 100) : 100;
+
+      // Dias necessários
+      const diasNecMA = capacidadeDiaria > 0 ? cargaMA / capacidadeDiaria : 0;
+      const diasNecPX = capacidadeDiaria > 0 ? cargaPX / capacidadeDiaria : 0;
+      const diasNecUL = capacidadeDiaria > 0 ? cargaUL / capacidadeDiaria : 0;
+      const diasNecQT = capacidadeDiaria > 0 ? cargaQT / capacidadeDiaria : 0;
+      const diasNecQU = capacidadeDiaria > 0 ? cargaQU / capacidadeDiaria : 0;
+      const diasNecSX = capacidadeDiaria > 0 ? cargaSX / capacidadeDiaria : 0;
+
+      // Dias faltantes
+      const diasFaltMA = Math.max(0, diasNecMA - (dias[String(periodos.MA)] || 0));
+      const diasFaltPX = Math.max(0, diasNecPX - (dias[String(periodos.PX)] || 0) - Math.max(0, saldoAcumMA / Math.max(1, capacidadeDiaria)));
+      const diasFaltUL = Math.max(0, diasNecUL - (dias[String(periodos.UL)] || 0) - Math.max(0, saldoAcumPX / Math.max(1, capacidadeDiaria)));
+      const diasFaltQT = Math.max(0, diasNecQT - (dias[String(periodos.QT)] || 0) - Math.max(0, saldoAcumUL / Math.max(1, capacidadeDiaria)));
+      const diasFaltQU = Math.max(0, diasNecQU - (dias[String(periodos.QU)] || 0) - Math.max(0, saldoAcumQT / Math.max(1, capacidadeDiaria)));
+      const diasFaltSX = Math.max(0, diasNecSX - (dias[String(periodos.SX)] || 0) - Math.max(0, saldoAcumQU / Math.max(1, capacidadeDiaria)));
+
+      const cargaTotal = cargaMA + cargaPX + cargaUL + cargaQT + cargaQU + cargaSX;
+      const capacidadeTotal = capacidadeMA + capacidadePX + capacidadeUL + capacidadeQT + capacidadeQU + capacidadeSX;
+
+      gruposAnalise.push({
+        grupo,
+        tipo: g.tipo || '-',
+        capacidadeDiaria,
+        refs: refs.length,
+        refsComTempo,
+        referencias: refs, // Incluir detalhes das referências
+        processoPecas,
+        processoCarga: Number(processoCarga.toFixed(2)),
+        planoMA, planoPX, planoUL, planoQT, planoQU, planoSX,
+        cargaMA: Number(cargaMA.toFixed(2)),
+        cargaPX: Number(cargaPX.toFixed(2)),
+        cargaUL: Number(cargaUL.toFixed(2)),
+        cargaQT: Number(cargaQT.toFixed(2)),
+        cargaQU: Number(cargaQU.toFixed(2)),
+        cargaSX: Number(cargaSX.toFixed(2)),
+        cargaTotal: Number(cargaTotal.toFixed(2)),
+        capacidadeMA, capacidadePX, capacidadeUL, capacidadeQT, capacidadeQU, capacidadeSX,
+        capacidadeTotal,
+        saldoMA: Number(saldoMA.toFixed(2)),
+        saldoPX: Number(saldoPX.toFixed(2)),
+        saldoUL: Number(saldoUL.toFixed(2)),
+        saldoQT: Number(saldoQT.toFixed(2)),
+        saldoQU: Number(saldoQU.toFixed(2)),
+        saldoSX: Number(saldoSX.toFixed(2)),
+        saldoAcumMA: Number(saldoAcumMA.toFixed(2)),
+        saldoAcumPX: Number(saldoAcumPX.toFixed(2)),
+        saldoAcumUL: Number(saldoAcumUL.toFixed(2)),
+        saldoAcumQT: Number(saldoAcumQT.toFixed(2)),
+        saldoAcumQU: Number(saldoAcumQU.toFixed(2)),
+        saldoAcumSX: Number(saldoAcumSX.toFixed(2)),
+        atendimentoMA: Number(atendimentoMA.toFixed(1)),
+        atendimentoPX: Number(atendimentoPX.toFixed(1)),
+        atendimentoUL: Number(atendimentoUL.toFixed(1)),
+        atendimentoQT: Number(atendimentoQT.toFixed(1)),
+        atendimentoQU: Number(atendimentoQU.toFixed(1)),
+        atendimentoSX: Number(atendimentoSX.toFixed(1)),
+        diasNecMA: Number(diasNecMA.toFixed(2)),
+        diasNecPX: Number(diasNecPX.toFixed(2)),
+        diasNecUL: Number(diasNecUL.toFixed(2)),
+        diasNecQT: Number(diasNecQT.toFixed(2)),
+        diasNecQU: Number(diasNecQU.toFixed(2)),
+        diasNecSX: Number(diasNecSX.toFixed(2)),
+        diasFaltMA: Number(diasFaltMA.toFixed(2)),
+        diasFaltPX: Number(diasFaltPX.toFixed(2)),
+        diasFaltUL: Number(diasFaltUL.toFixed(2)),
+        diasFaltQT: Number(diasFaltQT.toFixed(2)),
+        diasFaltQU: Number(diasFaltQU.toFixed(2)),
+        diasFaltSX: Number(diasFaltSX.toFixed(2)),
+        estourado: saldoAcumMA < 0 || saldoAcumPX < 0 || saldoAcumUL < 0 || saldoAcumQT < 0 || saldoAcumQU < 0 || saldoAcumSX < 0,
+      });
+
+      // Atualizar totais
+      totalGeral.grupos++;
+      totalGeral.refs += refs.length;
+      totalGeral.refsComTempo += refsComTempo;
+      totalGeral.capacidadeDiaria += capacidadeDiaria;
+      totalGeral.processoPecas += processoPecas;
+      totalGeral.processoCarga += processoCarga;
+      totalGeral.planoMA += planoMA;
+      totalGeral.planoPX += planoPX;
+      totalGeral.planoUL += planoUL;
+      totalGeral.planoQT += planoQT;
+      totalGeral.planoQU += planoQU;
+      totalGeral.planoSX += planoSX;
+      totalGeral.cargaMA += cargaMA;
+      totalGeral.cargaPX += cargaPX;
+      totalGeral.cargaUL += cargaUL;
+      totalGeral.cargaQT += cargaQT;
+      totalGeral.cargaQU += cargaQU;
+      totalGeral.cargaSX += cargaSX;
+      totalGeral.capacidadeMA += capacidadeMA;
+      totalGeral.capacidadePX += capacidadePX;
+      totalGeral.capacidadeUL += capacidadeUL;
+      totalGeral.capacidadeQT += capacidadeQT;
+      totalGeral.capacidadeQU += capacidadeQU;
+      totalGeral.capacidadeSX += capacidadeSX;
+    }
+
+    // Ordenar por grupo
+    gruposAnalise.sort((a, b) => a.grupo.localeCompare(b.grupo));
+
+    // Arredondar totais
+    totalGeral.processoCarga = Number(totalGeral.processoCarga.toFixed(2));
+    totalGeral.cargaMA = Number(totalGeral.cargaMA.toFixed(2));
+    totalGeral.cargaPX = Number(totalGeral.cargaPX.toFixed(2));
+    totalGeral.cargaUL = Number(totalGeral.cargaUL.toFixed(2));
+    totalGeral.cargaQT = Number(totalGeral.cargaQT.toFixed(2));
+    totalGeral.cargaQU = Number(totalGeral.cargaQU.toFixed(2));
+    totalGeral.cargaSX = Number(totalGeral.cargaSX.toFixed(2));
+
+    return res.json({
+      success: true,
+      periodos,
+      dias,
+      grupos: gruposAnalise,
+      resumo: totalGeral,
+    });
+  } catch (error) {
+    console.error('[capacidade/matriz] Erro:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao calcular matriz de capacidade",
+      details: error.message,
+    });
+  }
+});
+
 module.exports = router;

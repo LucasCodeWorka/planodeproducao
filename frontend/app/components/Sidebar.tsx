@@ -112,6 +112,11 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             {!collapsed && <span>Capacidade</span>}
           </button>
 
+          <button onClick={() => router.push('/capacidade-matriz')} className={`${navItemBase} ${pathname === '/capacidade-matriz' ? navActive : navInactive}`}>
+            <Gauge size={20} className="shrink-0" />
+            {!collapsed && <span>Matriz Capacidade</span>}
+          </button>
+
           <button onClick={() => router.push('/excessos')} className={`${navItemBase} ${pathname === '/excessos' ? navActive : navInactive}`}>
             <PackagePlus size={20} className="shrink-0" />
             {!collapsed && <span>Estoque Loja Disponível</span>}

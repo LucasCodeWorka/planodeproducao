@@ -1101,6 +1101,185 @@ router.post('/reajustes', auth, async (req, res) => {
   }
 });
 
+// ── GET /api/projecoes/sem-projecao ────────────────────────────────────────────
+// Analisa itens com vendas nos últimos 3 meses mas sem projeção configurada
+router.get('/sem-projecao', auth, async (req, res) => {
+  try {
+    const pool = req.app.get('pool');
+    const periodos = calcularPeriodos();
+    const anoAtual = new Date().getFullYear();
+    const anoAnterior = anoAtual - 1;
+
+    // 1. Buscar todas as projeções atuais
+    const { data: projecoes } = await montarProjecoesEfetivas(pool);
+    const idsComProjecao = new Set(Object.keys(projecoes));
+
+    // 2. Buscar itens da matriz com vendas nos últimos 3 meses
+    const rows = await lerMatrizCacheCompleta(pool);
+
+    // 3. Coletar IDs dos produtos sem projeção para buscar vendas históricas
+    const idsSemProjecao = [];
+    const itensPreliminar = [];
+
+    for (const item of rows) {
+      const idproduto = String(item?.produto?.idproduto || '').trim();
+      if (!idproduto) continue;
+
+      // Verificar se tem projeção
+      const temProjecao = idsComProjecao.has(idproduto);
+      if (temProjecao) {
+        const proj = projecoes[idproduto] || {};
+        const projMA = Number(proj[String(periodos.MA)] || 0);
+        const projPX = Number(proj[String(periodos.PX)] || 0);
+        const projUL = Number(proj[String(periodos.UL)] || 0);
+        const projQT = Number(proj[String(periodos.QT)] || 0);
+        if (projMA > 0 || projPX > 0 || projUL > 0 || projQT > 0) continue;
+      }
+
+      const mediaVendas3m = Number(item?.demanda?.media_vendas_3m || 0);
+      const mediaVendas6m = Number(item?.demanda?.media_vendas_6m || 0);
+      const pedidosPendentes = Number(item?.demanda?.pedidos_pendentes || 0);
+      const temVendas = mediaVendas3m > 0 || mediaVendas6m > 0 || pedidosPendentes > 0;
+
+      if (!temVendas) continue;
+
+      idsSemProjecao.push(Number(idproduto));
+      itensPreliminar.push({ idproduto, item, mediaVendas3m, mediaVendas6m, pedidosPendentes });
+    }
+
+    // 4. Calcular proporção GERAL do plano (de todos os produtos com projeção)
+    // Somar o total de projeções por mês de todos os produtos
+    let totalPlanoMA = 0;
+    let totalPlanoPX = 0;
+    let totalPlanoUL = 0;
+    let totalPlanoQT = 0;
+
+    for (const [, proj] of Object.entries(projecoes)) {
+      totalPlanoMA += Number(proj[String(periodos.MA)] || 0);
+      totalPlanoPX += Number(proj[String(periodos.PX)] || 0);
+      totalPlanoUL += Number(proj[String(periodos.UL)] || 0);
+      totalPlanoQT += Number(proj[String(periodos.QT)] || 0);
+    }
+
+    const totalPlanoGeral = totalPlanoMA + totalPlanoPX + totalPlanoUL + totalPlanoQT;
+
+    // Calcular proporção de cada mês
+    let propMA = 0.25, propPX = 0.25, propUL = 0.25, propQT = 0.25; // default: distribuição uniforme
+    if (totalPlanoGeral > 0) {
+      propMA = totalPlanoMA / totalPlanoGeral;
+      propPX = totalPlanoPX / totalPlanoGeral;
+      propUL = totalPlanoUL / totalPlanoGeral;
+      propQT = totalPlanoQT / totalPlanoGeral;
+    }
+
+    // 5. Montar resultado final com projeções por mês baseadas na proporção GERAL do plano
+    const itensSemProjecao = [];
+    const resumo = {
+      totalAnalisados: rows.length,
+      comProjecao: rows.length - itensPreliminar.length,
+      semProjecao: itensPreliminar.length,
+      semProjecaoComVendas: itensPreliminar.length,
+      porCurva: { A: 0, B: 0, C: 0, D: 0, SEM: 0 },
+      porContinuidade: {},
+      porLinha: {},
+      // Informações sobre a proporção usada
+      proporcaoPlano: {
+        totalMA: Math.round(totalPlanoMA),
+        totalPX: Math.round(totalPlanoPX),
+        totalUL: Math.round(totalPlanoUL),
+        totalQT: Math.round(totalPlanoQT),
+        totalGeral: Math.round(totalPlanoGeral),
+        propMA: Number((propMA * 100).toFixed(1)),
+        propPX: Number((propPX * 100).toFixed(1)),
+        propUL: Number((propUL * 100).toFixed(1)),
+        propQT: Number((propQT * 100).toFixed(1)),
+      },
+    };
+
+    for (const { idproduto, item, mediaVendas3m, mediaVendas6m, pedidosPendentes } of itensPreliminar) {
+      const curva = String(item?.produto?.curva || 'SEM').toUpperCase();
+      if (curva === 'A') resumo.porCurva.A++;
+      else if (curva === 'B') resumo.porCurva.B++;
+      else if (curva === 'C') resumo.porCurva.C++;
+      else if (curva === 'D') resumo.porCurva.D++;
+      else resumo.porCurva.SEM++;
+
+      const continuidade = String(item?.produto?.continuidade || 'SEM CONTINUIDADE').trim();
+      resumo.porContinuidade[continuidade] = (resumo.porContinuidade[continuidade] || 0) + 1;
+
+      const linha = String(item?.produto?.linha || 'SEM LINHA').trim();
+      resumo.porLinha[linha] = (resumo.porLinha[linha] || 0) + 1;
+
+      // Calcular projeção base (média maior entre 3m e 6m)
+      const projecaoBase = Math.max(mediaVendas3m, mediaVendas6m);
+
+      // Calcular projeção por mês baseada na proporção GERAL do plano
+      // Total projetado = média * 4 meses, distribuído conforme proporção do plano
+      const totalProjetado = projecaoBase * 4;
+      const projMA = Math.round(totalProjetado * propMA);
+      const projPX = Math.round(totalProjetado * propPX);
+      const projUL = Math.round(totalProjetado * propUL);
+      const projQT = Math.round(totalProjetado * propQT);
+
+      itensSemProjecao.push({
+        idproduto,
+        referencia: String(item?.produto?.referencia || '').trim(),
+        produto: String(item?.produto?.produto || '').trim(),
+        cor: String(item?.produto?.cor || '').trim(),
+        tamanho: String(item?.produto?.tamanho || '').trim(),
+        curva,
+        continuidade,
+        linha: String(item?.produto?.linha || '').trim(),
+        status: String(item?.produto?.status || '').trim(),
+        vendas: {
+          media_3m: Math.round(mediaVendas3m),
+          media_6m: Math.round(mediaVendas6m),
+          pedidos_pendentes: Math.round(pedidosPendentes),
+          teve_venda_12m: item?.criterios?.teve_venda_12m === true,
+        },
+        estoque: {
+          atual: Math.round(Number(item?.estoques?.estoque_atual || 0)),
+          em_processo: Math.round(Number(item?.estoques?.em_processo || 0)),
+          disponivel: Math.round(Number(item?.estoques?.estoque_disponivel || 0)),
+          minimo: Math.round(Number(item?.estoques?.estoque_minimo || 0)),
+        },
+        projecao_sugerida: Math.round(projecaoBase),
+        // Projeções por mês baseadas na proporção GERAL do plano
+        projecao_ma: projMA,
+        projecao_px: projPX,
+        projecao_ul: projUL,
+        projecao_qt: projQT,
+        impacto: curva === 'A' ? 'ALTO' : curva === 'B' ? 'MEDIO' : 'BAIXO',
+      });
+    }
+
+    // Ordenar por impacto (curva A primeiro, depois por média de vendas)
+    itensSemProjecao.sort((a, b) => {
+      const ordemCurva = { A: 1, B: 2, C: 3, D: 4, SEM: 5 };
+      const curvaA = ordemCurva[a.curva] || 5;
+      const curvaB = ordemCurva[b.curva] || 5;
+      if (curvaA !== curvaB) return curvaA - curvaB;
+      return b.vendas.media_3m - a.vendas.media_3m;
+    });
+
+    return res.json({
+      success: true,
+      periodos,
+      ano: anoAtual,
+      resumo,
+      count: itensSemProjecao.length,
+      itens: itensSemProjecao.slice(0, 5000),
+    });
+  } catch (error) {
+    console.error('[projecoes/sem-projecao] Erro:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erro ao analisar itens sem projeção',
+      details: error.message,
+    });
+  }
+});
+
 // ── GET /api/projecoes/stats ──────────────────────────────────────────────────
 router.get('/stats', auth, async (req, res) => {
   try {
