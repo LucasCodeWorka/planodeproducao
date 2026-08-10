@@ -271,23 +271,32 @@ export default function CapacidadePage() {
     setLoading(true);
     setError(null);
     try {
-      const [rConfig, rTempos, rMatriz, rProj, rAnalises] = await Promise.all([
+      const [rConfig, rMatriz, rProj, rAnalises] = await Promise.all([
         fetchNoCache(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/capacidade/tempos-ref`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/producao/matriz?limit=5000&marca=${encodeURIComponent(MARCA_FIXA)}&status=${encodeURIComponent(STATUS_FIXO)}`),
+        fetchNoCache(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=${encodeURIComponent(MARCA_FIXA)}&status=${encodeURIComponent(STATUS_FIXO)}`),
         fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/simulacoes`, { headers: authHeaders() }),
       ]);
       const pConfig = await rConfig.json();
-      const pTempos = await rTempos.json();
       const pMatriz = await rMatriz.json();
       const pProj = await rProj.json();
       const pAnalises = await rAnalises.json();
       if (!rConfig.ok || !pConfig.success) throw new Error(pConfig.error || 'Erro ao carregar configuração de capacidade');
-      if (!rTempos.ok || !pTempos.success) throw new Error(pTempos.error || 'Erro ao carregar tempos de costura');
       if (!rMatriz.ok || !pMatriz.success) throw new Error(pMatriz.error || 'Erro ao carregar matriz');
-      setGrupos(Array.isArray(pConfig?.data?.grupos) ? pConfig.data.grupos : []);
-      setGrupoRefs(Array.isArray(pConfig?.data?.grupo_refs) ? pConfig.data.grupo_refs : []);
+      const gruposConfig = Array.isArray(pConfig?.data?.grupos) ? pConfig.data.grupos : [];
+      const grupoRefsConfig = Array.isArray(pConfig?.data?.grupo_refs) ? pConfig.data.grupo_refs : [];
+      const refsCapacidade = Array.from(new Set(
+        grupoRefsConfig
+          .map((r: GrupoRefRow) => norm(r.referencia))
+          .filter(Boolean)
+      ));
+      const paramsTempos = new URLSearchParams();
+      if (refsCapacidade.length) paramsTempos.set('referencias', refsCapacidade.join(','));
+      const rTempos = await fetchNoCache(`${API_URL}/api/capacidade/tempos-ref?${paramsTempos.toString()}`, { headers: authHeaders() });
+      const pTempos = await rTempos.json();
+      if (!rTempos.ok || !pTempos.success) throw new Error(pTempos.error || 'Erro ao carregar tempos de costura');
+      setGrupos(gruposConfig);
+      setGrupoRefs(grupoRefsConfig);
       setDias((pConfig?.data?.dias && typeof pConfig.data.dias === 'object') ? pConfig.data.dias : {});
       setTemposRef(Array.isArray(pTempos?.data) ? pTempos.data : []);
       setDados(Array.isArray(pMatriz?.data) ? pMatriz.data : []);

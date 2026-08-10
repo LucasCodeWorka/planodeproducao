@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles, PackagePlus, MapPin, BarChart3 } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles, PackagePlus, MapPin, BarChart3, ShoppingCart } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -105,6 +105,11 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
           <button onClick={() => router.push('/sugestoes-aprovacoes')} className={`${navItemBase} ${pathname === '/sugestoes-aprovacoes' ? navActive : navInactive}`}>
             <CheckSquare size={20} className="shrink-0" />
             {!collapsed && <span>Sugestões/Aprovação</span>}
+          </button>
+
+          <button onClick={() => router.push('/pedido-compra')} className={`${navItemBase} ${pathname === '/pedido-compra' ? navActive : navInactive}`}>
+            <ShoppingCart size={20} className="shrink-0" />
+            {!collapsed && <span>Pedido de Compra</span>}
           </button>
 
           <button onClick={() => router.push('/capacidade')} className={`${navItemBase} ${pathname === '/capacidade' ? navActive : navInactive}`}>

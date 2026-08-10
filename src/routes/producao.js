@@ -377,6 +377,7 @@ router.get("/matriz", async (req, res) => {
     const offset = Math.max(Number(req.query.offset) || 0,   0);
     const marca  = req.query.marca ? String(req.query.marca).trim() : null;
     const status = req.query.status ? String(req.query.status).trim() : null;
+    const preferCache = req.query.prefer_cache === "true";
     const referencias = req.query.referencias
       ? String(req.query.referencias).split(',').map((r) => r.trim()).filter(Boolean)
       : [];
@@ -433,11 +434,11 @@ router.get("/matriz", async (req, res) => {
       ? cachePayload.execucaoPlanoResumo
       : null;
 
-    if (cached && cached.fresh && cacheAtendeMarca && cacheAtendeStatus) {
+    if (cached && (cached.fresh || preferCache) && cacheAtendeMarca && cacheAtendeStatus) {
       const filtrado = filterCache(cacheRows, { referencias, marca, status });
       const pagina   = filtrado.slice(offset, offset + limit);
 
-      res.set('X-Cache', 'HIT');
+      res.set('X-Cache', cached.fresh ? 'HIT' : 'STALE');
       res.set('X-Cache-Age', String(cached.ageHours.toFixed(1)) + 'h');
       return res.status(200).json({
         success: true,

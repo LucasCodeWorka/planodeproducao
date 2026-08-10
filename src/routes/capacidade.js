@@ -116,6 +116,14 @@ function resolveTempoLikePowerBi(hrTempoRaw, hrTempoPadraoRaw) {
   return hrTempo;
 }
 
+function parseListQuery(raw) {
+  return String(raw || "")
+    .split(",")
+    .map((item) => String(item || "").trim().toUpperCase())
+    .filter(Boolean)
+    .slice(0, 2000);
+}
+
 async function queryTempoBaseRows(pool, filters = {}) {
   const params = [];
   const where = [];
@@ -126,6 +134,14 @@ async function queryTempoBaseRows(pool, filters = {}) {
   if (filters.referencia) {
     params.push(String(filters.referencia).trim().toUpperCase());
     where.push(`base.referencia_padrao = $${params.length}`);
+  }
+  if (Array.isArray(filters.idreferencias) && filters.idreferencias.length) {
+    params.push(filters.idreferencias);
+    where.push(`base.idreferencia = ANY($${params.length}::text[])`);
+  }
+  if (Array.isArray(filters.referencias) && filters.referencias.length) {
+    params.push(filters.referencias);
+    where.push(`base.referencia_padrao = ANY($${params.length}::text[])`);
   }
 
   const sql = `
@@ -227,10 +243,15 @@ router.get("/tempos-ref", auth, async (req, res) => {
   try {
     const pool = req.app.get("pool");
     const referenciaFiltro = String(req.query.idreferencia || req.query.referencia || "").trim().toUpperCase();
-    const result = await queryTempoBaseRows(pool, referenciaFiltro ? { idreferencia: referenciaFiltro } : {});
+    const idreferencias = parseListQuery(req.query.idreferencias);
+    const referencias = parseListQuery(req.query.referencias);
+    const includeDiagnostico = req.query.diagnostico === "true";
+    const result = await queryTempoBaseRows(pool, referenciaFiltro
+      ? { idreferencia: referenciaFiltro }
+      : { idreferencias, referencias });
 
     const map = new Map();
-    const debugMap = new Map();
+    const debugMap = includeDiagnostico ? new Map() : null;
     for (const row of result.rows || []) {
       const idreferencia = String(row.idreferencia || "").trim().toUpperCase();
       const referenciaPadrao = String(row.referencia_padrao || "").trim().toUpperCase();
@@ -241,6 +262,7 @@ router.get("/tempos-ref", auth, async (req, res) => {
       atual.tempo_segundos += total;
       if (!atual.referencia_padrao && referenciaPadrao) atual.referencia_padrao = referenciaPadrao;
       map.set(idreferencia, atual);
+      if (!debugMap) continue;
       if (!debugMap.has(idreferencia)) {
         debugMap.set(idreferencia, {
           idreferencia,
@@ -260,15 +282,18 @@ router.get("/tempos-ref", auth, async (req, res) => {
     const data = Array.from(map.values())
       .sort((a, b) => a.idreferencia.localeCompare(b.idreferencia));
 
-    const diagnostico = Array.from(debugMap.values()).map((row) => ({
-      idreferencia: row.idreferencia,
-      referencia_padrao: row.referencia_padrao || '',
-      operacoes: row.operacoes,
-      operacoes_com_tempo: row.operacoes_com_tempo,
-      tipos_operacao: Array.from(row.tipos_operacao).sort(),
-    }));
+    const payload = { success: true, total: data.length, data };
+    if (debugMap) {
+      payload.diagnostico = Array.from(debugMap.values()).map((row) => ({
+        idreferencia: row.idreferencia,
+        referencia_padrao: row.referencia_padrao || '',
+        operacoes: row.operacoes,
+        operacoes_com_tempo: row.operacoes_com_tempo,
+        tipos_operacao: Array.from(row.tipos_operacao).sort(),
+      }));
+    }
 
-    return res.json({ success: true, total: data.length, data, diagnostico });
+    return res.json(payload);
   } catch (error) {
     return res.status(500).json({
       success: false,

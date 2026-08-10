@@ -351,7 +351,8 @@ export default function Home() {
       const params = new URLSearchParams({
         limit: '5000',
         marca: MARCA_FIXA,
-        status: STATUS_FIXO
+        status: STATUS_FIXO,
+        prefer_cache: 'true'
       });
       const res    = await fetchNoCache(`${API_URL}/api/producao/matriz?${params}`);
       if (!res.ok) throw new Error(`Erro ${res.status}`);

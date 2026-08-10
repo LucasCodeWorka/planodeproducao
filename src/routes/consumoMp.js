@@ -3,7 +3,7 @@ const crypto = require("crypto");
 
 const router = express.Router();
 const CACHE_TTL_MS = (Number(process.env.CONSUMO_MP_CACHE_TTL_SECONDS) || 900) * 1000;
-const CACHE_SCHEMA_VERSION = "v4_compras_mp_corte20";
+const CACHE_SCHEMA_VERSION = "v7_compras_mp_finalizados_janela";
 
 // Cache em memória (TTL 15min — não precisa persistir entre deploys)
 const _memCache = new Map();
@@ -47,6 +47,8 @@ function buildCacheKey(planos, options = {}) {
       ma: Number(p?.ma || 0),
       px: Number(p?.px || 0),
       ul: Number(p?.ul || 0),
+      qt: Number(p?.qt || 0),
+      qu: Number(p?.qu || 0),
     }))
     .filter((p) => p.idproduto)
     .sort((a, b) => a.idproduto.localeCompare(b.idproduto));
@@ -82,16 +84,48 @@ function classifyCompraPeriodo(dtDisponivel, now = new Date()) {
   if (Number.isNaN(data.getTime())) return null;
 
   const mesAtual = startOfMonth(now);
-  const proxMes = addMonths(mesAtual, 1);
-  const mesSeguinte = addMonths(mesAtual, 2);
-
-  const corteMa = new Date(mesAtual.getFullYear(), mesAtual.getMonth(), 20, 23, 59, 59, 999);
-  const cortePx = new Date(proxMes.getFullYear(), proxMes.getMonth(), 20, 23, 59, 59, 999);
-  const corteUl = new Date(mesSeguinte.getFullYear(), mesSeguinte.getMonth(), 20, 23, 59, 59, 999);
+  const corteMa = addMonths(mesAtual, -1);
+  const cortePx = mesAtual;
+  const corteUl = addMonths(mesAtual, 1);
+  const corteQt = addMonths(mesAtual, 2);
+  const corteQu = addMonths(mesAtual, 3);
 
   if (data <= corteMa) return "ma";
   if (data <= cortePx) return "px";
   if (data <= corteUl) return "ul";
+  if (data <= corteQt) return "qt";
+  if (data <= corteQu) return "qu";
+  return null;
+}
+
+function getCompraDeadlines(now = new Date()) {
+  const mesAtual = startOfMonth(now);
+  return {
+    ma: addMonths(mesAtual, -1),
+    px: mesAtual,
+    ul: addMonths(mesAtual, 1),
+    qt: addMonths(mesAtual, 2),
+    qu: addMonths(mesAtual, 3),
+  };
+}
+
+function classifyFinalizadoPeriodo(dtFinalizado, now = new Date()) {
+  const data = new Date(dtFinalizado);
+  if (Number.isNaN(data.getTime())) return null;
+
+  const mesAtual = startOfMonth(now);
+  const inicioMa = addMonths(mesAtual, -2);
+  const inicioPx = addMonths(mesAtual, -1);
+  const inicioUl = mesAtual;
+  const inicioQt = addMonths(mesAtual, 1);
+  const inicioQu = addMonths(mesAtual, 2);
+  const fimQu = addMonths(mesAtual, 3);
+
+  if (data >= inicioMa && data < inicioPx) return "ma";
+  if (data >= inicioPx && data < inicioUl) return "px";
+  if (data >= inicioUl && data < inicioQt) return "ul";
+  if (data >= inicioQt && data < inicioQu) return "qt";
+  if (data >= inicioQu && data < fimQu) return "qu";
   return null;
 }
 
@@ -278,15 +312,19 @@ router.post("/analise", async (req, res) => {
       const ma = Number(p?.ma || 0);
       const px = Number(p?.px || 0);
       const ul = Number(p?.ul || 0);
+      const qt = Number(p?.qt || 0);
+      const qu = Number(p?.qu || 0);
       const maScope = Number(p?.ma_scope || 0);
       if (!id) continue;
       if (!planoMap.has(id)) {
-        planoMap.set(id, { ma: 0, px: 0, ul: 0 });
+        planoMap.set(id, { ma: 0, px: 0, ul: 0, qt: 0, qu: 0 });
       }
       const accPlano = planoMap.get(id);
       accPlano.ma += ma;
       accPlano.px += px;
       accPlano.ul += ul;
+      accPlano.qt += qt;
+      accPlano.qu += qu;
       if (!planoScopeMap.has(id)) {
         planoScopeMap.set(id, { idreferencia: ref, ma_scope: 0 });
       }
@@ -294,11 +332,13 @@ router.post("/analise", async (req, res) => {
       if (!accScope.idreferencia && ref) accScope.idreferencia = ref;
       accScope.ma_scope += maScope;
       if (ref) {
-        if (!planoRefMap.has(ref)) planoRefMap.set(ref, { ma: 0, px: 0, ul: 0 });
+        if (!planoRefMap.has(ref)) planoRefMap.set(ref, { ma: 0, px: 0, ul: 0, qt: 0, qu: 0 });
         const acc = planoRefMap.get(ref);
         acc.ma += ma;
         acc.px += px;
         acc.ul += ul;
+        acc.qt += qt;
+        acc.qu += qu;
       }
     }
     const idsPa = Array.from(planoMap.keys()).map((v) => String(v).trim()).filter(Boolean);
@@ -376,12 +416,14 @@ router.post("/analise", async (req, res) => {
           : planoRefMap.get(idRef);
         if (!plano) continue;
         if (!consumoMap.has(idMp)) {
-          consumoMap.set(idMp, { consumo_ma: 0, consumo_px: 0, consumo_ul: 0 });
+          consumoMap.set(idMp, { consumo_ma: 0, consumo_px: 0, consumo_ul: 0, consumo_qt: 0, consumo_qu: 0 });
         }
         const acc = consumoMap.get(idMp);
         acc.consumo_ma += plano.ma * qtd;
         acc.consumo_px += plano.px * qtd;
         acc.consumo_ul += plano.ul * qtd;
+        acc.consumo_qt += plano.qt * qtd;
+        acc.consumo_qu += plano.qu * qtd;
       }
     } else {
       function explode(parentId, demanda, depth, trail) {
@@ -396,15 +438,19 @@ router.post("/analise", async (req, res) => {
             ma: demanda.ma * fator,
             px: demanda.px * fator,
             ul: demanda.ul * fator,
+            qt: demanda.qt * fator,
+            qu: demanda.qu * fator,
           };
           // Sempre contabiliza o filho como necessidade (inclui semiacabados, ex.: alça).
           if (!consumoMap.has(childId)) {
-            consumoMap.set(childId, { consumo_ma: 0, consumo_px: 0, consumo_ul: 0 });
+            consumoMap.set(childId, { consumo_ma: 0, consumo_px: 0, consumo_ul: 0, consumo_qt: 0, consumo_qu: 0 });
           }
           const acc = consumoMap.get(childId);
           acc.consumo_ma += childDem.ma;
           acc.consumo_px += childDem.px;
           acc.consumo_ul += childDem.ul;
+          acc.consumo_qt += childDem.qt;
+          acc.consumo_qu += childDem.qu;
 
           const childHasBom = (bomByParent.get(childId) || []).length > 0;
           const ciclo = trail.has(childId);
@@ -418,7 +464,13 @@ router.post("/analise", async (req, res) => {
 
       for (const [idPa, plano] of planoMap.entries()) {
         const start = new Set([idPa]);
-        explode(idPa, { ma: Number(plano.ma || 0), px: Number(plano.px || 0), ul: Number(plano.ul || 0) }, 1, start);
+        explode(idPa, {
+          ma: Number(plano.ma || 0),
+          px: Number(plano.px || 0),
+          ul: Number(plano.ul || 0),
+          qt: Number(plano.qt || 0),
+          qu: Number(plano.qu || 0),
+        }, 1, start);
       }
     }
 
@@ -441,11 +493,47 @@ router.post("/analise", async (req, res) => {
 
     const estoqueMap = new Map(estoqueRows.rows.map((r) => [String(r.idmateriaprima || ""), r]));
 
+    const fornecedoresRows = await pool.query(`
+      SELECT
+        f.cd_produto::TEXT AS idmateriaprima,
+        f.cd_fornecedor::TEXT AS cd_fornecedor,
+        COALESCE(f.nm_fornecedor, '')::TEXT AS nm_fornecedor,
+        COALESCE(f.cd_original, '')::TEXT AS cd_original,
+        COALESCE(f.in_padrao, '')::TEXT AS in_padrao,
+        COALESCE(f.pr_markup, 0)::FLOAT AS pr_markup
+      FROM public.vr_prd_fornecedor f
+      WHERE f.cd_produto::TEXT = ANY($1::TEXT[])
+      ORDER BY
+        f.cd_produto,
+        CASE WHEN UPPER(COALESCE(f.in_padrao, '')) IN ('T', 'S', '1', 'TRUE') THEN 0 ELSE 1 END,
+        f.cd_fornecedor
+    `, [idsMp]);
+
+    const fornecedorMap = new Map();
+    for (const row of fornecedoresRows.rows) {
+      const idMp = String(row.idmateriaprima || "").trim();
+      if (!idMp) continue;
+      if (!fornecedorMap.has(idMp)) fornecedorMap.set(idMp, []);
+      fornecedorMap.get(idMp).push({
+        cd_fornecedor: String(row.cd_fornecedor || "").trim(),
+        nm_fornecedor: String(row.nm_fornecedor || "").trim(),
+        cd_original: String(row.cd_original || "").trim(),
+        in_padrao: String(row.in_padrao || "").trim(),
+        pr_markup: Number(row.pr_markup || 0),
+      });
+    }
+
     const comprasRows = await pool.query(`
       SELECT
         i.cd_produto::TEXT AS idmateriaprima,
         COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date) AS dt_disponivel,
-        SUM(COALESCE(i.qt_pendente, 0))::FLOAT AS qt_entrada
+        SUM(COALESCE(i.qt_pendente, 0))::FLOAT AS qt_entrada,
+        JSONB_AGG(JSONB_BUILD_OBJECT(
+          'empresa', c_1.cd_empresa,
+          'pedido', c_1.cd_pedido,
+          'data', COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date),
+          'quantidade', COALESCE(i.qt_pendente, 0)
+        ) ORDER BY COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date), c_1.cd_pedido) AS pedidos_detalhe
       FROM vr_cmp_pedidoc2 c_1
       JOIN vr_cmp_pedidoi i
         ON i.cd_empresa = c_1.cd_empresa
@@ -487,24 +575,118 @@ router.post("/analise", async (req, res) => {
         op.dt_preventrega::date
     `, [idsMp]);
 
+    const mesAtualFinalizados = startOfMonth(new Date());
+    const inicioFinalizados = addMonths(mesAtualFinalizados, -2);
+    const fimFinalizados = addMonths(mesAtualFinalizados, 1);
+    const finalizadosRows = await pool.query(`
+      SELECT
+        i.cd_produto::TEXT AS idmateriaprima,
+        COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped)::date AS dt_finalizado,
+        SUM(COALESCE(i.qt_atendida, 0))::FLOAT AS qt_finalizada,
+        SUM(COALESCE(i.vl_atendido, 0))::FLOAT AS vl_finalizado,
+        JSONB_AGG(JSONB_BUILD_OBJECT(
+          'empresa', c_1.cd_empresa,
+          'pedido', c_1.cd_pedido,
+          'data', COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped)::date,
+          'quantidade', COALESCE(i.qt_atendida, 0),
+          'valor', COALESCE(i.vl_atendido, 0),
+          'data_base', CASE
+            WHEN i.dt_ultentrega IS NOT NULL THEN 'dt_ultentrega_item'
+            WHEN c_1.dt_ultentrega IS NOT NULL THEN 'dt_ultentrega_capa'
+            ELSE 'dt_ultaltped'
+          END
+        ) ORDER BY COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped), c_1.cd_pedido) AS finalizados_detalhe
+      FROM vr_cmp_pedidoc2 c_1
+      JOIN vr_cmp_pedidoi i
+        ON i.cd_empresa = c_1.cd_empresa
+       AND i.cd_pedido = c_1.cd_pedido
+      WHERE i.cd_produto::TEXT = ANY($1::TEXT[])
+        AND COALESCE(i.qt_atendida, 0) > 0
+        AND COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped) >= $2::date
+        AND COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped) < $3::date
+      GROUP BY i.cd_produto, COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped)::date
+    `, [idsMp, inicioFinalizados.toISOString().slice(0, 10), fimFinalizados.toISOString().slice(0, 10)]);
+
     const entradasMap = new Map();
+    const deadlinesCompra = getCompraDeadlines(new Date());
     for (const row of [...comprasRows.rows, ...opInternaRows.rows]) {
       const idMp = String(row.idmateriaprima || "").trim();
       if (!idMp) continue;
-      const periodo = classifyCompraPeriodo(row.dt_disponivel, new Date());
-      if (!periodo) continue;
       if (!entradasMap.has(idMp)) {
-        entradasMap.set(idMp, { entrada_ma: 0, entrada_px: 0, entrada_ul: 0 });
+        entradasMap.set(idMp, {
+          entrada_ma: 0,
+          entrada_px: 0,
+          entrada_ul: 0,
+          entrada_qt: 0,
+          entrada_qu: 0,
+          entrada_andamento: 0,
+          entrada_fora_horizonte: 0,
+          entrada_fora_prazo_ma: 0,
+          pedidos_detalhe: [],
+        });
       }
       const acc = entradasMap.get(idMp);
       const qtEntrada = Number(row.qt_entrada || 0);
+      const dataDisponivel = new Date(row.dt_disponivel);
+      acc.entrada_andamento += qtEntrada;
+      if (!Number.isNaN(dataDisponivel.getTime()) && dataDisponivel > deadlinesCompra.ma) {
+        acc.entrada_fora_prazo_ma += qtEntrada;
+      }
+      const periodo = classifyCompraPeriodo(row.dt_disponivel, new Date());
+      if (Array.isArray(row.pedidos_detalhe)) {
+        for (const pedido of row.pedidos_detalhe) {
+          acc.pedidos_detalhe.push({
+            ...pedido,
+            periodo: periodo || "fora_horizonte",
+          });
+        }
+      }
+      if (!periodo) {
+        acc.entrada_fora_horizonte += qtEntrada;
+        continue;
+      }
       if (periodo === "ma") acc.entrada_ma += qtEntrada;
       if (periodo === "px") acc.entrada_px += qtEntrada;
       if (periodo === "ul") acc.entrada_ul += qtEntrada;
+      if (periodo === "qt") acc.entrada_qt += qtEntrada;
+      if (periodo === "qu") acc.entrada_qu += qtEntrada;
+    }
+
+    for (const row of finalizadosRows.rows) {
+      const idMp = String(row.idmateriaprima || "").trim();
+      if (!idMp) continue;
+      if (!entradasMap.has(idMp)) {
+        entradasMap.set(idMp, {
+          entrada_ma: 0,
+          entrada_px: 0,
+          entrada_ul: 0,
+          entrada_qt: 0,
+          entrada_qu: 0,
+          entrada_andamento: 0,
+          entrada_fora_horizonte: 0,
+          entrada_fora_prazo_ma: 0,
+          pedidos_detalhe: [],
+        });
+      }
+      const periodo = classifyFinalizadoPeriodo(row.dt_finalizado, new Date());
+      if (!periodo) continue;
+      const acc = entradasMap.get(idMp);
+      const qtFinalizada = Number(row.qt_finalizada || 0);
+      const vlFinalizado = Number(row.vl_finalizado || 0);
+      acc[`finalizado_${periodo}`] = Number(acc[`finalizado_${periodo}`] || 0) + qtFinalizada;
+      acc[`valor_finalizado_${periodo}`] = Number(acc[`valor_finalizado_${periodo}`] || 0) + vlFinalizado;
+      if (!Array.isArray(acc.finalizados_detalhe)) acc.finalizados_detalhe = [];
+      if (Array.isArray(row.finalizados_detalhe)) {
+        for (const item of row.finalizados_detalhe) {
+          acc.finalizados_detalhe.push({ ...item, periodo });
+        }
+      }
     }
 
     const data = Array.from(consumoMap.entries()).map(([idmateriaprima, c]) => {
       const e = estoqueMap.get(idmateriaprima) || {};
+      const fornecedores = fornecedorMap.get(idmateriaprima) || [];
+      const fornecedorPrincipal = fornecedores[0] || {};
       const compras = entradasMap.get(idmateriaprima) || {};
       const fis = Number(e.estoquefisico || 0);
       const insp = Number(e.estoqueinsp || 0);
@@ -515,17 +697,43 @@ router.post("/analise", async (req, res) => {
       const entrada_ma = Number(compras.entrada_ma || 0);
       const entrada_px = Number(compras.entrada_px || 0);
       const entrada_ul = Number(compras.entrada_ul || 0);
+      const entrada_qt = Number(compras.entrada_qt || 0);
+      const entrada_qu = Number(compras.entrada_qu || 0);
+      const entrada_andamento = Number(compras.entrada_andamento || 0);
+      const entrada_fora_horizonte = Number(compras.entrada_fora_horizonte || 0);
+      const entrada_fora_prazo_ma = Number(compras.entrada_fora_prazo_ma || 0);
+      const pedidos_detalhe = Array.isArray(compras.pedidos_detalhe) ? compras.pedidos_detalhe : [];
+      const finalizados_detalhe = Array.isArray(compras.finalizados_detalhe) ? compras.finalizados_detalhe : [];
+      const finalizado_ma = Number(compras.finalizado_ma || 0);
+      const finalizado_px = Number(compras.finalizado_px || 0);
+      const finalizado_ul = Number(compras.finalizado_ul || 0);
+      const finalizado_qt = Number(compras.finalizado_qt || 0);
+      const finalizado_qu = Number(compras.finalizado_qu || 0);
+      const valor_finalizado_ma = Number(compras.valor_finalizado_ma || 0);
+      const valor_finalizado_px = Number(compras.valor_finalizado_px || 0);
+      const valor_finalizado_ul = Number(compras.valor_finalizado_ul || 0);
+      const valor_finalizado_qt = Number(compras.valor_finalizado_qt || 0);
+      const valor_finalizado_qu = Number(compras.valor_finalizado_qu || 0);
       const consumo_ma = Number(c.consumo_ma || 0);
       const consumo_px = Number(c.consumo_px || 0);
       const consumo_ul = Number(c.consumo_ul || 0);
+      const consumo_qt = Number(c.consumo_qt || 0);
+      const consumo_qu = Number(c.consumo_qu || 0);
       const saldo_ma = estoquetotal + entrada_ma - consumo_ma;
       const saldo_px = saldo_ma + entrada_px - consumo_px;
       const saldo_ul = saldo_px + entrada_ul - consumo_ul;
-      const consumo_total = consumo_ma + consumo_px + consumo_ul;
+      const saldo_qt = saldo_ul + entrada_qt - consumo_qt;
+      const saldo_qu = saldo_qt + entrada_qu - consumo_qu;
+      const consumo_total = consumo_ma + consumo_px + consumo_ul + consumo_qt + consumo_qu;
       return {
         idmateriaprima,
         nome_materiaprima,
         artigo,
+        cd_fornecedor: fornecedorPrincipal.cd_fornecedor || "",
+        nm_fornecedor: fornecedorPrincipal.nm_fornecedor || "",
+        cd_original_fornecedor: fornecedorPrincipal.cd_original || "",
+        in_fornecedor_padrao: fornecedorPrincipal.in_padrao || "",
+        fornecedores,
         estoquefisico: fis,
         estoqueinsp: insp,
         estoquecorte: corte,
@@ -533,14 +741,35 @@ router.post("/analise", async (req, res) => {
         entrada_ma,
         entrada_px,
         entrada_ul,
+        entrada_qt,
+        entrada_qu,
+        entrada_andamento,
+        entrada_fora_horizonte,
+        entrada_fora_prazo_ma,
+        pedidos_detalhe,
+        finalizado_ma,
+        finalizado_px,
+        finalizado_ul,
+        finalizado_qt,
+        finalizado_qu,
+        valor_finalizado_ma,
+        valor_finalizado_px,
+        valor_finalizado_ul,
+        valor_finalizado_qt,
+        valor_finalizado_qu,
+        finalizados_detalhe,
         consumo_ma,
         consumo_px,
         consumo_ul,
+        consumo_qt,
+        consumo_qu,
         consumo_total,
         saldo_ma,
         saldo_px,
         saldo_ul,
-        saldo: saldo_ul,
+        saldo_qt,
+        saldo_qu,
+        saldo: saldo_qu,
       };
     })
       .filter((d) => {
@@ -873,6 +1102,13 @@ router.post("/analise", async (req, res) => {
         scope_ma_viavel_pct: percViavelScopeMA,
         refs_viaveis: refsViaveis.size,
         refs_bloqueadas: refsBloqueadas.size,
+        prazos_compra: {
+          ma: deadlinesCompra.ma.toISOString().slice(0, 10),
+          px: deadlinesCompra.px.toISOString().slice(0, 10),
+          ul: deadlinesCompra.ul.toISOString().slice(0, 10),
+          qt: deadlinesCompra.qt.toISOString().slice(0, 10),
+          qu: deadlinesCompra.qu.toISOString().slice(0, 10),
+        },
         cacheHit: false,
       },
       diagnostico_ma: {
