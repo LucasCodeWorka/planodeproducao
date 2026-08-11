@@ -162,6 +162,15 @@ function somaAte(row: ExcessoMpRow, prefixo: 'consumo' | 'entrada', periodo: Per
   return periodosAte(periodo).reduce((acc, p) => acc + valorPeriodo(row, prefixo, p), 0);
 }
 
+function ultimaCompra(row: ExcessoMpRow) {
+  const compras = (Array.isArray(row.finalizados_detalhe) ? row.finalizados_detalhe : [])
+    .filter((item) => Number(item.quantidade || 0) > 0 && Number(item.valor || 0) > 0)
+    .sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')));
+  const item = compras[0];
+  if (!item) return 0;
+  return Number(item.valor || 0) / Number(item.quantidade || 1);
+}
+
 function compareValues(a: unknown, b: unknown, dir: SortDir) {
   const an = typeof a === 'number' ? a : Number(a);
   const bn = typeof b === 'number' ? b : Number(b);
@@ -315,8 +324,12 @@ export default function ExcessoMpPage() {
 
   function valorUnitarioMp(row: ExcessoMpRow) {
     const productCode = String(row.idmateriaprima || '').trim();
+    const fatorConv = Number(row.fator_conversao || 1);
+    const ultima = ultimaCompra(row);
+    if (ultima > 0) return fatorConv > 1 ? ultima / fatorConv : ultima;
     const precoTotvs = Number(priceOptionsByMp[productCode]?.[0]?.value || 0);
-    return precoTotvs > 0 ? precoTotvs : Number(row.custo_unitario || 0);
+    if (precoTotvs > 0) return fatorConv > 1 ? precoTotvs / fatorConv : precoTotvs;
+    return Number(row.custo_unitario || 0);
   }
 
   const artigosDisponiveis = useMemo(() => {
