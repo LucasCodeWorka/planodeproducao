@@ -3,7 +3,8 @@ const crypto = require("crypto");
 
 const router = express.Router();
 const CACHE_TTL_MS = (Number(process.env.CONSUMO_MP_CACHE_TTL_SECONDS) || 900) * 1000;
-const CACHE_SCHEMA_VERSION = "v7_compras_mp_finalizados_janela";
+const CACHE_SCHEMA_VERSION = "v8_consumo_real_multinivel";
+const OPERACOES_CONSUMO_MP = [1100, 100, 1150, 150, 1210, 210, 1219, 219, 128, 280];
 
 // Cache em memória (TTL 15min — não precisa persistir entre deploys)
 const _memCache = new Map();
@@ -268,7 +269,9 @@ router.post("/analise", async (req, res) => {
     const planos = Array.isArray(req.body?.planos) ? req.body.planos : [];
     const usarMultinivel = req.body?.multinivel === true || req.query.multinivel === "true";
     const maxDepth = Math.max(1, Math.min(Number(req.body?.max_depth || process.env.CONSUMO_MP_MAX_DEPTH || 6), 12));
-    const cacheKey = buildCacheKey(planos, { usarMultinivel, maxDepth });
+    const diasConsumo = Math.max(1, Math.min(Number(req.body?.dias_consumo || req.query.dias_consumo || 30), 365));
+    const diasCobertura = Math.max(0, Math.min(Number(req.body?.dias_cobertura || req.query.dias_cobertura || 5), 365));
+    const cacheKey = buildCacheKey(planos, { usarMultinivel, maxDepth, diasConsumo, diasCobertura });
     const noCache = req.query.no_cache === "true";
 
     if (!noCache) {
@@ -484,7 +487,7 @@ router.post("/analise", async (req, res) => {
 
     // ═══ OTIMIZAÇÃO: Executar todas as queries em paralelo ═══
     const t0Queries = Date.now();
-    const [estoqueRows, fornecedoresRows, comprasRows, opInternaRows, finalizadosRows, conversaoRows] = await Promise.all([
+    const [estoqueRows, fornecedoresRows, comprasRows, opInternaRows, finalizadosRows, conversaoRows, consumoRealRows] = await Promise.all([
       // Q1: Estoque e dados de MP
       pool.query(`
         SELECT
@@ -614,10 +617,25 @@ router.post("/analise", async (req, res) => {
         WHERE c.cd_produto::TEXT = ANY($1::TEXT[])
           AND UPPER(COALESCE(c.in_padrao, '')) IN ('T', 'S', '1', 'TRUE')
       `, [idsMp]),
+
+      // Q7: Consumo real recente para calcular estoque de seguranca
+      pool.query(`
+        SELECT
+          t.cd_produto::TEXT AS idmateriaprima,
+          SUM(COALESCE(t.qt_saldo, t.qt_solicitada, t.qt_atendida, 0))::FLOAT AS consumo_ultimos_dias
+        FROM public.vr_tra_transitem t
+        WHERE t.cd_produto::TEXT = ANY($1::TEXT[])
+          AND t.cd_operacao = ANY($2::BIGINT[])
+          AND t.tp_situacao <> 6
+          AND t.tp_operacao = 'S'
+          AND t.dt_transacao >= (CURRENT_DATE - ($3::INT * INTERVAL '1 day'))
+        GROUP BY t.cd_produto
+      `, [idsMp, OPERACOES_CONSUMO_MP, diasConsumo]),
     ]);
     console.log(`[consumo-mp/analise] Queries paralelas concluídas em ${((Date.now() - t0Queries) / 1000).toFixed(1)}s`);
 
     const estoqueMap = new Map(estoqueRows.rows.map((r) => [String(r.idmateriaprima || ""), r]));
+    const consumoRealMap = new Map(consumoRealRows.rows.map((r) => [String(r.idmateriaprima || ""), r]));
 
     // Mapa de conversão de unidade (ex: milheiro -> unidade = dividir por 1000)
     const conversaoMap = new Map();
@@ -730,6 +748,7 @@ router.post("/analise", async (req, res) => {
       const fornecedores = fornecedorMap.get(idmateriaprima) || [];
       const fornecedorPrincipal = fornecedores[0] || {};
       const compras = entradasMap.get(idmateriaprima) || {};
+      const consumoReal = consumoRealMap.get(idmateriaprima) || {};
       const fis = Number(e.estoquefisico || 0);
       const insp = Number(e.estoqueinsp || 0);
       const corte = Number(e.estoquecorte || 0);
@@ -768,6 +787,9 @@ router.post("/analise", async (req, res) => {
       const saldo_qt = saldo_ul + entrada_qt - consumo_qt;
       const saldo_qu = saldo_qt + entrada_qu - consumo_qu;
       const consumo_total = consumo_ma + consumo_px + consumo_ul + consumo_qt + consumo_qu;
+      const consumo_ultimos_dias = Number(consumoReal.consumo_ultimos_dias || 0);
+      const consumo_dia = consumo_ultimos_dias / diasConsumo;
+      const estoque_cinco_dias = consumo_dia * diasCobertura;
 
       // Fator de conversão de unidade (ex: milheiro = 1000)
       const conv = conversaoMap.get(idmateriaprima) || null;
@@ -818,6 +840,11 @@ router.post("/analise", async (req, res) => {
         consumo_qt,
         consumo_qu,
         consumo_total,
+        consumo_ultimos_dias,
+        consumo_dia,
+        estoque_cinco_dias,
+        dias_consumo_base: diasConsumo,
+        dias_cobertura_base: diasCobertura,
         saldo_ma,
         saldo_px,
         saldo_ul,

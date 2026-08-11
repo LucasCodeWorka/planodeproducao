@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Download, RefreshCw, Search } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import { Planejamento } from '../types';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
 
@@ -17,6 +18,8 @@ const API_URL = (() => {
 })();
 
 const PERIODOS = ['MA', 'PX', 'UL', 'QT'] as const;
+const MARCA_FIXA = 'LIEBE';
+const STATUS_FIXO = 'EM LINHA,NOVA COLECAO';
 
 type Periodo = typeof PERIODOS[number];
 type SortDir = 'asc' | 'desc';
@@ -32,33 +35,44 @@ type PedidoCompraDetalhe = {
 
 type ExcessoMpRow = {
   idmateriaprima: string;
-  descricao: string;
+  descricao?: string;
+  nome_materiaprima?: string;
+  cor?: string;
   artigo: string;
   estoquetotal: number;
-  skus_em_linha: number;
+  skus_em_linha?: number;
   consumo_ultimos_dias: number;
   consumo_dia: number;
   estoque_cinco_dias: number;
-  consumo_op: number;
+  consumo_op?: number;
   consumo_ma: number;
   consumo_px: number;
   consumo_ul: number;
   consumo_qt: number;
+  consumo_qu?: number;
   entrada_ma: number;
   entrada_px: number;
   entrada_ul: number;
   entrada_qt: number;
+  entrada_qu?: number;
+  entrada_andamento?: number;
   entrada_fora_horizonte?: number;
   saldo_ma: number;
   saldo_px: number;
   saldo_ul: number;
   saldo_qt: number;
+  saldo_qu?: number;
   excesso_ma: number;
   excesso_px: number;
   excesso_ul: number;
   excesso_qt: number;
   custo_unitario?: number;
   compras_detalhe?: PedidoCompraDetalhe[];
+  pedidos_detalhe?: PedidoCompraDetalhe[];
+  finalizados_detalhe?: PedidoCompraDetalhe[];
+  fator_conversao?: number;
+  unidade_compra?: string;
+  ds_conversao?: string;
 };
 
 type PriceOption = {
@@ -70,6 +84,7 @@ type ExcessoCalculado = ExcessoMpRow & {
   valorUnitario: number;
   consumoAte: number;
   comprasAte: number;
+  cancelavelAte: number;
   saldoAte: number;
   estoqueSeguranca: number;
   excessoAte: number;
@@ -77,6 +92,7 @@ type ExcessoCalculado = ExcessoMpRow & {
   valorEstoque: number;
   valorConsumo: number;
   valorCompras: number;
+  valorCancelavel: number;
   valorSaldo: number;
   valorExcesso: number;
 };
@@ -90,6 +106,8 @@ type ArtigoRow = {
   valorConsumo: number;
   compras: number;
   valorCompras: number;
+  cancelavel: number;
+  valorCancelavel: number;
   saldo: number;
   valorSaldo: number;
   estoqueSeguranca: number;
@@ -100,12 +118,13 @@ type ArtigoRow = {
 type MpSortKey =
   | 'idmateriaprima' | 'descricao' | 'artigo' | 'estoquetotal' | 'valorEstoque'
   | 'consumoAte' | 'valorConsumo' | 'comprasAte' | 'valorCompras'
+  | 'cancelavelAte' | 'valorCancelavel'
   | 'saldoAte' | 'valorSaldo' | 'estoqueSeguranca' | 'excessoAte'
   | 'valorExcesso' | 'valorUnitario' | 'coberturaDias';
 
 type ArtigoSortKey =
   | 'artigo' | 'itens' | 'estoque' | 'valorEstoque' | 'consumo'
-  | 'valorConsumo' | 'compras' | 'valorCompras' | 'saldo'
+  | 'valorConsumo' | 'compras' | 'valorCompras' | 'cancelavel' | 'valorCancelavel' | 'saldo'
   | 'valorSaldo' | 'estoqueSeguranca' | 'excesso' | 'valorExcesso';
 
 function fmt(value: number | null | undefined, digits = 0) {
@@ -204,24 +223,55 @@ export default function ExcessoMpPage() {
 
   async function carregar() {
     setLoading(true);
-    setLoadingStage('Calculando plano, estoque, compras e consumo...');
+    setLoadingStage('Carregando plano oficial...');
     setProgress(8);
     setError(null);
     try {
-      const params = new URLSearchParams({
-        dias_consumo: String(diasConsumo),
-        dias_cobertura: String(diasCobertura),
-        somente_excesso: 'false',
+      const paramsMatriz = new URLSearchParams({
         limit: '3000',
+        marca: MARCA_FIXA,
+        status: STATUS_FIXO,
+        prefer_cache: 'true',
       });
-      const response = await fetchNoCache(`${API_URL}/api/excesso-mp?${params}`, {}, 600000);
-      setProgress(72);
-      setLoadingStage('Recebendo dados calculados...');
+      const rMatriz = await fetchNoCache(`${API_URL}/api/producao/matriz?${paramsMatriz}`, {}, 240000);
+      const pMatriz = await rMatriz.json();
+      if (!rMatriz.ok || !pMatriz?.success) throw new Error(pMatriz?.error || 'Erro ao carregar plano oficial');
+
+      const matriz = (Array.isArray(pMatriz.data) ? pMatriz.data : []) as Planejamento[];
+      const planos = matriz
+        .map((item) => ({
+          idproduto: String(item.produto.idproduto || ''),
+          idreferencia: String(item.produto.cd_seqgrupo || ''),
+          ma: Number(item.plano?.ma || 0),
+          px: Number(item.plano?.px || 0),
+          ul: Number(item.plano?.ul || 0),
+          qt: Number(item.plano?.qt || 0),
+        }))
+        .filter((p) => p.idproduto && (p.ma + p.px + p.ul + p.qt) > 0);
+
+      setProgress(45);
+      setLoadingStage('Calculando consumo MP multinivel...');
+      const response = await fetchNoCache(`${API_URL}/api/consumo-mp/analise`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          planos,
+          multinivel: true,
+          dias_consumo: diasConsumo,
+          dias_cobertura: diasCobertura,
+        }),
+      }, 600000);
       const payload = await response.json();
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'Erro ao carregar excesso de MP');
-      }
-      const data = Array.isArray(payload.data) ? payload.data : [];
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Erro ao calcular excesso de MP');
+      const data = (Array.isArray(payload.data) ? payload.data : []).map((row: ExcessoMpRow) => ({
+        ...row,
+        descricao: row.descricao || row.nome_materiaprima || '',
+        excesso_ma: Math.max(Number(row.saldo_ma || 0) - Number(row.estoque_cinco_dias || 0), 0),
+        excesso_px: Math.max(Number(row.saldo_px || 0) - Number(row.estoque_cinco_dias || 0), 0),
+        excesso_ul: Math.max(Number(row.saldo_ul || 0) - Number(row.estoque_cinco_dias || 0), 0),
+        excesso_qt: Math.max(Number(row.saldo_qt || 0) - Number(row.estoque_cinco_dias || 0), 0),
+      }));
+      setProgress(72);
       setRows(data);
       carregarPrecosMp(data);
     } catch (err) {
@@ -286,12 +336,14 @@ export default function ExcessoMpPage() {
         const saldoPeriodo = valorPeriodo(row, 'saldo', planoAte);
         const estoqueSeguranca = Number(row.estoque_cinco_dias || 0);
         const excessoAte = Math.max(0, saldoPeriodo - estoqueSeguranca);
+        const cancelavelAte = Math.min(comprasAte, excessoAte);
         const coberturaDias = Number(row.consumo_dia || 0) > 0 ? saldoPeriodo / Number(row.consumo_dia || 1) : null;
         return {
           ...row,
           valorUnitario,
           consumoAte,
           comprasAte,
+          cancelavelAte,
           saldoAte: saldoPeriodo,
           estoqueSeguranca,
           excessoAte,
@@ -299,6 +351,7 @@ export default function ExcessoMpPage() {
           valorEstoque: Number(row.estoquetotal || 0) * valorUnitario,
           valorConsumo: consumoAte * valorUnitario,
           valorCompras: comprasAte * valorUnitario,
+          valorCancelavel: cancelavelAte * valorUnitario,
           valorSaldo: saldoPeriodo * valorUnitario,
           valorExcesso: excessoAte * valorUnitario,
         };
@@ -309,7 +362,8 @@ export default function ExcessoMpPage() {
         if (somenteExcesso && row.excessoAte <= 0) return false;
         if (!q) return true;
         return String(row.idmateriaprima || '').includes(q)
-          || String(row.descricao || '').toUpperCase().includes(q)
+      || String(row.descricao || '').toUpperCase().includes(q)
+          || String(row.nome_materiaprima || '').toUpperCase().includes(q)
           || artigo.toUpperCase().includes(q);
       });
   }, [rows, priceOptionsByMp, planoAte, buscar, artigosSelecionados, somenteExcesso]);
@@ -335,6 +389,8 @@ export default function ExcessoMpPage() {
           valorConsumo: 0,
           compras: 0,
           valorCompras: 0,
+          cancelavel: 0,
+          valorCancelavel: 0,
           saldo: 0,
           valorSaldo: 0,
           estoqueSeguranca: 0,
@@ -350,6 +406,8 @@ export default function ExcessoMpPage() {
       acc.valorConsumo += row.valorConsumo;
       acc.compras += row.comprasAte;
       acc.valorCompras += row.valorCompras;
+      acc.cancelavel += row.cancelavelAte;
+      acc.valorCancelavel += row.valorCancelavel;
       acc.saldo += row.saldoAte;
       acc.valorSaldo += row.valorSaldo;
       acc.estoqueSeguranca += row.estoqueSeguranca;
@@ -375,6 +433,8 @@ export default function ExcessoMpPage() {
       acc.valorConsumo += row.valorConsumo;
       acc.compras += row.comprasAte;
       acc.valorCompras += row.valorCompras;
+      acc.cancelavel += row.cancelavelAte;
+      acc.valorCancelavel += row.valorCancelavel;
       acc.saldo += row.saldoAte;
       acc.valorSaldo += row.valorSaldo;
       acc.estoqueSeguranca += row.estoqueSeguranca;
@@ -389,6 +449,8 @@ export default function ExcessoMpPage() {
       valorConsumo: 0,
       compras: 0,
       valorCompras: 0,
+      cancelavel: 0,
+      valorCancelavel: 0,
       saldo: 0,
       valorSaldo: 0,
       estoqueSeguranca: 0,
@@ -402,6 +464,7 @@ export default function ExcessoMpPage() {
     if (!mpModal) return [];
     const permitidos = new Set(periodosAte(planoAte));
     return (Array.isArray(mpModal.compras_detalhe) ? mpModal.compras_detalhe : [])
+      .concat(Array.isArray(mpModal.pedidos_detalhe) ? mpModal.pedidos_detalhe : [])
       .filter((pedido) => permitidos.has(String(pedido.periodo || '').toUpperCase() as Periodo))
       .sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')));
   }, [mpModal, planoAte]);
@@ -427,12 +490,12 @@ export default function ExcessoMpPage() {
   function exportarCsv() {
     const header = [
       'mp', 'descricao', 'artigo', 'horizonte', 'estoque', 'valor_estoque',
-      'consumo_plano', 'valor_consumo', 'compras_ate', 'valor_compras',
+      'consumo_plano', 'valor_consumo', 'compras_ate', 'valor_compras', 'pedido_cancelavel', 'valor_cancelavel',
       'saldo', 'valor_saldo', 'estoque_seguranca', 'excesso', 'valor_excesso', 'valor_unitario',
     ];
     const body = rowsOrdenadas.map((row) => [
       row.idmateriaprima, row.descricao, row.artigo, periodosLabel, row.estoquetotal, row.valorEstoque,
-      row.consumoAte, row.valorConsumo, row.comprasAte, row.valorCompras,
+      row.consumoAte, row.valorConsumo, row.comprasAte, row.valorCompras, row.cancelavelAte, row.valorCancelavel,
       row.saldoAte, row.valorSaldo, row.estoqueSeguranca, row.excessoAte, row.valorExcesso, row.valorUnitario,
     ]);
     const csv = [header, ...body].map((line) => line.map(csvEscape).join(';')).join('\n');
@@ -546,11 +609,12 @@ export default function ExcessoMpPage() {
             </div>
           </section>
 
-          <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 xl:grid-cols-7 gap-3">
             <Card label={`Excesso ate ${planoAte}`} value={money(totais.valorExcesso)} detail={`${fmt(totais.excesso)} qtd`} tone="orange" />
             <Card label="Estoque em casa" value={money(totais.valorEstoque)} detail={`${fmt(totais.estoque)} qtd`} tone="slate" />
             <Card label="Consumo plano" value={money(totais.valorConsumo)} detail={`${fmt(totais.consumo)} qtd | ${periodosLabel}`} tone="red" />
             <Card label="Compras no prazo" value={money(totais.valorCompras)} detail={`${fmt(totais.compras)} qtd`} tone="emerald" />
+            <Card label="Pedido cancelavel" value={money(totais.valorCancelavel)} detail={`${fmt(totais.cancelavel)} qtd sem afetar plano`} tone="violet" />
             <Card label="Saldo horizonte" value={money(totais.valorSaldo)} detail={`${fmt(totais.saldo)} qtd`} tone="sky" />
             <Card label="Estoque seguranca" value={fmt(totais.estoqueSeguranca)} detail={`${diasCobertura} dias de cobertura`} tone="stone" />
           </div>
@@ -578,6 +642,9 @@ export default function ExcessoMpPage() {
                     <SortTh align="right" active={artigoSort.key === 'consumo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('consumo')}>Consumo plano</SortTh>
                     <SortTh align="right" active={artigoSort.key === 'valorConsumo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorConsumo')}>R$ consumo</SortTh>
                     <SortTh align="right" active={artigoSort.key === 'compras'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('compras')}>Compras</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'valorCompras'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorCompras')}>R$ compras</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'cancelavel'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('cancelavel')}>Cancelavel</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'valorCancelavel'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorCancelavel')}>R$ cancelavel</SortTh>
                     <SortTh align="right" active={artigoSort.key === 'saldo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('saldo')}>Saldo</SortTh>
                     <SortTh align="right" active={artigoSort.key === 'estoqueSeguranca'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('estoqueSeguranca')}>Est. seg.</SortTh>
                     <SortTh align="right" active={artigoSort.key === 'excesso'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('excesso')}>Excesso</SortTh>
@@ -594,13 +661,16 @@ export default function ExcessoMpPage() {
                       <Td align="right">{fmt(row.consumo)}</Td>
                       <Td align="right" strong>{money(row.valorConsumo)}</Td>
                       <Td align="right" tone="emerald">{fmt(row.compras)}</Td>
+                      <Td align="right" tone="emerald" strong>{money(row.valorCompras)}</Td>
+                      <Td align="right" tone={row.cancelavel > 0 ? 'violet' : undefined}>{fmt(row.cancelavel)}</Td>
+                      <Td align="right" tone={row.valorCancelavel > 0 ? 'violet' : undefined} strong>{money(row.valorCancelavel)}</Td>
                       <Td align="right" tone={row.saldo < 0 ? 'red' : 'sky'}>{fmt(row.saldo)}</Td>
                       <Td align="right">{fmt(row.estoqueSeguranca)}</Td>
                       <Td align="right" tone={row.excesso > 0 ? 'orange' : undefined}>{fmt(row.excesso)}</Td>
                       <Td align="right" tone={row.valorExcesso > 0 ? 'orange' : undefined} strong>{money(row.valorExcesso)}</Td>
                     </tr>
                   ))}
-                  {porArtigoOrdenado.length === 0 && <tr><td colSpan={11} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
+                  {porArtigoOrdenado.length === 0 && <tr><td colSpan={14} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
                 </tbody>
                 {porArtigoOrdenado.length > 0 && (
                   <tfoot className="sticky bottom-0 z-10 bg-gray-200 font-semibold text-gray-900">
@@ -612,6 +682,9 @@ export default function ExcessoMpPage() {
                       <Td align="right" strong>{fmt(totais.consumo)}</Td>
                       <Td align="right" strong>{money(totais.valorConsumo)}</Td>
                       <Td align="right" tone="emerald" strong>{fmt(totais.compras)}</Td>
+                      <Td align="right" tone="emerald" strong>{money(totais.valorCompras)}</Td>
+                      <Td align="right" tone={totais.cancelavel > 0 ? 'violet' : undefined} strong>{fmt(totais.cancelavel)}</Td>
+                      <Td align="right" tone={totais.valorCancelavel > 0 ? 'violet' : undefined} strong>{money(totais.valorCancelavel)}</Td>
                       <Td align="right" tone={totais.saldo < 0 ? 'red' : 'sky'} strong>{fmt(totais.saldo)}</Td>
                       <Td align="right" strong>{fmt(totais.estoqueSeguranca)}</Td>
                       <Td align="right" tone={totais.excesso > 0 ? 'orange' : undefined} strong>{fmt(totais.excesso)}</Td>
@@ -640,6 +713,9 @@ export default function ExcessoMpPage() {
                     <SortTh align="right" active={mpSort.key === 'consumoAte'} dir={mpSort.dir} onClick={() => toggleMpSort('consumoAte')}>Consumo plano</SortTh>
                     <SortTh align="right" active={mpSort.key === 'valorConsumo'} dir={mpSort.dir} onClick={() => toggleMpSort('valorConsumo')}>R$ consumo</SortTh>
                     <SortTh align="right" active={mpSort.key === 'comprasAte'} dir={mpSort.dir} onClick={() => toggleMpSort('comprasAte')}>Compras</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorCompras'} dir={mpSort.dir} onClick={() => toggleMpSort('valorCompras')}>R$ compras</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'cancelavelAte'} dir={mpSort.dir} onClick={() => toggleMpSort('cancelavelAte')}>Cancelavel</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorCancelavel'} dir={mpSort.dir} onClick={() => toggleMpSort('valorCancelavel')}>R$ cancelavel</SortTh>
                     <SortTh align="right" active={mpSort.key === 'saldoAte'} dir={mpSort.dir} onClick={() => toggleMpSort('saldoAte')}>Saldo</SortTh>
                     <SortTh align="right" active={mpSort.key === 'estoqueSeguranca'} dir={mpSort.dir} onClick={() => toggleMpSort('estoqueSeguranca')}>Est. seg.</SortTh>
                     <SortTh align="right" active={mpSort.key === 'excessoAte'} dir={mpSort.dir} onClick={() => toggleMpSort('excessoAte')}>Excesso</SortTh>
@@ -658,6 +734,9 @@ export default function ExcessoMpPage() {
                       <Td align="right">{fmt(row.consumoAte)}</Td>
                       <Td align="right" strong>{money(row.valorConsumo)}</Td>
                       <Td align="right" tone="emerald">{fmt(row.comprasAte)}</Td>
+                      <Td align="right" tone="emerald" strong>{money(row.valorCompras)}</Td>
+                      <Td align="right" tone={row.cancelavelAte > 0 ? 'violet' : undefined}>{fmt(row.cancelavelAte)}</Td>
+                      <Td align="right" tone={row.valorCancelavel > 0 ? 'violet' : undefined} strong>{money(row.valorCancelavel)}</Td>
                       <Td align="right" tone={row.saldoAte < 0 ? 'red' : 'sky'}>{fmt(row.saldoAte)}</Td>
                       <Td align="right">{fmt(row.estoqueSeguranca)}</Td>
                       <Td align="right" tone={row.excessoAte > 0 ? 'orange' : undefined}>{fmt(row.excessoAte)}</Td>
@@ -665,7 +744,7 @@ export default function ExcessoMpPage() {
                       <Td align="right" strong>{row.valorUnitario > 0 ? money(row.valorUnitario) : '-'}</Td>
                     </tr>
                   ))}
-                  {rowsOrdenadas.length === 0 && <tr><td colSpan={13} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
+                  {rowsOrdenadas.length === 0 && <tr><td colSpan={16} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
                 </tbody>
                 {rowsOrdenadas.length > 0 && (
                   <tfoot className="sticky bottom-0 z-10 bg-gray-200 font-semibold text-gray-900">
@@ -678,6 +757,9 @@ export default function ExcessoMpPage() {
                       <Td align="right" strong>{fmt(totais.consumo)}</Td>
                       <Td align="right" strong>{money(totais.valorConsumo)}</Td>
                       <Td align="right" tone="emerald" strong>{fmt(totais.compras)}</Td>
+                      <Td align="right" tone="emerald" strong>{money(totais.valorCompras)}</Td>
+                      <Td align="right" tone={totais.cancelavel > 0 ? 'violet' : undefined} strong>{fmt(totais.cancelavel)}</Td>
+                      <Td align="right" tone={totais.valorCancelavel > 0 ? 'violet' : undefined} strong>{money(totais.valorCancelavel)}</Td>
                       <Td align="right" tone={totais.saldo < 0 ? 'red' : 'sky'} strong>{fmt(totais.saldo)}</Td>
                       <Td align="right" strong>{fmt(totais.estoqueSeguranca)}</Td>
                       <Td align="right" tone={totais.excesso > 0 ? 'orange' : undefined} strong>{fmt(totais.excesso)}</Td>
@@ -710,7 +792,7 @@ export default function ExcessoMpPage() {
                     <InfoCard label="Estoque em casa" value={fmt(mpModal.estoquetotal)} detail={money(mpModal.valorEstoque)} />
                     <InfoCard label="Compras no prazo" value={fmt(mpModal.comprasAte)} detail={money(mpModal.valorCompras)} />
                     <InfoCard label="Consumo plano" value={fmt(mpModal.consumoAte)} detail={money(mpModal.valorConsumo)} />
-                    <InfoCard label="Estoque seguranca" value={fmt(mpModal.estoqueSeguranca)} detail={`${diasCobertura} dias`} />
+                    <InfoCard label="Pedido cancelavel" value={fmt(mpModal.cancelavelAte)} detail={money(mpModal.valorCancelavel)} tone="violet" />
                     <InfoCard label="Excesso" value={fmt(mpModal.excessoAte)} detail={money(mpModal.valorExcesso)} tone="orange" />
                   </div>
 
@@ -744,6 +826,11 @@ export default function ExcessoMpPage() {
                           <td className="px-3 py-2 font-bold text-orange-800">Excesso</td>
                           <td className="px-3 py-2 text-right font-bold text-orange-800">{fmt(mpModal.excessoAte)}</td>
                           <td className="px-3 py-2 text-right font-bold text-orange-800">{money(mpModal.valorExcesso)}</td>
+                        </tr>
+                        <tr className="border-t border-violet-200 bg-violet-50">
+                          <td className="px-3 py-2 font-bold text-violet-800">Pedido cancelavel sem afetar plano</td>
+                          <td className="px-3 py-2 text-right font-bold text-violet-800">{fmt(mpModal.cancelavelAte)}</td>
+                          <td className="px-3 py-2 text-right font-bold text-violet-800">{money(mpModal.valorCancelavel)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -804,7 +891,7 @@ export default function ExcessoMpPage() {
   );
 }
 
-function Card({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: 'red' | 'orange' | 'sky' | 'emerald' | 'stone' | 'slate' }) {
+function Card({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: 'red' | 'orange' | 'sky' | 'emerald' | 'stone' | 'slate' | 'violet' }) {
   const cls = {
     red: 'text-red-700',
     orange: 'text-orange-700',
@@ -812,6 +899,7 @@ function Card({ label, value, detail, tone }: { label: string; value: string; de
     emerald: 'text-emerald-700',
     stone: 'text-stone-800',
     slate: 'text-slate-700',
+    violet: 'text-violet-700',
   }[tone];
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-3">
@@ -833,17 +921,22 @@ function SortTh({ children, align = 'left', active, dir, onClick }: { children: 
   );
 }
 
-function InfoCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: 'orange' }) {
+function InfoCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: 'orange' | 'violet' }) {
+  const toneClass = tone === 'orange'
+    ? 'border-orange-200 bg-orange-50 text-orange-700'
+    : tone === 'violet'
+      ? 'border-violet-200 bg-violet-50 text-violet-700'
+      : 'border-gray-200 bg-gray-50 text-gray-900';
   return (
-    <div className={`rounded border px-3 py-2 ${tone === 'orange' ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+    <div className={`rounded border px-3 py-2 ${toneClass}`}>
       <div className="text-[11px] text-gray-500">{label}</div>
-      <div className={`text-lg font-bold ${tone === 'orange' ? 'text-orange-700' : 'text-gray-900'}`}>{value}</div>
+      <div className="text-lg font-bold">{value}</div>
       <div className="text-[11px] text-gray-500">{detail}</div>
     </div>
   );
 }
 
-function Td({ children = null, align = 'left', tone, strong = false }: { children?: React.ReactNode; align?: 'left' | 'right'; tone?: 'red' | 'orange' | 'sky' | 'emerald'; strong?: boolean }) {
+function Td({ children = null, align = 'left', tone, strong = false }: { children?: React.ReactNode; align?: 'left' | 'right'; tone?: 'red' | 'orange' | 'sky' | 'emerald' | 'violet'; strong?: boolean }) {
   const toneClass = tone === 'red'
     ? 'text-red-700'
     : tone === 'orange'
@@ -852,6 +945,8 @@ function Td({ children = null, align = 'left', tone, strong = false }: { childre
         ? 'text-sky-700'
         : tone === 'emerald'
           ? 'text-emerald-700'
-          : 'text-gray-700';
+          : tone === 'violet'
+            ? 'text-violet-700'
+            : 'text-gray-700';
   return <td className={`px-2.5 py-2 ${align === 'right' ? 'text-right' : 'text-left'} ${toneClass} ${strong ? 'font-semibold' : ''}`}>{children}</td>;
 }
