@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Download, RefreshCw, Search } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
@@ -17,13 +16,24 @@ const API_URL = (() => {
   return withProto.replace(/\/+$/, '');
 })();
 
+const PERIODOS = ['MA', 'PX', 'UL', 'QT'] as const;
+
+type Periodo = typeof PERIODOS[number];
+type SortDir = 'asc' | 'desc';
+
+type PedidoCompraDetalhe = {
+  empresa?: number | string;
+  pedido?: number | string;
+  data?: string;
+  quantidade?: number;
+  valor?: number;
+  periodo?: string;
+};
+
 type ExcessoMpRow = {
   idmateriaprima: string;
   descricao: string;
   artigo: string;
-  estoquefisico: number;
-  estoqueinsp: number;
-  estoquecorte: number;
   estoquetotal: number;
   skus_em_linha: number;
   consumo_ultimos_dias: number;
@@ -34,80 +44,79 @@ type ExcessoMpRow = {
   consumo_px: number;
   consumo_ul: number;
   consumo_qt: number;
-  consumo_direto: number;
-  consumo_indireto: number;
   entrada_ma: number;
   entrada_px: number;
   entrada_ul: number;
   entrada_qt: number;
+  entrada_fora_horizonte?: number;
   saldo_ma: number;
   saldo_px: number;
   saldo_ul: number;
   saldo_qt: number;
-  dias_cobertura_qt: number | null;
   excesso_ma: number;
   excesso_px: number;
   excesso_ul: number;
   excesso_qt: number;
-  custo_unitario: number;
-  valor_excesso_ma: number;
-  valor_excesso_px: number;
-  valor_excesso_ul: number;
-  valor_excesso_qt: number;
-  valor_saldo_qt: number;
-};
-
-type Resumo = {
-  itens: number;
-  estoque: number;
-  excesso_ma: number;
-  excesso_px: number;
-  excesso_ul: number;
-  excesso_qt: number;
-  saldo_qt: number;
-  consumo_qt: number;
-  consumo_ultimos_dias: number;
-  valor_excesso_ma: number;
-  valor_excesso_px: number;
-  valor_excesso_ul: number;
-  valor_excesso_qt: number;
-  valor_saldo_qt: number;
-  valor_consumo_30d: number;
-};
-
-type ArtigoResumo = {
-  artigo: string;
-  itens: number;
-  estoque: number;
-  saldo_qt: number;
-  excesso_ma: number;
-  excesso_px: number;
-  excesso_ul: number;
-  excesso_qt: number;
-  valor_excesso_ma: number;
-  valor_excesso_px: number;
-  valor_excesso_ul: number;
-  valor_excesso_qt: number;
-  valor_saldo_qt: number;
+  custo_unitario?: number;
+  compras_detalhe?: PedidoCompraDetalhe[];
 };
 
 type PriceOption = {
   id: string;
   value: number | null;
-  price?: number | null;
-  description?: string;
 };
 
-function fmt(n: number | null | undefined, digits = 0) {
-  const value = Number(n || 0);
-  return value.toLocaleString('pt-BR', {
+type ExcessoCalculado = ExcessoMpRow & {
+  valorUnitario: number;
+  consumoAte: number;
+  comprasAte: number;
+  saldoAte: number;
+  estoqueSeguranca: number;
+  excessoAte: number;
+  coberturaDias: number | null;
+  valorEstoque: number;
+  valorConsumo: number;
+  valorCompras: number;
+  valorSaldo: number;
+  valorExcesso: number;
+};
+
+type ArtigoRow = {
+  artigo: string;
+  itens: number;
+  estoque: number;
+  valorEstoque: number;
+  consumo: number;
+  valorConsumo: number;
+  compras: number;
+  valorCompras: number;
+  saldo: number;
+  valorSaldo: number;
+  estoqueSeguranca: number;
+  excesso: number;
+  valorExcesso: number;
+};
+
+type MpSortKey =
+  | 'idmateriaprima' | 'descricao' | 'artigo' | 'estoquetotal' | 'valorEstoque'
+  | 'consumoAte' | 'valorConsumo' | 'comprasAte' | 'valorCompras'
+  | 'saldoAte' | 'valorSaldo' | 'estoqueSeguranca' | 'excessoAte'
+  | 'valorExcesso' | 'valorUnitario' | 'coberturaDias';
+
+type ArtigoSortKey =
+  | 'artigo' | 'itens' | 'estoque' | 'valorEstoque' | 'consumo'
+  | 'valorConsumo' | 'compras' | 'valorCompras' | 'saldo'
+  | 'valorSaldo' | 'estoqueSeguranca' | 'excesso' | 'valorExcesso';
+
+function fmt(value: number | null | undefined, digits = 0) {
+  return Number(value || 0).toLocaleString('pt-BR', {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
 }
 
-function money(n: number | null | undefined) {
-  return Number(n || 0).toLocaleString('pt-BR', {
+function money(value: number | null | undefined) {
+  return Number(value || 0).toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
     minimumFractionDigits: 2,
@@ -121,6 +130,29 @@ function csvEscape(value: unknown) {
   return text;
 }
 
+function periodosAte(periodo: Periodo) {
+  return PERIODOS.slice(0, PERIODOS.indexOf(periodo) + 1);
+}
+
+function valorPeriodo(row: ExcessoMpRow, prefixo: 'consumo' | 'entrada' | 'saldo' | 'excesso', periodo: Periodo) {
+  const key = `${prefixo}_${periodo.toLowerCase()}` as keyof ExcessoMpRow;
+  return Number(row[key] || 0);
+}
+
+function somaAte(row: ExcessoMpRow, prefixo: 'consumo' | 'entrada', periodo: Periodo) {
+  return periodosAte(periodo).reduce((acc, p) => acc + valorPeriodo(row, prefixo, p), 0);
+}
+
+function compareValues(a: unknown, b: unknown, dir: SortDir) {
+  const an = typeof a === 'number' ? a : Number(a);
+  const bn = typeof b === 'number' ? b : Number(b);
+  const bothNumbers = Number.isFinite(an) && Number.isFinite(bn);
+  const result = bothNumbers
+    ? an - bn
+    : String(a ?? '').localeCompare(String(b ?? ''), 'pt-BR', { numeric: true, sensitivity: 'base' });
+  return dir === 'asc' ? result : -result;
+}
+
 export default function ExcessoMpPage() {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -132,12 +164,14 @@ export default function ExcessoMpPage() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [buscar, setBuscar] = useState('');
-  const [artigo, setArtigo] = useState('');
+  const [artigosSelecionados, setArtigosSelecionados] = useState<string[]>([]);
   const [diasConsumo, setDiasConsumo] = useState(30);
   const [diasCobertura, setDiasCobertura] = useState(5);
+  const [planoAte, setPlanoAte] = useState<Periodo>('QT');
   const [somenteExcesso, setSomenteExcesso] = useState(true);
-  const [sortBy, setSortBy] = useState<keyof ExcessoMpRow>('excesso_qt');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [mpSort, setMpSort] = useState<{ key: MpSortKey; dir: SortDir }>({ key: 'valorExcesso', dir: 'desc' });
+  const [artigoSort, setArtigoSort] = useState<{ key: ArtigoSortKey; dir: SortDir }>({ key: 'valorExcesso', dir: 'desc' });
+  const [mpModal, setMpModal] = useState<ExcessoCalculado | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -154,7 +188,7 @@ export default function ExcessoMpPage() {
         const timer = window.setTimeout(() => {
           setProgress(0);
           setLoadingStage('');
-        }, 900);
+        }, 800);
         return () => window.clearTimeout(timer);
       }
       return;
@@ -162,10 +196,9 @@ export default function ExcessoMpPage() {
     const timer = window.setInterval(() => {
       setProgress((prev) => {
         const max = loadingPrices ? 96 : 82;
-        if (prev >= max) return prev;
         return Math.min(max, prev + Math.max(1, Math.round((max - prev) * 0.08)));
       });
-    }, 700);
+    }, 500);
     return () => window.clearInterval(timer);
   }, [loading, loadingPrices, progress]);
 
@@ -181,7 +214,6 @@ export default function ExcessoMpPage() {
         somente_excesso: 'false',
         limit: '3000',
       });
-
       const response = await fetchNoCache(`${API_URL}/api/excesso-mp?${params}`, {}, 600000);
       setProgress(72);
       setLoadingStage('Recebendo dados calculados...');
@@ -193,6 +225,8 @@ export default function ExcessoMpPage() {
       setRows(data);
       carregarPrecosMp(data);
     } catch (err) {
+      setRows([]);
+      setPriceOptionsByMp({});
       setError(err instanceof Error ? err.message : 'Erro ao carregar excesso de MP');
     } finally {
       setLoading(false);
@@ -229,156 +263,184 @@ export default function ExcessoMpPage() {
     }
   }
 
-  function valorUnitarioMp(productCode: string) {
-    const option = priceOptionsByMp[productCode]?.[0];
-    return Number(option?.value || 0);
+  function valorUnitarioMp(row: ExcessoMpRow) {
+    const productCode = String(row.idmateriaprima || '').trim();
+    const precoTotvs = Number(priceOptionsByMp[productCode]?.[0]?.value || 0);
+    return precoTotvs > 0 ? precoTotvs : Number(row.custo_unitario || 0);
   }
 
-  function withValores(row: ExcessoMpRow): ExcessoMpRow {
-    const valorUnitario = valorUnitarioMp(String(row.idmateriaprima || '').trim());
-    return {
-      ...row,
-      custo_unitario: valorUnitario,
-      valor_excesso_ma: Number(row.excesso_ma || 0) * valorUnitario,
-      valor_excesso_px: Number(row.excesso_px || 0) * valorUnitario,
-      valor_excesso_ul: Number(row.excesso_ul || 0) * valorUnitario,
-      valor_excesso_qt: Number(row.excesso_qt || 0) * valorUnitario,
-      valor_saldo_qt: Number(row.saldo_qt || 0) * valorUnitario,
-    };
-  }
-
-  const artigos = useMemo(() => {
+  const artigosDisponiveis = useMemo(() => {
     return Array.from(new Set(rows.map((row) => String(row.artigo || '-').trim() || '-')))
-      .sort((a, b) => a.localeCompare(b));
+      .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
   }, [rows]);
 
-  const filteredRows = useMemo(() => {
+  const rowsCalculadas = useMemo<ExcessoCalculado[]>(() => {
     const q = buscar.trim().toUpperCase();
-    return rows.filter((row) => {
-      if (artigo && String(row.artigo || '').trim() !== artigo) return false;
-      if (somenteExcesso && !(Number(row.consumo_dia || 0) > 0 && Number(row.saldo_qt || 0) > Number(row.estoque_cinco_dias || 0))) return false;
-      if (!q) return true;
-      const hay = [
-        row.idmateriaprima,
-        row.descricao,
-        row.artigo,
-      ].join(' ').toUpperCase();
-      return hay.includes(q);
-    }).map(withValores);
-  }, [rows, buscar, artigo, somenteExcesso, priceOptionsByMp]);
+    const artigoSet = new Set(artigosSelecionados);
 
-  const resumo = useMemo<Resumo>(() => {
-    return filteredRows.reduce((acc, row) => {
+    return rows
+      .map((row) => {
+        const valorUnitario = valorUnitarioMp(row);
+        const consumoAte = somaAte(row, 'consumo', planoAte);
+        const comprasAte = somaAte(row, 'entrada', planoAte);
+        const saldoPeriodo = valorPeriodo(row, 'saldo', planoAte);
+        const estoqueSeguranca = Number(row.estoque_cinco_dias || 0);
+        const excessoAte = Math.max(0, saldoPeriodo - estoqueSeguranca);
+        const coberturaDias = Number(row.consumo_dia || 0) > 0 ? saldoPeriodo / Number(row.consumo_dia || 1) : null;
+        return {
+          ...row,
+          valorUnitario,
+          consumoAte,
+          comprasAte,
+          saldoAte: saldoPeriodo,
+          estoqueSeguranca,
+          excessoAte,
+          coberturaDias,
+          valorEstoque: Number(row.estoquetotal || 0) * valorUnitario,
+          valorConsumo: consumoAte * valorUnitario,
+          valorCompras: comprasAte * valorUnitario,
+          valorSaldo: saldoPeriodo * valorUnitario,
+          valorExcesso: excessoAte * valorUnitario,
+        };
+      })
+      .filter((row) => {
+        const artigo = String(row.artigo || '-').trim() || '-';
+        if (artigoSet.size > 0 && !artigoSet.has(artigo)) return false;
+        if (somenteExcesso && row.excessoAte <= 0) return false;
+        if (!q) return true;
+        return String(row.idmateriaprima || '').includes(q)
+          || String(row.descricao || '').toUpperCase().includes(q)
+          || artigo.toUpperCase().includes(q);
+      });
+  }, [rows, priceOptionsByMp, planoAte, buscar, artigosSelecionados, somenteExcesso]);
+
+  const rowsOrdenadas = useMemo(() => {
+    return [...rowsCalculadas].sort((a, b) => {
+      const primary = compareValues(a[mpSort.key], b[mpSort.key], mpSort.dir);
+      return primary || String(a.idmateriaprima || '').localeCompare(String(b.idmateriaprima || ''), 'pt-BR', { numeric: true });
+    });
+  }, [rowsCalculadas, mpSort]);
+
+  const porArtigo = useMemo<ArtigoRow[]>(() => {
+    const map = new Map<string, ArtigoRow>();
+    for (const row of rowsCalculadas) {
+      const artigo = String(row.artigo || '-').trim() || '-';
+      if (!map.has(artigo)) {
+        map.set(artigo, {
+          artigo,
+          itens: 0,
+          estoque: 0,
+          valorEstoque: 0,
+          consumo: 0,
+          valorConsumo: 0,
+          compras: 0,
+          valorCompras: 0,
+          saldo: 0,
+          valorSaldo: 0,
+          estoqueSeguranca: 0,
+          excesso: 0,
+          valorExcesso: 0,
+        });
+      }
+      const acc = map.get(artigo)!;
       acc.itens += 1;
       acc.estoque += Number(row.estoquetotal || 0);
-      acc.excesso_ma += Number(row.excesso_ma || 0);
-      acc.excesso_px += Number(row.excesso_px || 0);
-      acc.excesso_ul += Number(row.excesso_ul || 0);
-      acc.excesso_qt += Number(row.excesso_qt || 0);
-      acc.saldo_qt += Number(row.saldo_qt || 0);
-      acc.consumo_qt += Number(row.consumo_qt || 0);
-      acc.consumo_ultimos_dias += Number(row.consumo_ultimos_dias || 0);
-      acc.valor_excesso_ma += Number(row.valor_excesso_ma || 0);
-      acc.valor_excesso_px += Number(row.valor_excesso_px || 0);
-      acc.valor_excesso_ul += Number(row.valor_excesso_ul || 0);
-      acc.valor_excesso_qt += Number(row.valor_excesso_qt || 0);
-      acc.valor_saldo_qt += Number(row.valor_saldo_qt || 0);
-      // Valor do consumo 30 dias = consumo_ultimos_dias * custo_unitario
-      acc.valor_consumo_30d += Number(row.consumo_ultimos_dias || 0) * Number(row.custo_unitario || 0);
+      acc.valorEstoque += row.valorEstoque;
+      acc.consumo += row.consumoAte;
+      acc.valorConsumo += row.valorConsumo;
+      acc.compras += row.comprasAte;
+      acc.valorCompras += row.valorCompras;
+      acc.saldo += row.saldoAte;
+      acc.valorSaldo += row.valorSaldo;
+      acc.estoqueSeguranca += row.estoqueSeguranca;
+      acc.excesso += row.excessoAte;
+      acc.valorExcesso += row.valorExcesso;
+    }
+    return Array.from(map.values());
+  }, [rowsCalculadas]);
+
+  const porArtigoOrdenado = useMemo(() => {
+    return [...porArtigo].sort((a, b) => {
+      const primary = compareValues(a[artigoSort.key], b[artigoSort.key], artigoSort.dir);
+      return primary || a.artigo.localeCompare(b.artigo, 'pt-BR', { numeric: true });
+    });
+  }, [porArtigo, artigoSort]);
+
+  const totais = useMemo(() => {
+    return rowsCalculadas.reduce((acc, row) => {
+      acc.itens += 1;
+      acc.estoque += Number(row.estoquetotal || 0);
+      acc.valorEstoque += row.valorEstoque;
+      acc.consumo += row.consumoAte;
+      acc.valorConsumo += row.valorConsumo;
+      acc.compras += row.comprasAte;
+      acc.valorCompras += row.valorCompras;
+      acc.saldo += row.saldoAte;
+      acc.valorSaldo += row.valorSaldo;
+      acc.estoqueSeguranca += row.estoqueSeguranca;
+      acc.excesso += row.excessoAte;
+      acc.valorExcesso += row.valorExcesso;
       return acc;
     }, {
       itens: 0,
       estoque: 0,
-      excesso_ma: 0,
-      excesso_px: 0,
-      excesso_ul: 0,
-      excesso_qt: 0,
-      saldo_qt: 0,
-      consumo_qt: 0,
-      consumo_ultimos_dias: 0,
-      valor_excesso_ma: 0,
-      valor_excesso_px: 0,
-      valor_excesso_ul: 0,
-      valor_excesso_qt: 0,
-      valor_saldo_qt: 0,
-      valor_consumo_30d: 0,
+      valorEstoque: 0,
+      consumo: 0,
+      valorConsumo: 0,
+      compras: 0,
+      valorCompras: 0,
+      saldo: 0,
+      valorSaldo: 0,
+      estoqueSeguranca: 0,
+      excesso: 0,
+      valorExcesso: 0,
     });
-  }, [filteredRows]);
+  }, [rowsCalculadas]);
 
-  const porArtigo = useMemo<ArtigoResumo[]>(() => {
-    const map = new Map<string, ArtigoResumo>();
-    for (const row of filteredRows) {
-      const key = String(row.artigo || 'SEM ARTIGO').trim() || 'SEM ARTIGO';
-      if (!map.has(key)) {
-        map.set(key, {
-          artigo: key,
-          itens: 0,
-          estoque: 0,
-          saldo_qt: 0,
-          excesso_ma: 0,
-          excesso_px: 0,
-          excesso_ul: 0,
-          excesso_qt: 0,
-          valor_excesso_ma: 0,
-          valor_excesso_px: 0,
-          valor_excesso_ul: 0,
-          valor_excesso_qt: 0,
-          valor_saldo_qt: 0,
-        });
-      }
-      const acc = map.get(key)!;
-      acc.itens += 1;
-      acc.estoque += Number(row.estoquetotal || 0);
-      acc.saldo_qt += Number(row.saldo_qt || 0);
-      acc.excesso_ma += Number(row.excesso_ma || 0);
-      acc.excesso_px += Number(row.excesso_px || 0);
-      acc.excesso_ul += Number(row.excesso_ul || 0);
-      acc.excesso_qt += Number(row.excesso_qt || 0);
-      acc.valor_excesso_ma += Number(row.valor_excesso_ma || 0);
-      acc.valor_excesso_px += Number(row.valor_excesso_px || 0);
-      acc.valor_excesso_ul += Number(row.valor_excesso_ul || 0);
-      acc.valor_excesso_qt += Number(row.valor_excesso_qt || 0);
-      acc.valor_saldo_qt += Number(row.valor_saldo_qt || 0);
-    }
-    return Array.from(map.values()).sort((a, b) => b.valor_excesso_qt - a.valor_excesso_qt);
-  }, [filteredRows]);
+  const periodosLabel = periodosAte(planoAte).join(' + ');
+  const pedidosModal = useMemo(() => {
+    if (!mpModal) return [];
+    const permitidos = new Set(periodosAte(planoAte));
+    return (Array.isArray(mpModal.compras_detalhe) ? mpModal.compras_detalhe : [])
+      .filter((pedido) => permitidos.has(String(pedido.periodo || '').toUpperCase() as Periodo))
+      .sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')));
+  }, [mpModal, planoAte]);
 
-  const sortedRows = useMemo(() => {
-    return [...filteredRows].sort((a, b) => {
-      const av = Number(a[sortBy] || 0);
-      const bv = Number(b[sortBy] || 0);
-      return sortDir === 'asc' ? av - bv : bv - av;
-    });
-  }, [filteredRows, sortBy, sortDir]);
+  function toggleMpSort(key: MpSortKey) {
+    setMpSort((prev) => prev.key === key
+      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: 'desc' });
+  }
 
-  function toggleSort(col: keyof ExcessoMpRow) {
-    if (sortBy === col) {
-      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortBy(col);
-      setSortDir('desc');
-    }
+  function toggleArtigoSort(key: ArtigoSortKey) {
+    setArtigoSort((prev) => prev.key === key
+      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: 'desc' });
+  }
+
+  function toggleArtigo(artigo: string) {
+    setArtigosSelecionados((prev) => (
+      prev.includes(artigo) ? prev.filter((item) => item !== artigo) : [...prev, artigo]
+    ));
   }
 
   function exportarCsv() {
     const header = [
-      'idmateriaprima', 'descricao', 'artigo', 'estoque_total', 'consumo_30d', 'consumo_dia',
-      'estoque_5_dias', 'skus_em_linha', 'consumo_op', 'consumo_ma', 'consumo_px', 'consumo_ul', 'consumo_qt',
-      'saldo_ma', 'saldo_px', 'saldo_ul', 'saldo_qt', 'custo_unitario', 'excesso_ma', 'excesso_px', 'excesso_ul', 'excesso_qt',
-      'valor_excesso_ma', 'valor_excesso_px', 'valor_excesso_ul', 'valor_excesso_qt',
+      'mp', 'descricao', 'artigo', 'horizonte', 'estoque', 'valor_estoque',
+      'consumo_plano', 'valor_consumo', 'compras_ate', 'valor_compras',
+      'saldo', 'valor_saldo', 'estoque_seguranca', 'excesso', 'valor_excesso', 'valor_unitario',
     ];
-    const body = sortedRows.map((row) => [
-      row.idmateriaprima, row.descricao, row.artigo, row.estoquetotal, row.consumo_ultimos_dias, row.consumo_dia,
-      row.estoque_cinco_dias, row.skus_em_linha, row.consumo_op, row.consumo_ma, row.consumo_px, row.consumo_ul, row.consumo_qt,
-      row.saldo_ma, row.saldo_px, row.saldo_ul, row.saldo_qt, row.custo_unitario, row.excesso_ma, row.excesso_px, row.excesso_ul, row.excesso_qt,
-      row.valor_excesso_ma, row.valor_excesso_px, row.valor_excesso_ul, row.valor_excesso_qt,
+    const body = rowsOrdenadas.map((row) => [
+      row.idmateriaprima, row.descricao, row.artigo, periodosLabel, row.estoquetotal, row.valorEstoque,
+      row.consumoAte, row.valorConsumo, row.comprasAte, row.valorCompras,
+      row.saldoAte, row.valorSaldo, row.estoqueSeguranca, row.excessoAte, row.valorExcesso, row.valorUnitario,
     ]);
     const csv = [header, ...body].map((line) => line.map(csvEscape).join(';')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `excesso_mp_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `excesso_mp_${planoAte}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -392,10 +454,7 @@ export default function ExcessoMpPage() {
         {(loading || loadingPrices || progress > 0) && (
           <div className="fixed top-0 left-0 right-0 z-50 bg-white/95 border-b border-gray-200 shadow-sm">
             <div className="h-1 bg-gray-100">
-              <div
-                className="h-full bg-brand-primary transition-all duration-500"
-                style={{ width: `${Math.max(4, Math.min(100, progress))}%` }}
-              />
+              <div className="h-full bg-brand-primary transition-all duration-500" style={{ width: `${Math.max(4, Math.min(100, progress))}%` }} />
             </div>
             <div className={`${ml} transition-all duration-300 px-6 py-1.5 text-xs text-gray-700 flex items-center justify-between`}>
               <span>{loadingStage || 'Carregando...'}</span>
@@ -403,53 +462,33 @@ export default function ExcessoMpPage() {
             </div>
           </div>
         )}
+
         <header className="bg-brand-primary shadow-sm px-6 py-3">
           <h1 className="text-white font-bold font-secondary tracking-wide text-base">EXCESSO MP</h1>
-          <p className="text-white/75 text-xs">Saldo apos consumir o plano MA/PX/UL/QT, comparado com cobertura minima por consumo real. OP aberta fica apenas informativa.</p>
+          <p className="text-white/75 text-xs">
+            Excesso calculado pelo horizonte selecionado: estoque + compras ate o periodo - consumo do plano - estoque de seguranca.
+          </p>
         </header>
 
         <main className="flex-1 min-w-0 px-6 py-5 space-y-4">
-          {/* Resumo geral */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card label="Itens c/ Excesso" value={fmt(resumo?.itens)} />
-            <Card label="Estoque Total" value={fmt(resumo?.estoque)} />
-            <Card label="Consumo 30d (qtd)" value={fmt(resumo?.consumo_ultimos_dias)} />
-            <Card label="Consumo 30d (R$)" value={money(resumo?.valor_consumo_30d)} tone="emerald" />
-          </div>
-
-          {/* Excesso por periodo */}
-          <section className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-sm font-semibold text-brand-dark mb-3">Excesso por Periodo vs Orcamento (Consumo 30d)</div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <PeriodoCard
-                periodo="MA"
-                excessoQtd={resumo?.excesso_ma || 0}
-                excessoValor={resumo?.valor_excesso_ma || 0}
-                orcamento={resumo?.valor_consumo_30d || 0}
-              />
-              <PeriodoCard
-                periodo="PX"
-                excessoQtd={resumo?.excesso_px || 0}
-                excessoValor={resumo?.valor_excesso_px || 0}
-                orcamento={resumo?.valor_consumo_30d || 0}
-              />
-              <PeriodoCard
-                periodo="UL"
-                excessoQtd={resumo?.excesso_ul || 0}
-                excessoValor={resumo?.valor_excesso_ul || 0}
-                orcamento={resumo?.valor_consumo_30d || 0}
-              />
-              <PeriodoCard
-                periodo="QT"
-                excessoQtd={resumo?.excesso_qt || 0}
-                excessoValor={resumo?.valor_excesso_qt || 0}
-                orcamento={resumo?.valor_consumo_30d || 0}
-              />
-            </div>
-          </section>
-
           <section className="bg-white rounded-lg border border-gray-200 p-3">
             <div className="flex flex-wrap items-end gap-3">
+              <div className="text-xs text-gray-600">
+                Planos considerados
+                <div className="mt-1 inline-flex rounded border border-gray-300 overflow-hidden bg-white">
+                  {PERIODOS.map((periodo) => (
+                    <button
+                      key={periodo}
+                      type="button"
+                      onClick={() => setPlanoAte(periodo)}
+                      className={`px-3 py-1.5 text-xs font-semibold border-r border-gray-200 last:border-r-0 ${planoAte === periodo ? 'bg-brand-primary text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      Ate {periodo}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <label className="text-xs text-gray-600">
                 Buscar
                 <div className="mt-1 flex items-center gap-2 rounded border border-gray-300 bg-white px-2 py-1.5">
@@ -461,14 +500,6 @@ export default function ExcessoMpPage() {
                     placeholder="MP, descricao ou artigo"
                   />
                 </div>
-              </label>
-
-              <label className="text-xs text-gray-600">
-                Artigo
-                <select value={artigo} onChange={(e) => setArtigo(e.target.value)} className="mt-1 block border border-gray-300 rounded px-2 py-1.5 text-sm min-w-44">
-                  <option value="">Todos</option>
-                  {artigos.map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
               </label>
 
               <label className="text-xs text-gray-600">
@@ -490,12 +521,39 @@ export default function ExcessoMpPage() {
                 <RefreshCw size={14} />
                 {loading ? 'Carregando...' : loadingPrices ? 'Buscando valores...' : 'Atualizar'}
               </button>
-              <button onClick={exportarCsv} disabled={!rows.length} className="inline-flex items-center gap-2 px-3 py-2 rounded border border-gray-300 bg-white text-gray-700 text-xs font-semibold disabled:opacity-60">
+              <button onClick={exportarCsv} disabled={!rowsOrdenadas.length} className="inline-flex items-center gap-2 px-3 py-2 rounded border border-gray-300 bg-white text-gray-700 text-xs font-semibold disabled:opacity-60">
                 <Download size={14} />
                 CSV
               </button>
             </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {artigosDisponiveis.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => toggleArtigo(item)}
+                  className={`rounded border px-2.5 py-1 text-[11px] font-semibold ${artigosSelecionados.includes(item) ? 'border-brand-primary bg-brand-primary text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
+                >
+                  {item}
+                </button>
+              ))}
+              {artigosSelecionados.length > 0 && (
+                <button type="button" onClick={() => setArtigosSelecionados([])} className="rounded border border-gray-300 px-2.5 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50">
+                  Limpar artigos
+                </button>
+              )}
+            </div>
           </section>
+
+          <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">
+            <Card label={`Excesso ate ${planoAte}`} value={money(totais.valorExcesso)} detail={`${fmt(totais.excesso)} qtd`} tone="orange" />
+            <Card label="Estoque em casa" value={money(totais.valorEstoque)} detail={`${fmt(totais.estoque)} qtd`} tone="slate" />
+            <Card label="Consumo plano" value={money(totais.valorConsumo)} detail={`${fmt(totais.consumo)} qtd | ${periodosLabel}`} tone="red" />
+            <Card label="Compras no prazo" value={money(totais.valorCompras)} detail={`${fmt(totais.compras)} qtd`} tone="emerald" />
+            <Card label="Saldo horizonte" value={money(totais.valorSaldo)} detail={`${fmt(totais.saldo)} qtd`} tone="sky" />
+            <Card label="Estoque seguranca" value={fmt(totais.estoqueSeguranca)} detail={`${diasCobertura} dias de cobertura`} tone="stone" />
+          </div>
 
           {error && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">
@@ -505,190 +563,295 @@ export default function ExcessoMpPage() {
           )}
 
           <section className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="px-3 py-2 border-b border-gray-200 text-sm font-semibold text-brand-dark">
-              Resumo por artigo
+            <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+              <span className="text-xs font-semibold text-brand-dark">Resumo por artigo</span>
+              <span className="text-[11px] text-gray-500">{porArtigoOrdenado.length} artigos</span>
             </div>
-            <div className="overflow-auto max-h-[34vh]">
+            <div className="max-h-[34vh] overflow-auto">
               <table className="min-w-full text-xs">
-                <thead className="sticky top-0 bg-gray-100 z-10 border-b border-gray-200">
+                <thead className="sticky top-0 z-10 bg-gray-100">
                   <tr>
-                    <Th>Artigo</Th>
-                    <SortTh onClick={() => undefined}>Itens</SortTh>
-                    <SortTh onClick={() => undefined}>Estoque</SortTh>
-                    <SortTh onClick={() => undefined}>Saldo QT</SortTh>
-                    <SortTh onClick={() => undefined}>Excesso MA</SortTh>
-                    <SortTh onClick={() => undefined}>Valor MA</SortTh>
-                    <SortTh onClick={() => undefined}>Excesso PX</SortTh>
-                    <SortTh onClick={() => undefined}>Valor PX</SortTh>
-                    <SortTh onClick={() => undefined}>Excesso UL</SortTh>
-                    <SortTh onClick={() => undefined}>Valor UL</SortTh>
-                    <SortTh onClick={() => undefined}>Excesso QT</SortTh>
-                    <SortTh onClick={() => undefined}>Valor QT</SortTh>
+                    <SortTh active={artigoSort.key === 'artigo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('artigo')}>Artigo</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'itens'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('itens')}>MPs</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'estoque'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('estoque')}>Estoque</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'valorEstoque'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorEstoque')}>R$ estoque</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'consumo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('consumo')}>Consumo plano</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'valorConsumo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorConsumo')}>R$ consumo</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'compras'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('compras')}>Compras</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'saldo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('saldo')}>Saldo</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'estoqueSeguranca'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('estoqueSeguranca')}>Est. seg.</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'excesso'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('excesso')}>Excesso</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'valorExcesso'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorExcesso')}>R$ excesso</SortTh>
                   </tr>
                 </thead>
                 <tbody>
-                  {porArtigo.map((row, idx) => (
-                    <tr key={row.artigo} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-b border-gray-100`}>
-                      <td className="px-2.5 py-2 font-semibold whitespace-nowrap">{row.artigo || '-'}</td>
-                      <Num>{row.itens}</Num>
-                      <Num>{row.estoque}</Num>
-                      <Num>{row.saldo_qt}</Num>
-                      <Num tone="amber">{row.excesso_ma}</Num>
-                      <MoneyCell tone="amber">{row.valor_excesso_ma}</MoneyCell>
-                      <Num tone="amber">{row.excesso_px}</Num>
-                      <MoneyCell tone="amber">{row.valor_excesso_px}</MoneyCell>
-                      <Num tone="amber">{row.excesso_ul}</Num>
-                      <MoneyCell tone="amber">{row.valor_excesso_ul}</MoneyCell>
-                      <Num tone="emerald">{row.excesso_qt}</Num>
-                      <MoneyCell tone="emerald">{row.valor_excesso_qt}</MoneyCell>
+                  {porArtigoOrdenado.map((row, idx) => (
+                    <tr key={row.artigo} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200`}>
+                      <Td strong>{row.artigo}</Td>
+                      <Td align="right">{fmt(row.itens)}</Td>
+                      <Td align="right">{fmt(row.estoque)}</Td>
+                      <Td align="right" strong>{money(row.valorEstoque)}</Td>
+                      <Td align="right">{fmt(row.consumo)}</Td>
+                      <Td align="right" strong>{money(row.valorConsumo)}</Td>
+                      <Td align="right" tone="emerald">{fmt(row.compras)}</Td>
+                      <Td align="right" tone={row.saldo < 0 ? 'red' : 'sky'}>{fmt(row.saldo)}</Td>
+                      <Td align="right">{fmt(row.estoqueSeguranca)}</Td>
+                      <Td align="right" tone={row.excesso > 0 ? 'orange' : undefined}>{fmt(row.excesso)}</Td>
+                      <Td align="right" tone={row.valorExcesso > 0 ? 'orange' : undefined} strong>{money(row.valorExcesso)}</Td>
                     </tr>
                   ))}
-                  {!porArtigo.length && (
-                    <tr><td colSpan={12} className="px-3 py-8 text-center text-gray-500">{loading ? 'Carregando...' : 'Sem resumo por artigo.'}</td></tr>
-                  )}
+                  {porArtigoOrdenado.length === 0 && <tr><td colSpan={11} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
                 </tbody>
+                {porArtigoOrdenado.length > 0 && (
+                  <tfoot className="sticky bottom-0 z-10 bg-gray-200 font-semibold text-gray-900">
+                    <tr>
+                      <Td strong>TOTAL</Td>
+                      <Td align="right" strong>{fmt(totais.itens)}</Td>
+                      <Td align="right" strong>{fmt(totais.estoque)}</Td>
+                      <Td align="right" strong>{money(totais.valorEstoque)}</Td>
+                      <Td align="right" strong>{fmt(totais.consumo)}</Td>
+                      <Td align="right" strong>{money(totais.valorConsumo)}</Td>
+                      <Td align="right" tone="emerald" strong>{fmt(totais.compras)}</Td>
+                      <Td align="right" tone={totais.saldo < 0 ? 'red' : 'sky'} strong>{fmt(totais.saldo)}</Td>
+                      <Td align="right" strong>{fmt(totais.estoqueSeguranca)}</Td>
+                      <Td align="right" tone={totais.excesso > 0 ? 'orange' : undefined} strong>{fmt(totais.excesso)}</Td>
+                      <Td align="right" tone={totais.valorExcesso > 0 ? 'orange' : undefined} strong>{money(totais.valorExcesso)}</Td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </section>
 
           <section className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="overflow-auto max-h-[72vh]">
+            <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+              <span className="text-xs font-semibold text-brand-dark">Detalhe por MP</span>
+              <span className="text-[11px] text-gray-500">{rowsOrdenadas.length} MPs</span>
+            </div>
+            <div className="max-h-[56vh] overflow-auto">
               <table className="min-w-full text-xs">
-                <thead className="sticky top-0 bg-gray-100 z-10 border-b border-gray-200">
+                <thead className="sticky top-0 z-10 bg-gray-100">
                   <tr>
-                    <Th>MP</Th>
-                    <Th>Descricao</Th>
-                    <Th>Artigo</Th>
-                    <SortTh onClick={() => toggleSort('estoquetotal')}>Estoque</SortTh>
-                    <SortTh onClick={() => toggleSort('consumo_ultimos_dias')}>Cons. {diasConsumo}d</SortTh>
-                    <SortTh onClick={() => toggleSort('estoque_cinco_dias')}>Est. {diasCobertura}d</SortTh>
-                    <SortTh onClick={() => toggleSort('skus_em_linha')}>SKUs linha</SortTh>
-                    <SortTh onClick={() => toggleSort('consumo_op')}>OP aberta</SortTh>
-                    <SortTh onClick={() => toggleSort('consumo_ma')}>Cons. MA</SortTh>
-                    <SortTh onClick={() => toggleSort('saldo_ma')}>Saldo MA</SortTh>
-                    <SortTh onClick={() => toggleSort('excesso_ma')}>Excesso MA</SortTh>
-                    <SortTh onClick={() => toggleSort('consumo_px')}>Cons. PX</SortTh>
-                    <SortTh onClick={() => toggleSort('saldo_px')}>Saldo PX</SortTh>
-                    <SortTh onClick={() => toggleSort('excesso_px')}>Excesso PX</SortTh>
-                    <SortTh onClick={() => toggleSort('consumo_ul')}>Cons. UL</SortTh>
-                    <SortTh onClick={() => toggleSort('saldo_ul')}>Saldo UL</SortTh>
-                    <SortTh onClick={() => toggleSort('excesso_ul')}>Excesso UL</SortTh>
-                    <SortTh onClick={() => toggleSort('consumo_qt')}>Cons. QT</SortTh>
-                    <SortTh onClick={() => toggleSort('saldo_qt')}>Saldo QT</SortTh>
-                    <SortTh onClick={() => toggleSort('excesso_qt')}>Excesso QT</SortTh>
-                    <SortTh onClick={() => toggleSort('custo_unitario')}>Valor unit.</SortTh>
-                    <SortTh onClick={() => toggleSort('valor_excesso_qt')}>Valor QT</SortTh>
-                    <SortTh onClick={() => toggleSort('consumo_indireto')}>Indireto</SortTh>
+                    <SortTh active={mpSort.key === 'idmateriaprima'} dir={mpSort.dir} onClick={() => toggleMpSort('idmateriaprima')}>MP</SortTh>
+                    <SortTh active={mpSort.key === 'descricao'} dir={mpSort.dir} onClick={() => toggleMpSort('descricao')}>Descricao</SortTh>
+                    <SortTh active={mpSort.key === 'artigo'} dir={mpSort.dir} onClick={() => toggleMpSort('artigo')}>Artigo</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'estoquetotal'} dir={mpSort.dir} onClick={() => toggleMpSort('estoquetotal')}>Estoque</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorEstoque'} dir={mpSort.dir} onClick={() => toggleMpSort('valorEstoque')}>R$ estoque</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'consumoAte'} dir={mpSort.dir} onClick={() => toggleMpSort('consumoAte')}>Consumo plano</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorConsumo'} dir={mpSort.dir} onClick={() => toggleMpSort('valorConsumo')}>R$ consumo</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'comprasAte'} dir={mpSort.dir} onClick={() => toggleMpSort('comprasAte')}>Compras</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'saldoAte'} dir={mpSort.dir} onClick={() => toggleMpSort('saldoAte')}>Saldo</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'estoqueSeguranca'} dir={mpSort.dir} onClick={() => toggleMpSort('estoqueSeguranca')}>Est. seg.</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'excessoAte'} dir={mpSort.dir} onClick={() => toggleMpSort('excessoAte')}>Excesso</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorExcesso'} dir={mpSort.dir} onClick={() => toggleMpSort('valorExcesso')}>R$ excesso</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorUnitario'} dir={mpSort.dir} onClick={() => toggleMpSort('valorUnitario')}>V. unit.</SortTh>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedRows.map((row, idx) => (
-                    <tr key={row.idmateriaprima} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-b border-gray-100 hover:bg-amber-50/50`}>
-                      <td className="px-2.5 py-2 font-mono font-semibold text-gray-800">{row.idmateriaprima}</td>
-                      <td className="px-2.5 py-2 min-w-64 max-w-96 truncate" title={row.descricao}>{row.descricao || '-'}</td>
-                      <td className="px-2.5 py-2 whitespace-nowrap">{row.artigo || '-'}</td>
-                      <Num>{row.estoquetotal}</Num>
-                      <Num>{row.consumo_ultimos_dias}</Num>
-                      <Num>{row.estoque_cinco_dias}</Num>
-                      <Num>{row.skus_em_linha}</Num>
-                      <Num>{row.consumo_op}</Num>
-                      <Num>{row.consumo_ma}</Num>
-                      <Num tone={row.saldo_ma < 0 ? 'red' : undefined}>{row.saldo_ma}</Num>
-                      <Num tone="amber">{row.excesso_ma}</Num>
-                      <Num>{row.consumo_px}</Num>
-                      <Num tone={row.saldo_px < 0 ? 'red' : undefined}>{row.saldo_px}</Num>
-                      <Num tone="amber">{row.excesso_px}</Num>
-                      <Num>{row.consumo_ul}</Num>
-                      <Num tone={row.saldo_ul < 0 ? 'red' : undefined}>{row.saldo_ul}</Num>
-                      <Num tone="amber">{row.excesso_ul}</Num>
-                      <Num>{row.consumo_qt}</Num>
-                      <Num tone={row.saldo_qt < 0 ? 'red' : undefined}>{row.saldo_qt}</Num>
-                      <Num tone="emerald">{row.excesso_qt}</Num>
-                      <MoneyCell>{row.custo_unitario}</MoneyCell>
-                      <MoneyCell tone="emerald">{row.valor_excesso_qt}</MoneyCell>
-                      <Num>{row.consumo_indireto}</Num>
+                  {rowsOrdenadas.map((row, idx) => (
+                    <tr key={`${row.idmateriaprima}-${idx}`} onClick={() => setMpModal(row)} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200 cursor-pointer hover:bg-amber-50`}>
+                      <Td strong>{row.idmateriaprima}</Td>
+                      <Td>{row.descricao || '-'}</Td>
+                      <Td>{row.artigo || '-'}</Td>
+                      <Td align="right">{fmt(row.estoquetotal)}</Td>
+                      <Td align="right" strong>{money(row.valorEstoque)}</Td>
+                      <Td align="right">{fmt(row.consumoAte)}</Td>
+                      <Td align="right" strong>{money(row.valorConsumo)}</Td>
+                      <Td align="right" tone="emerald">{fmt(row.comprasAte)}</Td>
+                      <Td align="right" tone={row.saldoAte < 0 ? 'red' : 'sky'}>{fmt(row.saldoAte)}</Td>
+                      <Td align="right">{fmt(row.estoqueSeguranca)}</Td>
+                      <Td align="right" tone={row.excessoAte > 0 ? 'orange' : undefined}>{fmt(row.excessoAte)}</Td>
+                      <Td align="right" tone={row.valorExcesso > 0 ? 'orange' : undefined} strong>{money(row.valorExcesso)}</Td>
+                      <Td align="right" strong>{row.valorUnitario > 0 ? money(row.valorUnitario) : '-'}</Td>
                     </tr>
                   ))}
-                  {!sortedRows.length && (
-                    <tr><td colSpan={23} className="px-3 py-10 text-center text-gray-500">{loading ? 'Carregando...' : 'Nenhum excesso encontrado.'}</td></tr>
-                  )}
+                  {rowsOrdenadas.length === 0 && <tr><td colSpan={13} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
                 </tbody>
+                {rowsOrdenadas.length > 0 && (
+                  <tfoot className="sticky bottom-0 z-10 bg-gray-200 font-semibold text-gray-900">
+                    <tr>
+                      <Td strong>TOTAL</Td>
+                      <Td />
+                      <Td />
+                      <Td align="right" strong>{fmt(totais.estoque)}</Td>
+                      <Td align="right" strong>{money(totais.valorEstoque)}</Td>
+                      <Td align="right" strong>{fmt(totais.consumo)}</Td>
+                      <Td align="right" strong>{money(totais.valorConsumo)}</Td>
+                      <Td align="right" tone="emerald" strong>{fmt(totais.compras)}</Td>
+                      <Td align="right" tone={totais.saldo < 0 ? 'red' : 'sky'} strong>{fmt(totais.saldo)}</Td>
+                      <Td align="right" strong>{fmt(totais.estoqueSeguranca)}</Td>
+                      <Td align="right" tone={totais.excesso > 0 ? 'orange' : undefined} strong>{fmt(totais.excesso)}</Td>
+                      <Td align="right" tone={totais.valorExcesso > 0 ? 'orange' : undefined} strong>{money(totais.valorExcesso)}</Td>
+                      <Td />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </section>
+
+          {mpModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-5xl max-h-[88vh] overflow-hidden rounded-lg bg-white shadow-xl border border-gray-200">
+                <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4">
+                  <div>
+                    <div className="text-sm font-bold text-brand-dark">Extrato do excesso</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      MP {mpModal.idmateriaprima} | {mpModal.descricao || '-'} | {mpModal.artigo || '-'} | ate {planoAte}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setMpModal(null)} className="rounded border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                    Fechar
+                  </button>
+                </div>
+
+                <div className="overflow-auto p-5 space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <InfoCard label="Estoque em casa" value={fmt(mpModal.estoquetotal)} detail={money(mpModal.valorEstoque)} />
+                    <InfoCard label="Compras no prazo" value={fmt(mpModal.comprasAte)} detail={money(mpModal.valorCompras)} />
+                    <InfoCard label="Consumo plano" value={fmt(mpModal.consumoAte)} detail={money(mpModal.valorConsumo)} />
+                    <InfoCard label="Estoque seguranca" value={fmt(mpModal.estoqueSeguranca)} detail={`${diasCobertura} dias`} />
+                    <InfoCard label="Excesso" value={fmt(mpModal.excessoAte)} detail={money(mpModal.valorExcesso)} tone="orange" />
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 text-xs font-semibold text-brand-dark">
+                      Conta: estoque + compras ate {planoAte} - consumo do plano - estoque de seguranca = excesso
+                    </div>
+                    <table className="min-w-full text-xs">
+                      <tbody>
+                        <tr className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-semibold text-gray-700">Estoque em casa</td>
+                          <td className="px-3 py-2 text-right">{fmt(mpModal.estoquetotal)}</td>
+                          <td className="px-3 py-2 text-right font-semibold">{money(mpModal.valorEstoque)}</td>
+                        </tr>
+                        <tr className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-semibold text-gray-700">(+) Compras no prazo ({periodosLabel})</td>
+                          <td className="px-3 py-2 text-right">{fmt(mpModal.comprasAte)}</td>
+                          <td className="px-3 py-2 text-right font-semibold">{money(mpModal.valorCompras)}</td>
+                        </tr>
+                        <tr className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-semibold text-gray-700">(-) Consumo do plano ({periodosLabel})</td>
+                          <td className="px-3 py-2 text-right">{fmt(mpModal.consumoAte)}</td>
+                          <td className="px-3 py-2 text-right font-semibold">{money(mpModal.valorConsumo)}</td>
+                        </tr>
+                        <tr className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-semibold text-gray-700">(-) Estoque de seguranca</td>
+                          <td className="px-3 py-2 text-right">{fmt(mpModal.estoqueSeguranca)}</td>
+                          <td className="px-3 py-2 text-right font-semibold">{money(mpModal.estoqueSeguranca * mpModal.valorUnitario)}</td>
+                        </tr>
+                        <tr className="border-t border-gray-200 bg-orange-50">
+                          <td className="px-3 py-2 font-bold text-orange-800">Excesso</td>
+                          <td className="px-3 py-2 text-right font-bold text-orange-800">{fmt(mpModal.excessoAte)}</td>
+                          <td className="px-3 py-2 text-right font-bold text-orange-800">{money(mpModal.valorExcesso)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-brand-dark">Pedidos considerados ate {planoAte}</span>
+                      <span className="text-[11px] text-gray-500">{pedidosModal.length} linhas</span>
+                    </div>
+                    <table className="min-w-full text-xs">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Pedido</th>
+                          <th className="px-3 py-2 text-left">Empresa</th>
+                          <th className="px-3 py-2 text-left">Data prevista</th>
+                          <th className="px-3 py-2 text-left">Periodo</th>
+                          <th className="px-3 py-2 text-right">Quantidade</th>
+                          <th className="px-3 py-2 text-right">Valor estimado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pedidosModal.map((pedido, idx) => {
+                          const qtd = Number(pedido.quantidade || 0);
+                          return (
+                            <tr key={`${pedido.pedido || 'pedido'}-${idx}`} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} border-t border-gray-100`}>
+                              <td className="px-3 py-2 font-semibold text-gray-700">{String(pedido.pedido || '-')}</td>
+                              <td className="px-3 py-2 text-gray-600">{String(pedido.empresa || '-')}</td>
+                              <td className="px-3 py-2 text-gray-600">{String(pedido.data || '-').slice(0, 10)}</td>
+                              <td className="px-3 py-2 text-gray-600">{String(pedido.periodo || '-')}</td>
+                              <td className="px-3 py-2 text-right">{fmt(qtd)}</td>
+                              <td className="px-3 py-2 text-right font-semibold">{money(qtd * mpModal.valorUnitario)}</td>
+                            </tr>
+                          );
+                        })}
+                        {pedidosModal.length === 0 && (
+                          <tr><td colSpan={6} className="px-3 py-8 text-center text-gray-500">Sem pedidos em andamento para esta MP no horizonte selecionado.</td></tr>
+                        )}
+                      </tbody>
+                      {pedidosModal.length > 0 && (
+                        <tfoot className="bg-gray-200 font-semibold">
+                          <tr>
+                            <td className="px-3 py-2" colSpan={4}>TOTAL</td>
+                            <td className="px-3 py-2 text-right">{fmt(pedidosModal.reduce((acc, pedido) => acc + Number(pedido.quantidade || 0), 0))}</td>
+                            <td className="px-3 py-2 text-right">{money(pedidosModal.reduce((acc, pedido) => acc + Number(pedido.quantidade || 0) * mpModal.valorUnitario, 0))}</td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
   );
 }
 
-function Card({ label, value, tone }: { label: string; value: string; tone?: 'amber' | 'emerald' }) {
-  const color = tone === 'amber' ? 'text-amber-700' : tone === 'emerald' ? 'text-emerald-700' : 'text-brand-dark';
+function Card({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: 'red' | 'orange' | 'sky' | 'emerald' | 'stone' | 'slate' }) {
+  const cls = {
+    red: 'text-red-700',
+    orange: 'text-orange-700',
+    sky: 'text-sky-700',
+    emerald: 'text-emerald-700',
+    stone: 'text-stone-800',
+    slate: 'text-slate-700',
+  }[tone];
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-3">
       <div className="text-xs text-gray-500">{label}</div>
-      <div className={`text-xl font-bold ${color}`}>{value}</div>
+      <div className={`text-xl font-bold ${cls}`}>{value}</div>
+      <div className="text-[11px] text-gray-500 mt-0.5">{detail}</div>
     </div>
   );
 }
 
-function PeriodoCard({ periodo, excessoQtd, excessoValor, orcamento }: { periodo: string; excessoQtd: number; excessoValor: number; orcamento: number }) {
-  const pctOrcamento = orcamento > 0 ? (excessoValor / orcamento) * 100 : 0;
-  const dentroOrcamento = pctOrcamento <= 100;
-  const corFundo = dentroOrcamento ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200';
-  const corTexto = dentroOrcamento ? 'text-emerald-700' : 'text-red-700';
-  const corBarra = dentroOrcamento ? 'bg-emerald-500' : 'bg-red-500';
-
+function SortTh({ children, align = 'left', active, dir, onClick }: { children: React.ReactNode; align?: 'left' | 'right'; active: boolean; dir: SortDir; onClick: () => void }) {
   return (
-    <div className={`rounded-lg border p-4 ${corFundo}`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-bold text-gray-800">Ate {periodo}</span>
-        <span className={`text-xs font-semibold ${corTexto}`}>
-          {pctOrcamento.toFixed(0)}% do orcamento
-        </span>
-      </div>
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-600">Excesso (qtd)</span>
-          <span className="font-semibold text-gray-800">{fmt(excessoQtd)}</span>
-        </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-600">Excesso (R$)</span>
-          <span className={`font-bold ${corTexto}`}>{money(excessoValor)}</span>
-        </div>
-      </div>
-      {/* Barra de progresso */}
-      <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-        <div
-          className={`h-full ${corBarra} transition-all`}
-          style={{ width: `${Math.min(100, pctOrcamento)}%` }}
-        />
-      </div>
-      <div className="mt-1 text-[10px] text-gray-500 text-right">
-        Orcamento: {money(orcamento)}
-      </div>
-    </div>
-  );
-}
-
-function Th({ children }: { children: ReactNode }) {
-  return <th className="px-2.5 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">{children}</th>;
-}
-
-function SortTh({ children, onClick }: { children: ReactNode; onClick: () => void }) {
-  return (
-    <th className="px-2.5 py-2 text-right font-semibold text-gray-700 whitespace-nowrap">
-      <button type="button" onClick={onClick} className="hover:underline underline-offset-2">{children}</button>
+    <th className={`px-2.5 py-2 ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      <button type="button" onClick={onClick} className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end' : 'justify-start'} w-full hover:underline underline-offset-2`}>
+        <span>{children}</span>
+        <span className="text-[10px] text-gray-500">{active ? (dir === 'asc' ? '^' : 'v') : '-'}</span>
+      </button>
     </th>
   );
 }
 
-function Num({ children, tone }: { children: number; tone?: 'red' | 'amber' | 'emerald' }) {
-  const color = tone === 'red' ? 'text-red-700 font-semibold' : tone === 'amber' ? 'text-amber-700 font-semibold' : tone === 'emerald' ? 'text-emerald-700 font-bold' : '';
-  return <td className={`px-2.5 py-2 text-right tabular-nums whitespace-nowrap ${color}`}>{fmt(children)}</td>;
+function InfoCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: 'orange' }) {
+  return (
+    <div className={`rounded border px-3 py-2 ${tone === 'orange' ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+      <div className="text-[11px] text-gray-500">{label}</div>
+      <div className={`text-lg font-bold ${tone === 'orange' ? 'text-orange-700' : 'text-gray-900'}`}>{value}</div>
+      <div className="text-[11px] text-gray-500">{detail}</div>
+    </div>
+  );
 }
 
-function MoneyCell({ children, tone }: { children: number; tone?: 'amber' | 'emerald' }) {
-  const color = tone === 'amber' ? 'text-amber-700 font-semibold' : tone === 'emerald' ? 'text-emerald-700 font-bold' : '';
-  return <td className={`px-2.5 py-2 text-right tabular-nums whitespace-nowrap ${color}`}>{money(children)}</td>;
+function Td({ children = null, align = 'left', tone, strong = false }: { children?: React.ReactNode; align?: 'left' | 'right'; tone?: 'red' | 'orange' | 'sky' | 'emerald'; strong?: boolean }) {
+  const toneClass = tone === 'red'
+    ? 'text-red-700'
+    : tone === 'orange'
+      ? 'text-orange-700'
+      : tone === 'sky'
+        ? 'text-sky-700'
+        : tone === 'emerald'
+          ? 'text-emerald-700'
+          : 'text-gray-700';
+  return <td className={`px-2.5 py-2 ${align === 'right' ? 'text-right' : 'text-left'} ${toneClass} ${strong ? 'font-semibold' : ''}`}>{children}</td>;
 }
