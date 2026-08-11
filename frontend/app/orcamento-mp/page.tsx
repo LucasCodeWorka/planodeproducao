@@ -25,6 +25,8 @@ const CACHE_VERSION = 2;
 type Periodo = typeof PERIODOS[number];
 
 type PedidoCompraDetalhe = {
+  empresa?: number | string;
+  pedido?: number | string;
   data?: string;
   quantidade?: number;
   valor?: number;
@@ -59,6 +61,7 @@ type MpRow = {
   saldo_ul?: number;
   saldo_qt?: number;
   saldo_qu?: number;
+  pedidos_detalhe?: PedidoCompraDetalhe[];
   finalizados_detalhe?: PedidoCompraDetalhe[];
   fator_conversao?: number;
   unidade_compra?: string;
@@ -87,6 +90,35 @@ type OrcamentoCachePayload = {
   rowsOriginalBase: MpRow[];
   priceOptionsByMp: Record<string, PriceOption[]>;
   createdAt: string;
+};
+
+type SortDir = 'asc' | 'desc';
+type ArtigoSortKey =
+  | 'artigo' | 'itens' | 'estoque' | 'valorEstoque' | 'consumo' | 'valorConsumo'
+  | 'comprasRegra' | 'valorComprasRegra' | 'comprasTotal' | 'valorComprasTotal'
+  | 'necessidadeRegra' | 'valorRegra' | 'necessidadeTotal' | 'valorTotal';
+type MpSortKey =
+  | 'idmateriaprima' | 'nome_materiaprima' | 'cor' | 'artigo' | 'estoquetotal'
+  | 'valorEstoque' | 'consumoAte' | 'valorUnitario' | 'valorConsumo'
+  | 'comprasRegra' | 'valorComprasRegra' | 'comprasTotal' | 'valorComprasTotal'
+  | 'necessidadeRegra' | 'valorNecessidadeRegra' | 'necessidadeTotal' | 'valorNecessidadeTotal';
+
+type ArtigoRow = {
+  artigo: string;
+  itens: number;
+  estoque: number;
+  valorEstoque: number;
+  consumo: number;
+  valorConsumo: number;
+  comprasRegra: number;
+  comprasTotal: number;
+  valorComprasRegra: number;
+  valorComprasTotal: number;
+  necessidadeRegra: number;
+  necessidadeTotal: number;
+  valorRegra: number;
+  valorTotal: number;
+  itensSemValor: number;
 };
 
 function fmt(v: number, d = 0) {
@@ -132,6 +164,16 @@ function ultimaCompra(row: MpRow) {
   return Number(item.valor || 0) / Number(item.quantidade || 1);
 }
 
+function compareValues(a: unknown, b: unknown, dir: SortDir) {
+  const an = typeof a === 'number' ? a : Number(a);
+  const bn = typeof b === 'number' ? b : Number(b);
+  const bothNumbers = Number.isFinite(an) && Number.isFinite(bn);
+  const result = bothNumbers
+    ? an - bn
+    : String(a ?? '').localeCompare(String(b ?? ''), 'pt-BR', { numeric: true, sensitivity: 'base' });
+  return dir === 'asc' ? result : -result;
+}
+
 export default function OrcamentoMpPage() {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -148,6 +190,9 @@ export default function OrcamentoMpPage() {
   const [artigosSelecionados, setArtigosSelecionados] = useState<string[]>([]);
   const [somenteComNecessidade, setSomenteComNecessidade] = useState(false);
   const [busca, setBusca] = useState('');
+  const [artigoSort, setArtigoSort] = useState<{ key: ArtigoSortKey; dir: SortDir }>({ key: 'valorRegra', dir: 'desc' });
+  const [mpSort, setMpSort] = useState<{ key: MpSortKey; dir: SortDir }>({ key: 'valorNecessidadeRegra', dir: 'desc' });
+  const [mpModal, setMpModal] = useState<MpCalculada | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -410,28 +455,18 @@ export default function OrcamentoMpPage() {
         return String(row.idmateriaprima || '').includes(q)
           || String(row.nome_materiaprima || '').toUpperCase().includes(q)
           || artigo.toUpperCase().includes(q);
-      })
-      .sort((a, b) => b.valorNecessidadeRegra - a.valorNecessidadeRegra || b.valorNecessidadeTotal - a.valorNecessidadeTotal);
+      });
   }, [rowsBase, priceOptionsByMp, planoAte, artigosSelecionados, somenteComNecessidade, busca]);
 
-  const porArtigo = useMemo(() => {
-    const map = new Map<string, {
-      artigo: string;
-      itens: number;
-      estoque: number;
-      valorEstoque: number;
-      consumo: number;
-      comprasRegra: number;
-      comprasTotal: number;
-      valorConsumo: number;
-      valorComprasRegra: number;
-      valorComprasTotal: number;
-      necessidadeRegra: number;
-      necessidadeTotal: number;
-      valorRegra: number;
-      valorTotal: number;
-      itensSemValor: number;
-    }>();
+  const rowsOrdenadas = useMemo(() => {
+    return [...rowsCalculadas].sort((a, b) => {
+      const primary = compareValues(a[mpSort.key], b[mpSort.key], mpSort.dir);
+      return primary || String(a.idmateriaprima || '').localeCompare(String(b.idmateriaprima || ''), 'pt-BR', { numeric: true });
+    });
+  }, [rowsCalculadas, mpSort]);
+
+  const porArtigo = useMemo<ArtigoRow[]>(() => {
+    const map = new Map<string, ArtigoRow>();
 
     for (const row of rowsCalculadas) {
       const artigo = String(row.artigo || '-').trim() || '-';
@@ -471,9 +506,15 @@ export default function OrcamentoMpPage() {
       if ((row.necessidadeRegra > 0 || row.necessidadeTotal > 0) && row.valorUnitario <= 0) acc.itensSemValor += 1;
     }
 
-    return Array.from(map.values())
-      .sort((a, b) => b.valorRegra - a.valorRegra || b.valorTotal - a.valorTotal || a.artigo.localeCompare(b.artigo));
+    return Array.from(map.values());
   }, [rowsCalculadas]);
+
+  const porArtigoOrdenado = useMemo(() => {
+    return [...porArtigo].sort((a, b) => {
+      const primary = compareValues(a[artigoSort.key], b[artigoSort.key], artigoSort.dir);
+      return primary || a.artigo.localeCompare(b.artigo, 'pt-BR', { numeric: true });
+    });
+  }, [porArtigo, artigoSort]);
 
   const totais = useMemo(() => {
     return rowsCalculadas.reduce((acc, row) => {
@@ -537,6 +578,18 @@ export default function OrcamentoMpPage() {
   const ml = sidebarCollapsed ? 'ml-20' : 'ml-64';
   const periodosLabel = periodosAte(planoAte).join('+');
   const periodosSelecionados = periodosAte(planoAte);
+  const pedidosModal = useMemo(() => {
+    return [...(Array.isArray(mpModal?.pedidos_detalhe) ? mpModal.pedidos_detalhe : [])]
+      .sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')));
+  }, [mpModal]);
+
+  function toggleArtigoSort(key: ArtigoSortKey) {
+    setArtigoSort((prev) => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' });
+  }
+
+  function toggleMpSort(key: MpSortKey) {
+    setMpSort((prev) => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' });
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -674,30 +727,30 @@ export default function OrcamentoMpPage() {
           <section className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
               <span className="text-xs font-semibold text-brand-dark">Resumo por artigo - {periodosLabel}</span>
-              <span className="text-[11px] text-gray-500">{porArtigo.length} artigos</span>
+              <span className="text-[11px] text-gray-500">{porArtigoOrdenado.length} artigos</span>
             </div>
             <div className="max-h-[34vh] overflow-auto">
               <table className="min-w-full text-xs">
                 <thead className="sticky top-0 z-10 bg-gray-100">
                   <tr>
-                    <Th>Artigo</Th>
-                    <Th align="right">MPs</Th>
-                    <Th align="right">Estoque</Th>
-                    <Th align="right">R$ estoque</Th>
-                    <Th align="right">Consumo plano</Th>
-                    <Th align="right">R$ consumo</Th>
-                    <Th align="right">Compras regra</Th>
-                    <Th align="right">R$ compras regra</Th>
-                    <Th align="right">Compras total</Th>
-                    <Th align="right">R$ compras total</Th>
-                    <Th align="right">Nec. regra</Th>
-                    <Th align="right">R$ regra</Th>
-                    <Th align="right">Nec. total</Th>
-                    <Th align="right">R$ total</Th>
+                    <SortTh active={artigoSort.key === 'artigo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('artigo')}>Artigo</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'itens'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('itens')}>MPs</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'estoque'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('estoque')}>Estoque</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'valorEstoque'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorEstoque')}>R$ estoque</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'consumo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('consumo')}>Consumo plano</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'valorConsumo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorConsumo')}>R$ consumo</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'comprasRegra'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('comprasRegra')}>Compras regra</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'valorComprasRegra'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorComprasRegra')}>R$ compras regra</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'comprasTotal'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('comprasTotal')}>Compras total</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'valorComprasTotal'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorComprasTotal')}>R$ compras total</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'necessidadeRegra'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('necessidadeRegra')}>Nec. regra</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'valorRegra'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorRegra')}>R$ regra</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'necessidadeTotal'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('necessidadeTotal')}>Nec. total</SortTh>
+                    <SortTh align="right" active={artigoSort.key === 'valorTotal'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorTotal')}>R$ total</SortTh>
                   </tr>
                 </thead>
                 <tbody>
-                  {porArtigo.map((row, idx) => (
+                  {porArtigoOrdenado.map((row, idx) => (
                     <tr key={row.artigo} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200`}>
                       <Td strong>{row.artigo}</Td>
                       <Td align="right">{fmt(row.itens)}</Td>
@@ -715,13 +768,13 @@ export default function OrcamentoMpPage() {
                       <Td align="right" tone={row.valorTotal > 0 ? 'orange' : undefined} strong>{row.valorTotal > 0 ? money(row.valorTotal) : '-'}</Td>
                     </tr>
                   ))}
-                  {porArtigo.length === 0 && <tr><td colSpan={14} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
+                  {porArtigoOrdenado.length === 0 && <tr><td colSpan={14} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
                 </tbody>
-                {porArtigo.length > 0 && (
+                {porArtigoOrdenado.length > 0 && (
                   <tfoot className="sticky bottom-0 z-10 bg-gray-200 font-semibold text-gray-900">
                     <tr>
                       <Td strong>TOTAL</Td>
-                      <Td align="right" strong>{fmt(porArtigo.reduce((acc, row) => acc + row.itens, 0))}</Td>
+                      <Td align="right" strong>{fmt(porArtigoOrdenado.reduce((acc, row) => acc + row.itens, 0))}</Td>
                       <Td align="right" strong>{fmt(totais.estoque)}</Td>
                       <Td align="right" strong>{money(totais.valorEstoque)}</Td>
                       <Td align="right" strong>{fmt(totais.consumo)}</Td>
@@ -744,34 +797,34 @@ export default function OrcamentoMpPage() {
           <section className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
               <span className="text-xs font-semibold text-brand-dark">Detalhe por MP</span>
-              <span className="text-[11px] text-gray-500">{rowsCalculadas.length} MPs</span>
+              <span className="text-[11px] text-gray-500">{rowsOrdenadas.length} MPs</span>
             </div>
             <div className="max-h-[52vh] overflow-auto">
               <table className="min-w-full text-xs">
                 <thead className="sticky top-0 z-10 bg-gray-100">
                   <tr>
-                    <Th>MP</Th>
-                    <Th>Descricao</Th>
-                    <Th>COR</Th>
-                    <Th>Artigo</Th>
-                    <Th align="right">Estoque</Th>
-                    <Th align="right">R$ estoque</Th>
-                    <Th align="right">Consumo plano</Th>
-                    <Th align="right">V. unit.</Th>
-                    <Th align="right">R$ consumo</Th>
-                    <Th align="right">Compras regra</Th>
-                    <Th align="right">R$ compras regra</Th>
-                    <Th align="right">Compras total</Th>
-                    <Th align="right">R$ compras total</Th>
-                    <Th align="right">Nec. regra</Th>
-                    <Th align="right">R$ regra</Th>
-                    <Th align="right">Nec. total</Th>
-                    <Th align="right">R$ total</Th>
+                    <SortTh active={mpSort.key === 'idmateriaprima'} dir={mpSort.dir} onClick={() => toggleMpSort('idmateriaprima')}>MP</SortTh>
+                    <SortTh active={mpSort.key === 'nome_materiaprima'} dir={mpSort.dir} onClick={() => toggleMpSort('nome_materiaprima')}>Descricao</SortTh>
+                    <SortTh active={mpSort.key === 'cor'} dir={mpSort.dir} onClick={() => toggleMpSort('cor')}>COR</SortTh>
+                    <SortTh active={mpSort.key === 'artigo'} dir={mpSort.dir} onClick={() => toggleMpSort('artigo')}>Artigo</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'estoquetotal'} dir={mpSort.dir} onClick={() => toggleMpSort('estoquetotal')}>Estoque</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorEstoque'} dir={mpSort.dir} onClick={() => toggleMpSort('valorEstoque')}>R$ estoque</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'consumoAte'} dir={mpSort.dir} onClick={() => toggleMpSort('consumoAte')}>Consumo plano</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorUnitario'} dir={mpSort.dir} onClick={() => toggleMpSort('valorUnitario')}>V. unit.</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorConsumo'} dir={mpSort.dir} onClick={() => toggleMpSort('valorConsumo')}>R$ consumo</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'comprasRegra'} dir={mpSort.dir} onClick={() => toggleMpSort('comprasRegra')}>Compras regra</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorComprasRegra'} dir={mpSort.dir} onClick={() => toggleMpSort('valorComprasRegra')}>R$ compras regra</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'comprasTotal'} dir={mpSort.dir} onClick={() => toggleMpSort('comprasTotal')}>Compras total</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorComprasTotal'} dir={mpSort.dir} onClick={() => toggleMpSort('valorComprasTotal')}>R$ compras total</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'necessidadeRegra'} dir={mpSort.dir} onClick={() => toggleMpSort('necessidadeRegra')}>Nec. regra</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorNecessidadeRegra'} dir={mpSort.dir} onClick={() => toggleMpSort('valorNecessidadeRegra')}>R$ regra</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'necessidadeTotal'} dir={mpSort.dir} onClick={() => toggleMpSort('necessidadeTotal')}>Nec. total</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorNecessidadeTotal'} dir={mpSort.dir} onClick={() => toggleMpSort('valorNecessidadeTotal')}>R$ total</SortTh>
                   </tr>
                 </thead>
                 <tbody>
-                  {rowsCalculadas.map((row, idx) => (
-                    <tr key={`${row.idmateriaprima}-${idx}`} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200`}>
+                  {rowsOrdenadas.map((row, idx) => (
+                    <tr key={`${row.idmateriaprima}-${idx}`} onClick={() => setMpModal(row)} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200 cursor-pointer hover:bg-amber-50`}>
                       <Td strong>{row.idmateriaprima}</Td>
                       <Td>{String(row.nome_materiaprima || '-')}</Td>
                       <Td>{String(row.cor || '-')}</Td>
@@ -794,9 +847,9 @@ export default function OrcamentoMpPage() {
                       <Td align="right" tone={row.valorNecessidadeTotal > 0 ? 'orange' : undefined} strong>{row.valorNecessidadeTotal > 0 ? money(row.valorNecessidadeTotal) : '-'}</Td>
                     </tr>
                   ))}
-                  {rowsCalculadas.length === 0 && <tr><td colSpan={17} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
+                  {rowsOrdenadas.length === 0 && <tr><td colSpan={17} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
                 </tbody>
-                {rowsCalculadas.length > 0 && (
+                {rowsOrdenadas.length > 0 && (
                   <tfoot className="sticky bottom-0 z-10 bg-gray-200 font-semibold text-gray-900">
                     <tr>
                       <Td strong>TOTAL</Td>
@@ -822,6 +875,113 @@ export default function OrcamentoMpPage() {
               </table>
             </div>
           </section>
+          {mpModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-5xl max-h-[88vh] overflow-hidden rounded-lg bg-white shadow-xl border border-gray-200">
+                <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4">
+                  <div>
+                    <div className="text-sm font-bold text-brand-dark">Extrato da necessidade total</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      MP {mpModal.idmateriaprima} | {mpModal.nome_materiaprima || '-'} | {mpModal.cor || '-'} | {mpModal.artigo || '-'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMpModal(null)}
+                    className="rounded border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Fechar
+                  </button>
+                </div>
+
+                <div className="overflow-auto p-5 space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <InfoCard label="Consumo plano" value={fmt(mpModal.consumoAte)} detail={money(mpModal.valorConsumo)} />
+                    <InfoCard label="Estoque em casa" value={fmt(Number(mpModal.estoquetotal || 0))} detail={money(mpModal.valorEstoque)} />
+                    <InfoCard label="Compras andamento" value={fmt(mpModal.comprasTotal)} detail={money(mpModal.valorComprasTotal)} />
+                    <InfoCard label="Nec. total" value={fmt(mpModal.necessidadeTotal)} detail={money(mpModal.valorNecessidadeTotal)} tone="orange" />
+                    <InfoCard label="Valor unit." value={mpModal.valorUnitario > 0 ? money(mpModal.valorUnitario) : '-'} detail={mpModal.origemValor} />
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 text-xs font-semibold text-brand-dark">
+                      Conta: consumo do plano - estoque - compras em andamento = necessidade total
+                    </div>
+                    <table className="min-w-full text-xs">
+                      <tbody>
+                        <tr className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-semibold text-gray-700">Consumo do plano ({periodosLabel})</td>
+                          <td className="px-3 py-2 text-right">{fmt(mpModal.consumoAte)}</td>
+                          <td className="px-3 py-2 text-right font-semibold">{money(mpModal.valorConsumo)}</td>
+                        </tr>
+                        <tr className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-semibold text-gray-700">(-) Estoque em casa</td>
+                          <td className="px-3 py-2 text-right">{fmt(Number(mpModal.estoquetotal || 0))}</td>
+                          <td className="px-3 py-2 text-right font-semibold">{money(mpModal.valorEstoque)}</td>
+                        </tr>
+                        <tr className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-semibold text-gray-700">(-) Pedidos/compras em andamento</td>
+                          <td className="px-3 py-2 text-right">{fmt(mpModal.comprasTotal)}</td>
+                          <td className="px-3 py-2 text-right font-semibold">{money(mpModal.valorComprasTotal)}</td>
+                        </tr>
+                        <tr className="border-t border-gray-200 bg-orange-50">
+                          <td className="px-3 py-2 font-bold text-orange-800">Necessidade total</td>
+                          <td className="px-3 py-2 text-right font-bold text-orange-800">{fmt(mpModal.necessidadeTotal)}</td>
+                          <td className="px-3 py-2 text-right font-bold text-orange-800">{money(mpModal.valorNecessidadeTotal)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-brand-dark">Pedidos em andamento considerados</span>
+                      <span className="text-[11px] text-gray-500">{pedidosModal.length} linhas</span>
+                    </div>
+                    <table className="min-w-full text-xs">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Pedido</th>
+                          <th className="px-3 py-2 text-left">Empresa</th>
+                          <th className="px-3 py-2 text-left">Data prevista</th>
+                          <th className="px-3 py-2 text-left">Periodo</th>
+                          <th className="px-3 py-2 text-right">Quantidade</th>
+                          <th className="px-3 py-2 text-right">Valor estimado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pedidosModal.map((pedido, idx) => {
+                          const qtd = Number(pedido.quantidade || 0);
+                          return (
+                            <tr key={`${pedido.pedido || 'pedido'}-${idx}`} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} border-t border-gray-100`}>
+                              <td className="px-3 py-2 font-semibold text-gray-700">{String(pedido.pedido || '-')}</td>
+                              <td className="px-3 py-2 text-gray-600">{String(pedido.empresa || '-')}</td>
+                              <td className="px-3 py-2 text-gray-600">{String(pedido.data || '-').slice(0, 10)}</td>
+                              <td className="px-3 py-2 text-gray-600">{String(pedido.periodo || '-')}</td>
+                              <td className="px-3 py-2 text-right">{fmt(qtd)}</td>
+                              <td className="px-3 py-2 text-right font-semibold">{money(qtd * mpModal.valorUnitario)}</td>
+                            </tr>
+                          );
+                        })}
+                        {pedidosModal.length === 0 && (
+                          <tr><td colSpan={6} className="px-3 py-8 text-center text-gray-500">Sem pedidos em andamento detalhados para esta MP.</td></tr>
+                        )}
+                      </tbody>
+                      {pedidosModal.length > 0 && (
+                        <tfoot className="bg-gray-200 font-semibold">
+                          <tr>
+                            <td className="px-3 py-2" colSpan={4}>TOTAL</td>
+                            <td className="px-3 py-2 text-right">{fmt(pedidosModal.reduce((acc, pedido) => acc + Number(pedido.quantidade || 0), 0))}</td>
+                            <td className="px-3 py-2 text-right">{money(pedidosModal.reduce((acc, pedido) => acc + Number(pedido.quantidade || 0) * mpModal.valorUnitario, 0))}</td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
@@ -848,6 +1008,27 @@ function Card({ label, value, detail, tone }: { label: string; value: string; de
 
 function Th({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'right' }) {
   return <th className={`px-2.5 py-2 ${align === 'right' ? 'text-right' : 'text-left'}`}>{children}</th>;
+}
+
+function SortTh({ children, align = 'left', active, dir, onClick }: { children: React.ReactNode; align?: 'left' | 'right'; active: boolean; dir: SortDir; onClick: () => void }) {
+  return (
+    <th className={`px-2.5 py-2 ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      <button type="button" onClick={onClick} className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end' : 'justify-start'} w-full hover:underline underline-offset-2`}>
+        <span>{children}</span>
+        <span className="text-[10px] text-gray-500">{active ? (dir === 'asc' ? '↑' : '↓') : '↕'}</span>
+      </button>
+    </th>
+  );
+}
+
+function InfoCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: 'orange' }) {
+  return (
+    <div className={`rounded border px-3 py-2 ${tone === 'orange' ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+      <div className="text-[11px] text-gray-500">{label}</div>
+      <div className={`text-lg font-bold ${tone === 'orange' ? 'text-orange-700' : 'text-gray-900'}`}>{value}</div>
+      <div className="text-[11px] text-gray-500">{detail}</div>
+    </div>
+  );
 }
 
 function Td({ children = null, align = 'left', tone, strong = false }: { children?: React.ReactNode; align?: 'left' | 'right'; tone?: 'red' | 'orange' | 'sky' | 'emerald'; strong?: boolean }) {
