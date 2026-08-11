@@ -578,7 +578,8 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     pool.query(
       `SELECT a.cd_produto::BIGINT AS idproduto,
               p.cd_auxiliar,
-              COALESCE(SUM(GREATEST(a.qt_lote - COALESCE(a.qt_gerouop, 0), 0)), 0)::FLOAT AS plano
+              COALESCE(SUM(GREATEST(a.qt_lote - COALESCE(a.qt_gerouop, 0), 0)), 0)::FLOAT AS plano,
+              COALESCE(SUM(COALESCE(a.qt_lote, 0)), 0)::FLOAT AS plano_original
        FROM vr_pcp_lotepl2 a
        LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
        WHERE p.tp_situacao = 1
@@ -774,12 +775,15 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
 
   // Plano de produção: { MA, PX, UL, QT } por produto
   const planoMap  = new Map();
+  const planoOriginalMap = new Map();
   for (const row of rPlano.rows) {
     const id  = Number(row.idproduto);
     const per = String(row.cd_auxiliar || '').trim().toUpperCase();
     if (!planoMap.has(id)) planoMap.set(id, { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
+    if (!planoOriginalMap.has(id)) planoOriginalMap.set(id, { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
     if (per === 'MA' || per === 'PX' || per === 'UL' || per === 'QT' || per === 'QU') {
       planoMap.get(id)[per] = parseFloat(row.plano) || 0;
+      planoOriginalMap.get(id)[per] = parseFloat(row.plano_original) || 0;
     }
   }
 
@@ -902,6 +906,11 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     let planoUL = 0;
     let planoQT = 0;
     let planoQU = 0;
+    let planoOriginalMA = 0;
+    let planoOriginalPX = 0;
+    let planoOriginalUL = 0;
+    let planoOriginalQT = 0;
+    let planoOriginalQU = 0;
 
     for (const idFonte of idsFonte) {
       const s = salesMap.get(idFonte);
@@ -917,6 +926,11 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
       planoUL += planoMap.get(idFonte)?.UL || 0;
       planoQT += planoMap.get(idFonte)?.QT || 0;
       planoQU += planoMap.get(idFonte)?.QU || 0;
+      planoOriginalMA += planoOriginalMap.get(idFonte)?.MA || 0;
+      planoOriginalPX += planoOriginalMap.get(idFonte)?.PX || 0;
+      planoOriginalUL += planoOriginalMap.get(idFonte)?.UL || 0;
+      planoOriginalQT += planoOriginalMap.get(idFonte)?.QT || 0;
+      planoOriginalQU += planoOriginalMap.get(idFonte)?.QU || 0;
     }
 
     const mediaSemestral = sumSem / 6;  // média mensal do semestre (total ÷ 6 meses)
@@ -968,6 +982,13 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
         ul: planoUL,   // mês seguinte
         qt: planoQT,   // quarto mês
         qu: planoQU    // quinto mês
+      },
+      plano_original: {
+        ma: planoOriginalMA,
+        px: planoOriginalPX,
+        ul: planoOriginalUL,
+        qt: planoOriginalQT,
+        qu: planoOriginalQU
       },
       planejamento: {
         necessidade_total:    necessidadeTotal,

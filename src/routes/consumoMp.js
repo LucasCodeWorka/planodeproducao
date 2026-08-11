@@ -477,37 +477,163 @@ router.post("/analise", async (req, res) => {
     const idsMp = Array.from(consumoMap.keys()).map((v) => String(v).trim()).filter(Boolean);
     if (!idsMp.length) return res.json({ success: true, total: 0, data: [] });
 
-    const estoqueRows = await pool.query(`
-      SELECT
-        a.cd_produto::TEXT AS idmateriaprima,
-        MAX(COALESCE(a.nm_produto, ''))::TEXT AS nome_materiaprima,
-        MAX(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), ''))::TEXT AS materia_prima_ds,
-        MAX(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 111::bigint), ''))::TEXT AS artigo,
-        MAX(COALESCE(f_dic_sld_prd_produto('1', '1'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquefisico,
-        MAX(COALESCE(f_dic_sld_prd_produto('1', '2'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoqueinsp,
-        MAX(COALESCE(f_dic_sld_prd_produto('1', '15'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquecorte
-      FROM public.vr_prd_prdgrade a
-      WHERE a.cd_produto::TEXT = ANY($1::TEXT[])
-      GROUP BY a.cd_produto
-    `, [idsMp]);
+    // Calcular datas para query de finalizados
+    const mesAtualFinalizados = startOfMonth(new Date());
+    const inicioFinalizados = addMonths(mesAtualFinalizados, -2);
+    const fimFinalizados = addMonths(mesAtualFinalizados, 1);
+
+    // ═══ OTIMIZAÇÃO: Executar todas as queries em paralelo ═══
+    const t0Queries = Date.now();
+    const [estoqueRows, fornecedoresRows, comprasRows, opInternaRows, finalizadosRows, conversaoRows] = await Promise.all([
+      // Q1: Estoque e dados de MP
+      pool.query(`
+        SELECT
+          a.cd_produto::TEXT AS idmateriaprima,
+          MAX(COALESCE(a.nm_produto, ''))::TEXT AS nome_materiaprima,
+          MAX(COALESCE(a.ds_cor, ''))::TEXT AS cor,
+          MAX(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), ''))::TEXT AS materia_prima_ds,
+          MAX(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 111::bigint), ''))::TEXT AS artigo,
+          MAX(COALESCE(f_dic_sld_prd_produto('1', '1'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquefisico,
+          MAX(COALESCE(f_dic_sld_prd_produto('1', '2'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoqueinsp,
+          MAX(COALESCE(f_dic_sld_prd_produto('1', '15'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquecorte
+        FROM public.vr_prd_prdgrade a
+        WHERE a.cd_produto::TEXT = ANY($1::TEXT[])
+        GROUP BY a.cd_produto
+      `, [idsMp]),
+
+      // Q2: Fornecedores
+      pool.query(`
+        SELECT
+          f.cd_produto::TEXT AS idmateriaprima,
+          f.cd_fornecedor::TEXT AS cd_fornecedor,
+          COALESCE(f.nm_fornecedor, '')::TEXT AS nm_fornecedor,
+          COALESCE(f.cd_original, '')::TEXT AS cd_original,
+          COALESCE(f.in_padrao, '')::TEXT AS in_padrao,
+          COALESCE(f.pr_markup, 0)::FLOAT AS pr_markup
+        FROM public.vr_prd_fornecedor f
+        WHERE f.cd_produto::TEXT = ANY($1::TEXT[])
+        ORDER BY
+          f.cd_produto,
+          CASE WHEN UPPER(COALESCE(f.in_padrao, '')) IN ('T', 'S', '1', 'TRUE') THEN 0 ELSE 1 END,
+          f.cd_fornecedor
+      `, [idsMp]),
+
+      // Q3: Compras pendentes
+      pool.query(`
+        SELECT
+          i.cd_produto::TEXT AS idmateriaprima,
+          COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date) AS dt_disponivel,
+          SUM(COALESCE(i.qt_pendente, 0))::FLOAT AS qt_entrada,
+          JSONB_AGG(JSONB_BUILD_OBJECT(
+            'empresa', c_1.cd_empresa,
+            'pedido', c_1.cd_pedido,
+            'data', COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date),
+            'quantidade', COALESCE(i.qt_pendente, 0)
+          ) ORDER BY COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date), c_1.cd_pedido) AS pedidos_detalhe
+        FROM vr_cmp_pedidoc2 c_1
+        JOIN vr_cmp_pedidoi i
+          ON i.cd_empresa = c_1.cd_empresa
+         AND i.cd_pedido = c_1.cd_pedido
+        WHERE c_1.tp_situacao = ANY (ARRAY[1::bigint, 3::bigint])
+          AND i.cd_produto::TEXT = ANY($1::TEXT[])
+          AND COALESCE(i.qt_pendente, 0) > 0
+        GROUP BY i.cd_produto, COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date)
+      `, [idsMp]),
+
+      // Q4: OPs internas
+      pool.query(`
+        SELECT
+          CASE
+            WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+              THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+            ELSE op.cd_produto::TEXT
+          END AS idmateriaprima,
+          op.dt_preventrega::date AS dt_disponivel,
+          SUM(COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0))::FLOAT AS qt_entrada
+        FROM vr_pcp_opi op
+        LEFT JOIN "de-para1"
+          ON op.cd_produto = ("de-para1"."de-CODIGO")::bigint
+        WHERE op.nr_ciclo = '99'
+          AND op.tp_situacao NOT IN (40, 30)
+          AND (COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0)) > 0
+          AND (
+            CASE
+              WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+                THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+              ELSE op.cd_produto::TEXT
+            END
+          ) = ANY($1::TEXT[])
+        GROUP BY
+          CASE
+            WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+              THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+            ELSE op.cd_produto::TEXT
+          END,
+          op.dt_preventrega::date
+      `, [idsMp]),
+
+      // Q5: Compras finalizadas
+      pool.query(`
+        SELECT
+          i.cd_produto::TEXT AS idmateriaprima,
+          COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped)::date AS dt_finalizado,
+          SUM(COALESCE(i.qt_atendida, 0))::FLOAT AS qt_finalizada,
+          SUM(COALESCE(i.vl_atendido, 0))::FLOAT AS vl_finalizado,
+          JSONB_AGG(JSONB_BUILD_OBJECT(
+            'empresa', c_1.cd_empresa,
+            'pedido', c_1.cd_pedido,
+            'data', COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped)::date,
+            'quantidade', COALESCE(i.qt_atendida, 0),
+            'valor', COALESCE(i.vl_atendido, 0),
+            'data_base', CASE
+              WHEN i.dt_ultentrega IS NOT NULL THEN 'dt_ultentrega_item'
+              WHEN c_1.dt_ultentrega IS NOT NULL THEN 'dt_ultentrega_capa'
+              ELSE 'dt_ultaltped'
+            END
+          ) ORDER BY COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped), c_1.cd_pedido) AS finalizados_detalhe
+        FROM vr_cmp_pedidoc2 c_1
+        JOIN vr_cmp_pedidoi i
+          ON i.cd_empresa = c_1.cd_empresa
+         AND i.cd_pedido = c_1.cd_pedido
+        WHERE i.cd_produto::TEXT = ANY($1::TEXT[])
+          AND COALESCE(i.qt_atendida, 0) > 0
+          AND COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped) >= $2::date
+          AND COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped) < $3::date
+        GROUP BY i.cd_produto, COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped)::date
+      `, [idsMp, inicioFinalizados.toISOString().slice(0, 10), fimFinalizados.toISOString().slice(0, 10)]),
+
+      // Q6: Conversão de unidade de medida (milheiro, etc.)
+      pool.query(`
+        SELECT
+          c.cd_produto::TEXT AS idmateriaprima,
+          c.cd_especieconv,
+          c.tp_operacao,
+          c.qt_conversao::FLOAT AS qt_conversao,
+          c.ds_convmed
+        FROM vr_prd_prdconvmed c
+        WHERE c.cd_produto::TEXT = ANY($1::TEXT[])
+          AND UPPER(COALESCE(c.in_padrao, '')) IN ('T', 'S', '1', 'TRUE')
+      `, [idsMp]),
+    ]);
+    console.log(`[consumo-mp/analise] Queries paralelas concluídas em ${((Date.now() - t0Queries) / 1000).toFixed(1)}s`);
 
     const estoqueMap = new Map(estoqueRows.rows.map((r) => [String(r.idmateriaprima || ""), r]));
 
-    const fornecedoresRows = await pool.query(`
-      SELECT
-        f.cd_produto::TEXT AS idmateriaprima,
-        f.cd_fornecedor::TEXT AS cd_fornecedor,
-        COALESCE(f.nm_fornecedor, '')::TEXT AS nm_fornecedor,
-        COALESCE(f.cd_original, '')::TEXT AS cd_original,
-        COALESCE(f.in_padrao, '')::TEXT AS in_padrao,
-        COALESCE(f.pr_markup, 0)::FLOAT AS pr_markup
-      FROM public.vr_prd_fornecedor f
-      WHERE f.cd_produto::TEXT = ANY($1::TEXT[])
-      ORDER BY
-        f.cd_produto,
-        CASE WHEN UPPER(COALESCE(f.in_padrao, '')) IN ('T', 'S', '1', 'TRUE') THEN 0 ELSE 1 END,
-        f.cd_fornecedor
-    `, [idsMp]);
+    // Mapa de conversão de unidade (ex: milheiro -> unidade = dividir por 1000)
+    const conversaoMap = new Map();
+    for (const row of conversaoRows.rows) {
+      const idMp = String(row.idmateriaprima || "").trim();
+      if (!idMp) continue;
+      // qt_conversao indica o fator (ex: 1000 para milheiro)
+      // tp_operacao: M = multiplicar, D = dividir
+      // Para converter PREÇO de milheiro para unidade, dividimos por qt_conversao
+      conversaoMap.set(idMp, {
+        cd_especieconv: String(row.cd_especieconv || "").trim(),
+        tp_operacao: String(row.tp_operacao || "M").trim().toUpperCase(),
+        qt_conversao: Number(row.qt_conversao || 1),
+        ds_convmed: String(row.ds_convmed || "").trim(),
+      });
+    }
 
     const fornecedorMap = new Map();
     for (const row of fornecedoresRows.rows) {
@@ -522,90 +648,6 @@ router.post("/analise", async (req, res) => {
         pr_markup: Number(row.pr_markup || 0),
       });
     }
-
-    const comprasRows = await pool.query(`
-      SELECT
-        i.cd_produto::TEXT AS idmateriaprima,
-        COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date) AS dt_disponivel,
-        SUM(COALESCE(i.qt_pendente, 0))::FLOAT AS qt_entrada,
-        JSONB_AGG(JSONB_BUILD_OBJECT(
-          'empresa', c_1.cd_empresa,
-          'pedido', c_1.cd_pedido,
-          'data', COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date),
-          'quantidade', COALESCE(i.qt_pendente, 0)
-        ) ORDER BY COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date), c_1.cd_pedido) AS pedidos_detalhe
-      FROM vr_cmp_pedidoc2 c_1
-      JOIN vr_cmp_pedidoi i
-        ON i.cd_empresa = c_1.cd_empresa
-       AND i.cd_pedido = c_1.cd_pedido
-      WHERE c_1.tp_situacao = ANY (ARRAY[1::bigint, 3::bigint])
-        AND i.cd_produto::TEXT = ANY($1::TEXT[])
-        AND COALESCE(i.qt_pendente, 0) > 0
-      GROUP BY i.cd_produto, COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date)
-    `, [idsMp]);
-
-    const opInternaRows = await pool.query(`
-      SELECT
-        CASE
-          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
-            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
-          ELSE op.cd_produto::TEXT
-        END AS idmateriaprima,
-        op.dt_preventrega::date AS dt_disponivel,
-        SUM(COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0))::FLOAT AS qt_entrada
-      FROM vr_pcp_opi op
-      LEFT JOIN "de-para1"
-        ON op.cd_produto = ("de-para1"."de-CODIGO")::bigint
-      WHERE op.nr_ciclo = '99'
-        AND op.tp_situacao NOT IN (40, 30)
-        AND (COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0)) > 0
-        AND (
-          CASE
-            WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
-              THEN ("de-para1"."de-CODIGO")::bigint::TEXT
-            ELSE op.cd_produto::TEXT
-          END
-        ) = ANY($1::TEXT[])
-      GROUP BY
-        CASE
-          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
-            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
-          ELSE op.cd_produto::TEXT
-        END,
-        op.dt_preventrega::date
-    `, [idsMp]);
-
-    const mesAtualFinalizados = startOfMonth(new Date());
-    const inicioFinalizados = addMonths(mesAtualFinalizados, -2);
-    const fimFinalizados = addMonths(mesAtualFinalizados, 1);
-    const finalizadosRows = await pool.query(`
-      SELECT
-        i.cd_produto::TEXT AS idmateriaprima,
-        COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped)::date AS dt_finalizado,
-        SUM(COALESCE(i.qt_atendida, 0))::FLOAT AS qt_finalizada,
-        SUM(COALESCE(i.vl_atendido, 0))::FLOAT AS vl_finalizado,
-        JSONB_AGG(JSONB_BUILD_OBJECT(
-          'empresa', c_1.cd_empresa,
-          'pedido', c_1.cd_pedido,
-          'data', COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped)::date,
-          'quantidade', COALESCE(i.qt_atendida, 0),
-          'valor', COALESCE(i.vl_atendido, 0),
-          'data_base', CASE
-            WHEN i.dt_ultentrega IS NOT NULL THEN 'dt_ultentrega_item'
-            WHEN c_1.dt_ultentrega IS NOT NULL THEN 'dt_ultentrega_capa'
-            ELSE 'dt_ultaltped'
-          END
-        ) ORDER BY COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped), c_1.cd_pedido) AS finalizados_detalhe
-      FROM vr_cmp_pedidoc2 c_1
-      JOIN vr_cmp_pedidoi i
-        ON i.cd_empresa = c_1.cd_empresa
-       AND i.cd_pedido = c_1.cd_pedido
-      WHERE i.cd_produto::TEXT = ANY($1::TEXT[])
-        AND COALESCE(i.qt_atendida, 0) > 0
-        AND COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped) >= $2::date
-        AND COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped) < $3::date
-      GROUP BY i.cd_produto, COALESCE(i.dt_ultentrega, c_1.dt_ultentrega, i.dt_ultaltped)::date
-    `, [idsMp, inicioFinalizados.toISOString().slice(0, 10), fimFinalizados.toISOString().slice(0, 10)]);
 
     const entradasMap = new Map();
     const deadlinesCompra = getCompraDeadlines(new Date());
@@ -693,6 +735,7 @@ router.post("/analise", async (req, res) => {
       const corte = Number(e.estoquecorte || 0);
       const nome_materiaprima = String(e.materia_prima_ds || e.nome_materiaprima || "").trim();
       const artigo = String(e.artigo || "").trim();
+      const cor = String(e.cor || "").trim();
       const estoquetotal = fis + insp + corte;
       const entrada_ma = Number(compras.entrada_ma || 0);
       const entrada_px = Number(compras.entrada_px || 0);
@@ -725,15 +768,26 @@ router.post("/analise", async (req, res) => {
       const saldo_qt = saldo_ul + entrada_qt - consumo_qt;
       const saldo_qu = saldo_qt + entrada_qu - consumo_qu;
       const consumo_total = consumo_ma + consumo_px + consumo_ul + consumo_qt + consumo_qu;
+
+      // Fator de conversão de unidade (ex: milheiro = 1000)
+      const conv = conversaoMap.get(idmateriaprima) || null;
+      const fator_conversao = conv ? conv.qt_conversao : 1;
+      const unidade_compra = conv ? conv.cd_especieconv : "UND";
+      const ds_conversao = conv ? conv.ds_convmed : "";
+
       return {
         idmateriaprima,
         nome_materiaprima,
+        cor,
         artigo,
         cd_fornecedor: fornecedorPrincipal.cd_fornecedor || "",
         nm_fornecedor: fornecedorPrincipal.nm_fornecedor || "",
         cd_original_fornecedor: fornecedorPrincipal.cd_original || "",
         in_fornecedor_padrao: fornecedorPrincipal.in_padrao || "",
         fornecedores,
+        fator_conversao,
+        unidade_compra,
+        ds_conversao,
         estoquefisico: fis,
         estoqueinsp: insp,
         estoquecorte: corte,
@@ -1251,70 +1305,75 @@ router.post("/check-produto", async (req, res) => {
       acc.consumo_qt += plano.qt * qtd;
     }
 
-    // 3. Buscar estoque e entradas apenas das MPs do produto clicado
-    const estoqueRows = await pool.query(`
-      SELECT
-        a.cd_produto::TEXT AS idmateriaprima,
-        MAX(COALESCE(a.nm_produto, ''))::TEXT AS nome_materiaprima,
-        MAX(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), ''))::TEXT AS materia_prima_ds,
-        MAX(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 111::bigint), ''))::TEXT AS artigo,
-        MAX(COALESCE(f_dic_sld_prd_produto('1', '1'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquefisico,
-        MAX(COALESCE(f_dic_sld_prd_produto('1', '2'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoqueinsp,
-        MAX(COALESCE(f_dic_sld_prd_produto('1', '15'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquecorte
-      FROM public.vr_prd_prdgrade a
-      WHERE a.cd_produto::TEXT = ANY($1::TEXT[])
-      GROUP BY a.cd_produto
-    `, [idsMpProduto]);
+    // 3. Buscar estoque e entradas em paralelo
+    const t0CheckProduto = Date.now();
+    const [estoqueRows, comprasRows, opInternaRows] = await Promise.all([
+      // Q1: Estoque
+      pool.query(`
+        SELECT
+          a.cd_produto::TEXT AS idmateriaprima,
+          MAX(COALESCE(a.nm_produto, ''))::TEXT AS nome_materiaprima,
+          MAX(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), ''))::TEXT AS materia_prima_ds,
+          MAX(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 111::bigint), ''))::TEXT AS artigo,
+          MAX(COALESCE(f_dic_sld_prd_produto('1', '1'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquefisico,
+          MAX(COALESCE(f_dic_sld_prd_produto('1', '2'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoqueinsp,
+          MAX(COALESCE(f_dic_sld_prd_produto('1', '15'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquecorte
+        FROM public.vr_prd_prdgrade a
+        WHERE a.cd_produto::TEXT = ANY($1::TEXT[])
+        GROUP BY a.cd_produto
+      `, [idsMpProduto]),
 
-    const estoqueMap = new Map(estoqueRows.rows.map((r) => [String(r.idmateriaprima || ""), r]));
+      // Q2: Compras
+      pool.query(`
+        SELECT
+          i.cd_produto::TEXT AS idmateriaprima,
+          COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date) AS dt_disponivel,
+          SUM(COALESCE(i.qt_pendente, 0))::FLOAT AS qt_entrada
+        FROM vr_cmp_pedidoc2 c_1
+        JOIN vr_cmp_pedidoi i
+          ON i.cd_empresa = c_1.cd_empresa
+         AND i.cd_pedido = c_1.cd_pedido
+        WHERE c_1.tp_situacao = ANY (ARRAY[1::bigint, 3::bigint])
+          AND i.cd_produto::TEXT = ANY($1::TEXT[])
+          AND COALESCE(i.qt_pendente, 0) > 0
+        GROUP BY i.cd_produto, COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date)
+      `, [idsMpProduto]),
 
-    // Buscar compras
-    const comprasRows = await pool.query(`
-      SELECT
-        i.cd_produto::TEXT AS idmateriaprima,
-        COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date) AS dt_disponivel,
-        SUM(COALESCE(i.qt_pendente, 0))::FLOAT AS qt_entrada
-      FROM vr_cmp_pedidoc2 c_1
-      JOIN vr_cmp_pedidoi i
-        ON i.cd_empresa = c_1.cd_empresa
-       AND i.cd_pedido = c_1.cd_pedido
-      WHERE c_1.tp_situacao = ANY (ARRAY[1::bigint, 3::bigint])
-        AND i.cd_produto::TEXT = ANY($1::TEXT[])
-        AND COALESCE(i.qt_pendente, 0) > 0
-      GROUP BY i.cd_produto, COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date)
-    `, [idsMpProduto]);
-
-    // Buscar OPs internas
-    const opInternaRows = await pool.query(`
-      SELECT
-        CASE
-          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
-            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
-          ELSE op.cd_produto::TEXT
-        END AS idmateriaprima,
-        op.dt_preventrega::date AS dt_disponivel,
-        SUM(COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0))::FLOAT AS qt_entrada
-      FROM vr_pcp_opi op
-      LEFT JOIN "de-para1"
-        ON op.cd_produto = ("de-para1"."de-CODIGO")::bigint
-      WHERE op.nr_ciclo = '99'
-        AND op.tp_situacao NOT IN (40, 30)
-        AND (COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0)) > 0
-        AND (
+      // Q3: OPs internas
+      pool.query(`
+        SELECT
           CASE
             WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
               THEN ("de-para1"."de-CODIGO")::bigint::TEXT
             ELSE op.cd_produto::TEXT
-          END
-        ) = ANY($1::TEXT[])
-      GROUP BY
-        CASE
-          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
-            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
-          ELSE op.cd_produto::TEXT
-        END,
-        op.dt_preventrega::date
-    `, [idsMpProduto]);
+          END AS idmateriaprima,
+          op.dt_preventrega::date AS dt_disponivel,
+          SUM(COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0))::FLOAT AS qt_entrada
+        FROM vr_pcp_opi op
+        LEFT JOIN "de-para1"
+          ON op.cd_produto = ("de-para1"."de-CODIGO")::bigint
+        WHERE op.nr_ciclo = '99'
+          AND op.tp_situacao NOT IN (40, 30)
+          AND (COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0)) > 0
+          AND (
+            CASE
+              WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+                THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+              ELSE op.cd_produto::TEXT
+            END
+          ) = ANY($1::TEXT[])
+        GROUP BY
+          CASE
+            WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+              THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+            ELSE op.cd_produto::TEXT
+          END,
+          op.dt_preventrega::date
+      `, [idsMpProduto]),
+    ]);
+    console.log(`[consumo-mp/check-produto] Queries paralelas concluídas em ${((Date.now() - t0CheckProduto) / 1000).toFixed(1)}s`);
+
+    const estoqueMap = new Map(estoqueRows.rows.map((r) => [String(r.idmateriaprima || ""), r]));
 
     // Classificar entradas por período
     const entradasMap = new Map();
@@ -1517,65 +1576,73 @@ router.post("/check-risco-lote", async (req, res) => {
       return res.json({ success: true, risco_por_sku: vazio, detalhe_risco_por_sku: detalheVazio });
     }
 
-    const estoqueRows = await pool.query(`
-      SELECT
-        a.cd_produto::TEXT AS idmateriaprima,
-        MAX(COALESCE(a.nm_produto, ''))::TEXT AS nome_materiaprima,
-        MAX(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), ''))::TEXT AS materia_prima_ds,
-        MAX(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 111::bigint), ''))::TEXT AS artigo,
-        MAX(COALESCE(f_dic_sld_prd_produto('1', '1'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquefisico,
-        MAX(COALESCE(f_dic_sld_prd_produto('1', '2'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoqueinsp,
-        MAX(COALESCE(f_dic_sld_prd_produto('1', '15'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquecorte
-      FROM public.vr_prd_prdgrade a
-      WHERE a.cd_produto::TEXT = ANY($1::TEXT[])
-      GROUP BY a.cd_produto
-    `, [idsMp]);
+    // ═══ OTIMIZAÇÃO: Executar queries em paralelo ═══
+    const t0RiscoLote = Date.now();
+    const [estoqueRows, comprasRows, opInternaRows] = await Promise.all([
+      // Q1: Estoque e dados de MP
+      pool.query(`
+        SELECT
+          a.cd_produto::TEXT AS idmateriaprima,
+          MAX(COALESCE(a.nm_produto, ''))::TEXT AS nome_materiaprima,
+          MAX(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), ''))::TEXT AS materia_prima_ds,
+          MAX(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 111::bigint), ''))::TEXT AS artigo,
+          MAX(COALESCE(f_dic_sld_prd_produto('1', '1'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquefisico,
+          MAX(COALESCE(f_dic_sld_prd_produto('1', '2'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoqueinsp,
+          MAX(COALESCE(f_dic_sld_prd_produto('1', '15'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquecorte
+        FROM public.vr_prd_prdgrade a
+        WHERE a.cd_produto::TEXT = ANY($1::TEXT[])
+        GROUP BY a.cd_produto
+      `, [idsMp]),
 
-    const comprasRows = await pool.query(`
-      SELECT
-        i.cd_produto::TEXT AS idmateriaprima,
-        COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date) AS dt_disponivel,
-        SUM(COALESCE(i.qt_pendente, 0))::FLOAT AS qt_entrada
-      FROM vr_cmp_pedidoc2 c_1
-      JOIN vr_cmp_pedidoi i
-        ON i.cd_empresa = c_1.cd_empresa
-       AND i.cd_pedido = c_1.cd_pedido
-      WHERE c_1.tp_situacao = ANY (ARRAY[1::bigint, 3::bigint])
-        AND i.cd_produto::TEXT = ANY($1::TEXT[])
-        AND COALESCE(i.qt_pendente, 0) > 0
-      GROUP BY i.cd_produto, COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date)
-    `, [idsMp]);
+      // Q2: Compras pendentes
+      pool.query(`
+        SELECT
+          i.cd_produto::TEXT AS idmateriaprima,
+          COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date) AS dt_disponivel,
+          SUM(COALESCE(i.qt_pendente, 0))::FLOAT AS qt_entrada
+        FROM vr_cmp_pedidoc2 c_1
+        JOIN vr_cmp_pedidoi i
+          ON i.cd_empresa = c_1.cd_empresa
+         AND i.cd_pedido = c_1.cd_pedido
+        WHERE c_1.tp_situacao = ANY (ARRAY[1::bigint, 3::bigint])
+          AND i.cd_produto::TEXT = ANY($1::TEXT[])
+          AND COALESCE(i.qt_pendente, 0) > 0
+        GROUP BY i.cd_produto, COALESCE(i.dt_preventrega::date, c_1.dt_preventrega::date)
+      `, [idsMp]),
 
-    const opInternaRows = await pool.query(`
-      SELECT
-        CASE
-          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
-            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
-          ELSE op.cd_produto::TEXT
-        END AS idmateriaprima,
-        op.dt_preventrega::date AS dt_disponivel,
-        SUM(COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0))::FLOAT AS qt_entrada
-      FROM vr_pcp_opi op
-      LEFT JOIN "de-para1"
-        ON op.cd_produto = ("de-para1"."de-CODIGO")::bigint
-      WHERE op.nr_ciclo = '99'
-        AND op.tp_situacao NOT IN (40, 30)
-        AND (COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0)) > 0
-        AND (
+      // Q3: OPs internas
+      pool.query(`
+        SELECT
           CASE
             WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
               THEN ("de-para1"."de-CODIGO")::bigint::TEXT
             ELSE op.cd_produto::TEXT
-          END
-        ) = ANY($1::TEXT[])
-      GROUP BY
-        CASE
-          WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
-            THEN ("de-para1"."de-CODIGO")::bigint::TEXT
-          ELSE op.cd_produto::TEXT
-        END,
-        op.dt_preventrega::date
-    `, [idsMp]);
+          END AS idmateriaprima,
+          op.dt_preventrega::date AS dt_disponivel,
+          SUM(COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0))::FLOAT AS qt_entrada
+        FROM vr_pcp_opi op
+        LEFT JOIN "de-para1"
+          ON op.cd_produto = ("de-para1"."de-CODIGO")::bigint
+        WHERE op.nr_ciclo = '99'
+          AND op.tp_situacao NOT IN (40, 30)
+          AND (COALESCE(op.qt_real, 0) - COALESCE(op.qt_finalizada, 0)) > 0
+          AND (
+            CASE
+              WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+                THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+              ELSE op.cd_produto::TEXT
+            END
+          ) = ANY($1::TEXT[])
+        GROUP BY
+          CASE
+            WHEN op.cd_produto = ("de-para1"."para-CODIGO")::bigint
+              THEN ("de-para1"."de-CODIGO")::bigint::TEXT
+            ELSE op.cd_produto::TEXT
+          END,
+          op.dt_preventrega::date
+      `, [idsMp]),
+    ]);
+    console.log(`[consumo-mp/check-risco-lote] Queries paralelas concluídas em ${((Date.now() - t0RiscoLote) / 1000).toFixed(1)}s`);
 
     const estoqueMap = new Map(estoqueRows.rows.map((r) => [String(r.idmateriaprima || ""), r]));
     const entradasMap = new Map();

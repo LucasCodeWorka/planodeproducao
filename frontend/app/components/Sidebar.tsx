@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles, PackagePlus, MapPin, BarChart3, ShoppingCart } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles, PackagePlus, MapPin, BarChart3, ShoppingCart, WalletCards } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -153,6 +153,16 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             <button onClick={() => router.push('/analise-consumo-mp')} className={`${navItemBase} ${pathname === '/analise-consumo-mp' ? navActive : navInactive}`}>
               <Boxes size={20} className="shrink-0" />
               {!collapsed && <span>Análise Consumo MP</span>}
+            </button>
+
+            <button onClick={() => router.push('/excesso-mp')} className={`${navItemBase} ${pathname === '/excesso-mp' ? navActive : navInactive}`}>
+              <PackagePlus size={20} className="shrink-0" />
+              {!collapsed && <span>Excesso MP</span>}
+            </button>
+
+            <button onClick={() => router.push('/orcamento-mp')} className={`${navItemBase} ${pathname === '/orcamento-mp' ? navActive : navInactive}`}>
+              <WalletCards size={20} className="shrink-0" />
+              {!collapsed && <span>Orcamento MP</span>}
             </button>
 
             <button onClick={() => router.push('/analise-mp-planos')} className={`${navItemBase} ${pathname === '/analise-mp-planos' ? navActive : navInactive}`}>

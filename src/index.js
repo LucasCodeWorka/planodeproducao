@@ -19,6 +19,7 @@ const estoqueLojasRoutes = require("./routes/estoqueLojas");
 const mlRoutes = require("./routes/ml");
 const indicadoresOpRoutes = require("./routes/indicadores-op");
 const totvsModaRoutes = require("./routes/totvsModa");
+const excessoMpRoutes = require("./routes/excessoMp");
 
 const app = express();
 
@@ -110,6 +111,7 @@ app.use("/api/estoque-lojas",  estoqueLojasRoutes);
 app.use("/api/ml",             mlRoutes);
 app.use("/api/indicadores-op", indicadoresOpRoutes);
 app.use("/api/totvs-moda",     totvsModaRoutes);
+app.use("/api/excesso-mp",     excessoMpRoutes);
 
 // Rota legada mantida para compatibilidade
 app.get("/api/vr-vendas-qtd", async (req, res) => {
@@ -194,6 +196,7 @@ initCache(pool).then(() => {
   console.log(`    GET    /api/consumo-mp/estrutura`);
   console.log(`    GET    /api/consumo-mp/estoque`);
   console.log(`    POST   /api/consumo-mp/analise`);
+  console.log(`    GET    /api/excesso-mp`);
   console.log(`\n  TOTVS Moda:`);
   console.log(`    POST   /api/totvs-moda/prices/mp`);
   console.log(`    POST   /api/totvs-moda/purchase-orders`);

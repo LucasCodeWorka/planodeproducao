@@ -17,6 +17,17 @@ const { readCache, filterCache } = require("../cache/matrizCache");
 const router = express.Router();
 const catalogoCache = new Map();
 const CATALOGO_CACHE_TTL_MS = (Number(process.env.CATALOGO_CACHE_TTL_SECONDS) || 600) * 1000;
+const ORCAMENTO_MP_CACHE_KEY = "orcamento_mp_liebe";
+
+async function ensureOrcamentoMpCacheTable(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.app_orcamento_mp_cache (
+      cache_key TEXT PRIMARY KEY,
+      payload JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+}
 
 function buildCatalogoCacheKey(query) {
   const entries = Object.entries(query || {})
@@ -378,6 +389,7 @@ router.get("/matriz", async (req, res) => {
     const marca  = req.query.marca ? String(req.query.marca).trim() : null;
     const status = req.query.status ? String(req.query.status).trim() : null;
     const preferCache = req.query.prefer_cache === "true";
+    const noCache = req.query.no_cache === "true";
     const referencias = req.query.referencias
       ? String(req.query.referencias).split(',').map((r) => r.trim()).filter(Boolean)
       : [];
@@ -434,7 +446,7 @@ router.get("/matriz", async (req, res) => {
       ? cachePayload.execucaoPlanoResumo
       : null;
 
-    if (cached && (cached.fresh || preferCache) && cacheAtendeMarca && cacheAtendeStatus) {
+    if (!noCache && cached && (cached.fresh || preferCache) && cacheAtendeMarca && cacheAtendeStatus) {
       const filtrado = filterCache(cacheRows, { referencias, marca, status });
       const pagina   = filtrado.slice(offset, offset + limit);
 
@@ -510,6 +522,115 @@ router.get("/plano-execucao-resumo", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Erro ao consultar execucao do plano"
+    });
+  }
+});
+
+router.post("/plano-original", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const productIds = Array.isArray(req.body?.productIds)
+      ? [...new Set(req.body.productIds.map((id) => String(id || "").trim()).filter(Boolean))]
+      : [];
+
+    if (!productIds.length) {
+      return res.status(200).json({ success: true, data: {} });
+    }
+
+    const result = await pool.query(`
+      SELECT
+        a.cd_produto::TEXT AS idproduto,
+        UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
+        COALESCE(SUM(COALESCE(a.qt_lote, 0)), 0)::FLOAT AS plano_original
+      FROM vr_pcp_lotepl2 a
+      LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
+      WHERE p.tp_situacao = 1
+        AND p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
+        AND a.cd_produto::TEXT = ANY($1::TEXT[])
+      GROUP BY a.cd_produto, p.cd_auxiliar
+    `, [productIds]);
+
+    const data = {};
+    for (const id of productIds) {
+      data[id] = { ma: 0, px: 0, ul: 0, qt: 0, qu: 0 };
+    }
+    for (const row of result.rows) {
+      const id = String(row.idproduto || "");
+      const periodo = String(row.periodo || "").toLowerCase();
+      if (!data[id] || !["ma", "px", "ul", "qt", "qu"].includes(periodo)) continue;
+      data[id][periodo] = Number(row.plano_original || 0);
+    }
+
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao consultar plano original",
+      details: error.message
+    });
+  }
+});
+
+router.get("/orcamento-mp-cache", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const key = String(req.query.key || ORCAMENTO_MP_CACHE_KEY);
+    await ensureOrcamentoMpCacheTable(pool);
+
+    const result = await pool.query(`
+      SELECT payload, updated_at
+      FROM public.app_orcamento_mp_cache
+      WHERE cache_key = $1
+      LIMIT 1
+    `, [key]);
+
+    if (!result.rows.length) {
+      return res.status(200).json({ success: true, exists: false, data: null });
+    }
+
+    return res.status(200).json({
+      success: true,
+      exists: true,
+      updatedAt: result.rows[0].updated_at,
+      data: result.rows[0].payload,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao consultar cache do orcamento MP",
+      details: error.message
+    });
+  }
+});
+
+router.post("/orcamento-mp-cache", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const key = String(req.body?.key || ORCAMENTO_MP_CACHE_KEY);
+    const payload = req.body?.payload;
+
+    if (!payload || typeof payload !== "object") {
+      return res.status(400).json({ success: false, error: "Payload de cache invalido" });
+    }
+
+    await ensureOrcamentoMpCacheTable(pool);
+    const result = await pool.query(`
+      INSERT INTO public.app_orcamento_mp_cache (cache_key, payload, updated_at)
+      VALUES ($1, $2::jsonb, NOW())
+      ON CONFLICT (cache_key)
+      DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+      RETURNING updated_at
+    `, [key, JSON.stringify(payload)]);
+
+    return res.status(200).json({
+      success: true,
+      updatedAt: result.rows[0]?.updated_at || new Date().toISOString(),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao salvar cache do orcamento MP",
+      details: error.message
     });
   }
 });

@@ -59,6 +59,7 @@ export interface Planejamento {
   estoques: Estoques;
   demanda: Demanda;
   plano: Plano;
+  plano_original?: Plano;
   planejamento: PlanejamentoInfo;
   calculo_estoque_minimo: CalculoEstoqueMinimo | null;
 }
