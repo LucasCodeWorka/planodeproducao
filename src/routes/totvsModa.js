@@ -312,13 +312,16 @@ router.post("/prices/mp", requireAdmin, async (req, res) => {
     }
 
     const accessToken = await getTotvsToken();
+    const costsBody = buildCostsBody(productCodes);
+    console.log("[TOTVS] Buscando custos para", productCodes.length, "MPs. Body:", JSON.stringify(costsBody, null, 2));
+
     const response = await fetch(`${cleanBaseUrl()}/api/totvsmoda/product/v2/costs/search`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(buildCostsBody(productCodes)),
+      body: JSON.stringify(costsBody),
     });
     const text = await response.text();
     let payload = {};
@@ -327,6 +330,12 @@ router.post("/prices/mp", requireAdmin, async (req, res) => {
     } catch (_err) {
       payload = {};
     }
+
+    console.log("[TOTVS] Resposta costs:", response.status, "- items:", asArray(payload).length);
+    if (asArray(payload).length > 0) {
+      console.log("[TOTVS] Exemplo primeiro item:", JSON.stringify(asArray(payload)[0], null, 2));
+    }
+
     if (!response.ok) {
       return res.status(response.status).json({
         success: false,
@@ -334,9 +343,12 @@ router.post("/prices/mp", requireAdmin, async (req, res) => {
       });
     }
 
+    const flattened = flattenCostOptions(payload);
+    console.log("[TOTVS] Custos processados:", Object.keys(flattened).length, "MPs com custo");
+
     return res.json({
       success: true,
-      data: flattenCostOptions(payload),
+      data: flattened,
       rawCount: asArray(payload).length,
     });
   } catch (error) {

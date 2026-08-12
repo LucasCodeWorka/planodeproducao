@@ -54,6 +54,7 @@ export default function AnaliseConsumoMpPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [sortArtigoBy, setSortArtigoBy] = useState<'saldo_ma' | 'saldo_px' | 'saldo_ul' | 'saldo'>('saldo');
   const [sortArtigoDir, setSortArtigoDir] = useState<'asc' | 'desc'>('asc');
+  const [planosFiltro, setPlanosFiltro] = useState<string[]>(['MA', 'PX', 'UL']);
 
   useEffect(() => {
     if (!getToken()) {
@@ -131,13 +132,22 @@ export default function AnaliseConsumoMpPage() {
       const setArt = new Set(artigosSelecionados);
       base = base.filter((r) => setArt.has(String(r.artigo || '-').trim() || '-'));
     }
+    // Filtro por plano (apenas visualização - mostra MPs que têm consumo nos períodos selecionados)
+    if (planosFiltro.length > 0 && planosFiltro.length < 3) {
+      base = base.filter((r) => {
+        const temMA = planosFiltro.includes('MA') && (r.consumo_ma > 0);
+        const temPX = planosFiltro.includes('PX') && (r.consumo_px > 0);
+        const temUL = planosFiltro.includes('UL') && (r.consumo_ul > 0);
+        return temMA || temPX || temUL;
+      });
+    }
     const sorted = [...base].sort((a, b) => {
       const av = Number(a?.[sortBy] || 0);
       const bv = Number(b?.[sortBy] || 0);
       return sortDir === 'asc' ? av - bv : bv - av;
     });
     return sorted;
-  }, [rowsBase, somenteFalta, artigosSelecionados, sortBy, sortDir]);
+  }, [rowsBase, somenteFalta, artigosSelecionados, planosFiltro, sortBy, sortDir]);
 
   function toggleSort(col: 'saldo_ma' | 'saldo_px' | 'saldo_ul' | 'saldo') {
     if (sortBy === col) {
@@ -284,6 +294,30 @@ export default function AnaliseConsumoMpPage() {
                 <input type="checkbox" checked={somenteFalta} onChange={(e) => setSomenteFalta(e.target.checked)} />
                 Mostrar somente MP com saldo negativo
               </label>
+              <div className="text-xs text-gray-700">
+                <div className="mb-1">Filtrar por Plano</div>
+                <div className="flex gap-3">
+                  {['MA', 'PX', 'UL'].map((plano) => (
+                    <label key={plano} className="inline-flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={planosFiltro.includes(plano)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setPlanosFiltro((prev) => [...prev, plano]);
+                          } else {
+                            setPlanosFiltro((prev) => prev.filter((p) => p !== plano));
+                          }
+                        }}
+                      />
+                      <span>{plano}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-1 text-[10px] text-gray-500">
+                  Mostra apenas MP com consumo nos períodos selecionados
+                </div>
+              </div>
               <div className="text-xs text-gray-700">
                 <div className="mb-1">Filtrar por Artigo</div>
                 <select

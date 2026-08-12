@@ -103,6 +103,21 @@ type MpSortKey =
   | 'comprasRegra' | 'valorComprasRegra' | 'comprasTotal' | 'valorComprasTotal'
   | 'necessidadeRegra' | 'valorNecessidadeRegra' | 'necessidadeTotal' | 'valorNecessidadeTotal';
 
+type CoberturaPedidoDetalhe = {
+  periodo: Periodo;
+  empresa: string;
+  pedido: string;
+  data: string;
+  valor: number;
+};
+
+type CoberturaPedidoResumo = {
+  periodo: Periodo;
+  datas: string[];
+  pedidos: string[];
+  valor: number;
+};
+
 type ArtigoRow = {
   artigo: string;
   itens: number;
@@ -135,6 +150,14 @@ function money(v: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function dateBR(value?: string) {
+  if (!value) return '-';
+  const [datePart] = String(value).split('T');
+  const parts = datePart.split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return String(value);
 }
 
 function periodosAte(periodo: Periodo) {
@@ -193,6 +216,8 @@ export default function OrcamentoMpPage() {
   const [artigoSort, setArtigoSort] = useState<{ key: ArtigoSortKey; dir: SortDir }>({ key: 'valorRegra', dir: 'desc' });
   const [mpSort, setMpSort] = useState<{ key: MpSortKey; dir: SortDir }>({ key: 'valorNecessidadeRegra', dir: 'desc' });
   const [mpModal, setMpModal] = useState<MpCalculada | null>(null);
+  const [showComprasRegraModal, setShowComprasRegraModal] = useState(false);
+  const [showComprasForaModal, setShowComprasForaModal] = useState(false);
 
   useEffect(() => {
     if (!getToken()) {
@@ -418,12 +443,8 @@ export default function OrcamentoMpPage() {
       .sort((a, b) => a.localeCompare(b));
   }, [rowsBase]);
 
-  const rowsCalculadas = useMemo<MpCalculada[]>(() => {
-    const artigoSet = new Set(artigosSelecionados);
-    const q = busca.trim().toUpperCase();
-
-    return rowsBase
-      .map((row) => {
+  const rowsComValores = useMemo<MpCalculada[]>(() => {
+    return rowsBase.map((row) => {
         const preco = valorUnitario(row);
         const consumoAte = somaAte(row, 'consumo', planoAte);
         const comprasRegra = somaAte(row, 'entrada', planoAte);
@@ -446,7 +467,14 @@ export default function OrcamentoMpPage() {
           valorNecessidadeRegra: necessidadeRegra * preco.valor,
           valorNecessidadeTotal: necessidadeTotal * preco.valor,
         };
-      })
+      });
+  }, [rowsBase, priceOptionsByMp, planoAte]);
+
+  const rowsCalculadas = useMemo<MpCalculada[]>(() => {
+    const artigoSet = new Set(artigosSelecionados);
+    const q = busca.trim().toUpperCase();
+
+    return rowsComValores
       .filter((row) => {
         const artigo = String(row.artigo || '-').trim() || '-';
         if (artigoSet.size > 0 && !artigoSet.has(artigo)) return false;
@@ -456,7 +484,7 @@ export default function OrcamentoMpPage() {
           || String(row.nome_materiaprima || '').toUpperCase().includes(q)
           || artigo.toUpperCase().includes(q);
       });
-  }, [rowsBase, priceOptionsByMp, planoAte, artigosSelecionados, somenteComNecessidade, busca]);
+  }, [rowsComValores, artigosSelecionados, somenteComNecessidade, busca]);
 
   const rowsOrdenadas = useMemo(() => {
     return [...rowsCalculadas].sort((a, b) => {
@@ -528,6 +556,19 @@ export default function OrcamentoMpPage() {
         const consumoPeriodo = valorPeriodo(row, 'consumo', periodo);
         acc.consumoPorPeriodo[periodo] += consumoPeriodo;
         acc.valorConsumoPorPeriodo[periodo] += consumoPeriodo * row.valorUnitario;
+        // Necessidade total cumulativa: max(0, consumo_ate_periodo - estoque - compras_totais)
+        const consumoAtePeriodo = somaAte(row, 'consumo', periodo);
+        const necessidadeCumulativa = Math.max(0, consumoAtePeriodo - Number(row.estoquetotal || 0) - row.comprasTotal);
+        acc.necessidadeCumulativaPorPeriodo[periodo] += necessidadeCumulativa;
+        acc.valorNecessidadeCumulativaPorPeriodo[periodo] += necessidadeCumulativa * row.valorUnitario;
+        // Compras por periodo (regra de chegada)
+        const comprasPeriodo = valorPeriodo(row, 'entrada', periodo);
+        acc.comprasPorPeriodo[periodo] += comprasPeriodo;
+        acc.valorComprasPorPeriodo[periodo] += comprasPeriodo * row.valorUnitario;
+        // Compras cumulativas ate o periodo
+        const comprasAtePeriodo = somaAte(row, 'entrada', periodo);
+        acc.comprasCumulativaPorPeriodo[periodo] += comprasAtePeriodo;
+        acc.valorComprasCumulativaPorPeriodo[periodo] += comprasAtePeriodo * row.valorUnitario;
       }
       acc.valorComprasRegra += row.valorComprasRegra;
       acc.valorComprasTotal += row.valorComprasTotal;
@@ -535,6 +576,27 @@ export default function OrcamentoMpPage() {
       acc.necessidadeTotal += row.necessidadeTotal;
       acc.valorRegra += row.valorNecessidadeRegra;
       acc.valorTotal += row.valorNecessidadeTotal;
+
+      // Calcular compras que cobrem a diferenca entre nec.regra e nec.total
+      // Diferenca = compras que chegam APOS o periodo filtrado e cobrem necessidade
+      const diferencaNecessidade = row.necessidadeRegra - row.necessidadeTotal;
+      if (diferencaNecessidade > 0) {
+        // Essa MP tem necessidade que é coberta por compras futuras
+        // Distribuir pelos periodos APOS planoAte
+        const idxPlanoAte = PERIODOS.indexOf(planoAte);
+        let restanteParaCobrir = diferencaNecessidade;
+        for (let i = idxPlanoAte + 1; i < PERIODOS.length && restanteParaCobrir > 0; i++) {
+          const periodoFuturo = PERIODOS[i];
+          const comprasPeriodoFuturo = valorPeriodo(row, 'entrada', periodoFuturo);
+          const coberturaQtd = Math.min(restanteParaCobrir, comprasPeriodoFuturo);
+          if (coberturaQtd > 0) {
+            acc.comprasCoberturaPorPeriodo[periodoFuturo] += coberturaQtd;
+            acc.valorComprasCoberturaPorPeriodo[periodoFuturo] += coberturaQtd * row.valorUnitario;
+            restanteParaCobrir -= coberturaQtd;
+          }
+        }
+      }
+
       if ((row.necessidadeRegra > 0 || row.necessidadeTotal > 0) && row.valorUnitario <= 0) acc.itensSemValor += 1;
       return acc;
     }, {
@@ -546,6 +608,15 @@ export default function OrcamentoMpPage() {
       valorConsumo: 0,
       consumoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       valorConsumoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      necessidadeCumulativaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      valorNecessidadeCumulativaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      comprasPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      valorComprasPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      comprasCumulativaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      valorComprasCumulativaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      // Compras que cobrem necessidade por periodo (para justificar diferenca nec.regra vs nec.total)
+      comprasCoberturaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      valorComprasCoberturaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       valorComprasRegra: 0,
       valorComprasTotal: 0,
       necessidadeRegra: 0,
@@ -555,6 +626,104 @@ export default function OrcamentoMpPage() {
       itensSemValor: 0,
     });
   }, [rowsCalculadas]);
+
+  const comprasAndamentoGeral = useMemo(() => {
+    return rowsComValores.reduce((acc, row) => {
+      acc.qtd += row.comprasTotal;
+      acc.valor += row.valorComprasTotal;
+      if ((row.necessidadeRegra > 0 || row.necessidadeTotal > 0) && row.valorUnitario <= 0) acc.itensSemValor += 1;
+      return acc;
+    }, { qtd: 0, valor: 0, itensSemValor: 0 });
+  }, [rowsComValores]);
+
+  // Calculo de cobertura por periodo (estoque + compras) - CALCULADO POR MP
+  // O calculo precisa ser feito por MP porque excesso de uma MP NAO cobre falta de outra
+  const coberturaPorPeriodo = useMemo(() => {
+    const result: Record<Periodo, {
+      coberturaEstoque: number;
+      coberturaCompras: number;
+      coberturaTotal: number;
+      consumo: number;
+      necessidade: number;  // o que falta apos estoque + compras
+      percentual: number;
+    }> = {
+      MA: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+      PX: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+      UL: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+      QT: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+      QU: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+    };
+
+    // Para cada MP, calcular cobertura por periodo
+    for (const row of rowsCalculadas) {
+      let saldoMp = Number(row.estoquetotal || 0) * row.valorUnitario; // estoque em valor
+
+      for (const periodo of PERIODOS) {
+        const consumoPeriodo = valorPeriodo(row, 'consumo', periodo) * row.valorUnitario;
+        const comprasPeriodo = valorPeriodo(row, 'entrada', periodo) * row.valorUnitario;
+
+        if (consumoPeriodo <= 0) {
+          // Sem consumo, apenas acumula compras no saldo
+          saldoMp += comprasPeriodo;
+          continue;
+        }
+
+        // Quanto do saldo/estoque cobre esse periodo
+        const coberturaEstoque = Math.min(saldoMp, consumoPeriodo);
+        const necessidadeAposEstoque = Math.max(0, consumoPeriodo - saldoMp);
+
+        // Quanto das compras cobre o restante
+        const coberturaCompras = Math.min(comprasPeriodo, necessidadeAposEstoque);
+        const necessidadeAposCompras = Math.max(0, necessidadeAposEstoque - comprasPeriodo);
+
+        // Acumula nos totais do periodo
+        result[periodo].consumo += consumoPeriodo;
+        result[periodo].coberturaEstoque += coberturaEstoque;
+        result[periodo].coberturaCompras += coberturaCompras;
+        result[periodo].coberturaTotal += coberturaEstoque + coberturaCompras;
+        result[periodo].necessidade += necessidadeAposCompras;
+
+        // Atualiza saldo para proximo periodo
+        // saldo = (estoque anterior + compras) - consumo
+        saldoMp = Math.max(0, saldoMp + comprasPeriodo - consumoPeriodo);
+      }
+    }
+
+    // Calcula percentuais
+    for (const periodo of PERIODOS) {
+      const r = result[periodo];
+      r.percentual = r.consumo > 0 ? Math.min(100, (r.coberturaTotal / r.consumo) * 100) : 100;
+    }
+
+    return result;
+  }, [rowsCalculadas]);
+
+  // Total de cobertura (estoque + compras vs consumo total) - POR MP
+  const totalCobertura = useMemo(() => {
+    let totalConsumo = 0;
+    let totalCoberturaEstoque = 0;
+    let totalCoberturaCompras = 0;
+    let totalNecessidade = 0;
+
+    for (const periodo of PERIODOS) {
+      totalConsumo += coberturaPorPeriodo[periodo].consumo;
+      totalCoberturaEstoque += coberturaPorPeriodo[periodo].coberturaEstoque;
+      totalCoberturaCompras += coberturaPorPeriodo[periodo].coberturaCompras;
+      totalNecessidade += coberturaPorPeriodo[periodo].necessidade;
+    }
+
+    const totalCoberturaVal = totalCoberturaEstoque + totalCoberturaCompras;
+    const percentual = totalConsumo > 0 ? (totalCoberturaVal / totalConsumo) * 100 : 0;
+
+    return {
+      totalConsumo,
+      totalCoberturaEstoque,
+      totalCoberturaCompras,
+      totalCobertura: totalCoberturaVal,
+      totalNecessidade,
+      percentual,
+    };
+  }, [coberturaPorPeriodo]);
 
   const custoPlanoOriginal = useMemo(() => {
     return rowsOriginalBase.reduce((acc, row) => {
@@ -575,6 +744,86 @@ export default function OrcamentoMpPage() {
     return periodosAte(planoAte).reduce((acc, periodo) => acc + custoPlanoOriginal.valorConsumoPorPeriodo[periodo], 0);
   }, [custoPlanoOriginal, planoAte]);
 
+  const pedidosCoberturaFutura = useMemo(() => {
+    const idxPlanoAte = PERIODOS.indexOf(planoAte);
+    const detalhesMap = new Map<string, CoberturaPedidoDetalhe>();
+
+    for (const row of rowsCalculadas) {
+      const diferencaNecessidade = row.necessidadeRegra - row.necessidadeTotal;
+      if (diferencaNecessidade <= 0) continue;
+
+      let restanteParaCobrir = diferencaNecessidade;
+      for (let i = idxPlanoAte + 1; i < PERIODOS.length && restanteParaCobrir > 0; i++) {
+        const periodo = PERIODOS[i];
+        const comprasPeriodoFuturo = valorPeriodo(row, 'entrada', periodo);
+        let coberturaPeriodo = Math.min(restanteParaCobrir, comprasPeriodoFuturo);
+        if (coberturaPeriodo <= 0) continue;
+
+        const pedidosPeriodo = (Array.isArray(row.pedidos_detalhe) ? row.pedidos_detalhe : [])
+          .filter((pedido) => pedido.periodo === periodo.toLowerCase() || pedido.periodo === periodo)
+          .sort((a, b) => {
+            const byDate = String(a.data || '').localeCompare(String(b.data || ''));
+            if (byDate) return byDate;
+            return String(a.pedido || '').localeCompare(String(b.pedido || ''), 'pt-BR', { numeric: true });
+          });
+
+        for (const pedido of pedidosPeriodo) {
+          if (coberturaPeriodo <= 0) break;
+          const qtdPedido = Number(pedido.quantidade || 0);
+          if (qtdPedido <= 0) continue;
+          const quantidade = Math.min(coberturaPeriodo, qtdPedido);
+          const empresa = String(pedido.empresa || '-');
+          const numeroPedido = String(pedido.pedido || '-');
+          const data = String(pedido.data || '');
+          const key = `${periodo}|${data}|${empresa}|${numeroPedido}`;
+          const atual = detalhesMap.get(key);
+          const valor = quantidade * row.valorUnitario;
+          if (atual) {
+            atual.valor += valor;
+          } else {
+            detalhesMap.set(key, {
+              periodo,
+              empresa,
+              pedido: numeroPedido,
+              data,
+              valor,
+            });
+          }
+          coberturaPeriodo -= quantidade;
+          restanteParaCobrir -= quantidade;
+        }
+      }
+    }
+
+    return Array.from(detalhesMap.values()).sort((a, b) => {
+      const byPeriodo = PERIODOS.indexOf(a.periodo) - PERIODOS.indexOf(b.periodo);
+      if (byPeriodo) return byPeriodo;
+      const byDate = a.data.localeCompare(b.data);
+      if (byDate) return byDate;
+      return a.pedido.localeCompare(b.pedido, 'pt-BR', { numeric: true });
+    });
+  }, [rowsCalculadas, planoAte]);
+
+  const resumoPedidosCoberturaFutura = useMemo(() => {
+    const map = new Map<Periodo, CoberturaPedidoResumo>();
+    for (const item of pedidosCoberturaFutura) {
+      const atual = map.get(item.periodo) || {
+        periodo: item.periodo,
+        datas: [],
+        pedidos: [],
+        valor: 0,
+      };
+      const data = dateBR(item.data);
+      const pedido = item.pedido;
+      if (!atual.datas.includes(data)) atual.datas.push(data);
+      if (!atual.pedidos.includes(pedido)) atual.pedidos.push(pedido);
+      atual.valor += item.valor;
+      map.set(item.periodo, atual);
+    }
+
+    return Array.from(map.values()).sort((a, b) => PERIODOS.indexOf(a.periodo) - PERIODOS.indexOf(b.periodo));
+  }, [pedidosCoberturaFutura]);
+
   const ml = sidebarCollapsed ? 'ml-20' : 'ml-64';
   const periodosLabel = periodosAte(planoAte).join('+');
   const periodosSelecionados = periodosAte(planoAte);
@@ -582,6 +831,135 @@ export default function OrcamentoMpPage() {
     return [...(Array.isArray(mpModal?.pedidos_detalhe) ? mpModal.pedidos_detalhe : [])]
       .sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')));
   }, [mpModal]);
+
+  // Pedidos dentro da regra de chegada (para o modal de "Compras regra")
+  const pedidosComprasRegra = useMemo(() => {
+    const periodosValidos = new Set(periodosSelecionados.map((p) => p.toLowerCase()));
+    const detalhes: Array<{
+      mp: string;
+      nome: string;
+      artigo: string;
+      pedido: string;
+      empresa: string;
+      data: string;
+      periodo: string;
+      quantidade: number;
+      valorUnitario: number;
+      valor: number;
+    }> = [];
+
+    for (const row of rowsCalculadas) {
+      const pedidos = Array.isArray(row.pedidos_detalhe) ? row.pedidos_detalhe : [];
+      for (const pedido of pedidos) {
+        const periodoLower = String(pedido.periodo || '').toLowerCase();
+        if (!periodosValidos.has(periodoLower)) continue;
+        const qtd = Number(pedido.quantidade || 0);
+        if (qtd <= 0) continue;
+        detalhes.push({
+          mp: String(row.idmateriaprima || ''),
+          nome: String(row.nome_materiaprima || '-'),
+          artigo: String(row.artigo || '-'),
+          pedido: String(pedido.pedido || '-'),
+          empresa: String(pedido.empresa || '-'),
+          data: String(pedido.data || ''),
+          periodo: String(pedido.periodo || '-').toUpperCase(),
+          quantidade: qtd,
+          valorUnitario: row.valorUnitario,
+          valor: qtd * row.valorUnitario,
+        });
+      }
+    }
+
+    return detalhes.sort((a, b) => {
+      const byPeriodo = PERIODOS.indexOf(a.periodo as Periodo) - PERIODOS.indexOf(b.periodo as Periodo);
+      if (byPeriodo) return byPeriodo;
+      const byData = a.data.localeCompare(b.data);
+      if (byData) return byData;
+      return a.pedido.localeCompare(b.pedido, 'pt-BR', { numeric: true });
+    });
+  }, [rowsCalculadas, periodosSelecionados]);
+
+  // Resumo por periodo para modal de compras regra
+  const resumoComprasRegraPorPeriodo = useMemo(() => {
+    const map = new Map<string, { periodo: string; quantidade: number; valor: number; pedidos: Set<string> }>();
+    for (const item of pedidosComprasRegra) {
+      const atual = map.get(item.periodo) || { periodo: item.periodo, quantidade: 0, valor: 0, pedidos: new Set<string>() };
+      atual.quantidade += item.quantidade;
+      atual.valor += item.valor;
+      atual.pedidos.add(item.pedido);
+      map.set(item.periodo, atual);
+    }
+    return Array.from(map.values())
+      .map((item) => ({ ...item, pedidosCount: item.pedidos.size }))
+      .sort((a, b) => PERIODOS.indexOf(a.periodo as Periodo) - PERIODOS.indexOf(b.periodo as Periodo));
+  }, [pedidosComprasRegra]);
+
+  // Pedidos FORA da regra de chegada (para o modal de diferenca)
+  const pedidosForaRegra = useMemo(() => {
+    const periodosValidos = new Set(periodosSelecionados.map((p) => p.toLowerCase()));
+    const detalhes: Array<{
+      mp: string;
+      nome: string;
+      artigo: string;
+      pedido: string;
+      empresa: string;
+      data: string;
+      periodo: string;
+      quantidade: number;
+      valorUnitario: number;
+      valor: number;
+    }> = [];
+
+    for (const row of rowsCalculadas) {
+      const pedidos = Array.isArray(row.pedidos_detalhe) ? row.pedidos_detalhe : [];
+      for (const pedido of pedidos) {
+        const periodoLower = String(pedido.periodo || '').toLowerCase();
+        // Pegar apenas os que NAO estao nos periodos selecionados
+        if (periodosValidos.has(periodoLower)) continue;
+        const qtd = Number(pedido.quantidade || 0);
+        if (qtd <= 0) continue;
+        detalhes.push({
+          mp: String(row.idmateriaprima || ''),
+          nome: String(row.nome_materiaprima || '-'),
+          artigo: String(row.artigo || '-'),
+          pedido: String(pedido.pedido || '-'),
+          empresa: String(pedido.empresa || '-'),
+          data: String(pedido.data || ''),
+          periodo: String(pedido.periodo || '-').toUpperCase(),
+          quantidade: qtd,
+          valorUnitario: row.valorUnitario,
+          valor: qtd * row.valorUnitario,
+        });
+      }
+    }
+
+    return detalhes.sort((a, b) => {
+      const byPeriodo = PERIODOS.indexOf(a.periodo as Periodo) - PERIODOS.indexOf(b.periodo as Periodo);
+      if (byPeriodo) return byPeriodo;
+      const byData = a.data.localeCompare(b.data);
+      if (byData) return byData;
+      return a.pedido.localeCompare(b.pedido, 'pt-BR', { numeric: true });
+    });
+  }, [rowsCalculadas, periodosSelecionados]);
+
+  // Resumo por periodo para modal de compras fora da regra
+  const resumoComprasForaPorPeriodo = useMemo(() => {
+    const map = new Map<string, { periodo: string; quantidade: number; valor: number; pedidos: Set<string> }>();
+    for (const item of pedidosForaRegra) {
+      const atual = map.get(item.periodo) || { periodo: item.periodo, quantidade: 0, valor: 0, pedidos: new Set<string>() };
+      atual.quantidade += item.quantidade;
+      atual.valor += item.valor;
+      atual.pedidos.add(item.pedido);
+      map.set(item.periodo, atual);
+    }
+    return Array.from(map.values())
+      .map((item) => ({ ...item, pedidosCount: item.pedidos.size }))
+      .sort((a, b) => PERIODOS.indexOf(a.periodo as Periodo) - PERIODOS.indexOf(b.periodo as Periodo));
+  }, [pedidosForaRegra]);
+
+  const totalForaRegra = useMemo(() => {
+    return pedidosForaRegra.reduce((acc, item) => ({ qtd: acc.qtd + item.quantidade, valor: acc.valor + item.valor }), { qtd: 0, valor: 0 });
+  }, [pedidosForaRegra]);
 
   function toggleArtigoSort(key: ArtigoSortKey) {
     setArtigoSort((prev) => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' });
@@ -621,8 +999,9 @@ export default function OrcamentoMpPage() {
             <Card label="Estoque em casa" value={money(totais.valorEstoque)} detail={`Qtd ${fmt(totais.estoque)}`} tone="slate" />
             <Card label="Necessidade regra" value={money(totais.valorRegra)} detail={`Qtd ${fmt(totais.necessidadeRegra)}`} tone="red" />
             <Card label="Necessidade total" value={money(totais.valorTotal)} detail={`Qtd ${fmt(totais.necessidadeTotal)}`} tone="orange" />
-            <Card label="Compras regra" value={money(totais.valorComprasRegra)} detail={`Qtd ${fmt(totais.comprasRegra)}`} tone="sky" />
-            <Card label="Compras andamento" value={money(totais.valorComprasTotal)} detail={`Qtd ${fmt(totais.comprasTotal)} | ${totais.itensSemValor} MPs sem valor`} tone="emerald" />
+            <Card label="Compras regra" value={money(totais.valorComprasRegra)} detail={`Qtd ${fmt(totais.comprasRegra)}`} tone="sky" onClick={() => setShowComprasRegraModal(true)} />
+            <Card label="Compras fora regra" value={money(totalForaRegra.valor)} detail={`Qtd ${fmt(totalForaRegra.qtd)} | Apos ${planoAte}`} tone="orange" onClick={totalForaRegra.valor > 0 ? () => setShowComprasForaModal(true) : undefined} />
+            <Card label="Compras andamento" value={money(comprasAndamentoGeral.valor)} detail={`Qtd ${fmt(comprasAndamentoGeral.qtd)} | ${comprasAndamentoGeral.itensSemValor} MPs sem valor`} tone="emerald" />
           </div>
 
           <section className="bg-white rounded-lg border border-gray-200 p-3">
@@ -631,24 +1010,186 @@ export default function OrcamentoMpPage() {
               <div className="text-[11px] text-gray-500">Original filtrado: {money(valorConsumoOriginalAte)} | atual/restante: {money(totais.valorConsumo)}</div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              {PERIODOS.map((periodo) => {
+              {PERIODOS.map((periodo, idx) => {
                 const ativo = periodosSelecionados.includes(periodo);
                 const valorOriginal = ativo ? custoPlanoOriginal.valorConsumoPorPeriodo[periodo] : 0;
                 const qtdOriginal = ativo ? custoPlanoOriginal.consumoPorPeriodo[periodo] : 0;
                 const valorAtual = ativo ? totais.valorConsumoPorPeriodo[periodo] : 0;
                 const qtdAtual = ativo ? totais.consumoPorPeriodo[periodo] : 0;
+                // Necessidade cumulativa ate esse periodo
+                const valorNecCumulativa = ativo ? totais.valorNecessidadeCumulativaPorPeriodo[periodo] : 0;
+                const qtdNecCumulativa = ativo ? totais.necessidadeCumulativaPorPeriodo[periodo] : 0;
+                // Necessidade soma (diferenca entre periodos)
+                const periodoAnterior = idx > 0 ? PERIODOS[idx - 1] : null;
+                const valorNecAnterior = periodoAnterior && ativo ? totais.valorNecessidadeCumulativaPorPeriodo[periodoAnterior] : 0;
+                const qtdNecAnterior = periodoAnterior && ativo ? totais.necessidadeCumulativaPorPeriodo[periodoAnterior] : 0;
+                const valorNecSoma = Math.max(0, valorNecCumulativa - valorNecAnterior);
+                const qtdNecSoma = Math.max(0, qtdNecCumulativa - qtdNecAnterior);
                 return (
                   <div key={periodo} className={`rounded border px-3 py-2 ${ativo ? 'border-stone-300 bg-stone-50' : 'border-gray-200 bg-gray-50 opacity-55'}`}>
-                    <div className="text-[11px] font-semibold text-gray-500">{periodo}</div>
-                    <div className="text-sm font-bold text-stone-800">{valorOriginal > 0 ? money(valorOriginal) : '-'}</div>
-                    <div className="text-[10px] text-gray-500">Original qtd {fmt(qtdOriginal)}</div>
-                    <div className="mt-1 text-xs font-semibold text-slate-700">{valorAtual > 0 ? money(valorAtual) : '-'}</div>
-                    <div className="text-[10px] text-gray-500">Atual qtd {fmt(qtdAtual)}</div>
+                    <div className="text-[11px] font-semibold text-gray-500 mb-1">{periodo}</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-sm font-bold text-stone-800">{valorOriginal > 0 ? money(valorOriginal) : '-'}</div>
+                        <div className="text-[10px] text-gray-500">Original {fmt(qtdOriginal)}</div>
+                        <div className="mt-1 text-xs font-semibold text-slate-700">{valorAtual > 0 ? money(valorAtual) : '-'}</div>
+                        <div className="text-[10px] text-gray-500">Atual {fmt(qtdAtual)}</div>
+                      </div>
+                      <div>
+                        <div className={`text-sm font-bold ${valorNecSoma > 0 ? 'text-orange-600' : 'text-gray-400'}`}>{valorNecSoma > 0 ? money(valorNecSoma) : '-'}</div>
+                        <div className="text-[10px] text-gray-500">Nec. {fmt(qtdNecSoma)}</div>
+                        <div className={`mt-1 text-xs font-semibold ${valorNecCumulativa > 0 ? 'text-red-600' : 'text-gray-400'}`}>{valorNecCumulativa > 0 ? money(valorNecCumulativa) : '-'}</div>
+                        <div className="text-[10px] text-gray-500">Acum. {fmt(qtdNecCumulativa)}</div>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
             </div>
           </section>
+
+          {/* Cobertura por periodo (estoque + compras) - calculado por MP */}
+          <section className="bg-white rounded-lg border border-gray-200 p-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="text-xs font-semibold text-brand-dark">Cobertura por periodo (estoque + compras)</div>
+              <div className="text-[11px] text-gray-500">
+                Cobertura: {money(totalCobertura.totalCobertura)} (Est. {money(totalCobertura.totalCoberturaEstoque)} + Comp. {money(totalCobertura.totalCoberturaCompras)}) | Consumo: {money(totalCobertura.totalConsumo)} | {totalCobertura.totalNecessidade <= 0 ? <span className="text-emerald-600 font-semibold">100% coberto</span> : <span className="text-red-600 font-semibold">Falta {money(totalCobertura.totalNecessidade)}</span>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {PERIODOS.map((periodo) => {
+                const ativo = periodosSelecionados.includes(periodo);
+                const cob = coberturaPorPeriodo[periodo];
+                const coberto100 = cob.necessidade <= 0;
+                const cobertoParcial = cob.coberturaTotal > 0 && cob.necessidade > 0;
+
+                return (
+                  <div key={periodo} className={`rounded border px-3 py-2 ${
+                    !ativo ? 'border-gray-200 bg-gray-50 opacity-55' :
+                    coberto100 ? 'border-emerald-300 bg-emerald-50' :
+                    cobertoParcial ? 'border-amber-300 bg-amber-50' :
+                    'border-red-300 bg-red-50'
+                  }`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-[11px] font-semibold text-gray-500">{periodo}</div>
+                      {ativo && cob.consumo > 0 && (
+                        <div className={`text-[9px] font-bold uppercase ${
+                          coberto100 ? 'text-emerald-600' : cobertoParcial ? 'text-amber-600' : 'text-red-600'
+                        }`}>
+                          {cob.percentual.toFixed(0)}%
+                        </div>
+                      )}
+                    </div>
+                    {ativo && cob.consumo > 0 ? (
+                      <>
+                        <div className="text-[10px] text-gray-500 mb-0.5">Consumo: {money(cob.consumo)}</div>
+                        <div className="text-[10px]">
+                          <span className="text-slate-500">Est:</span>
+                          <span className="ml-1 font-semibold text-slate-700">{money(cob.coberturaEstoque)}</span>
+                        </div>
+                        {cob.necessidade > 0 && (
+                          <div className="mt-1 text-[10px] font-semibold text-red-600">
+                            Falta: {money(cob.necessidade)}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-gray-400">-</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-2 p-2 rounded bg-slate-100 border border-slate-200 text-xs text-slate-700">
+              <strong>Leitura:</strong> Calculo por MP: para cada materia-prima, estoque + compras do periodo cobrem o consumo. Se faltar, soma na necessidade.
+              {totalCobertura.totalNecessidade <= 0 ? (
+                <span className="ml-1 text-emerald-700 font-semibold">Tudo coberto!</span>
+              ) : (
+                <span className="ml-1 text-red-700 font-semibold">Necessidade total: {money(totalCobertura.totalNecessidade)} (o que falta comprar).</span>
+              )}
+            </div>
+          </section>
+
+          {/* Mostrar cobertura apenas quando há diferença entre nec.regra e nec.total (ou seja, ha compras futuras) */}
+          <section className="bg-white rounded-lg border border-gray-200 p-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="text-xs font-semibold text-brand-dark">Compras por periodo (horizonte completo)</div>
+              <div className="text-[11px] text-gray-500">
+                Compras ate {planoAte}: {money(totais.valorComprasRegra)} | Cobertura apos {planoAte}: {money(totais.valorRegra - totais.valorTotal)}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {PERIODOS.map((periodo) => {
+                const dentroHorizonte = periodosSelecionados.includes(periodo);
+                const valorCompras = totais.valorComprasPorPeriodo[periodo];
+                const qtdCompras = totais.comprasPorPeriodo[periodo];
+
+                if (!dentroHorizonte) {
+                  const valorCobertura = totais.valorComprasCoberturaPorPeriodo[periodo];
+                  const qtdCobertura = totais.comprasCoberturaPorPeriodo[periodo];
+                  return (
+                    <div key={periodo} className={`rounded border px-3 py-2 ${valorCobertura > 0 ? 'border-amber-400 bg-amber-100' : 'border-gray-200 bg-gray-50 opacity-50'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-[11px] font-semibold text-gray-500">{periodo}</div>
+                        <div className="text-[9px] font-bold text-amber-600 uppercase">Cobertura</div>
+                      </div>
+                      <div className={`text-lg font-bold ${valorCobertura > 0 ? 'text-amber-700' : 'text-gray-400'}`}>{valorCobertura > 0 ? money(valorCobertura) : '-'}</div>
+                      <div className="text-[10px] text-gray-500">Qtd {fmt(qtdCobertura)}</div>
+                    </div>
+                  );
+                }
+
+                const valorComprasCum = totais.valorComprasCumulativaPorPeriodo[periodo];
+                const qtdComprasCum = totais.comprasCumulativaPorPeriodo[periodo];
+                return (
+                  <div key={periodo} className="rounded border border-sky-300 bg-sky-50 px-3 py-2">
+                    <div className="text-[11px] font-semibold text-gray-500 mb-1">{periodo}</div>
+                    <div className="text-sm font-bold text-sky-700">{valorCompras > 0 ? money(valorCompras) : '-'}</div>
+                    <div className="text-[10px] text-gray-500">Compra {fmt(qtdCompras)}</div>
+                    <div className="mt-1 text-xs font-semibold text-sky-800">{valorComprasCum > 0 ? money(valorComprasCum) : '-'}</div>
+                    <div className="text-[10px] text-gray-500">Acum. {fmt(qtdComprasCum)}</div>
+                  </div>
+                );
+              })}
+            </div>
+            {totais.valorComprasTotal - totais.valorComprasRegra > 0 && (
+              <div className="mt-2 p-2 rounded bg-amber-100 border border-amber-300 text-xs text-amber-800">
+                <strong>Justificativa:</strong> Nec. regra {money(totais.valorRegra)} - Nec. total {money(totais.valorTotal)} = {money(totais.valorRegra - totais.valorTotal)} em compras que chegam apos {planoAte}
+              </div>
+            )}
+          </section>
+
+          {totais.valorRegra - totais.valorTotal > 0 && planoAte !== 'QU' && (
+            <section className="bg-amber-50 rounded-lg border border-amber-300 p-3">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="text-xs font-semibold text-amber-800">Cobertura apos {planoAte} (justifica diferenca nec.regra vs nec.total)</div>
+                <div className="text-[11px] font-bold text-amber-700">Total: {money(totais.valorRegra - totais.valorTotal)}</div>
+              </div>
+              <div className="text-[11px] text-amber-700 mb-2">
+                Nec. regra {money(totais.valorRegra)} - Nec. total {money(totais.valorTotal)} = <strong>{money(totais.valorRegra - totais.valorTotal)}</strong> em compras que chegam apos {planoAte}:
+              </div>
+              <div className="space-y-1.5">
+                {resumoPedidosCoberturaFutura.length === 0 ? (
+                  <div className="rounded border border-amber-200 bg-white px-3 py-2 text-xs text-amber-700">
+                    Nenhum pedido detalhado encontrado para essa cobertura.
+                  </div>
+                ) : resumoPedidosCoberturaFutura.map((item) => (
+                  <div key={item.periodo} className="grid grid-cols-[44px_1fr_1fr_120px] gap-3 rounded border border-amber-200 bg-white px-3 py-2 text-xs items-start">
+                    <div className="font-bold text-amber-800">{item.periodo}</div>
+                    <div className="text-gray-700">
+                      <span className="font-semibold text-gray-500">Datas: </span>
+                      {item.datas.join(', ')}
+                    </div>
+                    <div className="text-gray-700">
+                      <span className="font-semibold text-gray-500">Pedidos: </span>
+                      {item.pedidos.join(', ')}
+                    </div>
+                    <div className="text-right font-mono font-bold text-amber-800">{money(item.valor)}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="bg-white rounded-lg border border-gray-200 p-3">
             <div className="flex flex-wrap items-start gap-5">
@@ -982,13 +1523,200 @@ export default function OrcamentoMpPage() {
               </div>
             </div>
           )}
+
+          {showComprasRegraModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-lg bg-white shadow-xl border border-gray-200">
+                <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4">
+                  <div>
+                    <div className="text-sm font-bold text-brand-dark">Compras regra - Pedidos ate {planoAte}</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      Pedidos que chegam dentro do horizonte selecionado ({periodosLabel})
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowComprasRegraModal(false)}
+                    className="rounded border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Fechar
+                  </button>
+                </div>
+
+                <div className="overflow-auto p-5 space-y-4" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <InfoCard label="Total compras regra" value={money(totais.valorComprasRegra)} detail={`Qtd ${fmt(totais.comprasRegra)}`} tone="sky" />
+                    {resumoComprasRegraPorPeriodo.map((item) => (
+                      <InfoCard
+                        key={item.periodo}
+                        label={`Compras ${item.periodo}`}
+                        value={money(item.valor)}
+                        detail={`Qtd ${fmt(item.quantidade)} | ${item.pedidosCount} pedidos`}
+                        tone="sky"
+                      />
+                    ))}
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-brand-dark">Detalhamento de todos os pedidos</span>
+                      <span className="text-[11px] text-gray-500">{pedidosComprasRegra.length} linhas</span>
+                    </div>
+                    <div className="overflow-auto" style={{ maxHeight: '50vh' }}>
+                      <table className="min-w-full text-xs">
+                        <thead className="bg-gray-100 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Periodo</th>
+                            <th className="px-3 py-2 text-left">Pedido</th>
+                            <th className="px-3 py-2 text-left">Empresa</th>
+                            <th className="px-3 py-2 text-left">Data prevista</th>
+                            <th className="px-3 py-2 text-left">MP</th>
+                            <th className="px-3 py-2 text-left">Nome</th>
+                            <th className="px-3 py-2 text-left">Artigo</th>
+                            <th className="px-3 py-2 text-right">Quantidade</th>
+                            <th className="px-3 py-2 text-right">Valor unit.</th>
+                            <th className="px-3 py-2 text-right">Valor total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pedidosComprasRegra.map((item, idx) => (
+                            <tr key={`${item.pedido}-${item.mp}-${idx}`} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} border-t border-gray-100`}>
+                              <td className="px-3 py-2 font-semibold text-sky-700">{item.periodo}</td>
+                              <td className="px-3 py-2 font-semibold text-gray-700">{item.pedido}</td>
+                              <td className="px-3 py-2 text-gray-600">{item.empresa}</td>
+                              <td className="px-3 py-2 text-gray-600">{dateBR(item.data)}</td>
+                              <td className="px-3 py-2 text-gray-700">{item.mp}</td>
+                              <td className="px-3 py-2 text-gray-600 truncate max-w-[200px]" title={item.nome}>{item.nome}</td>
+                              <td className="px-3 py-2 text-gray-600">{item.artigo}</td>
+                              <td className="px-3 py-2 text-right">{fmt(item.quantidade)}</td>
+                              <td className="px-3 py-2 text-right">{item.valorUnitario > 0 ? money(item.valorUnitario) : '-'}</td>
+                              <td className="px-3 py-2 text-right font-semibold">{money(item.valor)}</td>
+                            </tr>
+                          ))}
+                          {pedidosComprasRegra.length === 0 && (
+                            <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-500">Nenhum pedido encontrado dentro do horizonte selecionado.</td></tr>
+                          )}
+                        </tbody>
+                        {pedidosComprasRegra.length > 0 && (
+                          <tfoot className="bg-sky-100 font-semibold sticky bottom-0">
+                            <tr>
+                              <td className="px-3 py-2" colSpan={7}>TOTAL</td>
+                              <td className="px-3 py-2 text-right">{fmt(pedidosComprasRegra.reduce((acc, item) => acc + item.quantidade, 0))}</td>
+                              <td className="px-3 py-2 text-right">-</td>
+                              <td className="px-3 py-2 text-right">{money(pedidosComprasRegra.reduce((acc, item) => acc + item.valor, 0))}</td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showComprasForaModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-lg bg-white shadow-xl border border-gray-200">
+                <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4">
+                  <div>
+                    <div className="text-sm font-bold text-brand-dark">Compras FORA da regra - Pedidos apos {planoAte}</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      Pedidos que chegam DEPOIS do horizonte selecionado (apos {planoAte})
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowComprasForaModal(false)}
+                    className="rounded border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Fechar
+                  </button>
+                </div>
+
+                <div className="overflow-auto p-5 space-y-4" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                    <InfoCard label="Total fora regra" value={money(totalForaRegra.valor)} detail={`Qtd ${fmt(totalForaRegra.qtd)}`} tone="orange" />
+                    {resumoComprasForaPorPeriodo.map((item) => (
+                      <InfoCard
+                        key={item.periodo}
+                        label={`Compras ${item.periodo}`}
+                        value={money(item.valor)}
+                        detail={`Qtd ${fmt(item.quantidade)} | ${item.pedidosCount} pedidos`}
+                        tone="orange"
+                      />
+                    ))}
+                  </div>
+
+                  <div className="p-3 rounded bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                    <strong>Entendendo:</strong> Esses pedidos estao em andamento mas chegam DEPOIS do periodo {planoAte}.
+                    Por isso a diferenca entre &quot;Compras regra&quot; ({money(totais.valorComprasRegra)}) e &quot;Compras andamento&quot; ({money(comprasAndamentoGeral.valor)}) = {money(totalForaRegra.valor)}
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-brand-dark">Detalhamento dos pedidos fora do horizonte</span>
+                      <span className="text-[11px] text-gray-500">{pedidosForaRegra.length} linhas</span>
+                    </div>
+                    <div className="overflow-auto" style={{ maxHeight: '50vh' }}>
+                      <table className="min-w-full text-xs">
+                        <thead className="bg-gray-100 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Periodo</th>
+                            <th className="px-3 py-2 text-left">Pedido</th>
+                            <th className="px-3 py-2 text-left">Empresa</th>
+                            <th className="px-3 py-2 text-left">Data prevista</th>
+                            <th className="px-3 py-2 text-left">MP</th>
+                            <th className="px-3 py-2 text-left">Nome</th>
+                            <th className="px-3 py-2 text-left">Artigo</th>
+                            <th className="px-3 py-2 text-right">Quantidade</th>
+                            <th className="px-3 py-2 text-right">Valor unit.</th>
+                            <th className="px-3 py-2 text-right">Valor total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pedidosForaRegra.map((item, idx) => (
+                            <tr key={`${item.pedido}-${item.mp}-${idx}`} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} border-t border-gray-100`}>
+                              <td className="px-3 py-2 font-semibold text-orange-700">{item.periodo}</td>
+                              <td className="px-3 py-2 font-semibold text-gray-700">{item.pedido}</td>
+                              <td className="px-3 py-2 text-gray-600">{item.empresa}</td>
+                              <td className="px-3 py-2 text-gray-600">{dateBR(item.data)}</td>
+                              <td className="px-3 py-2 text-gray-700">{item.mp}</td>
+                              <td className="px-3 py-2 text-gray-600 truncate max-w-[200px]" title={item.nome}>{item.nome}</td>
+                              <td className="px-3 py-2 text-gray-600">{item.artigo}</td>
+                              <td className="px-3 py-2 text-right">{fmt(item.quantidade)}</td>
+                              <td className="px-3 py-2 text-right">{item.valorUnitario > 0 ? money(item.valorUnitario) : '-'}</td>
+                              <td className="px-3 py-2 text-right font-semibold">{money(item.valor)}</td>
+                            </tr>
+                          ))}
+                          {pedidosForaRegra.length === 0 && (
+                            <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-500">Nenhum pedido encontrado fora do horizonte selecionado.</td></tr>
+                          )}
+                        </tbody>
+                        {pedidosForaRegra.length > 0 && (
+                          <tfoot className="bg-orange-100 font-semibold sticky bottom-0">
+                            <tr>
+                              <td className="px-3 py-2" colSpan={7}>TOTAL</td>
+                              <td className="px-3 py-2 text-right">{fmt(pedidosForaRegra.reduce((acc, item) => acc + item.quantidade, 0))}</td>
+                              <td className="px-3 py-2 text-right">-</td>
+                              <td className="px-3 py-2 text-right">{money(pedidosForaRegra.reduce((acc, item) => acc + item.valor, 0))}</td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
   );
 }
 
-function Card({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: 'red' | 'orange' | 'sky' | 'emerald' | 'stone' | 'slate' }) {
+function Card({ label, value, detail, tone, onClick }: { label: string; value: string; detail: string; tone: 'red' | 'orange' | 'sky' | 'emerald' | 'stone' | 'slate'; onClick?: () => void }) {
   const cls = {
     red: 'text-red-700',
     orange: 'text-orange-700',
@@ -997,9 +1725,13 @@ function Card({ label, value, detail, tone }: { label: string; value: string; de
     stone: 'text-stone-800',
     slate: 'text-slate-700',
   }[tone];
+  const clickable = !!onClick;
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-3">
-      <div className="text-xs text-gray-500">{label}</div>
+    <div
+      className={`bg-white rounded-lg border border-gray-200 p-3 ${clickable ? 'cursor-pointer hover:border-gray-400 hover:shadow-sm transition-all' : ''}`}
+      onClick={onClick}
+    >
+      <div className="text-xs text-gray-500">{label}{clickable && <span className="ml-1 text-[10px] text-blue-500">(clique)</span>}</div>
       <div className={`text-xl font-bold ${cls}`}>{value}</div>
       <div className="text-[11px] text-gray-500 mt-0.5">{detail}</div>
     </div>
@@ -1021,11 +1753,13 @@ function SortTh({ children, align = 'left', active, dir, onClick }: { children: 
   );
 }
 
-function InfoCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: 'orange' }) {
+function InfoCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: 'orange' | 'sky' }) {
+  const bgClass = tone === 'orange' ? 'border-orange-200 bg-orange-50' : tone === 'sky' ? 'border-sky-200 bg-sky-50' : 'border-gray-200 bg-gray-50';
+  const textClass = tone === 'orange' ? 'text-orange-700' : tone === 'sky' ? 'text-sky-700' : 'text-gray-900';
   return (
-    <div className={`rounded border px-3 py-2 ${tone === 'orange' ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+    <div className={`rounded border px-3 py-2 ${bgClass}`}>
       <div className="text-[11px] text-gray-500">{label}</div>
-      <div className={`text-lg font-bold ${tone === 'orange' ? 'text-orange-700' : 'text-gray-900'}`}>{value}</div>
+      <div className={`text-lg font-bold ${textClass}`}>{value}</div>
       <div className="text-[11px] text-gray-500">{detail}</div>
     </div>
   );
