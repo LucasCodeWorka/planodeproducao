@@ -1048,10 +1048,10 @@ export default function OrcamentoMpPage() {
             </div>
           </section>
 
-          {/* Cobertura por periodo (estoque + compras) - calculado por MP */}
+          {/* Cobertura por periodo - calculado por MP */}
           <section className="bg-white rounded-lg border border-gray-200 p-3">
             <div className="flex items-center justify-between gap-3 mb-2">
-              <div className="text-xs font-semibold text-brand-dark">Cobertura por periodo (estoque + compras)</div>
+              <div className="text-xs font-semibold text-brand-dark">Cobertura por periodo</div>
               <div className="text-[11px] text-gray-500">
                 Cobertura: {money(totalCobertura.totalCobertura)} (Est. {money(totalCobertura.totalCoberturaEstoque)} + Comp. {money(totalCobertura.totalCoberturaCompras)}) | Consumo: {money(totalCobertura.totalConsumo)} | {totalCobertura.totalNecessidade <= 0 ? <span className="text-emerald-600 font-semibold">100% coberto</span> : <span className="text-red-600 font-semibold">Falta {money(totalCobertura.totalNecessidade)}</span>}
               </div>
@@ -1087,11 +1087,6 @@ export default function OrcamentoMpPage() {
                           <span className="text-slate-500">Est:</span>
                           <span className="ml-1 font-semibold text-slate-700">{money(cob.coberturaEstoque)}</span>
                         </div>
-                        {cob.necessidade > 0 && (
-                          <div className="mt-1 text-[10px] font-semibold text-red-600">
-                            Falta: {money(cob.necessidade)}
-                          </div>
-                        )}
                       </>
                     ) : (
                       <div className="text-gray-400">-</div>
@@ -1099,14 +1094,6 @@ export default function OrcamentoMpPage() {
                   </div>
                 );
               })}
-            </div>
-            <div className="mt-2 p-2 rounded bg-slate-100 border border-slate-200 text-xs text-slate-700">
-              <strong>Leitura:</strong> Calculo por MP: para cada materia-prima, estoque + compras do periodo cobrem o consumo. Se faltar, soma na necessidade.
-              {totalCobertura.totalNecessidade <= 0 ? (
-                <span className="ml-1 text-emerald-700 font-semibold">Tudo coberto!</span>
-              ) : (
-                <span className="ml-1 text-red-700 font-semibold">Necessidade total: {money(totalCobertura.totalNecessidade)} (o que falta comprar).</span>
-              )}
             </div>
           </section>
 
