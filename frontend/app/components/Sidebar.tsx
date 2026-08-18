@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles, PackagePlus, MapPin, BarChart3, ShoppingCart, WalletCards, GitCompareArrows, Store } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles, PackagePlus, MapPin, BarChart3, ShoppingCart, WalletCards, GitCompareArrows } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -140,11 +140,6 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
           <button onClick={() => router.push('/extrato-plano')} className={`${navItemBase} ${pathname === '/extrato-plano' ? navActive : navInactive}`}>
             <GitCompareArrows size={20} className="shrink-0" />
             {!collapsed && <span>Extrato Plano</span>}
-          </button>
-
-          <button onClick={() => router.push('/analise-pedido-loja')} className={`${navItemBase} ${pathname === '/analise-pedido-loja' ? navActive : navInactive}`}>
-            <Store size={20} className="shrink-0" />
-            {!collapsed && <span>Pedido Loja</span>}
           </button>
 
           <button onClick={() => router.push('/configuracoes')} className={`${navItemBase} ${pathname === '/configuracoes' ? navActive : navInactive}`}>
