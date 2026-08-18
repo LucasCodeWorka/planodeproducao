@@ -6,7 +6,7 @@ import { RefreshCw } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { Planejamento } from '../types';
 import { authHeaders, getToken } from '../lib/auth';
-import { fetchNoCache } from '../lib/api';
+import { apiErrorMessage, fetchNoCache } from '../lib/api';
 
 const API_URL = (() => {
   const raw = String(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
@@ -296,7 +296,7 @@ export default function OrcamentoMpPage() {
       });
       const rMatriz = await fetchNoCache(`${API_URL}/api/producao/matriz?${params}`, {}, 240000);
       const pMatriz = await rMatriz.json();
-      if (!rMatriz.ok || !pMatriz?.success) throw new Error(pMatriz?.error || 'Erro ao carregar plano oficial');
+      if (!rMatriz.ok || !pMatriz?.success) throw new Error(apiErrorMessage(pMatriz, 'Erro ao carregar plano oficial'));
 
       const matriz = (Array.isArray(pMatriz.data) ? pMatriz.data : []) as Planejamento[];
       const planoOriginalByProduto = await carregarPlanoOriginal(
@@ -360,8 +360,8 @@ export default function OrcamentoMpPage() {
       ]);
       const pAnalise = await rAnalise.json();
       const pAnaliseOriginal = await rAnaliseOriginal.json();
-      if (!rAnalise.ok || !pAnalise?.success) throw new Error(pAnalise?.error || 'Erro ao calcular consumo MP');
-      if (!rAnaliseOriginal.ok || !pAnaliseOriginal?.success) throw new Error(pAnaliseOriginal?.error || 'Erro ao calcular consumo MP original');
+      if (!rAnalise.ok || !pAnalise?.success) throw new Error(apiErrorMessage(pAnalise, 'Erro ao calcular consumo MP'));
+      if (!rAnaliseOriginal.ok || !pAnaliseOriginal?.success) throw new Error(apiErrorMessage(pAnaliseOriginal, 'Erro ao calcular consumo MP original'));
 
       const mps = Array.isArray(pAnalise.data) ? pAnalise.data as MpRow[] : [];
       const mpsOriginais = Array.isArray(pAnaliseOriginal.data) ? pAnaliseOriginal.data as MpRow[] : [];

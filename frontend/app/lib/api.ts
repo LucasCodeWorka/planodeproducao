@@ -50,3 +50,12 @@ export function fetchNoCache(input: string, init: RequestInit = {}, timeoutMs = 
     externalSignal?.removeEventListener('abort', onExternalAbort);
   });
 }
+
+export function apiErrorMessage(payload: unknown, fallback: string) {
+  if (!payload || typeof payload !== 'object') return fallback;
+  const data = payload as Record<string, unknown>;
+  const message = data.error || data.detail || data.details || data.message;
+  if (typeof message === 'string' && message.trim()) return message.trim();
+  if (Array.isArray(message) && message.length) return JSON.stringify(message);
+  return fallback;
+}

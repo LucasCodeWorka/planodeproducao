@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import { authHeaders, getToken } from '../lib/auth';
-import { fetchNoCache } from '../lib/api';
+import { apiErrorMessage, fetchNoCache } from '../lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const PERIODOS = ['MA', 'PX', 'UL', 'QT', 'QU'] as const;
@@ -103,7 +103,7 @@ export default function ExtratoPlanoPage() {
     try {
       const res = await fetchNoCache(`${API_URL}/api/analises/snapshot-lotes/datas`, { headers: authHeaders() });
       const json = await res.json();
-      if (!res.ok || !json?.success) throw new Error(json?.error || 'Erro ao carregar snapshots');
+      if (!res.ok || !json?.success) throw new Error(apiErrorMessage(json, 'Erro ao carregar snapshots'));
       const lista = (json.data || []) as SnapshotDia[];
       setDatas(lista);
       const ate = dateInput(lista[0]?.data);
@@ -132,7 +132,7 @@ export default function ExtratoPlanoPage() {
       });
       const res = await fetchNoCache(`${API_URL}/api/analises/snapshot-lotes/comparativo?${params}`, { headers: authHeaders() });
       const json = (await res.json()) as ComparativoPayload;
-      if (!res.ok || !json?.success) throw new Error(json?.details || json?.error || 'Erro ao comparar snapshots');
+      if (!res.ok || !json?.success) throw new Error(apiErrorMessage(json, 'Erro ao comparar snapshots'));
       setPayload(json);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao comparar snapshots');
