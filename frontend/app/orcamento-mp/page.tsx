@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCw } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
@@ -20,7 +20,7 @@ const API_URL = (() => {
 const MARCA_FIXA = 'LIEBE';
 const STATUS_FIXO = 'EM LINHA,NOVA COLECAO';
 const PERIODOS = ['MA', 'PX', 'UL', 'QT', 'QU'] as const;
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 type Periodo = typeof PERIODOS[number];
 
@@ -61,6 +61,9 @@ type MpRow = {
   saldo_ul?: number;
   saldo_qt?: number;
   saldo_qu?: number;
+  consumo_ultimos_dias?: number;
+  consumo_dia?: number;
+  estoque_cinco_dias?: number;
   pedidos_detalhe?: PedidoCompraDetalhe[];
   finalizados_detalhe?: PedidoCompraDetalhe[];
   fator_conversao?: number;
@@ -84,12 +87,23 @@ type MpCalculada = MpRow & {
   valorNecessidadeTotal: number;
 };
 
+type PercentualPeriodo = { qtdLote: number; qtdFinalizada: number; percentual: number };
+type DiasCapacidade = { porPeriodo: Record<Periodo, number>; acumulado: Record<Periodo, number>; capacidadeDiaria: number };
+type OpsAntigas = { qtdTotal: number; opsCount: number; porFaixa: Record<string, { qtd: number; ops: number }>; data: Array<{ cdProduto: string; nrOp: string; nrCiclo: string; dtInicio: string; diasEmProcesso: number; qtdEmProcesso: number; descricao: string; referencia: string }> };
+
 type OrcamentoCachePayload = {
   version: number;
   rowsBase: MpRow[];
   rowsOriginalBase: MpRow[];
   priceOptionsByMp: Record<string, PriceOption[]>;
   createdAt: string;
+  // Dados adicionais
+  percentualPorPeriodo?: Record<Periodo, PercentualPeriodo | null>;
+  diasFaltantesPorPeriodo?: Record<Periodo, number | null>;
+  diasCapacidade?: DiasCapacidade | null;
+  opsAntigas?: OpsAntigas | null;
+  pecasPAPorPeriodo?: Record<Periodo, number>;
+  pecasPAOriginalPorPeriodo?: Record<Periodo, number>;
 };
 
 type SortDir = 'asc' | 'desc';
@@ -164,7 +178,7 @@ function periodosAte(periodo: Periodo) {
   return PERIODOS.slice(0, PERIODOS.indexOf(periodo) + 1);
 }
 
-function valorPeriodo(row: MpRow, prefixo: 'consumo' | 'entrada', periodo: Periodo) {
+function valorPeriodo(row: MpRow, prefixo: 'consumo' | 'entrada' | 'saldo', periodo: Periodo) {
   const key = `${prefixo}_${periodo.toLowerCase()}` as keyof MpRow;
   return Number(row[key] || 0);
 }
@@ -218,6 +232,15 @@ export default function OrcamentoMpPage() {
   const [mpModal, setMpModal] = useState<MpCalculada | null>(null);
   const [showComprasRegraModal, setShowComprasRegraModal] = useState(false);
   const [showComprasForaModal, setShowComprasForaModal] = useState(false);
+  const [excessoModalPeriodo, setExcessoModalPeriodo] = useState<Periodo | null>(null);
+  const [excessoArtigosExpandidos, setExcessoArtigosExpandidos] = useState<Set<string>>(new Set());
+  const [percentualPorPeriodo, setPercentualPorPeriodo] = useState<Record<Periodo, { qtdLote: number; qtdFinalizada: number; percentual: number } | null>>({ MA: null, PX: null, UL: null, QT: null, QU: null });
+  const [diasFaltantesPorPeriodo, setDiasFaltantesPorPeriodo] = useState<Record<Periodo, number | null>>({ MA: null, PX: null, UL: null, QT: null, QU: null });
+  const [diasCapacidade, setDiasCapacidade] = useState<{ porPeriodo: Record<Periodo, number>; acumulado: Record<Periodo, number>; capacidadeDiaria: number } | null>(null);
+  const [opsAntigas, setOpsAntigas] = useState<{ qtdTotal: number; opsCount: number; porFaixa: Record<string, { qtd: number; ops: number }>; data: Array<{ cdProduto: string; nrOp: string; nrCiclo: string; dtInicio: string; diasEmProcesso: number; qtdEmProcesso: number; descricao: string; referencia: string }> } | null>(null);
+  const [opsAntigasModalAberto, setOpsAntigasModalAberto] = useState(false);
+  const [pecasPAPorPeriodo, setPecasPAPorPeriodo] = useState<Record<Periodo, number>>({ MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
+  const [pecasPAOriginalPorPeriodo, setPecasPAOriginalPorPeriodo] = useState<Record<Periodo, number>>({ MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
 
   useEffect(() => {
     if (!getToken()) {
@@ -249,10 +272,18 @@ export default function OrcamentoMpPage() {
     setCacheStatus(null);
     try {
       if (!forceRefresh) {
-        const cacheHit = await carregarCachePersistido();
-        if (cacheHit) {
+        const cacheResult = await carregarCachePersistido();
+        if (cacheResult) {
           setProgress(100);
           setLoading(false);
+          // Se o cache já tem dados adicionais, não precisa buscar novamente
+          if (typeof cacheResult === 'object' && cacheResult.hasAdditionalData) {
+            console.log('[orcamento-mp] Cache completo com dados adicionais');
+            return;
+          }
+          // Cache antigo sem dados adicionais, buscar APIs
+          console.log('[orcamento-mp] Cache sem dados adicionais, buscando APIs...');
+          carregarDadosAdicionais();
           return;
         }
       }
@@ -294,6 +325,26 @@ export default function OrcamentoMpPage() {
         }))
         .filter((p) => p.idproduto && (p.ma + p.px + p.ul + p.qt + p.qu) > 0);
 
+      // Calcular totais de peças PA por período
+      const totaisPecasPA = planos.reduce((acc, p) => {
+        acc.MA += p.ma;
+        acc.PX += p.px;
+        acc.UL += p.ul;
+        acc.QT += p.qt;
+        acc.QU += p.qu;
+        return acc;
+      }, { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
+      const totaisPecasPAOriginal = planosOriginais.reduce((acc, p) => {
+        acc.MA += p.ma;
+        acc.PX += p.px;
+        acc.UL += p.ul;
+        acc.QT += p.qt;
+        acc.QU += p.qu;
+        return acc;
+      }, { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
+      setPecasPAPorPeriodo(totaisPecasPA);
+      setPecasPAOriginalPorPeriodo(totaisPecasPAOriginal);
+
       setProgress(48);
       const [rAnalise, rAnaliseOriginal] = await Promise.all([
         fetchNoCache(`${API_URL}/api/consumo-mp/analise`, {
@@ -318,12 +369,24 @@ export default function OrcamentoMpPage() {
       setRowsOriginalBase(mpsOriginais);
       setProgress(78);
       const precos = await carregarPrecosMp([...mps, ...mpsOriginais]);
+
+      // Buscar dados adicionais ANTES de salvar cache
+      console.log('[orcamento-mp] Buscando dados adicionais para cache...');
+      const dadosAdicionais = await carregarDadosAdicionais();
+
       await salvarCachePersistido({
         version: CACHE_VERSION,
         rowsBase: mps,
         rowsOriginalBase: mpsOriginais,
         priceOptionsByMp: precos,
         createdAt: new Date().toISOString(),
+        // Incluir dados adicionais no cache
+        percentualPorPeriodo: dadosAdicionais.percentualPorPeriodo,
+        diasFaltantesPorPeriodo: dadosAdicionais.diasFaltantesPorPeriodo,
+        diasCapacidade: dadosAdicionais.diasCapacidade,
+        opsAntigas: dadosAdicionais.opsAntigas,
+        pecasPAPorPeriodo: totaisPecasPA,
+        pecasPAOriginalPorPeriodo: totaisPecasPAOriginal,
       });
     } catch (e) {
       setRowsBase([]);
@@ -333,6 +396,106 @@ export default function OrcamentoMpPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function carregarDadosAdicionais(): Promise<{
+    percentualPorPeriodo: Record<Periodo, PercentualPeriodo | null>;
+    diasFaltantesPorPeriodo: Record<Periodo, number | null>;
+    diasCapacidade: DiasCapacidade | null;
+    opsAntigas: OpsAntigas | null;
+  }> {
+    console.log('[orcamento-mp] Iniciando carregarDadosAdicionais...');
+
+    let resultPercentual: Record<Periodo, PercentualPeriodo | null> = { MA: null, PX: null, UL: null, QT: null, QU: null };
+    let resultDiasFaltantes: Record<Periodo, number | null> = { MA: null, PX: null, UL: null, QT: null, QU: null };
+    let resultDiasCapacidade: DiasCapacidade | null = null;
+    let resultOpsAntigas: OpsAntigas | null = null;
+
+    // Carregar cada endpoint separadamente para que falha de um não afete os outros
+    // 1. Percentual finalizado
+    try {
+      console.log('[orcamento-mp] Buscando percentual-finalizado...');
+      const rPercentual = await fetchNoCache(`${API_URL}/api/producao/percentual-finalizado?marca=LIEBE&status=EM LINHA,NOVA COLECAO`, { headers: authHeaders() }, 180000);
+      const pPercentual = await rPercentual.json();
+      console.log('[orcamento-mp] percentual-finalizado resposta:', pPercentual?.success, pPercentual?.data);
+      if (rPercentual.ok && pPercentual?.success && pPercentual.data) {
+        resultPercentual = pPercentual.data;
+        setPercentualPorPeriodo(resultPercentual);
+      }
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao buscar percentual-finalizado:', err);
+    }
+
+    // 2. Dias resumo
+    try {
+      console.log('[orcamento-mp] Buscando dias-resumo...');
+      const rDiasResumo = await fetchNoCache(`${API_URL}/api/capacidade/dias-resumo`, { headers: authHeaders() }, 180000);
+      const pDiasResumo = await rDiasResumo.json();
+      console.log('[orcamento-mp] dias-resumo resposta:', pDiasResumo?.success);
+      if (rDiasResumo.ok && pDiasResumo?.success) {
+        const diasNec = pDiasResumo.diasNecessarios || {};
+        const diasAcum = pDiasResumo.diasAcumulado || {};
+        const diasDisp = pDiasResumo.diasDisponiveis || {};
+
+        // Calcular dias faltantes (acumulado - disponíveis até o período)
+        let diasDisponiveisAcumulado = 0;
+        for (const periodo of PERIODOS) {
+          diasDisponiveisAcumulado += Number(diasDisp[periodo] || 0);
+          const acumulado = Number(diasAcum[periodo] || 0);
+          resultDiasFaltantes[periodo] = acumulado - diasDisponiveisAcumulado;
+        }
+        setDiasFaltantesPorPeriodo(resultDiasFaltantes);
+
+        // Setar diasCapacidade com info de dias individual e acumulado
+        resultDiasCapacidade = {
+          porPeriodo: {
+            MA: Number(diasNec.MA || 0),
+            PX: Number(diasNec.PX || 0),
+            UL: Number(diasNec.UL || 0),
+            QT: Number(diasNec.QT || 0),
+            QU: Number(diasNec.QU || 0),
+          },
+          acumulado: {
+            MA: Number(diasAcum.MA || 0),
+            PX: Number(diasAcum.PX || 0),
+            UL: Number(diasAcum.UL || 0),
+            QT: Number(diasAcum.QT || 0),
+            QU: Number(diasAcum.QU || 0),
+          },
+          capacidadeDiaria: Number(pDiasResumo.capacidadeDiaria || 0),
+        };
+        setDiasCapacidade(resultDiasCapacidade);
+      }
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao buscar dias-resumo:', err);
+    }
+
+    // 3. OPs antigas (> 20 dias em processo)
+    try {
+      console.log('[orcamento-mp] Buscando ops-antigas...');
+      const rOpsAntigas = await fetchNoCache(`${API_URL}/api/producao/ops-antigas?dias=20&marca=LIEBE&status=EM LINHA,NOVA COLECAO`, { headers: authHeaders() }, 180000);
+      const pOpsAntigas = await rOpsAntigas.json();
+      console.log('[opsAntigas] Resposta:', pOpsAntigas);
+      if (rOpsAntigas.ok && pOpsAntigas?.success) {
+        resultOpsAntigas = {
+          qtdTotal: Number(pOpsAntigas.totais?.qtdTotal || 0),
+          opsCount: Number(pOpsAntigas.totais?.opsCount || 0),
+          porFaixa: pOpsAntigas.porFaixa || {},
+          data: Array.isArray(pOpsAntigas.data) ? pOpsAntigas.data : [],
+        };
+        setOpsAntigas(resultOpsAntigas);
+      }
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao buscar ops-antigas:', err);
+    }
+
+    console.log('[orcamento-mp] carregarDadosAdicionais concluído');
+    return {
+      percentualPorPeriodo: resultPercentual,
+      diasFaltantesPorPeriodo: resultDiasFaltantes,
+      diasCapacidade: resultDiasCapacidade,
+      opsAntigas: resultOpsAntigas,
+    };
   }
 
   async function carregarPrecosMp(rows: MpRow[]) {
@@ -376,9 +539,17 @@ export default function OrcamentoMpPage() {
       setRowsBase(data.rowsBase);
       setRowsOriginalBase(data.rowsOriginalBase);
       setPriceOptionsByMp(data.priceOptionsByMp || {});
+      // Restaurar dados adicionais do cache
+      if (data.percentualPorPeriodo) setPercentualPorPeriodo(data.percentualPorPeriodo);
+      if (data.diasFaltantesPorPeriodo) setDiasFaltantesPorPeriodo(data.diasFaltantesPorPeriodo);
+      if (data.diasCapacidade) setDiasCapacidade(data.diasCapacidade);
+      if (data.opsAntigas) setOpsAntigas(data.opsAntigas);
+      if (data.pecasPAPorPeriodo) setPecasPAPorPeriodo(data.pecasPAPorPeriodo);
+      if (data.pecasPAOriginalPorPeriodo) setPecasPAOriginalPorPeriodo(data.pecasPAOriginalPorPeriodo);
       setCacheUpdatedAt(payload.updatedAt || data.createdAt || null);
       setCacheStatus('Cache carregado');
-      return true;
+      // Retorna se tem dados adicionais ou não
+      return { hasAdditionalData: !!(data.percentualPorPeriodo && data.diasCapacidade) };
     } catch {
       return false;
     }
@@ -569,6 +740,12 @@ export default function OrcamentoMpPage() {
         const comprasAtePeriodo = somaAte(row, 'entrada', periodo);
         acc.comprasCumulativaPorPeriodo[periodo] += comprasAtePeriodo;
         acc.valorComprasCumulativaPorPeriodo[periodo] += comprasAtePeriodo * row.valorUnitario;
+        // Excesso por periodo (saldo - estoque_seguranca com 5 dias)
+        const saldoPeriodo = valorPeriodo(row, 'saldo', periodo);
+        const estoqueSeguranca = Number(row.estoque_cinco_dias || 0);
+        const excessoPeriodo = Math.max(0, saldoPeriodo - estoqueSeguranca);
+        acc.excessoPorPeriodo[periodo] += excessoPeriodo;
+        acc.valorExcessoPorPeriodo[periodo] += excessoPeriodo * row.valorUnitario;
       }
       acc.valorComprasRegra += row.valorComprasRegra;
       acc.valorComprasTotal += row.valorComprasTotal;
@@ -617,6 +794,9 @@ export default function OrcamentoMpPage() {
       // Compras que cobrem necessidade por periodo (para justificar diferenca nec.regra vs nec.total)
       comprasCoberturaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       valorComprasCoberturaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      // Excesso por periodo (saldo - estoque_seguranca)
+      excessoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      valorExcessoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       valorComprasRegra: 0,
       valorComprasTotal: 0,
       necessidadeRegra: 0,
@@ -693,6 +873,89 @@ export default function OrcamentoMpPage() {
     for (const periodo of PERIODOS) {
       const r = result[periodo];
       r.percentual = r.consumo > 0 ? Math.min(100, (r.coberturaTotal / r.consumo) * 100) : 100;
+    }
+
+    return result;
+  }, [rowsCalculadas]);
+
+  // Cobertura por periodo por categoria de artigo (BOJO, ALCA, DEMAIS)
+  type CategoriaArtigo = 'BOJO' | 'ALCA' | 'DEMAIS';
+  const CATEGORIAS_ARTIGO: CategoriaArtigo[] = ['BOJO', 'ALCA', 'DEMAIS'];
+
+  const coberturaPorArtigoPorPeriodo = useMemo(() => {
+    const categorizarArtigo = (artigo: string): CategoriaArtigo => {
+      const upper = (artigo || '').toUpperCase().trim();
+      if (upper.includes('BOJO')) return 'BOJO';
+      if (upper.includes('ALCA') || upper.includes('ALÇA')) return 'ALCA';
+      return 'DEMAIS';
+    };
+
+    const result: Record<CategoriaArtigo, Record<Periodo, {
+      coberturaEstoque: number;
+      coberturaCompras: number;
+      coberturaTotal: number;
+      consumo: number;
+      necessidade: number;
+      percentual: number;
+    }>> = {
+      BOJO: {
+        MA: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        PX: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        UL: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        QT: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        QU: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+      },
+      ALCA: {
+        MA: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        PX: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        UL: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        QT: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        QU: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+      },
+      DEMAIS: {
+        MA: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        PX: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        UL: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        QT: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+        QU: { coberturaEstoque: 0, coberturaCompras: 0, coberturaTotal: 0, consumo: 0, necessidade: 0, percentual: 0 },
+      },
+    };
+
+    // Para cada MP, calcular cobertura por periodo e categoria
+    for (const row of rowsCalculadas) {
+      const categoria = categorizarArtigo(row.artigo || '');
+      let saldoMp = Number(row.estoquetotal || 0) * row.valorUnitario;
+
+      for (const periodo of PERIODOS) {
+        const consumoPeriodo = valorPeriodo(row, 'consumo', periodo) * row.valorUnitario;
+        const comprasPeriodo = valorPeriodo(row, 'entrada', periodo) * row.valorUnitario;
+
+        if (consumoPeriodo <= 0) {
+          saldoMp += comprasPeriodo;
+          continue;
+        }
+
+        const coberturaEstoque = Math.min(saldoMp, consumoPeriodo);
+        const necessidadeAposEstoque = Math.max(0, consumoPeriodo - saldoMp);
+        const coberturaCompras = Math.min(comprasPeriodo, necessidadeAposEstoque);
+        const necessidadeAposCompras = Math.max(0, necessidadeAposEstoque - comprasPeriodo);
+
+        result[categoria][periodo].consumo += consumoPeriodo;
+        result[categoria][periodo].coberturaEstoque += coberturaEstoque;
+        result[categoria][periodo].coberturaCompras += coberturaCompras;
+        result[categoria][periodo].coberturaTotal += coberturaEstoque + coberturaCompras;
+        result[categoria][periodo].necessidade += necessidadeAposCompras;
+
+        saldoMp = Math.max(0, saldoMp + comprasPeriodo - consumoPeriodo);
+      }
+    }
+
+    // Calcular percentuais
+    for (const cat of CATEGORIAS_ARTIGO) {
+      for (const periodo of PERIODOS) {
+        const r = result[cat][periodo];
+        r.percentual = r.consumo > 0 ? Math.min(100, (r.coberturaTotal / r.consumo) * 100) : 100;
+      }
     }
 
     return result;
@@ -961,6 +1224,104 @@ export default function OrcamentoMpPage() {
     return pedidosForaRegra.reduce((acc, item) => ({ qtd: acc.qtd + item.quantidade, valor: acc.valor + item.valor }), { qtd: 0, valor: 0 });
   }, [pedidosForaRegra]);
 
+  // Calcula MPs com excesso para o período selecionado no modal - com cálculo completo
+  const excessoModalRows = useMemo(() => {
+    if (!excessoModalPeriodo) return [];
+    const periodosAte = (ate: Periodo): Periodo[] => {
+      const idx = PERIODOS.indexOf(ate);
+      return idx >= 0 ? PERIODOS.slice(0, idx + 1) as Periodo[] : [];
+    };
+    const periodosIncluidos = periodosAte(excessoModalPeriodo);
+
+    return rowsCalculadas
+      .map((row) => {
+        const estoque = Number(row.estoquetotal || 0);
+        // Somar entradas até o período
+        let entradasAte = 0;
+        for (const p of periodosIncluidos) {
+          entradasAte += Number(row[`entrada_${p.toLowerCase()}` as keyof MpCalculada] || 0);
+        }
+        // Somar consumo até o período
+        let consumoAte = 0;
+        for (const p of periodosIncluidos) {
+          consumoAte += Number(row[`consumo_${p.toLowerCase()}` as keyof MpCalculada] || 0);
+        }
+        const saldoPeriodo = estoque + entradasAte - consumoAte;
+        const estoqueSeguranca = Number(row.estoque_cinco_dias || 0);
+        const excessoPeriodo = Math.max(0, saldoPeriodo - estoqueSeguranca);
+        const valorExcesso = excessoPeriodo * row.valorUnitario;
+        return {
+          ...row,
+          estoque,
+          entradasAte,
+          consumoAte,
+          saldoPeriodo,
+          estoqueSeguranca,
+          excessoPeriodo,
+          valorExcesso,
+        };
+      })
+      .filter((row) => row.excessoPeriodo > 0)
+      .sort((a, b) => b.valorExcesso - a.valorExcesso);
+  }, [rowsCalculadas, excessoModalPeriodo]);
+
+  // Agrupa por artigo para o modal de excesso
+  const excessoModalPorArtigo = useMemo(() => {
+    const map = new Map<string, {
+      artigo: string;
+      mps: typeof excessoModalRows;
+      estoque: number;
+      entradasAte: number;
+      consumoAte: number;
+      saldo: number;
+      estoqueSeguranca: number;
+      excesso: number;
+      valorExcesso: number;
+    }>();
+    for (const row of excessoModalRows) {
+      const artigo = String(row.artigo || 'SEM ARTIGO').trim().toUpperCase();
+      if (!map.has(artigo)) {
+        map.set(artigo, {
+          artigo,
+          mps: [],
+          estoque: 0,
+          entradasAte: 0,
+          consumoAte: 0,
+          saldo: 0,
+          estoqueSeguranca: 0,
+          excesso: 0,
+          valorExcesso: 0,
+        });
+      }
+      const acc = map.get(artigo)!;
+      acc.mps.push(row);
+      acc.estoque += row.estoque;
+      acc.entradasAte += row.entradasAte;
+      acc.consumoAte += row.consumoAte;
+      acc.saldo += row.saldoPeriodo;
+      acc.estoqueSeguranca += row.estoqueSeguranca;
+      acc.excesso += row.excessoPeriodo;
+      acc.valorExcesso += row.valorExcesso;
+    }
+    return Array.from(map.values()).sort((a, b) => b.valorExcesso - a.valorExcesso);
+  }, [excessoModalRows]);
+
+  const excessoModalTotais = useMemo(() => {
+    return excessoModalRows.reduce(
+      (acc, row) => ({
+        itens: acc.itens + 1,
+        estoque: acc.estoque + row.estoque,
+        entradasAte: acc.entradasAte + row.entradasAte,
+        consumoAte: acc.consumoAte + row.consumoAte,
+        saldo: acc.saldo + row.saldoPeriodo,
+        estoqueSeguranca: acc.estoqueSeguranca + row.estoqueSeguranca,
+        excesso: acc.excesso + row.excessoPeriodo,
+        valorExcesso: acc.valorExcesso + row.valorExcesso,
+      }),
+      { itens: 0, estoque: 0, entradasAte: 0, consumoAte: 0, saldo: 0, estoqueSeguranca: 0, excesso: 0, valorExcesso: 0 }
+    );
+  }, [excessoModalRows]);
+
   function toggleArtigoSort(key: ArtigoSortKey) {
     setArtigoSort((prev) => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' });
   }
@@ -1000,46 +1361,108 @@ export default function OrcamentoMpPage() {
             <Card label="Necessidade regra" value={money(totais.valorRegra)} detail={`Qtd ${fmt(totais.necessidadeRegra)}`} tone="red" />
             <Card label="Necessidade total" value={money(totais.valorTotal)} detail={`Qtd ${fmt(totais.necessidadeTotal)}`} tone="orange" />
             <Card label="Compras regra" value={money(totais.valorComprasRegra)} detail={`Qtd ${fmt(totais.comprasRegra)}`} tone="sky" onClick={() => setShowComprasRegraModal(true)} />
-            <Card label="Compras fora regra" value={money(totalForaRegra.valor)} detail={`Qtd ${fmt(totalForaRegra.qtd)} | Apos ${planoAte}`} tone="orange" onClick={totalForaRegra.valor > 0 ? () => setShowComprasForaModal(true) : undefined} />
+            <Card label="Compras fora do plano" value={money(totalForaRegra.valor)} detail={`Qtd ${fmt(totalForaRegra.qtd)} | Apos ${planoAte}`} tone="orange" onClick={totalForaRegra.valor > 0 ? () => setShowComprasForaModal(true) : undefined} />
             <Card label="Compras andamento" value={money(comprasAndamentoGeral.valor)} detail={`Qtd ${fmt(comprasAndamentoGeral.qtd)} | ${comprasAndamentoGeral.itensSemValor} MPs sem valor`} tone="emerald" />
           </div>
 
           <section className="bg-white rounded-lg border border-gray-200 p-3">
             <div className="flex items-center justify-between gap-3 mb-2">
               <div className="text-xs font-semibold text-brand-dark">Custo do plano por periodo</div>
-              <div className="text-[11px] text-gray-500">Original filtrado: {money(valorConsumoOriginalAte)} | atual/restante: {money(totais.valorConsumo)}</div>
+              <div className="text-[11px] text-gray-500">Custo atual/restante: {money(totais.valorConsumo)}</div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              {PERIODOS.map((periodo, idx) => {
+              {PERIODOS.map((periodo) => {
                 const ativo = periodosSelecionados.includes(periodo);
                 const valorOriginal = ativo ? custoPlanoOriginal.valorConsumoPorPeriodo[periodo] : 0;
-                const qtdOriginal = ativo ? custoPlanoOriginal.consumoPorPeriodo[periodo] : 0;
-                const valorAtual = ativo ? totais.valorConsumoPorPeriodo[periodo] : 0;
-                const qtdAtual = ativo ? totais.consumoPorPeriodo[periodo] : 0;
-                // Necessidade cumulativa ate esse periodo
-                const valorNecCumulativa = ativo ? totais.valorNecessidadeCumulativaPorPeriodo[periodo] : 0;
-                const qtdNecCumulativa = ativo ? totais.necessidadeCumulativaPorPeriodo[periodo] : 0;
-                // Necessidade soma (diferenca entre periodos)
-                const periodoAnterior = idx > 0 ? PERIODOS[idx - 1] : null;
-                const valorNecAnterior = periodoAnterior && ativo ? totais.valorNecessidadeCumulativaPorPeriodo[periodoAnterior] : 0;
-                const qtdNecAnterior = periodoAnterior && ativo ? totais.necessidadeCumulativaPorPeriodo[periodoAnterior] : 0;
-                const valorNecSoma = Math.max(0, valorNecCumulativa - valorNecAnterior);
-                const qtdNecSoma = Math.max(0, qtdNecCumulativa - qtdNecAnterior);
+                // Excesso
+                const valorExcesso = ativo ? totais.valorExcessoPorPeriodo[periodo] : 0;
+                // Percentual finalizado
+                const percData = percentualPorPeriodo[periodo];
+                const percentual = percData?.percentual ?? null;
+                // Dias faltantes (acumulado)
+                const diasFalt = diasFaltantesPorPeriodo[periodo];
+                // Dias individual e acumulado
+                const diasIndiv = diasCapacidade?.porPeriodo[periodo] ?? null;
+                const diasAcum = diasCapacidade?.acumulado[periodo] ?? null;
                 return (
                   <div key={periodo} className={`rounded border px-3 py-2 ${ativo ? 'border-stone-300 bg-stone-50' : 'border-gray-200 bg-gray-50 opacity-55'}`}>
                     <div className="text-[11px] font-semibold text-gray-500 mb-1">{periodo}</div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <div className="text-sm font-bold text-stone-800">{valorOriginal > 0 ? money(valorOriginal) : '-'}</div>
-                        <div className="text-[10px] text-gray-500">Original {fmt(qtdOriginal)}</div>
-                        <div className="mt-1 text-xs font-semibold text-slate-700">{valorAtual > 0 ? money(valorAtual) : '-'}</div>
-                        <div className="text-[10px] text-gray-500">Atual {fmt(qtdAtual)}</div>
+                        <div className="text-[10px] text-gray-500">Plano</div>
+                        <div
+                          className={`mt-1 text-xs font-semibold ${valorExcesso > 0 ? 'text-orange-600 cursor-pointer hover:underline' : 'text-gray-400'}`}
+                          onClick={valorExcesso > 0 ? () => setExcessoModalPeriodo(periodo) : undefined}
+                          title={valorExcesso > 0 ? 'Clique para ver detalhes do excesso' : undefined}
+                        >
+                          {valorExcesso > 0 ? money(valorExcesso) : '-'}
+                        </div>
+                        <div className="text-[10px] text-gray-500">Excesso</div>
                       </div>
                       <div>
-                        <div className={`text-sm font-bold ${valorNecSoma > 0 ? 'text-orange-600' : 'text-gray-400'}`}>{valorNecSoma > 0 ? money(valorNecSoma) : '-'}</div>
-                        <div className="text-[10px] text-gray-500">Nec. {fmt(qtdNecSoma)}</div>
-                        <div className={`mt-1 text-xs font-semibold ${valorNecCumulativa > 0 ? 'text-red-600' : 'text-gray-400'}`}>{valorNecCumulativa > 0 ? money(valorNecCumulativa) : '-'}</div>
-                        <div className="text-[10px] text-gray-500">Acum. {fmt(qtdNecCumulativa)}</div>
+                        <div className={`text-sm font-bold ${percentual !== null ? (percentual >= 100 ? 'text-emerald-600' : percentual >= 50 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}`}>
+                          {percentual !== null ? `${percentual.toFixed(1)}%` : '-'}
+                        </div>
+                        <div className="text-[10px] text-gray-500">Produzido</div>
+                        <div className="mt-1 flex gap-1.5 items-baseline">
+                          <span className={`text-xs font-semibold ${diasIndiv !== null ? 'text-blue-700' : 'text-gray-400'}`}>
+                            {diasIndiv !== null ? `${diasIndiv.toFixed(1)}d` : '-'}
+                          </span>
+                          <span className={`text-[10px] ${diasAcum !== null ? (diasFalt !== null && diasFalt > 0 ? 'text-red-600' : 'text-emerald-600') : 'text-gray-400'}`}>
+                            {diasAcum !== null ? `(${diasAcum.toFixed(1)})` : ''}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-gray-500">Dias (acum)</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="bg-white rounded-lg border border-gray-200 p-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="text-xs font-semibold text-brand-dark">Pecas PA por periodo</div>
+              <div className="text-[11px] text-gray-500">Total: {fmt(periodosSelecionados.reduce((acc, p) => acc + (pecasPAOriginalPorPeriodo[p] || 0), 0))} pçs</div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {PERIODOS.map((periodo) => {
+                const ativo = periodosSelecionados.includes(periodo);
+                const qtdPlano = ativo ? pecasPAOriginalPorPeriodo[periodo] : 0;
+                const percData = percentualPorPeriodo[periodo];
+                const percentual = percData?.percentual ?? null;
+                const qtdFinalizada = percData?.qtdFinalizada ?? 0;
+                const diasIndiv = diasCapacidade?.porPeriodo[periodo] ?? null;
+                const diasAcum = diasCapacidade?.acumulado[periodo] ?? null;
+                const diasFalt = diasFaltantesPorPeriodo[periodo];
+                return (
+                  <div key={periodo} className={`rounded border px-3 py-2 ${ativo ? 'border-stone-300 bg-stone-50' : 'border-gray-200 bg-gray-50 opacity-55'}`}>
+                    <div className="text-[11px] font-semibold text-gray-500 mb-1">{periodo}</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-sm font-bold text-stone-800">{qtdPlano > 0 ? fmt(qtdPlano) : '-'}</div>
+                        <div className="text-[10px] text-gray-500">Plano</div>
+                        <div className={`mt-1 text-xs font-semibold ${qtdFinalizada > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          {qtdFinalizada > 0 ? fmt(qtdFinalizada) : '-'}
+                        </div>
+                        <div className="text-[10px] text-gray-500">Finalizado</div>
+                      </div>
+                      <div>
+                        <div className={`text-sm font-bold ${percentual !== null ? (percentual >= 100 ? 'text-emerald-600' : percentual >= 50 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}`}>
+                          {percentual !== null ? `${percentual.toFixed(1)}%` : '-'}
+                        </div>
+                        <div className="text-[10px] text-gray-500">Produzido</div>
+                        <div className="mt-1 flex gap-1.5 items-baseline">
+                          <span className={`text-xs font-semibold ${diasIndiv !== null ? 'text-blue-700' : 'text-gray-400'}`}>
+                            {diasIndiv !== null ? `${diasIndiv.toFixed(1)}d` : '-'}
+                          </span>
+                          <span className={`text-[10px] ${diasAcum !== null ? (diasFalt !== null && diasFalt > 0 ? 'text-red-600' : 'text-emerald-600') : 'text-gray-400'}`}>
+                            {diasAcum !== null ? `(${diasAcum.toFixed(1)})` : ''}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-gray-500">Dias (acum)</div>
                       </div>
                     </div>
                   </div>
@@ -1051,8 +1474,8 @@ export default function OrcamentoMpPage() {
           {/* Cobertura por periodo - calculado por MP */}
           <section className="bg-white rounded-lg border border-gray-200 p-3">
             <div className="flex items-center justify-between gap-3 mb-2">
-              <div className="text-xs font-semibold text-brand-dark">Cobertura por periodo</div>
-              <div className="text-[11px] text-gray-500">
+              <div className="text-sm font-semibold text-brand-dark">Cobertura por periodo</div>
+              <div className="text-xs text-gray-500">
                 Cobertura: {money(totalCobertura.totalCobertura)} (Est. {money(totalCobertura.totalCoberturaEstoque)} + Comp. {money(totalCobertura.totalCoberturaCompras)}) | Consumo: {money(totalCobertura.totalConsumo)} | {totalCobertura.totalNecessidade <= 0 ? <span className="text-emerald-600 font-semibold">100% coberto</span> : <span className="text-red-600 font-semibold">Falta {money(totalCobertura.totalNecessidade)}</span>}
               </div>
             </div>
@@ -1063,6 +1486,11 @@ export default function OrcamentoMpPage() {
                 const coberto100 = cob.necessidade <= 0;
                 const cobertoParcial = cob.coberturaTotal > 0 && cob.necessidade > 0;
 
+                // Dados por categoria de artigo
+                const cobBojo = coberturaPorArtigoPorPeriodo.BOJO[periodo];
+                const cobAlca = coberturaPorArtigoPorPeriodo.ALCA[periodo];
+                const cobDemais = coberturaPorArtigoPorPeriodo.DEMAIS[periodo];
+
                 return (
                   <div key={periodo} className={`rounded border px-3 py-2 ${
                     !ativo ? 'border-gray-200 bg-gray-50 opacity-55' :
@@ -1071,9 +1499,9 @@ export default function OrcamentoMpPage() {
                     'border-red-300 bg-red-50'
                   }`}>
                     <div className="flex items-center justify-between mb-1">
-                      <div className="text-[11px] font-semibold text-gray-500">{periodo}</div>
+                      <div className="text-xs font-semibold text-gray-500">{periodo}</div>
                       {ativo && cob.consumo > 0 && (
-                        <div className={`text-[9px] font-bold uppercase ${
+                        <div className={`text-xs font-bold uppercase ${
                           coberto100 ? 'text-emerald-600' : cobertoParcial ? 'text-amber-600' : 'text-red-600'
                         }`}>
                           {cob.percentual.toFixed(0)}%
@@ -1082,10 +1510,37 @@ export default function OrcamentoMpPage() {
                     </div>
                     {ativo && cob.consumo > 0 ? (
                       <>
-                        <div className="text-[10px] text-gray-500 mb-0.5">Consumo: {money(cob.consumo)}</div>
-                        <div className="text-[10px]">
+                        <div className="text-xs text-gray-500 mb-0.5">Consumo: {money(cob.consumo)}</div>
+                        <div className="text-xs">
                           <span className="text-slate-500">Est:</span>
                           <span className="ml-1 font-semibold text-slate-700">{money(cob.coberturaEstoque)}</span>
+                        </div>
+                        {/* Breakdown por artigo */}
+                        <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                          {cobBojo.consumo > 0 && (
+                            <div className="flex justify-between text-[10px]">
+                              <span className="text-gray-500">BOJO</span>
+                              <span className={`font-semibold ${cobBojo.percentual >= 100 ? 'text-emerald-600' : cobBojo.percentual >= 70 ? 'text-amber-600' : 'text-red-600'}`}>
+                                {cobBojo.percentual.toFixed(0)}%
+                              </span>
+                            </div>
+                          )}
+                          {cobAlca.consumo > 0 && (
+                            <div className="flex justify-between text-[10px]">
+                              <span className="text-gray-500">ALCA</span>
+                              <span className={`font-semibold ${cobAlca.percentual >= 100 ? 'text-emerald-600' : cobAlca.percentual >= 70 ? 'text-amber-600' : 'text-red-600'}`}>
+                                {cobAlca.percentual.toFixed(0)}%
+                              </span>
+                            </div>
+                          )}
+                          {cobDemais.consumo > 0 && (
+                            <div className="flex justify-between text-[10px]">
+                              <span className="text-gray-500">DEMAIS</span>
+                              <span className={`font-semibold ${cobDemais.percentual >= 100 ? 'text-emerald-600' : cobDemais.percentual >= 70 ? 'text-amber-600' : 'text-red-600'}`}>
+                                {cobDemais.percentual.toFixed(0)}%
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </>
                     ) : (
@@ -1096,6 +1551,35 @@ export default function OrcamentoMpPage() {
               })}
             </div>
           </section>
+
+          {/* OPs antigas - em processo > 20 dias */}
+          {opsAntigas && opsAntigas.qtdTotal > 0 && (
+            <div
+              className="bg-amber-50 border border-amber-200 rounded-lg p-3 cursor-pointer hover:border-amber-400 hover:shadow-sm transition-all"
+              onClick={() => setOpsAntigasModalAberto(true)}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-amber-800">
+                    OPs em processo ha mais de 20 dias
+                    <span className="ml-2 text-[10px] text-blue-500">(clique p/ detalhes)</span>
+                  </div>
+                  <div className="text-xl font-bold text-amber-700">{fmt(opsAntigas.qtdTotal)} pecas</div>
+                  <div className="text-xs text-amber-600">{opsAntigas.opsCount} OPs paradas</div>
+                </div>
+                <div className="flex gap-3 text-xs">
+                  {Object.entries(opsAntigas.porFaixa).map(([faixa, dados]) => (
+                    dados.qtd > 0 && (
+                      <div key={faixa} className="text-center px-2 py-1 bg-amber-100 rounded">
+                        <div className="font-semibold text-amber-800">{fmt(dados.qtd)}</div>
+                        <div className="text-amber-600">{faixa}</div>
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Mostrar cobertura apenas quando há diferença entre nec.regra e nec.total (ou seja, ha compras futuras) */}
           <section className="bg-white rounded-lg border border-gray-200 p-3">
@@ -1623,7 +2107,7 @@ export default function OrcamentoMpPage() {
 
                 <div className="overflow-auto p-5 space-y-4" style={{ maxHeight: 'calc(90vh - 80px)' }}>
                   <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                    <InfoCard label="Total fora regra" value={money(totalForaRegra.valor)} detail={`Qtd ${fmt(totalForaRegra.qtd)}`} tone="orange" />
+                    <InfoCard label="Total fora do plano" value={money(totalForaRegra.valor)} detail={`Qtd ${fmt(totalForaRegra.qtd)}`} tone="orange" />
                     {resumoComprasForaPorPeriodo.map((item) => (
                       <InfoCard
                         key={item.periodo}
@@ -1642,7 +2126,7 @@ export default function OrcamentoMpPage() {
 
                   <div className="rounded-lg border border-gray-200 overflow-hidden">
                     <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-brand-dark">Detalhamento dos pedidos fora do horizonte</span>
+                      <span className="text-xs font-semibold text-brand-dark">Detalhamento dos pedidos fora do plano</span>
                       <span className="text-[11px] text-gray-500">{pedidosForaRegra.length} linhas</span>
                     </div>
                     <div className="overflow-auto" style={{ maxHeight: '50vh' }}>
@@ -1677,7 +2161,7 @@ export default function OrcamentoMpPage() {
                             </tr>
                           ))}
                           {pedidosForaRegra.length === 0 && (
-                            <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-500">Nenhum pedido encontrado fora do horizonte selecionado.</td></tr>
+                            <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-500">Nenhum pedido encontrado fora do plano selecionado.</td></tr>
                           )}
                         </tbody>
                         {pedidosForaRegra.length > 0 && (
@@ -1687,6 +2171,243 @@ export default function OrcamentoMpPage() {
                               <td className="px-3 py-2 text-right">{fmt(pedidosForaRegra.reduce((acc, item) => acc + item.quantidade, 0))}</td>
                               <td className="px-3 py-2 text-right">-</td>
                               <td className="px-3 py-2 text-right">{money(pedidosForaRegra.reduce((acc, item) => acc + item.valor, 0))}</td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {excessoModalPeriodo && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-7xl max-h-[90vh] overflow-hidden rounded-lg bg-white shadow-xl border border-gray-200">
+                <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4">
+                  <div>
+                    <div className="text-sm font-bold text-brand-dark">Excesso MP - Periodo ate {excessoModalPeriodo}</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      Calculo: Estoque + Entradas ate {excessoModalPeriodo} - Consumo ate {excessoModalPeriodo} = Saldo - Est. Seguranca = <span className="font-semibold text-orange-600">Excesso</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setExcessoModalPeriodo(null); setExcessoArtigosExpandidos(new Set()); }}
+                    className="rounded border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Fechar
+                  </button>
+                </div>
+
+                <div className="overflow-auto p-5 space-y-4" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+                  {/* Cards resumo com cálculo explicado */}
+                  <div className="grid grid-cols-2 md:grid-cols-7 gap-2 text-center">
+                    <div className="rounded border border-slate-200 bg-slate-50 px-2 py-2">
+                      <div className="text-[10px] text-gray-500">Estoque</div>
+                      <div className="text-sm font-bold text-slate-700">{fmt(excessoModalTotais.estoque)}</div>
+                    </div>
+                    <div className="flex items-center justify-center text-lg text-gray-400">+</div>
+                    <div className="rounded border border-sky-200 bg-sky-50 px-2 py-2">
+                      <div className="text-[10px] text-gray-500">Entradas ate {excessoModalPeriodo}</div>
+                      <div className="text-sm font-bold text-sky-700">{fmt(excessoModalTotais.entradasAte)}</div>
+                    </div>
+                    <div className="flex items-center justify-center text-lg text-gray-400">-</div>
+                    <div className="rounded border border-red-200 bg-red-50 px-2 py-2">
+                      <div className="text-[10px] text-gray-500">Consumo ate {excessoModalPeriodo}</div>
+                      <div className="text-sm font-bold text-red-700">{fmt(excessoModalTotais.consumoAte)}</div>
+                    </div>
+                    <div className="flex items-center justify-center text-lg text-gray-400">=</div>
+                    <div className="rounded border border-emerald-200 bg-emerald-50 px-2 py-2">
+                      <div className="text-[10px] text-gray-500">Saldo</div>
+                      <div className="text-sm font-bold text-emerald-700">{fmt(excessoModalTotais.saldo)}</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
+                    <div className="rounded border border-emerald-200 bg-emerald-50 px-2 py-2">
+                      <div className="text-[10px] text-gray-500">Saldo</div>
+                      <div className="text-sm font-bold text-emerald-700">{fmt(excessoModalTotais.saldo)}</div>
+                    </div>
+                    <div className="flex items-center justify-center text-lg text-gray-400">-</div>
+                    <div className="rounded border border-gray-200 bg-gray-50 px-2 py-2">
+                      <div className="text-[10px] text-gray-500">Est. Seguranca (5d)</div>
+                      <div className="text-sm font-bold text-gray-700">{fmt(excessoModalTotais.estoqueSeguranca)}</div>
+                    </div>
+                    <div className="flex items-center justify-center text-lg text-gray-400">=</div>
+                    <div className="rounded border border-orange-300 bg-orange-100 px-2 py-2">
+                      <div className="text-[10px] text-gray-500">EXCESSO</div>
+                      <div className="text-sm font-bold text-orange-700">{fmt(excessoModalTotais.excesso)}</div>
+                      <div className="text-[10px] text-orange-600 font-semibold">{money(excessoModalTotais.valorExcesso)}</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-brand-dark">Excesso por Artigo - {excessoModalPorArtigo.length} artigos ({excessoModalTotais.itens} MPs)</span>
+                      <span className="text-[11px] text-gray-500">Clique no artigo para ver MPs</span>
+                    </div>
+                    <div className="overflow-auto" style={{ maxHeight: '45vh' }}>
+                      <table className="min-w-full text-xs">
+                        <thead className="bg-gray-100 sticky top-0 z-10">
+                          <tr>
+                            <th className="px-3 py-2 text-left w-8"></th>
+                            <th className="px-3 py-2 text-left">Artigo</th>
+                            <th className="px-3 py-2 text-right">Estoque</th>
+                            <th className="px-3 py-2 text-right text-sky-700">+ Entradas</th>
+                            <th className="px-3 py-2 text-right text-red-700">- Consumo</th>
+                            <th className="px-3 py-2 text-right text-emerald-700">= Saldo</th>
+                            <th className="px-3 py-2 text-right">- Est.Seg</th>
+                            <th className="px-3 py-2 text-right text-orange-700">= Excesso</th>
+                            <th className="px-3 py-2 text-right">Valor Excesso</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {excessoModalPorArtigo.map((art, artIdx) => {
+                            const isExpanded = excessoArtigosExpandidos.has(art.artigo);
+                            return (
+                              <React.Fragment key={art.artigo}>
+                                <tr
+                                  className={`${artIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} border-t border-gray-200 cursor-pointer hover:bg-orange-50`}
+                                  onClick={() => {
+                                    setExcessoArtigosExpandidos(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(art.artigo)) next.delete(art.artigo);
+                                      else next.add(art.artigo);
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  <td className="px-3 py-2 text-center">
+                                    <span className={`inline-block transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+                                  </td>
+                                  <td className="px-3 py-2 font-semibold text-gray-800">{art.artigo} <span className="text-[10px] text-gray-400 font-normal">({art.mps.length} MPs)</span></td>
+                                  <td className="px-3 py-2 text-right">{fmt(art.estoque)}</td>
+                                  <td className="px-3 py-2 text-right text-sky-600">{fmt(art.entradasAte)}</td>
+                                  <td className="px-3 py-2 text-right text-red-600">{fmt(art.consumoAte)}</td>
+                                  <td className="px-3 py-2 text-right text-emerald-600 font-semibold">{fmt(art.saldo)}</td>
+                                  <td className="px-3 py-2 text-right text-gray-500">{fmt(art.estoqueSeguranca)}</td>
+                                  <td className="px-3 py-2 text-right font-bold text-orange-600">{fmt(art.excesso)}</td>
+                                  <td className="px-3 py-2 text-right font-bold text-orange-700">{money(art.valorExcesso)}</td>
+                                </tr>
+                                {isExpanded && art.mps.map((mp, mpIdx) => (
+                                  <tr key={mp.idmateriaprima} className="bg-orange-50/50 border-t border-orange-100">
+                                    <td className="px-3 py-1.5"></td>
+                                    <td className="px-3 py-1.5 pl-6">
+                                      <span className="text-gray-600">{mp.idmateriaprima}</span>
+                                      <span className="ml-2 text-[10px] text-gray-400 truncate" title={mp.nome_materiaprima}>{(mp.nome_materiaprima || '').substring(0, 30)}</span>
+                                    </td>
+                                    <td className="px-3 py-1.5 text-right text-gray-600">{fmt(mp.estoque)}</td>
+                                    <td className="px-3 py-1.5 text-right text-sky-500">{fmt(mp.entradasAte)}</td>
+                                    <td className="px-3 py-1.5 text-right text-red-500">{fmt(mp.consumoAte)}</td>
+                                    <td className="px-3 py-1.5 text-right text-emerald-500">{fmt(mp.saldoPeriodo)}</td>
+                                    <td className="px-3 py-1.5 text-right text-gray-400">{fmt(mp.estoqueSeguranca)}</td>
+                                    <td className="px-3 py-1.5 text-right text-orange-500">{fmt(mp.excessoPeriodo)}</td>
+                                    <td className="px-3 py-1.5 text-right text-orange-600">{money(mp.valorExcesso)}</td>
+                                  </tr>
+                                ))}
+                              </React.Fragment>
+                            );
+                          })}
+                          {excessoModalPorArtigo.length === 0 && (
+                            <tr><td colSpan={9} className="px-3 py-8 text-center text-gray-500">Nenhum artigo com excesso neste periodo.</td></tr>
+                          )}
+                        </tbody>
+                        {excessoModalPorArtigo.length > 0 && (
+                          <tfoot className="bg-orange-100 font-semibold sticky bottom-0">
+                            <tr>
+                              <td className="px-3 py-2"></td>
+                              <td className="px-3 py-2">TOTAL ({excessoModalPorArtigo.length} artigos)</td>
+                              <td className="px-3 py-2 text-right">{fmt(excessoModalTotais.estoque)}</td>
+                              <td className="px-3 py-2 text-right text-sky-700">{fmt(excessoModalTotais.entradasAte)}</td>
+                              <td className="px-3 py-2 text-right text-red-700">{fmt(excessoModalTotais.consumoAte)}</td>
+                              <td className="px-3 py-2 text-right text-emerald-700">{fmt(excessoModalTotais.saldo)}</td>
+                              <td className="px-3 py-2 text-right">{fmt(excessoModalTotais.estoqueSeguranca)}</td>
+                              <td className="px-3 py-2 text-right text-orange-600">{fmt(excessoModalTotais.excesso)}</td>
+                              <td className="px-3 py-2 text-right text-orange-700">{money(excessoModalTotais.valorExcesso)}</td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal detalhamento OPs antigas */}
+          {opsAntigasModalAberto && opsAntigas && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-lg max-h-[90vh] overflow-hidden rounded-lg bg-white shadow-xl border border-gray-200">
+                <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4 bg-amber-50">
+                  <div>
+                    <div className="text-sm font-bold text-amber-800">OPs em processo ha mais de 20 dias - Detalhamento</div>
+                    <div className="mt-1 text-xs text-amber-700">
+                      {opsAntigas.opsCount} OPs com {fmt(opsAntigas.qtdTotal)} pecas paradas
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOpsAntigasModalAberto(false)}
+                    className="rounded border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                  >
+                    Fechar
+                  </button>
+                </div>
+
+                <div className="overflow-auto p-4 space-y-3" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+                  <div className="grid grid-cols-4 gap-2">
+                    {Object.entries(opsAntigas.porFaixa).map(([faixa, dados]) => (
+                      dados.qtd > 0 && (
+                        <div key={faixa} className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-center">
+                          <div className="text-[10px] text-amber-600">{faixa}</div>
+                          <div className="text-sm font-bold text-amber-700">{fmt(dados.qtd)}</div>
+                          <div className="text-[10px] text-amber-600">{dados.ops} OPs</div>
+                        </div>
+                      )
+                    ))}
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-brand-dark">Lista de OPs paradas</span>
+                      <span className="text-[11px] text-gray-500">{opsAntigas.data.length} OPs</span>
+                    </div>
+                    <div className="overflow-auto" style={{ maxHeight: '55vh' }}>
+                      <table className="min-w-full text-xs">
+                        <thead className="bg-gray-100 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left">OP</th>
+                            <th className="px-3 py-2 text-right">Dias</th>
+                            <th className="px-3 py-2 text-right">Quantidade</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {opsAntigas.data.map((op, idx) => {
+                            const diasClass = op.diasEmProcesso > 60
+                              ? 'text-red-700 font-bold'
+                              : op.diasEmProcesso > 40
+                                ? 'text-orange-700 font-semibold'
+                                : 'text-amber-700';
+                            return (
+                              <tr key={`${op.nrOp}-${op.nrCiclo}-${idx}`} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} border-t border-gray-100`}>
+                                <td className="px-3 py-2 font-semibold text-gray-700">{op.nrOp}</td>
+                                <td className={`px-3 py-2 text-right ${diasClass}`}>{op.diasEmProcesso}</td>
+                                <td className="px-3 py-2 text-right font-semibold text-amber-700">{fmt(op.qtdEmProcesso)}</td>
+                              </tr>
+                            );
+                          })}
+                          {opsAntigas.data.length === 0 && (
+                            <tr><td colSpan={3} className="px-3 py-8 text-center text-gray-500">Nenhuma OP encontrada.</td></tr>
+                          )}
+                        </tbody>
+                        {opsAntigas.data.length > 0 && (
+                          <tfoot className="bg-amber-100 font-semibold sticky bottom-0">
+                            <tr>
+                              <td className="px-3 py-2">TOTAL ({opsAntigas.data.length} OPs)</td>
+                              <td className="px-3 py-2 text-right">-</td>
+                              <td className="px-3 py-2 text-right text-amber-700">{fmt(opsAntigas.data.reduce((acc, op) => acc + op.qtdEmProcesso, 0))}</td>
                             </tr>
                           </tfoot>
                         )}
@@ -1740,9 +2461,9 @@ function SortTh({ children, align = 'left', active, dir, onClick }: { children: 
   );
 }
 
-function InfoCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: 'orange' | 'sky' }) {
-  const bgClass = tone === 'orange' ? 'border-orange-200 bg-orange-50' : tone === 'sky' ? 'border-sky-200 bg-sky-50' : 'border-gray-200 bg-gray-50';
-  const textClass = tone === 'orange' ? 'text-orange-700' : tone === 'sky' ? 'text-sky-700' : 'text-gray-900';
+function InfoCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: 'orange' | 'sky' | 'slate' }) {
+  const bgClass = tone === 'orange' ? 'border-orange-200 bg-orange-50' : tone === 'sky' ? 'border-sky-200 bg-sky-50' : tone === 'slate' ? 'border-slate-200 bg-slate-50' : 'border-gray-200 bg-gray-50';
+  const textClass = tone === 'orange' ? 'text-orange-700' : tone === 'sky' ? 'text-sky-700' : tone === 'slate' ? 'text-slate-700' : 'text-gray-900';
   return (
     <div className={`rounded border px-3 py-2 ${bgClass}`}>
       <div className="text-[11px] text-gray-500">{label}</div>
