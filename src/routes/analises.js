@@ -113,7 +113,7 @@ function safeParseJson(raw, fallback) {
   }
 }
 
-router.get("/", auth, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const pool = req.app.get("pool");
     const data = await readAnalises(pool);
@@ -127,7 +127,7 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-router.get("/produtos-suspensos", auth, async (req, res) => {
+router.get("/produtos-suspensos", async (req, res) => {
   try {
     const pool = req.app.get("pool");
     const result = await pool.query(`
@@ -152,7 +152,7 @@ router.get("/produtos-suspensos", auth, async (req, res) => {
   }
 });
 
-router.get("/top30-produtos", auth, async (req, res) => {
+router.get("/top30-produtos", async (req, res) => {
   try {
     const pool = req.app.get("pool");
     const result = await pool.query("SELECT * FROM mv_top30_produtos");
@@ -230,7 +230,7 @@ router.get("/top30-produtos", auth, async (req, res) => {
  * Curva C: 30 referências anteriores às últimas 20 no ranking de quantidade
  * Curva D: Últimas 20 referências no ranking de quantidade
  */
-router.get("/curva-abc-referencias", auth, async (req, res) => {
+router.get("/curva-abc-referencias", async (req, res) => {
   try {
     const pool = req.app.get("pool");
     const cached = await readCacheByKey(CURVA_ABC_CACHE_KEY);
@@ -310,6 +310,262 @@ router.post("/projecao-vs-venda", auth, async (req, res) => {
       success: false,
       error: "Erro ao calcular projeção vs venda",
       details: error.message
+    });
+  }
+});
+
+router.get("/snapshot-lotes/datas", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const result = await pool.query(`
+      SELECT
+        DATE(data_snapshot) AS data,
+        MAX(data_snapshot) AS snapshot_at,
+        COUNT(*)::INT AS linhas
+      FROM snapshot_lotes
+      GROUP BY DATE(data_snapshot)
+      ORDER BY DATE(data_snapshot) DESC
+      LIMIT 120
+    `);
+
+    return res.json({
+      success: true,
+      data: result.rows.map((row) => ({
+        data: row.data,
+        snapshotAt: row.snapshot_at,
+        linhas: Number(row.linhas || 0),
+      })),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao listar snapshots do plano",
+      details: error.message,
+    });
+  }
+});
+
+async function resolveSnapshotAt(pool, data, offset) {
+  if (data) {
+    const result = await pool.query(
+      `SELECT MAX(data_snapshot) AS snapshot_at
+       FROM snapshot_lotes
+       WHERE DATE(data_snapshot) = $1::DATE`,
+      [data]
+    );
+    return result.rows?.[0]?.snapshot_at || null;
+  }
+
+  const result = await pool.query(
+    `SELECT MAX(data_snapshot) AS snapshot_at
+     FROM snapshot_lotes
+     GROUP BY DATE(data_snapshot)
+     ORDER BY DATE(data_snapshot) DESC
+     OFFSET $1 LIMIT 1`,
+    [offset]
+  );
+  return result.rows?.[0]?.snapshot_at || null;
+}
+
+function tipoAlteracao(delta, qtdDe, qtdAte) {
+  if (qtdDe <= 0 && qtdAte > 0) return "ADICIONADO";
+  if (qtdDe > 0 && qtdAte <= 0) return "RETIRADO";
+  if (delta > 0) return "AUMENTADO";
+  if (delta < 0) return "REDUZIDO";
+  return "SEM_ALTERACAO";
+}
+
+router.get("/snapshot-lotes/comparativo", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const dataDe = req.query.de ? String(req.query.de).slice(0, 10) : null;
+    const dataAte = req.query.ate ? String(req.query.ate).slice(0, 10) : null;
+    const periodos = String(req.query.periodos || "MA,PX,UL,QT,QU")
+      .split(",")
+      .map((p) => p.trim().toUpperCase())
+      .filter((p) => ["MA", "PX", "UL", "QT", "QU"].includes(p));
+    const apenasAlterados = req.query.apenas_alterados !== "false";
+    const limit = Math.min(Number(req.query.limit) || 1000, 5000);
+
+    const snapshotAte = await resolveSnapshotAt(pool, dataAte, 0);
+    const snapshotDe = await resolveSnapshotAt(pool, dataDe, dataAte ? 1 : 1);
+
+    if (!snapshotDe || !snapshotAte) {
+      return res.status(404).json({
+        success: false,
+        error: "Snapshots insuficientes para comparar",
+      });
+    }
+
+    const result = await pool.query(`
+      WITH snap_de AS (
+        SELECT
+          cd_produto::BIGINT AS cd_produto,
+          UPPER(TRIM(COALESCE(cd_auxiliar, ''))) AS periodo,
+          MIN(nr_lote)::BIGINT AS nr_lote,
+          MIN(dt_cadastro) AS dt_cadastro,
+          MIN(dt_integracao) AS dt_integracao,
+          SUM(COALESCE(qt_lote, 0))::FLOAT AS qtd_lote,
+          SUM(GREATEST(COALESCE(qt_lote, 0) - COALESCE(qt_gerouop, 0), 0))::FLOAT AS qtd_aberto,
+          SUM(COALESCE(qt_gerouop, 0))::FLOAT AS qtd_gerouop
+        FROM snapshot_lotes
+        WHERE data_snapshot = $1
+          AND UPPER(TRIM(COALESCE(cd_auxiliar, ''))) = ANY($3::TEXT[])
+          AND COALESCE(tp_situacao, 0) = 1
+        GROUP BY cd_produto, UPPER(TRIM(COALESCE(cd_auxiliar, '')))
+      ),
+      snap_ate AS (
+        SELECT
+          cd_produto::BIGINT AS cd_produto,
+          UPPER(TRIM(COALESCE(cd_auxiliar, ''))) AS periodo,
+          MIN(nr_lote)::BIGINT AS nr_lote,
+          MIN(dt_cadastro) AS dt_cadastro,
+          MIN(dt_integracao) AS dt_integracao,
+          SUM(COALESCE(qt_lote, 0))::FLOAT AS qtd_lote,
+          SUM(GREATEST(COALESCE(qt_lote, 0) - COALESCE(qt_gerouop, 0), 0))::FLOAT AS qtd_aberto,
+          SUM(COALESCE(qt_gerouop, 0))::FLOAT AS qtd_gerouop
+        FROM snapshot_lotes
+        WHERE data_snapshot = $2
+          AND UPPER(TRIM(COALESCE(cd_auxiliar, ''))) = ANY($3::TEXT[])
+          AND COALESCE(tp_situacao, 0) = 1
+        GROUP BY cd_produto, UPPER(TRIM(COALESCE(cd_auxiliar, '')))
+      ),
+      diff AS (
+        SELECT
+          COALESCE(a.cd_produto, b.cd_produto) AS cd_produto,
+          COALESCE(a.periodo, b.periodo) AS periodo,
+          a.nr_lote AS nr_lote_de,
+          b.nr_lote AS nr_lote_ate,
+          a.dt_cadastro AS dt_cadastro_de,
+          b.dt_cadastro AS dt_cadastro_ate,
+          a.dt_integracao AS dt_integracao_de,
+          b.dt_integracao AS dt_integracao_ate,
+          COALESCE(a.qtd_lote, 0)::FLOAT AS qtd_lote_de,
+          COALESCE(b.qtd_lote, 0)::FLOAT AS qtd_lote_ate,
+          COALESCE(a.qtd_aberto, 0)::FLOAT AS qtd_aberto_de,
+          COALESCE(b.qtd_aberto, 0)::FLOAT AS qtd_aberto_ate,
+          COALESCE(a.qtd_gerouop, 0)::FLOAT AS qtd_gerouop_de,
+          COALESCE(b.qtd_gerouop, 0)::FLOAT AS qtd_gerouop_ate
+        FROM snap_de a
+        FULL OUTER JOIN snap_ate b
+          ON a.cd_produto = b.cd_produto
+         AND a.periodo = b.periodo
+      )
+      SELECT
+        d.*,
+        (d.qtd_aberto_ate - d.qtd_aberto_de)::FLOAT AS delta_aberto,
+        (d.qtd_lote_ate - d.qtd_lote_de)::FLOAT AS delta_lote,
+        p.cd_seqgrupo::TEXT AS referencia,
+        p.nm_produto AS produto,
+        p.ds_cor AS cor,
+        p.ds_tamanho AS tamanho,
+        f_dic_prd_classificacao(d.cd_produto, 'DS'::text, 20::bigint) AS marca,
+        f_dic_prd_classificacao(d.cd_produto, 'DS'::text, 27::bigint) AS status,
+        f_dic_prd_classificacao(d.cd_produto, 'DS'::text, 22::bigint) AS linha,
+        f_dic_prd_classificacao(d.cd_produto, 'DS'::text, 25::bigint) AS grupo
+      FROM diff d
+      LEFT JOIN vr_prd_prdgrade p ON p.cd_produto = d.cd_produto
+      WHERE ($4::BOOLEAN = FALSE OR d.qtd_aberto_ate <> d.qtd_aberto_de OR d.qtd_lote_ate <> d.qtd_lote_de)
+      ORDER BY ABS(d.qtd_aberto_ate - d.qtd_aberto_de) DESC, d.periodo, d.cd_produto
+      LIMIT $5
+    `, [snapshotDe, snapshotAte, periodos, apenasAlterados, limit]);
+
+    const resumoPorPeriodo = {};
+    const resumo = {
+      itensAlterados: 0,
+      adicionado: 0,
+      retirado: 0,
+      aumento: 0,
+      reducao: 0,
+      delta: 0,
+      alertas: 0,
+    };
+
+    const rows = result.rows.map((row) => {
+      const delta = Math.round(Number(row.delta_aberto || 0));
+      const qtdDe = Math.round(Number(row.qtd_aberto_de || 0));
+      const qtdAte = Math.round(Number(row.qtd_aberto_ate || 0));
+      const tipo = tipoAlteracao(delta, qtdDe, qtdAte);
+      const periodo = String(row.periodo || "");
+      const dtIntegracao = row.dt_integracao_ate || row.dt_integracao_de || null;
+      const dataVencida = dtIntegracao ? new Date(dtIntegracao).getTime() <= Date.now() : false;
+      const periodoSensivel = periodo === "MA";
+      const alerta = delta !== 0 && (periodoSensivel || dataVencida);
+      const motivos = [];
+      if (periodoSensivel) motivos.push("Alteracao no MA");
+      if (dataVencida) motivos.push("Data de integracao vencida/hoje");
+      if (qtdDe > 0 && qtdAte <= 0) motivos.push("Plano zerado/retirado");
+
+      if (!resumoPorPeriodo[periodo]) {
+        resumoPorPeriodo[periodo] = { periodo, itens: 0, adicionado: 0, retirado: 0, aumento: 0, reducao: 0, delta: 0, alertas: 0 };
+      }
+      const rp = resumoPorPeriodo[periodo];
+      rp.itens += 1;
+      rp.delta += delta;
+      if (delta > 0) {
+        rp.adicionado += tipo === "ADICIONADO" ? delta : 0;
+        rp.aumento += delta;
+      }
+      if (delta < 0) {
+        rp.retirado += tipo === "RETIRADO" ? Math.abs(delta) : 0;
+        rp.reducao += Math.abs(delta);
+      }
+      if (alerta) rp.alertas += 1;
+
+      resumo.itensAlterados += 1;
+      resumo.delta += delta;
+      if (delta > 0) {
+        resumo.adicionado += tipo === "ADICIONADO" ? delta : 0;
+        resumo.aumento += delta;
+      }
+      if (delta < 0) {
+        resumo.retirado += tipo === "RETIRADO" ? Math.abs(delta) : 0;
+        resumo.reducao += Math.abs(delta);
+      }
+      if (alerta) resumo.alertas += 1;
+
+      return {
+        cdProduto: String(row.cd_produto || ""),
+        periodo,
+        referencia: String(row.referencia || ""),
+        produto: String(row.produto || ""),
+        cor: String(row.cor || ""),
+        tamanho: String(row.tamanho || ""),
+        marca: String(row.marca || ""),
+        status: String(row.status || ""),
+        linha: String(row.linha || ""),
+        grupo: String(row.grupo || ""),
+        nrLoteDe: row.nr_lote_de ? String(row.nr_lote_de) : "",
+        nrLoteAte: row.nr_lote_ate ? String(row.nr_lote_ate) : "",
+        dtCadastroDe: row.dt_cadastro_de,
+        dtCadastroAte: row.dt_cadastro_ate,
+        dtIntegracaoDe: row.dt_integracao_de,
+        dtIntegracaoAte: row.dt_integracao_ate,
+        qtdAbertoDe: qtdDe,
+        qtdAbertoAte: qtdAte,
+        qtdLoteDe: Math.round(Number(row.qtd_lote_de || 0)),
+        qtdLoteAte: Math.round(Number(row.qtd_lote_ate || 0)),
+        deltaAberto: delta,
+        deltaLote: Math.round(Number(row.delta_lote || 0)),
+        tipo,
+        alerta,
+        motivos,
+      };
+    });
+
+    return res.json({
+      success: true,
+      filtros: { dataDe, dataAte, periodos, apenasAlterados, limit },
+      snapshots: { de: snapshotDe, ate: snapshotAte },
+      resumo,
+      porPeriodo: Object.values(resumoPorPeriodo).sort((a, b) => periodos.indexOf(a.periodo) - periodos.indexOf(b.periodo)),
+      data: rows,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao comparar snapshots do plano",
+      details: error.message,
     });
   }
 });

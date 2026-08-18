@@ -19,6 +19,7 @@ const COB_SAUDAVEL_CURVA_A = 0.8;
 const COB_SAUDAVEL_CURVA_B = 0.7;
 const COB_SAUDAVEL_CURVA_C = 0.6;
 const COB_SAUDAVEL_CURVA_D = 0.5;
+const TAMANHOS_GRANDES_CORTE_CHEIO = new Set(['GG', 'EG', 'XG', '48', '50', '52', '54']);
 
 function nowMs() {
   if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
@@ -389,6 +390,9 @@ export default function SugestaoPlanoPage() {
   const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
   const [curvaABCData, setCurvaABCData] = useState<CurvaABCData | null>(null);
   const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
+  const [salvarSomenteVisiveis, setSalvarSomenteVisiveis] = useState(true);
+  const [salvarSomenteReducao, setSalvarSomenteReducao] = useState(false);
+  const [atenderNegativos, setAtenderNegativos] = useState(false);
   const [capacidadeGrupos, setCapacidadeGrupos] = useState<GrupoCapacidadeConfig[]>([]);
   const [capacidadeGrupoRefs, setCapacidadeGrupoRefs] = useState<GrupoRefConfig[]>([]);
   const [capacidadeDias, setCapacidadeDias] = useState<Record<string, number>>({});
@@ -829,8 +833,10 @@ export default function SugestaoPlanoPage() {
       const id = String(item.produto.idproduto || '');
       const refNorm = normRef(item.produto.referencia || '');
       const linhaItem = String(item.produto.linha || '').trim();
+      const tamanhoNorm = normalizeRuleText(String(item.produto.tamanho || ''));
       // Identificar curva ABC da referência (fallback para B se não encontrada)
       const curvaRef: 'A' | 'B' | 'C' | 'D' = curvaABC[refNorm] || 'B';
+      const bloquearMeioLoteCurvaATamanho = curvaRef === 'A' && TAMANHOS_GRANDES_CORTE_CHEIO.has(tamanhoNorm);
       // Cobertura alvo baseada na curva ABC configurada
       const cobAlvoBase = getCoberturaMinPorCurva(curvaRef, cfg);
       const gruposRef = gruposByReferencia.get(refNorm) || [];
@@ -927,7 +933,7 @@ export default function SugestaoPlanoPage() {
             // Se ultrapassar muito (cob > 0.5 em emergência, > 1.0 normal), tenta lote/2
             const cobPosCeil = min > 0 ? dispPosCeil / min : 0;
             const thresholdMeioLote = maModo === 'EMERGENCIA' ? 0.5 : 1.0;
-            if (cobPosCeil > thresholdMeioLote && lote > 1) {
+            if (!bloquearMeioLoteCurvaATamanho && cobPosCeil > thresholdMeioLote && lote > 1) {
               lote = Math.max(1, Math.round(lote / 2));
               const planoMeioLote = Math.ceil(necessidadeBruta / lote) * lote;
 
@@ -963,8 +969,8 @@ export default function SugestaoPlanoPage() {
           }
         }
 
-        // Para UL, QT, QU e SX: aplicar lógica de meio lote baseada na cobertura máxima por curva ABC (ou IDEAL)
-        if ((periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && cfg.usar_corte_minimo && lote > 1 && min > 0 && planoSugerido > 0) {
+        // Para PX em diante: aplicar lógica de meio lote baseada na cobertura máxima por curva ABC (ou IDEAL)
+        if (!bloquearMeioLoteCurvaATamanho && (periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && cfg.usar_corte_minimo && lote > 1 && min > 0 && planoSugerido > 0) {
           const cobMax = getCoberturaMaxPorCurva(curvaRef, cfg, linhaItem);
           const cobMaxTolerada = getCoberturaMaxToleradaParaCorteMinimo(curvaRef, cobMax);
           const dispPosAtual = dispAnterior + planoSugerido - projMes;
@@ -1414,7 +1420,7 @@ export default function SugestaoPlanoPage() {
       if (filtroLinha !== 'TODAS' && String(r.linha || '').trim().toUpperCase() !== filtroLinha) return false;
       if (filtroFamilia !== 'TODAS' && String(r.familia || '').trim().toUpperCase() !== filtroFamilia) return false;
       if (filtroOpMin === 'BLOQUEADA' && !Boolean(r.opMinNaoAtendida)) return false;
-      if (periodoAlvo === 'UL' && filtroMeioLoteUL === 'MEIO_LOTE' && !Boolean(r.usouMeioLote)) return false;
+      if ((periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && filtroMeioLoteUL === 'MEIO_LOTE' && !Boolean(r.usouMeioLote)) return false;
       // Filtro por curva ABC
       if (filtroCurvaABC.length > 0) {
         const refNorm = String(r.referencia || '').trim().toUpperCase();
@@ -1550,10 +1556,9 @@ export default function SugestaoPlanoPage() {
     return rowsVisiveisTela.filter((r) => Boolean(r.opMinNaoAtendida)).length;
   }, [rowsVisiveisTela]);
 
-  // Conta SKUs que usaram corte_min / 2 (MA Emergência, UL, QT e QU)
+  // Conta SKUs que usaram corte_min / 2 (MA Emergência, PX, UL, QT, QU e SX)
   const resumoMeioLote = useMemo(() => {
-    // Funciona para MA Emergência, UL, QT, QU e SX
-    const habilitado = (periodoAlvo === 'MA' && maModo === 'EMERGENCIA') || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX';
+    const habilitado = (periodoAlvo === 'MA' && maModo === 'EMERGENCIA') || periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX';
     if (!habilitado) {
       return { skus: 0, pecas: 0 };
     }
@@ -1585,6 +1590,79 @@ export default function SugestaoPlanoPage() {
     });
     return { itensAtuais, pecasAtuais: Math.round(pecasAtuais), itensPos, pecasPos: Math.round(pecasPos) };
   }, [rowsVisiveisTela]);
+
+  // Negativos em TODOS os rows (não apenas filtrados) - para "Atender negativos"
+  const resumoNegativosTodos = useMemo(() => {
+    let itens = 0;
+    let pecas = 0;
+    let pecasNecessarias = 0;
+    rows.forEach((r) => {
+      const dispMesAlvo = Number(r.dispMesAlvo || 0);
+      if (dispMesAlvo < 0) {
+        itens += 1;
+        pecas += Math.abs(dispMesAlvo);
+        // Quantidade necessária para zerar o negativo
+        const dispAnterior = Number(r.dispAnterior || 0);
+        const projMes = Number(r.projMes || 0);
+        const planoAtual = Number(r.planoAtual || 0);
+        const planoNecessario = Math.max(0, Math.ceil(projMes - dispAnterior));
+        const aumento = Math.max(0, planoNecessario - planoAtual);
+        pecasNecessarias += aumento;
+      }
+    });
+    return { itens, pecas: Math.round(pecas), pecasNecessarias: Math.round(pecasNecessarias) };
+  }, [rows]);
+
+  const resumoImpactoSalvar = useMemo(() => {
+    const candidatosBase = salvarSomenteVisiveis ? rowsVisiveisTela : rows;
+    const alterados = candidatosBase.filter((r) => {
+      const delta = Math.round(r.planoSugerido || 0) - Math.round(r.planoAtual || 0);
+      if (delta === 0) return false;
+      if (salvarSomenteReducao && delta >= 0) return false;
+      return true;
+    });
+    const alteradosKeys = new Set(alterados.map((r) => String(r.chave || '').trim()).filter(Boolean));
+
+    let reducaoFiltros = 0;
+    let aumentoFiltros = 0;
+    alterados.forEach((r) => {
+      const delta = Math.round(r.planoSugerido || 0) - Math.round(r.planoAtual || 0);
+      if (delta < 0) reducaoFiltros += Math.abs(delta);
+      if (delta > 0) aumentoFiltros += delta;
+    });
+
+    let negativosItens = 0;
+    let aumentoNegativos = 0;
+    if (atenderNegativos) {
+      rows.forEach((r) => {
+        const chave = String(r.chave || '').trim();
+        if (!chave || alteradosKeys.has(chave)) return;
+        if (Number(r.dispMesAlvo || 0) >= 0) return;
+
+        const dispAnterior = Number(r.dispAnterior || 0);
+        const projMes = Number(r.projMes || 0);
+        const planoAtual = Number(r.planoAtual || 0);
+        const planoNecessario = Math.max(0, Math.ceil(projMes - dispAnterior));
+        const aumento = Math.max(0, planoNecessario - planoAtual);
+        if (aumento > 0) {
+          negativosItens += 1;
+          aumentoNegativos += aumento;
+        }
+      });
+    }
+
+    const aumentoTotal = aumentoFiltros + aumentoNegativos;
+    const deltaLiquido = aumentoTotal - reducaoFiltros;
+    return {
+      alterados: alterados.length,
+      reducaoFiltros: Math.round(reducaoFiltros),
+      aumentoFiltros: Math.round(aumentoFiltros),
+      negativosItens,
+      aumentoNegativos: Math.round(aumentoNegativos),
+      aumentoTotal: Math.round(aumentoTotal),
+      deltaLiquido: Math.round(deltaLiquido),
+    };
+  }, [rows, rowsVisiveisTela, salvarSomenteVisiveis, salvarSomenteReducao, atenderNegativos]);
 
   const resumoCapacidadeUL = useMemo(() => {
     if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX')) {
@@ -2069,67 +2147,106 @@ export default function SugestaoPlanoPage() {
       setError(null);
       setOkMsg(null);
 
-      const candidatosSalvar =
-        periodoAlvo === 'MA' && maModo === 'EMERGENCIA'
-          ? rows
-          : rowsVisiveisTela;
-
-      const alterados =
-        periodoAlvo === 'MA' && maModo === 'EMERGENCIA'
-          ? candidatosSalvar
-          : candidatosSalvar.filter((r) => Math.round(r.planoSugerido || 0) !== Math.round(r.planoAtual || 0));
-      const alteradosKeys = new Set(alterados.map((r) => String(r.chave || '').trim()).filter(Boolean));
-      const isPlanoCompletoCont = (cont: string) => {
-        const norm = String(cont || '')
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .trim()
-          .toUpperCase();
-        return norm === 'PERMANENTE' || norm === 'PERMANENTE COR NOVA';
-      };
-      const buildPlano = (r: Row, aplicarSugestao: boolean) => ({
-        chave: r.chave,
-        ma: Math.round(periodoAlvo === 'MA' && aplicarSugestao ? r.planoSugerido : r.planoMA),
-        px: Math.round(periodoAlvo === 'PX' && aplicarSugestao ? r.planoSugerido : r.planoPX),
-        ul: Math.round(periodoAlvo === 'UL' && aplicarSugestao ? r.planoSugerido : r.planoUL),
-        qt: Math.round(periodoAlvo === 'QT' && aplicarSugestao ? r.planoSugerido : r.planoQT),
-        qu: Math.round(periodoAlvo === 'QU' && aplicarSugestao ? r.planoSugerido : r.planoQU),
-        sx: Math.round(periodoAlvo === 'SX' && aplicarSugestao ? r.planoSugerido : r.planoSX),
+      const candidatosBase = salvarSomenteVisiveis ? rowsVisiveisTela : rows;
+      const candidatosSalvar = candidatosBase.filter((r) => {
+        const delta = Math.round(r.planoSugerido || 0) - Math.round(r.planoAtual || 0);
+        if (salvarSomenteReducao && !(delta < 0)) return false;
+        return true;
       });
+
+      const alterados = candidatosSalvar.filter((r) =>
+        Math.round(r.planoSugerido || 0) !== Math.round(r.planoAtual || 0)
+      );
+
+      // Atender Negativos: incluir SKUs com dispMesAlvo < 0 e calcular quantidade necessária
+      const negativosAtendidos: Row[] = [];
+      const planoParaNegativo = new Map<string, number>();
+      if (atenderNegativos) {
+        rows.forEach((r) => {
+          const chave = String(r.chave || '').trim();
+          if (!chave) return;
+          // Se já está em alterados, pular
+          if (alterados.some((a) => String(a.chave || '').trim() === chave)) return;
+          // Se dispMesAlvo < 0, calcular plano necessário
+          const dispMesAlvo = Number(r.dispMesAlvo || 0);
+          if (dispMesAlvo < 0) {
+            // Quantidade necessária para zerar o negativo: projMes - dispAnterior
+            const dispAnterior = Number(r.dispAnterior || 0);
+            const projMes = Number(r.projMes || 0);
+            const planoAtual = Number(r.planoAtual || 0);
+            // planoNecessario = o suficiente para dispPos >= 0
+            // dispPos = dispAnterior + planoNovo - projMes >= 0
+            // planoNovo >= projMes - dispAnterior
+            const planoNecessario = Math.max(0, Math.ceil(projMes - dispAnterior));
+            // Só adiciona se o plano necessário for diferente do atual
+            if (planoNecessario !== planoAtual) {
+              negativosAtendidos.push(r);
+              planoParaNegativo.set(chave, planoNecessario);
+            }
+          }
+        });
+      }
+
+      const alteradosKeys = new Set(alterados.map((r) => String(r.chave || '').trim()).filter(Boolean));
+      const negativosKeys = new Set(negativosAtendidos.map((r) => String(r.chave || '').trim()).filter(Boolean));
+
+      const buildPlano = (r: Row, aplicarSugestao: boolean, planoOverride?: number) => {
+        const getValorPeriodo = (periodo: string) => {
+          if (periodo !== periodoAlvo) {
+            return Math.round(periodo === 'MA' ? r.planoMA : (periodo === 'PX' ? r.planoPX : (periodo === 'UL' ? r.planoUL : (periodo === 'QT' ? r.planoQT : (periodo === 'QU' ? r.planoQU : r.planoSX)))));
+          }
+          if (planoOverride !== undefined) return Math.round(planoOverride);
+          return Math.round(aplicarSugestao ? r.planoSugerido : (periodo === 'MA' ? r.planoMA : (periodo === 'PX' ? r.planoPX : (periodo === 'UL' ? r.planoUL : (periodo === 'QT' ? r.planoQT : (periodo === 'QU' ? r.planoQU : r.planoSX))))));
+        };
+        return {
+          chave: r.chave,
+          ma: getValorPeriodo('MA'),
+          px: getValorPeriodo('PX'),
+          ul: getValorPeriodo('UL'),
+          qt: getValorPeriodo('QT'),
+          qu: getValorPeriodo('QU'),
+          sx: getValorPeriodo('SX'),
+        };
+      };
 
       const planosMap = new Map<string, { chave: string; ma: number; px: number; ul: number; qt: number; qu: number; sx: number }>();
 
-      // Sempre levar plano completo de PERMANENTE e PERMANENTE COR NOVA.
-      rows
-        .filter((r) => isPlanoCompletoCont(String(r.continuidade || '')))
-        .forEach((r) => {
-          const chave = String(r.chave || '').trim();
-          if (!chave) return;
-          planosMap.set(chave, buildPlano(r, alteradosKeys.has(chave)));
-        });
+      // Sempre salva o plano final completo: itens fora do escopo entram sem alteração.
+      rows.forEach((r) => {
+        const chave = String(r.chave || '').trim();
+        if (!chave) return;
+        const isAlterado = alteradosKeys.has(chave);
+        const isNegativo = negativosKeys.has(chave);
+        const planoOverride = isNegativo ? planoParaNegativo.get(chave) : undefined;
+        planosMap.set(chave, buildPlano(r, isAlterado, planoOverride));
+      });
 
-      // Mantém também alterações de outros grupos/continuidade.
+      // Garante que qualquer item alterado fora de rows base também entre com a sugestão aplicada.
       alterados.forEach((r) => {
         const chave = String(r.chave || '').trim();
         if (!chave) return;
         planosMap.set(chave, buildPlano(r, true));
       });
 
-      if (periodoAlvo === 'MA' && maModo === 'EMERGENCIA') {
-        planosMap.clear();
-        candidatosSalvar.forEach((r) => {
-          const chave = String(r.chave || '').trim();
-          if (!chave) return;
-          planosMap.set(chave, buildPlano(r, true));
-        });
-      }
+      // Garante que negativos atendidos entrem com o plano calculado
+      negativosAtendidos.forEach((r) => {
+        const chave = String(r.chave || '').trim();
+        if (!chave) return;
+        const planoOverride = planoParaNegativo.get(chave);
+        planosMap.set(chave, buildPlano(r, false, planoOverride));
+      });
 
       const planos = Array.from(planosMap.values());
       if (!planos.length) throw new Error('Nenhum item elegível para salvar.');
 
       const deltaTotal = alterados.reduce((acc, r) => acc + Math.round(r.deltaPlano || 0), 0);
+      const deltaNegativosAtendidos = negativosAtendidos.reduce((acc, r) => {
+        const planoNovo = planoParaNegativo.get(String(r.chave || '').trim()) || 0;
+        const planoAtual = Number(r.planoAtual || 0);
+        return acc + (planoNovo - planoAtual);
+      }, 0);
       const payload = {
-        nome: `Sugestão Plano ${periodoAlvo}${periodoAlvo === 'MA' ? ` · ${maModo === 'EMERGENCIA' ? 'Emergência' : 'Cobertura'}` : ''} · ${new Date().toLocaleDateString('pt-BR')}`,
+        nome: `Sugestão Plano ${periodoAlvo}${periodoAlvo === 'MA' ? ` · ${maModo === 'EMERGENCIA' ? 'Emergência' : 'Cobertura'}` : ''}${atenderNegativos && negativosAtendidos.length > 0 ? ' + Negativos' : ''} · ${new Date().toLocaleDateString('pt-BR')}`,
         parametros: {
           tipo: 'SUGESTAO_PLANO',
           subtipo: periodoAlvo === 'MA' ? (maModo === 'EMERGENCIA' ? 'MA_EMERGENCIA' : 'MA_COBERTURA') : `MES_${periodoAlvo}`,
@@ -2140,6 +2257,11 @@ export default function SugestaoPlanoPage() {
           filtros: {
             continuidade: filtroCont,
             suspensos: filtroSuspensos,
+            curvasABC: filtroCurvaABC,
+            aplicarSomenteVisiveis: salvarSomenteVisiveis,
+            somenteReducao: salvarSomenteReducao,
+            atenderNegativos,
+            planoCompleto: true,
           },
           usarEstoqueLojas,
           estoqueLojasSnapshot: usarEstoqueLojas
@@ -2157,8 +2279,10 @@ export default function SugestaoPlanoPage() {
           deltaTotal,
           aumentoTotal: alterados.reduce((acc, r) => acc + Math.max(0, Math.round(r.deltaPlano || 0)), 0),
           retiradaTotal: alterados.reduce((acc, r) => acc + Math.max(0, -Math.round(r.deltaPlano || 0)), 0),
+          negativosAtendidos: negativosAtendidos.length,
+          deltaNegativosAtendidos,
         },
-        observacoes: `Gerado na Sugestão de Plano. Filtros: cont=${filtroCont}, suspensos=${filtroSuspensos}, viab=${filtroViabilidade}, estoqueLojas=${usarEstoqueLojas ? 'SIM' : 'NAO'}.`,
+        observacoes: `Gerado na Sugestão de Plano. Filtros: cont=${filtroCont}, suspensos=${filtroSuspensos}, curvas=${filtroCurvaABC.length ? filtroCurvaABC.join('/') : 'TODAS'}, aplicarVisiveis=${salvarSomenteVisiveis ? 'SIM' : 'NAO'}, somenteReducao=${salvarSomenteReducao ? 'SIM' : 'NAO'}, atenderNegativos=${atenderNegativos ? 'SIM' : 'NAO'}, planoCompleto=SIM, viab=${filtroViabilidade}, estoqueLojas=${usarEstoqueLojas ? 'SIM' : 'NAO'}.`,
       };
 
       const res = await fetchNoCache(`${API_URL}/api/simulacoes`, {
@@ -2168,15 +2292,10 @@ export default function SugestaoPlanoPage() {
       });
       const data = await res.json();
       if (!res.ok || !data?.success) throw new Error(data?.error || 'Erro ao salvar sugestão');
-      const bloqueadosIgnorados =
-        periodoAlvo === 'MA' && maModo === 'EMERGENCIA'
-          ? Math.max(0, rowsVisiveisTela.length - candidatosSalvar.length)
-          : 0;
-      setOkMsg(
-        bloqueadosIgnorados > 0
-          ? `Sugestão salva com ${alterados.length} itens alterados e ${planos.length} itens no plano completo (${bloqueadosIgnorados} bloqueados ignorados).`
-          : `Sugestão salva com ${alterados.length} itens alterados e ${planos.length} itens no plano completo.`
-      );
+      const escopoMsg = 'plano completo com restante sem alteração';
+      const reducaoMsg = salvarSomenteReducao ? ' somente reduções' : '';
+      const negativosMsg = negativosAtendidos.length > 0 ? ` + ${negativosAtendidos.length} negativos atendidos (+${fmt(deltaNegativosAtendidos)} pçs)` : '';
+      setOkMsg(`Sugestão salva com ${alterados.length} itens alterados e ${planos.length} itens no ${escopoMsg}${reducaoMsg}${negativosMsg}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar sugestão');
     } finally {
@@ -2293,7 +2412,7 @@ export default function SugestaoPlanoPage() {
                 </span>
                 <span className="text-slate-300">|</span>
                 <span className="text-[11px] text-amber-700">
-                  Regra curva A UL/QT: até <strong>{(cfg.cobertura_max_a + 0.5).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong> mantém corte cheio; acima disso usa 1/2 corte.
+                  Regra curva A PX/UL/QT: até <strong>{(cfg.cobertura_max_a + 0.5).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</strong> mantém corte cheio; acima disso usa 1/2 corte, exceto GG/EG/XG/48/50/52/54.
                 </span>
               </div>
 
@@ -2371,7 +2490,7 @@ export default function SugestaoPlanoPage() {
                     <option value="BLOQUEADA">Bloqueada</option>
                   </select>
                 </label>
-                {periodoAlvo === 'UL' && (
+                {(periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && (
                   <label className="flex flex-col">
                     <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">1/2 Corte</span>
                     <select
@@ -2523,6 +2642,47 @@ export default function SugestaoPlanoPage() {
                 </>
               )}
 
+              <div className="h-6 w-px bg-gray-200" />
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Salvar:</span>
+                <label className="inline-flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer hover:text-gray-800">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20"
+                    checked={salvarSomenteVisiveis}
+                    onChange={(e) => setSalvarSomenteVisiveis(e.target.checked)}
+                  />
+                  <span>Aplicar só visíveis</span>
+                </label>
+                <label className="inline-flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer hover:text-gray-800">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20"
+                    checked={salvarSomenteReducao}
+                    onChange={(e) => setSalvarSomenteReducao(e.target.checked)}
+                  />
+                  <span>Aplicar só reduções</span>
+                </label>
+                <label className="inline-flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer hover:text-gray-800" title="Inclui SKUs com disponibilidade negativa no período alvo, calculando quantidade para zerar o negativo">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500/20"
+                    checked={atenderNegativos}
+                    onChange={(e) => setAtenderNegativos(e.target.checked)}
+                  />
+                  <span>Atender negativos</span>
+                </label>
+                {atenderNegativos && resumoImpactoSalvar.negativosItens > 0 && (
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                    +{fmt(resumoImpactoSalvar.negativosItens)} itens / +{fmt(resumoImpactoSalvar.aumentoNegativos)} pçs
+                  </span>
+                )}
+                {atenderNegativos && resumoImpactoSalvar.negativosItens === 0 && (
+                  <span className="text-[11px] text-gray-400">Nenhum negativo</span>
+                )}
+                <span className="text-[11px] text-gray-500">Plano completo sempre incluído</span>
+              </div>
+
               {/* Botão Salvar */}
               <button
                 type="button"
@@ -2590,6 +2750,29 @@ export default function SugestaoPlanoPage() {
                   {fmt(resumoNegativos.pecasPos)}
                 </div>
                 <div className="text-[11px] text-gray-500 mt-0.5">Itens: {fmt(resumoNegativos.itensPos)}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2.5">
+                <div className="text-[11px] text-red-700">Reducao que sera salva</div>
+                <div className="text-xl font-bold text-red-700 leading-tight">-{fmt(resumoImpactoSalvar.reducaoFiltros)}</div>
+                <div className="text-[11px] text-red-600 mt-0.5">Escopo atual: {fmt(resumoImpactoSalvar.alterados)} itens alterados</div>
+              </div>
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                <div className="text-[11px] text-emerald-700">Aumento dos negativos</div>
+                <div className="text-xl font-bold text-emerald-700 leading-tight">+{fmt(resumoImpactoSalvar.aumentoNegativos)}</div>
+                <div className="text-[11px] text-emerald-600 mt-0.5">Itens: {fmt(resumoImpactoSalvar.negativosItens)}</div>
+              </div>
+              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
+                <div className="text-[11px] text-gray-500">Outros aumentos filtrados</div>
+                <div className="text-xl font-bold text-emerald-700 leading-tight">+{fmt(resumoImpactoSalvar.aumentoFiltros)}</div>
+                <div className="text-[11px] text-gray-500 mt-0.5">{salvarSomenteReducao ? 'Bloqueado por so reducoes' : 'Dentro do escopo atual'}</div>
+              </div>
+              <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
+                <div className="text-[11px] text-gray-500">Delta final ao salvar</div>
+                <div className={`text-xl font-bold leading-tight ${resumoImpactoSalvar.deltaLiquido >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmt(resumoImpactoSalvar.deltaLiquido)}</div>
+                <div className="text-[11px] text-gray-500 mt-0.5">Aumentos - reducoes</div>
               </div>
             </div>
 
@@ -2816,7 +2999,7 @@ export default function SugestaoPlanoPage() {
                     </div>
                   </div>
                 </div>
-                {(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && resumoMeioLote.skus > 0 && (
+                {(periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && resumoMeioLote.skus > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5">
                       <div className="text-[11px] text-amber-700">SKUs com Corte Mín ÷ 2</div>
@@ -3265,7 +3448,7 @@ export default function SugestaoPlanoPage() {
                         const refKey = `${cont.continuidade}__${refGroup.referencia}`;
                         const refOpen = expandedRefs.has(refKey);
                         const refOpMinNaoAtendida = refGroup.itens.some((r) => Boolean(r.opMinNaoAtendida));
-                        const refMeioLoteUL = periodoAlvo === 'UL' && refGroup.itens.some((r) => Boolean(r.usouMeioLote));
+                        const refMeioLoteUL = (periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && refGroup.itens.some((r) => Boolean(r.usouMeioLote));
                         const refOpMinFaltante = refGroup.itens.reduce((max, r) => Math.max(max, Number(r.opMinFaltante || 0)), 0);
                         const refTotais = refGroup.itens.reduce((acc, r) => ({
                           estoqueAtual: acc.estoqueAtual + Number(r.estoqueAtual || 0),
@@ -3321,7 +3504,7 @@ export default function SugestaoPlanoPage() {
                                 )}
                                 {!refOpMinNaoAtendida && refMeioLoteUL && (
                                   <span className="ml-2 inline-flex items-center rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
-                                    Usou 1/2 corte no UL
+                                    Usou 1/2 corte no {periodoAlvo}
                                   </span>
                                 )}
                               </td>
@@ -3365,7 +3548,7 @@ export default function SugestaoPlanoPage() {
                               const st = statusViabilidadeRow(r);
                               const aumentoPlano = Number(r.deltaPlano || 0) > 0;
                               const opMinBloqueada = Boolean(r.opMinNaoAtendida);
-                              const meioLoteUL = periodoAlvo === 'UL' && Boolean(r.usouMeioLote);
+                              const meioLoteUL = (periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && Boolean(r.usouMeioLote);
                               const rowBgClass = isActive
                                 ? 'bg-blue-50'
                                 : opMinBloqueada
