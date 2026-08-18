@@ -9,6 +9,10 @@ const GRUPOS_FILE = path.join(DATA_DIR, "capacidade_grupos.json");
 const GRUPO_REFS_FILE = path.join(DATA_DIR, "capacidade_grupo_refs.json");
 const DIAS_FILE = path.join(DATA_DIR, "capacidade_dias.json");
 
+// Cache para dias-resumo (evita recalcular a cada requisição)
+const diasResumoCache = { data: null, timestamp: 0 };
+const DIAS_RESUMO_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
 function auth(req, res, next) {
   const token = (req.headers.authorization || "").replace("Bearer ", "").trim();
   const expected = (process.env.ADMIN_PASSWORD || "").trim();
@@ -724,6 +728,210 @@ router.get("/matriz", auth, async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Erro ao calcular matriz de capacidade",
+      details: error.message,
+    });
+  }
+});
+
+// ── GET /api/capacidade/dias-resumo ─────────────────────────────────────────────
+// Endpoint otimizado com cache de 5 minutos (sem autenticacao para uso no dashboard)
+router.get("/dias-resumo", async (req, res) => {
+  try {
+    // Verificar cache (válido por 5 minutos)
+    const forceRefresh = req.query.refresh === 'true';
+    if (!forceRefresh && diasResumoCache.data && (Date.now() - diasResumoCache.timestamp) < DIAS_RESUMO_CACHE_TTL) {
+      return res.json({ ...diasResumoCache.data, fromCache: true });
+    }
+
+    const pool = req.app.get("pool");
+    const { readCache } = require('../cache/matrizCache');
+
+    // 1. Carregar configurações
+    const grupos = readGrupos();
+    const grupoRefs = readGrupoRefs();
+    const dias = readDias();
+
+    // 2. Carregar tempos por referência
+    const temposResult = await queryTempoBaseRows(pool, {});
+    const tempoPorRef = new Map();
+    for (const row of temposResult.rows || []) {
+      const idreferencia = String(row.idreferencia || "").trim().toUpperCase();
+      if (!idreferencia) continue;
+      const base = resolveTempoLikePowerBi(row.hr_tempo, row.hr_tempopadrao);
+      const total = Number.isFinite(base) ? base : 0;
+      const atual = tempoPorRef.get(idreferencia) || 0;
+      tempoPorRef.set(idreferencia, atual + total);
+    }
+
+    // 3. Carregar matriz da cache
+    const matrizCache = await readCache();
+    const matrizRows = Array.isArray(matrizCache?.data?.rows)
+      ? matrizCache.data.rows
+      : (Array.isArray(matrizCache?.data?.data) ? matrizCache.data.data : []);
+
+    // 4. Calcular períodos
+    const hoje = new Date();
+    const mesAtualJs = hoje.getMonth();
+    const ano = hoje.getFullYear();
+    const diaAtual = hoje.getDate();
+    const ultimoDia = new Date(ano, mesAtualJs + 1, 0).getDate();
+    const eUltimoDia = diaAtual === ultimoDia;
+    let ma = eUltimoDia ? mesAtualJs + 2 : mesAtualJs + 1;
+    if (ma > 12) ma -= 12;
+    const px = ma + 1 > 12 ? ma + 1 - 12 : ma + 1;
+    const ul = ma + 2 > 12 ? ma + 2 - 12 : ma + 2;
+    const qt = ma + 3 > 12 ? ma + 3 - 12 : ma + 3;
+    const qu = ma + 4 > 12 ? ma + 4 - 12 : ma + 4;
+    const periodos = { MA: ma, PX: px, UL: ul, QT: qt, QU: qu };
+
+    // 5. Criar mapa de planos por referência (agregado da matriz)
+    const planoPorRefMap = new Map();
+    const processoPorRefMap = new Map();
+    const seqgrupoPorRefMap = new Map();
+
+    for (const item of matrizRows) {
+      const marca = String(item?.produto?.marca || '').trim().toUpperCase();
+      const status = String(item?.produto?.status || '').trim().toUpperCase();
+      const descricao = String(item?.produto?.produto || '').trim().toUpperCase();
+
+      if (marca !== 'LIEBE') continue;
+      if (!['EM LINHA', 'NOVA COLECAO'].includes(status)) continue;
+      if (descricao.includes('MEIA DE SEDA')) continue;
+
+      const refPadrao = String(item?.produto?.referencia || '').trim().toUpperCase();
+      const refSistema = String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase();
+      const emProcesso = Number(item?.estoques?.em_processo || 0);
+      const planoMA = Number(item?.plano?.ma || 0);
+      const planoPX = Number(item?.plano?.px || 0);
+      const planoUL = Number(item?.plano?.ul || 0);
+      const planoQT = Number(item?.plano?.qt || 0);
+      const planoQU = Number(item?.plano?.qu || 0);
+
+      for (const chave of [refPadrao, refSistema]) {
+        if (!chave) continue;
+        const atual = planoPorRefMap.get(chave) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0 };
+        atual.ma += planoMA;
+        atual.px += planoPX;
+        atual.ul += planoUL;
+        atual.qt += planoQT;
+        atual.qu += planoQU;
+        planoPorRefMap.set(chave, atual);
+
+        const processoAtual = processoPorRefMap.get(chave) || 0;
+        processoPorRefMap.set(chave, processoAtual + emProcesso);
+      }
+
+      if (refPadrao && refSistema && !seqgrupoPorRefMap.has(refPadrao)) {
+        seqgrupoPorRefMap.set(refPadrao, refSistema);
+      }
+    }
+
+    // 6. Criar mapa de capacidade por grupo
+    const capacidadePorGrupo = new Map();
+    for (const g of grupos) {
+      capacidadePorGrupo.set(g.grupo.toUpperCase(), g.capacidade_diaria);
+    }
+
+    // 7. Criar mapa de grupos por referência
+    const gruposPorRef = new Map();
+    for (const row of grupoRefs) {
+      const ref = row.referencia.toUpperCase();
+      const grupo = row.grupo.toUpperCase();
+      const atual = gruposPorRef.get(ref) || [];
+      if (!atual.includes(grupo)) atual.push(grupo);
+      gruposPorRef.set(ref, atual);
+    }
+
+    // 8. Calcular cargas totais
+    let cargaTotal = { processo: 0, MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
+    let capacidadeDiariaTotal = 0;
+
+    for (const g of grupos) {
+      capacidadeDiariaTotal += g.capacidade_diaria;
+    }
+
+    for (const row of grupoRefs) {
+      const referencia = row.referencia.toUpperCase();
+      const idreferencia = seqgrupoPorRefMap.get(referencia) || '';
+      const planoBase = planoPorRefMap.get(referencia) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0 };
+      const tempo = tempoPorRef.get(idreferencia) || 0;
+      const processoBase = processoPorRefMap.get(referencia) || 0;
+      const gruposDaRef = gruposPorRef.get(referencia) || [];
+
+      // Calcular rateio
+      const capacidadeTotalRateio = gruposDaRef.reduce((acc, g) => acc + (capacidadePorGrupo.get(g) || 0), 0);
+      const rateio = gruposDaRef.length <= 1 ? 1 : (capacidadeTotalRateio > 0 ? 1 : (1 / gruposDaRef.length));
+      // Para evitar duplicação, só contar uma vez (quando é o primeiro grupo)
+      const primeiroGrupo = gruposDaRef[0] === row.grupo.toUpperCase();
+      if (!primeiroGrupo) continue;
+
+      cargaTotal.processo += tempo * processoBase;
+      cargaTotal.MA += tempo * planoBase.ma;
+      cargaTotal.PX += tempo * planoBase.px;
+      cargaTotal.UL += tempo * planoBase.ul;
+      cargaTotal.QT += tempo * planoBase.qt;
+      cargaTotal.QU += tempo * planoBase.qu;
+    }
+
+    // 9. Calcular dias necessários
+    const diasNecessarios = {
+      MA: capacidadeDiariaTotal > 0 ? (cargaTotal.processo + cargaTotal.MA) / capacidadeDiariaTotal : 0,
+      PX: capacidadeDiariaTotal > 0 ? cargaTotal.PX / capacidadeDiariaTotal : 0,
+      UL: capacidadeDiariaTotal > 0 ? cargaTotal.UL / capacidadeDiariaTotal : 0,
+      QT: capacidadeDiariaTotal > 0 ? cargaTotal.QT / capacidadeDiariaTotal : 0,
+      QU: capacidadeDiariaTotal > 0 ? cargaTotal.QU / capacidadeDiariaTotal : 0,
+    };
+
+    // 10. Calcular dias acumulados
+    const diasAcumulado = {
+      MA: diasNecessarios.MA,
+      PX: diasNecessarios.MA + diasNecessarios.PX,
+      UL: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL,
+      QT: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL + diasNecessarios.QT,
+      QU: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL + diasNecessarios.QT + diasNecessarios.QU,
+    };
+
+    // 11. Calcular dias disponíveis por período
+    const diasDisponiveis = {
+      MA: Number(dias[String(periodos.MA)] || 0),
+      PX: Number(dias[String(periodos.PX)] || 0),
+      UL: Number(dias[String(periodos.UL)] || 0),
+      QT: Number(dias[String(periodos.QT)] || 0),
+      QU: Number(dias[String(periodos.QU)] || 0),
+    };
+
+    // Preparar resposta e salvar no cache
+    const responseData = {
+      success: true,
+      capacidadeDiaria: capacidadeDiariaTotal,
+      diasNecessarios: {
+        MA: Number(diasNecessarios.MA.toFixed(1)),
+        PX: Number(diasNecessarios.PX.toFixed(1)),
+        UL: Number(diasNecessarios.UL.toFixed(1)),
+        QT: Number(diasNecessarios.QT.toFixed(1)),
+        QU: Number(diasNecessarios.QU.toFixed(1)),
+      },
+      diasAcumulado: {
+        MA: Number(diasAcumulado.MA.toFixed(1)),
+        PX: Number(diasAcumulado.PX.toFixed(1)),
+        UL: Number(diasAcumulado.UL.toFixed(1)),
+        QT: Number(diasAcumulado.QT.toFixed(1)),
+        QU: Number(diasAcumulado.QU.toFixed(1)),
+      },
+      diasDisponiveis,
+      periodos,
+    };
+
+    // Salvar no cache
+    diasResumoCache.data = responseData;
+    diasResumoCache.timestamp = Date.now();
+
+    return res.json(responseData);
+  } catch (error) {
+    console.error('[capacidade/dias-resumo] Erro:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao calcular dias resumo",
       details: error.message,
     });
   }

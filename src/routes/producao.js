@@ -571,6 +571,65 @@ router.post("/plano-original", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/producao/percentual-finalizado
+ * Retorna qtd_lote e qtd_finalizada por periodo para calcular % produzido
+ * Filtrado por marca LIEBE e status EM LINHA/NOVA COLECAO
+ * OTIMIZADO: Usa CTE para pré-filtrar produtos (evita f_dic_prd_classificacao no WHERE)
+ */
+router.get("/percentual-finalizado", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const marca = String(req.query.marca || "LIEBE").trim().toUpperCase();
+    const statusList = String(req.query.status || "EM LINHA,NOVA COLECAO")
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+
+    // Otimizado: pré-filtrar produtos em uma CTE para evitar chamadas lentas no WHERE
+    const result = await pool.query(`
+      WITH produtos_filtrados AS (
+        SELECT cd_produto
+        FROM vr_prd_prdgrade
+        WHERE UPPER(TRIM(COALESCE(f_dic_prd_classificacao(cd_produto, 'DS'::text, 20::bigint), ''))) = $1
+          AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(cd_produto, 'DS'::text, 27::bigint), ''))) = ANY($2)
+      )
+      SELECT
+        UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
+        SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qtd_lote,
+        SUM(COALESCE(a.qt_finalizada, 0))::FLOAT AS qtd_finalizada
+      FROM vr_pcp_loteplop a
+      INNER JOIN produtos_filtrados pf ON pf.cd_produto = a.cd_produto
+      LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
+      WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
+        AND p.tp_situacao = 1
+      GROUP BY p.cd_auxiliar
+    `, [marca, statusList]);
+
+    const data = { MA: null, PX: null, UL: null, QT: null, QU: null };
+    for (const row of result.rows) {
+      const periodo = String(row.periodo || "").toUpperCase();
+      if (!["MA", "PX", "UL", "QT", "QU"].includes(periodo)) continue;
+      const qtdLote = Number(row.qtd_lote || 0);
+      const qtdFinalizada = Number(row.qtd_finalizada || 0);
+      const percentual = qtdLote > 0 ? (qtdFinalizada / qtdLote) * 100 : 0;
+      data[periodo] = {
+        qtdLote: Math.round(qtdLote),
+        qtdFinalizada: Math.round(qtdFinalizada),
+        percentual: Math.round(percentual * 10) / 10, // 1 casa decimal
+      };
+    }
+
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao consultar percentual finalizado",
+      details: error.message
+    });
+  }
+});
+
 router.get("/orcamento-mp-cache", async (req, res) => {
   try {
     const pool = req.app.get("pool");
@@ -723,6 +782,173 @@ router.get("/locais", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Erro ao consultar locais de produção",
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/producao/mp-cadastro
+ * Salva cadastro de MPs (codigo e descricao) em tabela dedicada
+ */
+async function ensureMpCadastroTable(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.app_mp_cadastro (
+      codigo TEXT PRIMARY KEY,
+      descricao TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
+router.post("/mp-cadastro", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const mps = req.body?.mps;
+
+    if (!Array.isArray(mps) || mps.length === 0) {
+      return res.status(400).json({ success: false, error: "Lista de MPs invalida" });
+    }
+
+    await ensureMpCadastroTable(pool);
+
+    // Upsert em batch
+    const values = mps.map((mp, i) => `($${i * 2 + 1}, $${i * 2 + 2}, NOW())`).join(", ");
+    const params = mps.flatMap(mp => [String(mp.codigo || mp.idmateriaprima || ""), String(mp.descricao || mp.nome_materiaprima || "")]);
+
+    await pool.query(`
+      INSERT INTO public.app_mp_cadastro (codigo, descricao, updated_at)
+      VALUES ${values}
+      ON CONFLICT (codigo)
+      DO UPDATE SET descricao = EXCLUDED.descricao, updated_at = NOW()
+    `, params);
+
+    return res.status(200).json({
+      success: true,
+      count: mps.length,
+      message: `${mps.length} MPs salvos com sucesso`
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao salvar cadastro de MPs",
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/producao/ops-antigas
+ * Retorna OPs em processo há mais de X dias (default 20)
+ * Query params:
+ * - dias: número de dias (padrão: 20)
+ * - marca: filtrar por marca (padrão: LIEBE)
+ * - status: filtrar por status (padrão: EM LINHA,NOVA COLECAO)
+ * OTIMIZADO: Filtra OPs primeiro, depois aplica filtro de produtos
+ */
+router.get("/ops-antigas", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const diasMinimo = Number(req.query.dias) || 20;
+    const marca = String(req.query.marca || "LIEBE").trim().toUpperCase();
+    const statusParam = String(req.query.status || "EM LINHA,NOVA COLECAO").trim().toUpperCase();
+    const statusList = statusParam.split(",").map(s => s.trim()).filter(Boolean);
+
+    // OTIMIZADO: Primeiro pega as OPs antigas (rápido), depois filtra por marca/status
+    const result = await pool.query(`
+      WITH ops_em_processo AS (
+        SELECT
+          opi.cd_produto,
+          opi.nr_op,
+          opi.nr_ciclo,
+          opc.dt_inicio,
+          CURRENT_DATE - opc.dt_inicio::DATE AS dias_em_processo,
+          SUM(opi.qt_real - COALESCE(opi.qt_finalizada, 0)) AS qtd_em_processo
+        FROM vr_pcp_opi opi
+        JOIN vr_pcp_opc opc
+          ON opi.cd_empresa = opc.cd_empresa
+          AND opi.nr_ciclo = opc.nr_ciclo
+          AND opi.nr_op = opc.nr_op
+        WHERE opi.cd_empresa = 1
+          AND opc.dt_encerramento IS NULL
+          AND opc.dt_inicio IS NOT NULL
+          AND opc.dt_inicio::DATE < CURRENT_DATE - $1::INTEGER
+          AND opi.tp_situacao IN (5, 10, 15, 20)
+          AND COALESCE(opc.cd_categoria, 0) <> 15
+          AND (opi.qt_real - COALESCE(opi.qt_finalizada, 0)) > 0
+        GROUP BY opi.cd_produto, opi.nr_op, opi.nr_ciclo, opc.dt_inicio
+      ),
+      ops_com_grade AS (
+        SELECT
+          op.*,
+          g.nm_produto AS descricao,
+          g.cd_seqgrupo AS referencia,
+          UPPER(TRIM(COALESCE(f_dic_prd_classificacao(op.cd_produto, 'DS'::text, 20::bigint), ''))) AS marca,
+          UPPER(TRIM(COALESCE(f_dic_prd_classificacao(op.cd_produto, 'DS'::text, 27::bigint), ''))) AS status
+        FROM ops_em_processo op
+        LEFT JOIN vr_prd_prdgrade g ON g.cd_produto = op.cd_produto
+      )
+      SELECT cd_produto, nr_op, nr_ciclo, dt_inicio, dias_em_processo, qtd_em_processo, descricao, referencia
+      FROM ops_com_grade
+      WHERE marca = $2 AND status = ANY($3)
+      ORDER BY dias_em_processo DESC, qtd_em_processo DESC
+    `, [diasMinimo, marca, statusList]);
+
+    // Calcular totais
+    const totais = result.rows.reduce((acc, row) => {
+      acc.qtdTotal += Number(row.qtd_em_processo || 0);
+      acc.opsCount += 1;
+      return acc;
+    }, { qtdTotal: 0, opsCount: 0 });
+
+    // Agrupar por faixa de dias
+    const porFaixa = {
+      "20-30 dias": { qtd: 0, ops: 0 },
+      "31-45 dias": { qtd: 0, ops: 0 },
+      "46-60 dias": { qtd: 0, ops: 0 },
+      "60+ dias": { qtd: 0, ops: 0 },
+    };
+    for (const row of result.rows) {
+      const dias = Number(row.dias_em_processo || 0);
+      const qtd = Number(row.qtd_em_processo || 0);
+      if (dias <= 30) {
+        porFaixa["20-30 dias"].qtd += qtd;
+        porFaixa["20-30 dias"].ops += 1;
+      } else if (dias <= 45) {
+        porFaixa["31-45 dias"].qtd += qtd;
+        porFaixa["31-45 dias"].ops += 1;
+      } else if (dias <= 60) {
+        porFaixa["46-60 dias"].qtd += qtd;
+        porFaixa["46-60 dias"].ops += 1;
+      } else {
+        porFaixa["60+ dias"].qtd += qtd;
+        porFaixa["60+ dias"].ops += 1;
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      diasMinimo,
+      marca,
+      status: statusList,
+      totais,
+      porFaixa,
+      data: result.rows.map(row => ({
+        cdProduto: row.cd_produto,
+        nrOp: row.nr_op,
+        nrCiclo: row.nr_ciclo,
+        dtInicio: row.dt_inicio,
+        diasEmProcesso: Number(row.dias_em_processo || 0),
+        qtdEmProcesso: Number(row.qtd_em_processo || 0),
+        descricao: row.descricao,
+        referencia: row.referencia,
+      }))
+    });
+  } catch (error) {
+    console.error("[producao/ops-antigas] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao buscar OPs antigas",
       details: error.message
     });
   }
