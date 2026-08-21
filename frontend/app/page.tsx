@@ -277,18 +277,26 @@ export default function Home() {
 
   async function buscarAprovadas() {
     try {
+      console.log('[buscarAprovadas] Iniciando fetch...');
       const res = await fetchNoCache(`${API_URL}/api/simulacoes`, { headers: authHeaders() });
-      if (!res.ok) return;
+      console.log('[buscarAprovadas] Resposta:', res.status, res.ok);
+      if (!res.ok) {
+        console.error('[buscarAprovadas] Resposta não OK:', res.status);
+        return;
+      }
       const data = await res.json();
+      console.log('[buscarAprovadas] Total recebido:', data?.data?.length || 0);
       const lista = (Array.isArray(data?.data) ? data.data : []) as AnaliseAprovada[];
       const aprov = lista.filter((a) => a?.parametros?.statusAprovacao === 'APROVADA' && Array.isArray(a?.parametros?.planos));
+      console.log('[buscarAprovadas] Aprovadas com planos:', aprov.length);
       setAprovadas(aprov);
       setAprovadasSelecionadasIds((prev) => {
         if (!prev.length) return aprov.map((a) => a.id);
         const validos = prev.filter((id) => aprov.some((a) => a.id === id));
         return validos.length ? validos : aprov.map((a) => a.id);
       });
-    } catch {
+    } catch (err) {
+      console.error('[buscarAprovadas] Erro:', err);
       setAprovadas([]);
       setAprovadasSelecionadasIds([]);
     }

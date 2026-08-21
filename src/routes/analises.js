@@ -345,12 +345,22 @@ router.get("/snapshot-lotes/datas", auth, async (req, res) => {
   }
 });
 
-async function resolveSnapshotAt(pool, data, offset) {
+async function resolveSnapshotAt(pool, data, offset, direction = "exact") {
   if (data) {
+    const comparator = direction === "gte" ? ">=" : direction === "lte" ? "<=" : "=";
+    const order = direction === "gte" ? "ASC" : "DESC";
     const result = await pool.query(
-      `SELECT TO_CHAR(MAX(data_snapshot), 'YYYY-MM-DD HH24:MI:SS.MS') AS snapshot_at
-       FROM snapshot_lotes
-       WHERE DATE(data_snapshot) = $1::DATE`,
+      `WITH dia AS (
+         SELECT DATE(data_snapshot) AS data
+         FROM snapshot_lotes
+         WHERE DATE(data_snapshot) ${comparator} $1::DATE
+         GROUP BY DATE(data_snapshot)
+         ORDER BY DATE(data_snapshot) ${order}
+         LIMIT 1
+       )
+       SELECT TO_CHAR(MAX(s.data_snapshot), 'YYYY-MM-DD HH24:MI:SS.MS') AS snapshot_at
+       FROM snapshot_lotes s
+       INNER JOIN dia d ON DATE(s.data_snapshot) = d.data`,
       [data]
     );
     return result.rows?.[0]?.snapshot_at || null;
@@ -444,10 +454,10 @@ router.get("/snapshot-lotes/comparativo", auth, async (req, res) => {
     const apenasAlterados = req.query.apenas_alterados !== "false";
     const limit = Math.min(Number(req.query.limit) || 1000, 5000);
 
-    const snapshotAte = await resolveSnapshotAt(pool, dataAte, 0);
-    const snapshotDe = await resolveSnapshotAt(pool, dataDe, dataAte ? 1 : 1);
+    const snapshotAte = await resolveSnapshotAt(pool, dataAte, 0, dataAte ? "lte" : "exact");
+    const snapshotDe = await resolveSnapshotAt(pool, dataDe, dataAte ? 1 : 1, dataDe ? "gte" : "exact");
 
-    if (!snapshotDe || !snapshotAte) {
+    if (!snapshotDe || !snapshotAte || new Date(snapshotDe).getTime() > new Date(snapshotAte).getTime()) {
       return res.status(404).json({
         success: false,
         error: "Snapshots insuficientes para comparar",
@@ -512,8 +522,8 @@ router.get("/snapshot-lotes/comparativo", auth, async (req, res) => {
         d.*,
         (d.qtd_aberto_ate - d.qtd_aberto_de)::FLOAT AS delta_aberto,
         (d.qtd_lote_ate - d.qtd_lote_de)::FLOAT AS delta_lote,
-        p.cd_seqgrupo::TEXT AS referencia,
-        p.nm_produto AS produto,
+        f_dic_prd_nivel(d.cd_produto, 'CD'::bpchar)::TEXT AS referencia,
+        COALESCE(f_dic_prd_nivel(d.cd_produto, 'DS'::bpchar), p.nm_produto) AS produto,
         p.ds_cor AS cor,
         p.ds_tamanho AS tamanho,
         f_dic_prd_classificacao(d.cd_produto, 'DS'::text, 20::bigint) AS marca,
@@ -638,10 +648,10 @@ router.get("/snapshot-lotes/impacto", auth, async (req, res) => {
       .filter((p) => PERIODOS_PLANO.includes(p));
     const limit = Math.min(Number(req.query.limit) || 5000, 10000);
 
-    const snapshotAte = await resolveSnapshotAt(pool, dataAte, 0);
-    const snapshotDe = await resolveSnapshotAt(pool, dataDe, dataAte ? 1 : 1);
+    const snapshotAte = await resolveSnapshotAt(pool, dataAte, 0, dataAte ? "lte" : "exact");
+    const snapshotDe = await resolveSnapshotAt(pool, dataDe, dataAte ? 1 : 1, dataDe ? "gte" : "exact");
 
-    if (!snapshotDe || !snapshotAte) {
+    if (!snapshotDe || !snapshotAte || new Date(snapshotDe).getTime() > new Date(snapshotAte).getTime()) {
       return res.status(404).json({
         success: false,
         error: "Snapshots insuficientes para analisar impacto",
@@ -714,8 +724,8 @@ router.get("/snapshot-lotes/impacto", auth, async (req, res) => {
           (d.qtd_aberto_ate - d.qtd_aberto_de)::FLOAT AS delta_aberto,
           (d.qtd_lote_ate - d.qtd_lote_de)::FLOAT AS delta_lote,
           (d.qtd_gerouop_ate - d.qtd_gerouop_de)::FLOAT AS delta_gerouop,
-          p.cd_seqgrupo::TEXT AS referencia,
-          p.nm_produto AS produto,
+          f_dic_prd_nivel(d.cd_produto, 'CD'::bpchar)::TEXT AS referencia,
+          COALESCE(f_dic_prd_nivel(d.cd_produto, 'DS'::bpchar), p.nm_produto) AS produto,
           p.ds_cor AS cor,
           p.ds_tamanho AS tamanho,
           f_dic_prd_classificacao(d.cd_produto, 'DS'::text, 20::bigint) AS marca,
@@ -1077,9 +1087,9 @@ router.get("/snapshot-lotes/impacto-rapido", auth, async (req, res) => {
       .filter((p) => PERIODOS_PLANO.includes(p));
     const limit = Math.min(Number(req.query.limit) || 1000, 2000);
 
-    const snapshotAte = await resolveSnapshotAt(pool, dataAte, 0);
-    const snapshotDe = await resolveSnapshotAt(pool, dataDe, dataAte ? 1 : 1);
-    if (!snapshotDe || !snapshotAte) {
+    const snapshotAte = await resolveSnapshotAt(pool, dataAte, 0, dataAte ? "lte" : "exact");
+    const snapshotDe = await resolveSnapshotAt(pool, dataDe, dataAte ? 1 : 1, dataDe ? "gte" : "exact");
+    if (!snapshotDe || !snapshotAte || new Date(snapshotDe).getTime() > new Date(snapshotAte).getTime()) {
       return res.status(404).json({ success: false, error: "Snapshots insuficientes para analisar impacto" });
     }
 
@@ -1091,10 +1101,9 @@ router.get("/snapshot-lotes/impacto-rapido", auth, async (req, res) => {
     const alteracoesResult = await pool.query(`
       WITH snapshots AS (
         SELECT
-          MAX(data_snapshot) FILTER (WHERE DATE(data_snapshot) = $1::DATE) AS snap_de,
-          MAX(data_snapshot) FILTER (WHERE DATE(data_snapshot) = $2::DATE) AS snap_ate
+          MAX(data_snapshot) FILTER (WHERE DATE(data_snapshot) = DATE($1::TIMESTAMP)) AS snap_de,
+          MAX(data_snapshot) FILTER (WHERE DATE(data_snapshot) = DATE($2::TIMESTAMP)) AS snap_ate
         FROM snapshot_lotes
-        WHERE DATE(data_snapshot) IN ($1::DATE, $2::DATE)
       ),
       snap_de AS (
         SELECT
@@ -1171,8 +1180,8 @@ router.get("/snapshot-lotes/impacto-rapido", auth, async (req, res) => {
       alteracoes AS (
         SELECT
           d.*,
-          p.cd_seqgrupo::TEXT AS referencia,
-          p.nm_produto AS produto,
+          f_dic_prd_nivel(d.cd_produto, 'CD'::bpchar)::TEXT AS referencia,
+          COALESCE(f_dic_prd_nivel(d.cd_produto, 'DS'::bpchar), p.nm_produto) AS produto,
           p.ds_cor AS cor,
           p.ds_tamanho AS tamanho,
           f_dic_prd_classificacao(d.cd_produto, 'DS'::text, 20::bigint) AS marca,
@@ -1444,6 +1453,394 @@ router.get("/snapshot-lotes/impacto-rapido", auth, async (req, res) => {
   }
 });
 
+function monthStartIso(value) {
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)).toISOString().slice(0, 10);
+}
+
+function nextMonthIso(value) {
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
+}
+
+function mesesEntre(dataDe, dataAte) {
+  const meses = [];
+  let atual = monthStartIso(dataDe);
+  const limite = monthStartIso(dataAte);
+  while (atual <= limite && meses.length < 24) {
+    meses.push(atual);
+    atual = nextMonthIso(atual);
+  }
+  return meses;
+}
+
+function diferencaDias(dataDe, dataAte) {
+  const inicio = new Date(`${dataDe}T00:00:00Z`).getTime();
+  const fim = new Date(`${dataAte}T00:00:00Z`).getTime();
+  return Math.round((fim - inicio) / 86400000);
+}
+
+function classificarRotacao(antes, depois) {
+  if (antes > 0 && depois <= 0) return "LIMBO";
+  if (antes <= 0 && depois > 0) return "INSERIDO";
+  if (antes > 0 && depois > 0 && antes !== depois) return "ALTERADO";
+  if (antes > 0 && depois > 0) return "PRESERVADO";
+  return "VAZIO";
+}
+
+async function queryProducaoPorLotes(pool, lotes, skus = []) {
+  const ids = Array.from(new Set((lotes || []).map((id) => String(id || "")).filter(Boolean)));
+  const produtos = Array.from(new Set((skus || []).map((id) => String(id || "")).filter(Boolean)));
+  if (!ids.length) return new Map();
+  const params = [ids];
+  const filtroProduto = produtos.length ? `AND cd_produto::TEXT = ANY($2::TEXT[])` : "";
+  if (produtos.length) params.push(produtos);
+  const result = await pool.query(`
+    SELECT
+      nr_lote::TEXT AS nr_lote,
+      cd_produto::TEXT AS sku,
+      SUM(COALESCE(qt_gerouop, 0))::FLOAT AS qt_gerouop,
+      SUM(COALESCE(qt_real, 0))::FLOAT AS qt_real,
+      SUM(COALESCE(qt_finalizada, 0))::FLOAT AS qt_finalizada,
+      ARRAY_AGG(DISTINCT nr_op::TEXT) FILTER (WHERE nr_op IS NOT NULL) AS ops
+    FROM vr_pcp_loteplop
+    WHERE nr_lote::TEXT = ANY($1::TEXT[])
+      ${filtroProduto}
+    GROUP BY nr_lote, cd_produto
+  `, params);
+  return new Map(result.rows.map((row) => [`${row.nr_lote}|${row.sku}`, {
+    qtGerouop: Number(row.qt_gerouop || 0),
+    qtReal: Number(row.qt_real || 0),
+    qtFinalizada: Number(row.qt_finalizada || 0),
+    ops: Array.isArray(row.ops) ? row.ops.map(String) : [],
+  }]));
+}
+
+function producaoDoEstado(estado, producaoPorLote) {
+  const itens = (estado?.lotes || []).map((lote) => producaoPorLote.get(`${lote}|${estado?.sku}`)).filter(Boolean);
+  const qtGerouop = Number(estado?.qtGerouop || 0) || itens.reduce((total, item) => total + item.qtGerouop, 0);
+  return {
+    gerouOp: qtGerouop > 0,
+    qtGerouop,
+    qtReal: itens.reduce((total, item) => total + item.qtReal, 0),
+    qtFinalizada: itens.reduce((total, item) => total + item.qtFinalizada, 0),
+    ops: Array.from(new Set(itens.flatMap((item) => item.ops))),
+  };
+}
+
+router.get("/snapshot-lotes/rotacao-anual", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const dataDe = req.query.de ? String(req.query.de).slice(0, 10) : null;
+    const dataAte = req.query.ate ? String(req.query.ate).slice(0, 10) : null;
+    const limit = Math.min(Number(req.query.limit) || 100, 500);
+
+    if (!dataDe || !dataAte) {
+      return res.status(400).json({ success: false, error: "Informe o período da análise anual" });
+    }
+
+    const diasResult = await pool.query(`
+      SELECT DATE(data_snapshot)::TEXT AS data,
+             TO_CHAR(MAX(data_snapshot), 'YYYY-MM-DD HH24:MI:SS.US') AS snapshot_at
+      FROM snapshot_lotes
+      WHERE data_snapshot >= $1::DATE
+        AND data_snapshot < ($2::DATE + INTERVAL '1 day')
+      GROUP BY DATE(data_snapshot)
+      ORDER BY DATE(data_snapshot)
+    `, [dataDe, dataAte]);
+    const dias = diasResult.rows.map((row) => ({ data: String(row.data), snapshotAt: row.snapshot_at }));
+
+    const transicoesBase = [];
+    for (const mes of mesesEntre(dataDe, dataAte)) {
+      const anteriores = dias.filter((dia) => dia.data < mes);
+      const posteriores = dias.filter((dia) => dia.data >= mes);
+      const antes = anteriores[anteriores.length - 1];
+      const depois = posteriores[0];
+      if (antes && depois && antes.data !== depois.data) transicoesBase.push({ mes, antes, depois });
+    }
+
+    const snapshotsSelecionados = Array.from(new Set(transicoesBase.flatMap((item) => [item.antes.snapshotAt, item.depois.snapshotAt])));
+    const estadosResult = snapshotsSelecionados.length ? await pool.query(`
+      SELECT TO_CHAR(data_snapshot, 'YYYY-MM-DD HH24:MI:SS.US') AS snapshot_at,
+             cd_produto::TEXT AS sku,
+             UPPER(TRIM(COALESCE(cd_auxiliar, ''))) AS periodo,
+             SUM(GREATEST(COALESCE(qt_lote, 0) - COALESCE(qt_gerouop, 0), 0))::FLOAT AS qtd_aberto,
+             SUM(COALESCE(qt_gerouop, 0))::FLOAT AS qt_gerouop,
+             ARRAY_AGG(DISTINCT nr_lote::TEXT) AS lotes
+      FROM snapshot_lotes
+      WHERE data_snapshot = ANY($1::TIMESTAMP[])
+        AND UPPER(TRIM(COALESCE(cd_auxiliar, ''))) = ANY($2::TEXT[])
+        AND COALESCE(tp_situacao, 0) = 1
+      GROUP BY data_snapshot, cd_produto, UPPER(TRIM(COALESCE(cd_auxiliar, '')))
+    `, [snapshotsSelecionados, PERIODOS_PLANO]) : { rows: [] };
+
+    const estados = new Map();
+    for (const row of estadosResult.rows) {
+      const mapa = estados.get(row.snapshot_at) || new Map();
+      mapa.set(`${row.sku}|${row.periodo}`, {
+        sku: String(row.sku),
+        periodo: String(row.periodo),
+         qtdAberto: Math.round(Number(row.qtd_aberto || 0)),
+         qtGerouop: Number(row.qt_gerouop || 0),
+         lotes: Array.isArray(row.lotes) ? row.lotes.map(String) : [],
+      });
+      estados.set(row.snapshot_at, mapa);
+    }
+
+    const todosLotes = Array.from(new Set(Array.from(estados.values()).flatMap((mapa) => Array.from(mapa.values()).flatMap((row) => row.lotes || []))));
+    const todosSkus = Array.from(new Set(Array.from(estados.values()).flatMap((mapa) => Array.from(mapa.keys()).map((key) => key.split("|")[0]))));
+    const producaoPorLote = await queryProducaoPorLotes(pool, todosLotes, todosSkus);
+    const rotacao = { preservados: 0, alterados: 0, inseridos: 0, produzidos: 0, limbos: 0, pecasLimbo: 0, pecasProduzidas: 0, skusAfetados: new Set() };
+    const transferencias = [{ de: "PX", para: "MA" }, { de: "UL", para: "PX" }, { de: "QT", para: "UL" }, { de: "QU", para: "QT" }];
+    const transicoes = transicoesBase.map((item) => {
+      const antes = estados.get(item.antes.snapshotAt) || new Map();
+      const depois = estados.get(item.depois.snapshotAt) || new Map();
+      const porPeriodo = transferencias.map((transferencia) => {
+        const skus = new Set();
+        for (const key of antes.keys()) if (key.endsWith(`|${transferencia.de}`)) skus.add(key.split("|")[0]);
+        for (const key of depois.keys()) if (key.endsWith(`|${transferencia.para}`)) skus.add(key.split("|")[0]);
+        const resumo = { de: transferencia.de, para: transferencia.para, preservados: 0, alterados: 0, inseridos: 0, produzidos: 0, limbos: 0, pecasLimbo: 0, pecasProduzidas: 0, delta: 0 };
+        for (const sku of skus) {
+          const origem = antes.get(`${sku}|${transferencia.de}`)?.qtdAberto || 0;
+          const destino = depois.get(`${sku}|${transferencia.para}`)?.qtdAberto || 0;
+          let tipo = classificarRotacao(origem, destino);
+          const producao = tipo === "LIMBO" ? producaoDoEstado(antes.get(`${sku}|${transferencia.de}`), producaoPorLote) : null;
+          if (tipo === "LIMBO" && producao.gerouOp) tipo = "PRODUZIDO";
+          if (tipo === "PRESERVADO") resumo.preservados += 1;
+          if (tipo === "ALTERADO") resumo.alterados += 1;
+          if (tipo === "INSERIDO") resumo.inseridos += 1;
+          if (tipo === "PRODUZIDO") { resumo.produzidos += 1; resumo.pecasProduzidas += origem; }
+          if (tipo === "LIMBO") { resumo.limbos += 1; resumo.pecasLimbo += origem; }
+          resumo.delta += destino - origem;
+          if (tipo !== "VAZIO") rotacao.skusAfetados.add(sku);
+        }
+        rotacao.preservados += resumo.preservados;
+        rotacao.alterados += resumo.alterados;
+        rotacao.inseridos += resumo.inseridos;
+        rotacao.produzidos += resumo.produzidos;
+        rotacao.pecasProduzidas += resumo.pecasProduzidas;
+        rotacao.limbos += resumo.limbos;
+        rotacao.pecasLimbo += resumo.pecasLimbo;
+        return resumo;
+      });
+      // QU nao tem uma origem fixa na rotacao; conta apenas quando entrou do zero.
+      const novosQu = Array.from(depois.values()).filter((row) => (
+        row.periodo === "QU" && row.qtdAberto > 0 && !(antes.get(`${row.sku}|QU`)?.qtdAberto > 0)
+      )).length;
+      const limbos = porPeriodo.reduce((total, periodo) => total + periodo.limbos, 0);
+      const inseridos = porPeriodo.reduce((total, periodo) => total + periodo.inseridos, 0) + novosQu;
+      rotacao.inseridos += novosQu;
+      return {
+        mes: item.mes,
+        antes: item.antes.data,
+        depois: item.depois.data,
+        diasEntre: diferencaDias(item.antes.data, item.depois.data),
+        status: limbos > 0 ? "CRITICA" : inseridos > 0 ? "COM_INSERCOES" : "ROTACAO_OK",
+        limbos,
+        produzidos: porPeriodo.reduce((total, periodo) => total + periodo.produzidos, 0),
+        inseridos,
+        alterados: porPeriodo.reduce((total, periodo) => total + periodo.alterados, 0),
+        preservados: porPeriodo.reduce((total, periodo) => total + periodo.preservados, 0),
+        novosPlanos: inseridos,
+        porPeriodo,
+      };
+    });
+
+    const eventosForaJanela = [];
+
+    return res.json({
+      success: true,
+      filtros: { dataDe, dataAte },
+      snapshots: { dias: dias.length, primeiro: dias[0]?.data || null, ultimo: dias[dias.length - 1]?.data || null },
+      rotacao: {
+        ...rotacao,
+        skusAfetados: rotacao.skusAfetados.size,
+        transicoesAnalisadas: transicoes.length,
+        transicoesCriticas: transicoes.filter((item) => item.status === "CRITICA").length,
+        novosPlanos: rotacao.inseridos,
+        produzidos: rotacao.produzidos,
+        pecasProduzidas: rotacao.pecasProduzidas,
+        viradasForaJanela: transicoes.filter((item) => item.diasEntre > 3).length,
+        diasForaJanela: transicoes.filter((item) => item.diasEntre > 3).reduce((total, item) => total + item.diasEntre, 0),
+      },
+      transicoes,
+      eventosForaJanela,
+    });
+  } catch (error) {
+    console.error("[snapshot-lotes/rotacao-anual] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao analisar rotacao anual do plano", details: error.message });
+  }
+});
+
+router.get("/snapshot-lotes/rotacao-detalhe", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const dataDe = req.query.de ? String(req.query.de).slice(0, 10) : null;
+    const dataAte = req.query.ate ? String(req.query.ate).slice(0, 10) : null;
+    const limit = Math.min(Number(req.query.limit) || 2000, 5000);
+
+    if (!dataDe || !dataAte) {
+      return res.status(400).json({ success: false, error: "Informe as duas datas da virada" });
+    }
+
+    const snapshotsResult = await pool.query(`
+      SELECT
+        TO_CHAR(MAX(data_snapshot) FILTER (WHERE DATE(data_snapshot) = $1::DATE), 'YYYY-MM-DD HH24:MI:SS.US') AS snap_de,
+        TO_CHAR(MAX(data_snapshot) FILTER (WHERE DATE(data_snapshot) = $2::DATE), 'YYYY-MM-DD HH24:MI:SS.US') AS snap_ate
+      FROM snapshot_lotes
+    `, [dataDe, dataAte]);
+    const snapDeValue = snapshotsResult.rows[0]?.snap_de;
+    const snapAteValue = snapshotsResult.rows[0]?.snap_ate;
+    if (!snapDeValue || !snapAteValue) {
+      return res.status(404).json({ success: false, error: "Snapshots insuficientes para detalhar a virada" });
+    }
+
+    const estadosResult = await pool.query(`
+      SELECT
+        CASE WHEN s.data_snapshot = $1::TIMESTAMP THEN 'DE' ELSE 'ATE' END AS lado,
+        s.cd_produto::TEXT AS sku,
+        UPPER(TRIM(COALESCE(s.cd_auxiliar, ''))) AS periodo,
+        SUM(GREATEST(COALESCE(s.qt_lote, 0) - COALESCE(s.qt_gerouop, 0), 0))::FLOAT AS qtd_aberto,
+        SUM(COALESCE(s.qt_gerouop, 0))::FLOAT AS qt_gerouop,
+        ARRAY_AGG(DISTINCT s.nr_lote::TEXT) AS lotes,
+        TO_CHAR(s.data_snapshot, 'YYYY-MM-DD HH24:MI:SS.US') AS snapshot_at
+      FROM snapshot_lotes s
+      WHERE s.data_snapshot IN ($1::TIMESTAMP, $2::TIMESTAMP)
+        AND UPPER(TRIM(COALESCE(s.cd_auxiliar, ''))) = ANY($3::TEXT[])
+        AND COALESCE(s.tp_situacao, 0) = 1
+      GROUP BY s.data_snapshot, s.cd_produto, UPPER(TRIM(COALESCE(s.cd_auxiliar, '')))
+    `, [snapDeValue, snapAteValue, PERIODOS_PLANO]);
+
+    const snapshotDe = estadosResult.rows.find((row) => row.lado === "DE")?.snapshot_at || snapDeValue;
+    const snapshotAt = estadosResult.rows.find((row) => row.lado === "ATE")?.snapshot_at || snapAteValue;
+
+    const estados = { DE: new Map(), ATE: new Map() };
+    for (const row of estadosResult.rows) {
+      estados[row.lado].set(`${row.sku}|${row.periodo}`, {
+        sku: String(row.sku),
+        qtdAberto: Number(row.qtd_aberto || 0),
+        qtGerouop: Number(row.qt_gerouop || 0),
+        lotes: Array.isArray(row.lotes) ? row.lotes.map(String) : [],
+      });
+    }
+
+    const todosLotes = Array.from(new Set(Object.values(estados).flatMap((mapa) => Array.from(mapa.values()).flatMap((row) => row.lotes || []))));
+    const todosSkus = Array.from(new Set(Object.values(estados).flatMap((mapa) => Array.from(mapa.keys()).map((key) => key.split("|")[0]))));
+    const producaoPorLote = await queryProducaoPorLotes(pool, todosLotes, todosSkus);
+
+    const transferencias = [
+      { de: "PX", para: "MA" },
+      { de: "UL", para: "PX" },
+      { de: "QT", para: "UL" },
+      { de: "QU", para: "QT" },
+    ];
+    const rows = [];
+    const tipos = ["PRESERVADO", "ALTERADO", "INSERIDO", "PRODUZIDO", "LIMBO"];
+
+    for (const transferencia of transferencias) {
+      const skus = new Set();
+      for (const key of estados.DE.keys()) {
+        if (key.endsWith(`|${transferencia.de}`)) skus.add(key.split("|")[0]);
+      }
+      for (const key of estados.ATE.keys()) {
+        if (key.endsWith(`|${transferencia.para}`)) skus.add(key.split("|")[0]);
+      }
+
+      for (const sku of skus) {
+        const estadoAntes = estados.DE.get(`${sku}|${transferencia.de}`) || { qtdAberto: 0, qtGerouop: 0, lotes: [] };
+        const estadoDepois = estados.ATE.get(`${sku}|${transferencia.para}`) || { qtdAberto: 0, qtGerouop: 0, lotes: [] };
+        const antes = estadoAntes.qtdAberto;
+        const depois = estadoDepois.qtdAberto;
+        let tipo = classificarRotacao(antes, depois);
+        const producao = tipo === "LIMBO" ? producaoDoEstado(estadoAntes, producaoPorLote) : null;
+        if (tipo === "LIMBO" && producao.gerouOp) tipo = "PRODUZIDO";
+        if (!tipos.includes(tipo)) continue;
+        rows.push({
+          sku,
+          de: transferencia.de,
+          para: transferencia.para,
+          antes,
+          depois,
+          delta: depois - antes,
+          tipo,
+          qtOpGerada: producao?.qtGerouop || 0,
+          qtReal: producao?.qtReal || 0,
+          qtFinalizada: producao?.qtFinalizada || 0,
+          ops: producao?.ops || [],
+        });
+      }
+    }
+
+    // QU pode receber uma inclusao nova sem ter uma posicao anterior correspondente.
+    for (const [key, depois] of estados.ATE.entries()) {
+      if (!key.endsWith("|QU") || depois.qtdAberto <= 0) continue;
+      const sku = key.split("|")[0];
+       const antes = estados.DE.get(key)?.qtdAberto || 0;
+       if (antes > 0) continue;
+       rows.push({ sku, de: "", para: "QU", antes: 0, depois: depois.qtdAberto, delta: depois.qtdAberto, tipo: "INSERIDO", qtOpGerada: 0, qtReal: 0, qtFinalizada: 0, ops: [] });
+    }
+
+    const skuIds = Array.from(new Set(rows.map((row) => row.sku)));
+    let produtos = new Map();
+    if (skuIds.length) {
+      const produtosResult = await pool.query(`
+        SELECT
+          p.cd_produto::TEXT AS sku,
+          f_dic_prd_nivel(p.cd_produto, 'CD'::BPCHAR)::TEXT AS referencia,
+          COALESCE(f_dic_prd_nivel(p.cd_produto, 'DS'::BPCHAR), p.nm_produto, '')::TEXT AS produto,
+          COALESCE(p.ds_cor, '')::TEXT AS cor,
+          COALESCE(p.ds_tamanho, '')::TEXT AS tamanho
+        FROM vr_prd_prdgrade p
+        WHERE p.cd_produto::TEXT = ANY($1::TEXT[])
+      `, [skuIds]);
+      produtos = new Map(produtosResult.rows.map((row) => [String(row.sku), row]));
+    }
+
+    const enriquecidas = rows.map((row) => ({
+      ...row,
+      referencia: String(produtos.get(row.sku)?.referencia || ""),
+      produto: String(produtos.get(row.sku)?.produto || ""),
+      cor: String(produtos.get(row.sku)?.cor || ""),
+      tamanho: String(produtos.get(row.sku)?.tamanho || ""),
+    }));
+    const ordemTipo = { LIMBO: 0, INSERIDO: 1, PRODUZIDO: 2, ALTERADO: 3, PRESERVADO: 4 };
+    enriquecidas.sort((a, b) => (
+      (ordemTipo[a.tipo] - ordemTipo[b.tipo]) || Math.abs(b.delta) - Math.abs(a.delta) || a.sku.localeCompare(b.sku)
+    ));
+
+    const categoriasCompletas = Object.fromEntries(tipos.map((tipo) => [
+      `${tipo}S`, enriquecidas.filter((row) => row.tipo === tipo),
+    ]));
+    const categorias = Object.fromEntries(tipos.map((tipo) => [
+      `${tipo}S`, categoriasCompletas[`${tipo}S`].slice(0, limit),
+    ]));
+    const resumo = {
+      preservados: categoriasCompletas.PRESERVADOS.length,
+      alterados: categoriasCompletas.ALTERADOS.length,
+      inseridos: categoriasCompletas.INSERIDOS.length,
+      limbos: categoriasCompletas.LIMBOS.length,
+      produzidos: categoriasCompletas.PRODUZIDOS.length,
+      inseridosDoZero: categoriasCompletas.INSERIDOS.length,
+    };
+
+    return res.json({
+      success: true,
+      filtros: { dataDe, dataAte, limit },
+      snapshots: { de: snapshotDe, ate: snapshotAt },
+      resumo,
+      categorias,
+      data: enriquecidas.slice(0, limit),
+    });
+  } catch (error) {
+    console.error("[snapshot-lotes/rotacao-detalhe] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao detalhar a virada do plano",
+      details: error.message,
+    });
+  }
+});
+
 router.post("/", auth, async (req, res) => {
   const { nome, parametros = {}, resumo = {}, observacoes = "" } = req.body || {};
   const nomeTrim = String(nome || "").trim();
@@ -1547,6 +1944,270 @@ router.put("/:id", auth, async (req, res) => {
     return res.json({ success: true, data: atualizado });
   } catch (error) {
     return res.status(500).json({ success: false, error: "Erro ao atualizar simulação", details: error.message });
+  }
+});
+
+// Dashboard Extrato do Plano - Evolução Anual
+router.get("/snapshot-lotes/evolucao-anual", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const ano = Number(req.query.ano) || new Date().getFullYear();
+
+    const dataDe = `${ano}-01-01`;
+    const dataAte = `${ano}-12-31`;
+
+    // Buscar todos os snapshots do ano
+    const snapshotsResult = await pool.query(`
+      SELECT
+        DATE(data_snapshot)::TEXT AS data,
+        TO_CHAR(MAX(data_snapshot), 'YYYY-MM-DD HH24:MI:SS.US') AS snapshot_at
+      FROM snapshot_lotes
+      WHERE data_snapshot >= $1::DATE
+        AND data_snapshot < ($2::DATE + INTERVAL '1 day')
+      GROUP BY DATE(data_snapshot)
+      ORDER BY DATE(data_snapshot)
+    `, [dataDe, dataAte]);
+
+    const diasSnapshot = snapshotsResult.rows.map(r => ({ data: r.data, snapshotAt: r.snapshot_at }));
+
+    if (!diasSnapshot.length) {
+      return res.json({
+        success: true,
+        ano,
+        snapshots: [],
+        kpis: { totalSnapshots: 0, skusAtivos: 0, variacaoMedia: 0, tendencia: "sem_dados" },
+        acontecimentos: [],
+      });
+    }
+
+    // Buscar dados agregados por snapshot e posição
+    const dadosResult = await pool.query(`
+      SELECT
+        DATE(data_snapshot)::TEXT AS data,
+        UPPER(TRIM(COALESCE(cd_auxiliar, ''))) AS periodo,
+        COUNT(DISTINCT cd_produto)::INT AS skus,
+        SUM(GREATEST(COALESCE(qt_lote, 0) - COALESCE(qt_gerouop, 0), 0))::FLOAT AS qtd_aberto
+      FROM snapshot_lotes
+      WHERE data_snapshot >= $1::DATE
+        AND data_snapshot < ($2::DATE + INTERVAL '1 day')
+        AND UPPER(TRIM(COALESCE(cd_auxiliar, ''))) = ANY($3::TEXT[])
+        AND COALESCE(tp_situacao, 0) = 1
+      GROUP BY DATE(data_snapshot), UPPER(TRIM(COALESCE(cd_auxiliar, '')))
+      ORDER BY DATE(data_snapshot), periodo
+    `, [dataDe, dataAte, PERIODOS_PLANO]);
+
+    // Agrupar por data
+    const dadosPorData = new Map();
+    for (const row of dadosResult.rows) {
+      const posicoes = dadosPorData.get(row.data) || {};
+      posicoes[row.periodo] = {
+        skus: Number(row.skus || 0),
+        qtd: Math.round(Number(row.qtd_aberto || 0)),
+      };
+      dadosPorData.set(row.data, posicoes);
+    }
+
+    // Buscar dados detalhados por SKU para comparação entre snapshots
+    const detalhesResult = await pool.query(`
+      SELECT
+        DATE(data_snapshot)::TEXT AS data,
+        cd_produto::TEXT AS sku,
+        UPPER(TRIM(COALESCE(cd_auxiliar, ''))) AS periodo,
+        SUM(GREATEST(COALESCE(qt_lote, 0) - COALESCE(qt_gerouop, 0), 0))::FLOAT AS qtd_aberto
+      FROM snapshot_lotes
+      WHERE data_snapshot >= $1::DATE
+        AND data_snapshot < ($2::DATE + INTERVAL '1 day')
+        AND UPPER(TRIM(COALESCE(cd_auxiliar, ''))) = ANY($3::TEXT[])
+        AND COALESCE(tp_situacao, 0) = 1
+      GROUP BY DATE(data_snapshot), cd_produto, UPPER(TRIM(COALESCE(cd_auxiliar, '')))
+    `, [dataDe, dataAte, PERIODOS_PLANO]);
+
+    // Agrupar detalhes por data
+    const detalhesPorData = new Map();
+    for (const row of detalhesResult.rows) {
+      const skus = detalhesPorData.get(row.data) || new Map();
+      skus.set(`${row.sku}|${row.periodo}`, {
+        sku: row.sku,
+        periodo: row.periodo,
+        qtd: Math.round(Number(row.qtd_aberto || 0)),
+      });
+      detalhesPorData.set(row.data, skus);
+    }
+
+    // Calcular evolução e comparação entre snapshots
+    const snapshots = [];
+    const acontecimentos = [];
+    let dataAnterior = null;
+    let variacaoTotal = 0;
+    let countVariacoes = 0;
+
+    for (const dia of diasSnapshot) {
+      const posicoes = dadosPorData.get(dia.data) || {};
+      const skusAtual = detalhesPorData.get(dia.data) || new Map();
+      const skusAnterior = dataAnterior ? (detalhesPorData.get(dataAnterior) || new Map()) : new Map();
+
+      // Calcular mês de competência para cada posição
+      const dataSnapshot = new Date(dia.data);
+      const mesBase = dataSnapshot.getMonth();
+      const anoBase = dataSnapshot.getFullYear();
+      const meses = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+      const mesCompetencia = {};
+      const offsets = { MA: 1, PX: 2, UL: 3, QT: 4, QU: 5 };
+      for (const periodo of PERIODOS_PLANO) {
+        const mesIdx = (mesBase + offsets[periodo]) % 12;
+        const anoComp = mesBase + offsets[periodo] > 11 ? anoBase + 1 : anoBase;
+        mesCompetencia[periodo] = `${meses[mesIdx]}/${String(anoComp).slice(2)}`;
+      }
+
+      // Analisar mudanças por posição
+      const resumoPosicoes = {};
+      for (const periodo of PERIODOS_PLANO) {
+        const dados = posicoes[periodo] || { skus: 0, qtd: 0 };
+        let novos = 0, zerados = 0, aumentos = 0, reducoes = 0;
+        let qtdNovos = 0, qtdZerados = 0, qtdAumentos = 0, qtdReducoes = 0;
+
+        // Comparar com snapshot anterior
+        for (const [key, atual] of skusAtual.entries()) {
+          if (!key.endsWith(`|${periodo}`)) continue;
+          const sku = key.split("|")[0];
+          const anterior = skusAnterior.get(key);
+
+          if (!anterior || anterior.qtd === 0) {
+            if (atual.qtd > 0) { novos++; qtdNovos += atual.qtd; }
+          } else if (atual.qtd > anterior.qtd) {
+            aumentos++; qtdAumentos += (atual.qtd - anterior.qtd);
+          } else if (atual.qtd < anterior.qtd && atual.qtd > 0) {
+            reducoes++; qtdReducoes += (anterior.qtd - atual.qtd);
+          }
+        }
+
+        // Verificar zerados (existia antes, não existe agora ou qtd = 0)
+        if (dataAnterior) {
+          for (const [key, anterior] of skusAnterior.entries()) {
+            if (!key.endsWith(`|${periodo}`)) continue;
+            const atual = skusAtual.get(key);
+            if (anterior.qtd > 0 && (!atual || atual.qtd === 0)) {
+              zerados++; qtdZerados += anterior.qtd;
+            }
+          }
+        }
+
+        resumoPosicoes[periodo] = {
+          skus: dados.skus,
+          qtd: dados.qtd,
+          novos, zerados, aumentos, reducoes,
+          qtdNovos, qtdZerados, qtdAumentos, qtdReducoes,
+        };
+      }
+
+      // Calcular variação total
+      const qtdAtual = Object.values(resumoPosicoes).reduce((s, p) => s + p.qtd, 0);
+      let variacao = 0;
+      if (dataAnterior) {
+        const posAnterior = dadosPorData.get(dataAnterior) || {};
+        const qtdAnterior = Object.values(posAnterior).reduce((s, p) => s + (p?.qtd || 0), 0);
+        if (qtdAnterior > 0) {
+          variacao = ((qtdAtual - qtdAnterior) / qtdAnterior) * 100;
+          variacaoTotal += Math.abs(variacao);
+          countVariacoes++;
+        }
+      }
+
+      snapshots.push({
+        data: dia.data,
+        snapshotAt: dia.snapshotAt,
+        posicoes: resumoPosicoes,
+        mesCompetencia,
+        totalSkus: Object.values(resumoPosicoes).reduce((s, p) => s + p.skus, 0),
+        totalQtd: qtdAtual,
+        variacao: Math.round(variacao * 10) / 10,
+      });
+
+      // Gerar acontecimentos relevantes
+      for (const periodo of PERIODOS_PLANO) {
+        const r = resumoPosicoes[periodo];
+        if (r.novos >= 10) {
+          acontecimentos.push({
+            data: dia.data,
+            tipo: "NOVOS",
+            periodo,
+            mesCompetencia: mesCompetencia[periodo],
+            valor: r.novos,
+            qtd: r.qtdNovos,
+            descricao: `+${r.novos} novos SKUs no ${periodo} (${mesCompetencia[periodo]})`,
+          });
+        }
+        if (r.zerados >= 5) {
+          acontecimentos.push({
+            data: dia.data,
+            tipo: "ZERADOS",
+            periodo,
+            mesCompetencia: mesCompetencia[periodo],
+            valor: r.zerados,
+            qtd: r.qtdZerados,
+            descricao: `${r.zerados} SKUs zerados no ${periodo}`,
+          });
+        }
+        if (r.qtdAumentos > 5000) {
+          acontecimentos.push({
+            data: dia.data,
+            tipo: "AUMENTO",
+            periodo,
+            mesCompetencia: mesCompetencia[periodo],
+            valor: r.aumentos,
+            qtd: r.qtdAumentos,
+            descricao: `Aumento de ${r.qtdAumentos.toLocaleString("pt-BR")} peças no ${periodo}`,
+          });
+        }
+        if (r.qtdReducoes > 5000) {
+          acontecimentos.push({
+            data: dia.data,
+            tipo: "REDUCAO",
+            periodo,
+            mesCompetencia: mesCompetencia[periodo],
+            valor: r.reducoes,
+            qtd: r.qtdReducoes,
+            descricao: `Redução de ${r.qtdReducoes.toLocaleString("pt-BR")} peças no ${periodo}`,
+          });
+        }
+      }
+
+      dataAnterior = dia.data;
+    }
+
+    // KPIs
+    const ultimoSnapshot = snapshots[snapshots.length - 1];
+    const primeiroSnapshot = snapshots[0];
+    let tendencia = "estavel";
+    if (snapshots.length >= 3) {
+      const ultimos3 = snapshots.slice(-3);
+      const mediaVariacao = ultimos3.reduce((s, sn) => s + sn.variacao, 0) / 3;
+      if (mediaVariacao > 5) tendencia = "crescente";
+      else if (mediaVariacao < -5) tendencia = "decrescente";
+    }
+
+    return res.json({
+      success: true,
+      ano,
+      snapshots,
+      kpis: {
+        totalSnapshots: snapshots.length,
+        skusAtivos: ultimoSnapshot?.totalSkus || 0,
+        variacaoMedia: countVariacoes > 0 ? Math.round((variacaoTotal / countVariacoes) * 10) / 10 : 0,
+        tendencia,
+        qtdTotalAtual: ultimoSnapshot?.totalQtd || 0,
+        qtdTotalInicio: primeiroSnapshot?.totalQtd || 0,
+      },
+      acontecimentos: acontecimentos.sort((a, b) => b.data.localeCompare(a.data)).slice(0, 50),
+    });
+  } catch (error) {
+    console.error("[snapshot-lotes/evolucao-anual] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao analisar evolução anual do plano",
+      details: error.message,
+    });
   }
 });
 

@@ -12,7 +12,32 @@
       "Bash(python3:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(find:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run dev:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill /F /PID 53828)",
+      "Bash(taskkill /F /PID 47132)",
+      "Bash(taskkill //F //PID 47132)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill //F //PID 55048)",
+      "Bash(taskkill:*)",
+      "Bash(if exist .next rmdir /s /q .next)",
+      "Bash(dir /s /b *.js)",
+      "Bash(cat:*)",
+      "Bash(wc:*)",
+      "Bash(head:*)",
+      "Bash(cd:*)",
+      "Bash(npm run build:*)",
+      "Bash(node:*)",
+      "Bash(powershell -Command \"Stop-Process -Id 30260 -Force\")",
+      "Bash(powershell -Command \"Get-Process -Id 30260 | Stop-Process -Force\")",
+      "Bash(grep:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(ping:*)",
+      "Bash(dir:*)"
     ]
   }
 }

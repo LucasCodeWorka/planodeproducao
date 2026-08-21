@@ -723,6 +723,7 @@ export default function OrcamentoMpPage() {
       acc.comprasRegra += row.comprasRegra;
       acc.comprasTotal += row.comprasTotal;
       acc.valorConsumo += row.valorConsumo;
+      let necessidadeTotalAnterior = 0;
       for (const periodo of PERIODOS) {
         const consumoPeriodo = valorPeriodo(row, 'consumo', periodo);
         acc.consumoPorPeriodo[periodo] += consumoPeriodo;
@@ -736,6 +737,12 @@ export default function OrcamentoMpPage() {
         const comprasPeriodo = valorPeriodo(row, 'entrada', periodo);
         acc.comprasPorPeriodo[periodo] += comprasPeriodo;
         acc.valorComprasPorPeriodo[periodo] += comprasPeriodo * row.valorUnitario;
+        // Necessidade individual baseada sempre na necessidade total:
+        // mostra quanto do total foi gerado especificamente neste periodo.
+        const necessidadeIndividualTotal = Math.max(0, necessidadeCumulativa - necessidadeTotalAnterior);
+        acc.necessidadeIndividualPorPeriodo[periodo] += necessidadeIndividualTotal;
+        acc.valorNecessidadeIndividualPorPeriodo[periodo] += necessidadeIndividualTotal * row.valorUnitario;
+        necessidadeTotalAnterior = necessidadeCumulativa;
         // Compras cumulativas ate o periodo
         const comprasAtePeriodo = somaAte(row, 'entrada', periodo);
         acc.comprasCumulativaPorPeriodo[periodo] += comprasAtePeriodo;
@@ -787,6 +794,8 @@ export default function OrcamentoMpPage() {
       valorConsumoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       necessidadeCumulativaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       valorNecessidadeCumulativaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      necessidadeIndividualPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      valorNecessidadeIndividualPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       comprasPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       valorComprasPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       comprasCumulativaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
@@ -1374,6 +1383,10 @@ export default function OrcamentoMpPage() {
               {PERIODOS.map((periodo) => {
                 const ativo = periodosSelecionados.includes(periodo);
                 const valorOriginal = ativo ? custoPlanoOriginal.valorConsumoPorPeriodo[periodo] : 0;
+                const necAcumQtd = ativo ? totais.necessidadeCumulativaPorPeriodo[periodo] : 0;
+                const necAcumValor = ativo ? totais.valorNecessidadeCumulativaPorPeriodo[periodo] : 0;
+                const necIndividualQtd = ativo ? totais.necessidadeIndividualPorPeriodo[periodo] : 0;
+                const necIndividualValor = ativo ? totais.valorNecessidadeIndividualPorPeriodo[periodo] : 0;
                 // Excesso
                 const valorExcesso = ativo ? totais.valorExcessoPorPeriodo[periodo] : 0;
                 // Percentual finalizado
@@ -1414,6 +1427,18 @@ export default function OrcamentoMpPage() {
                           </span>
                         </div>
                         <div className="text-[10px] text-gray-500">Dias (acum)</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 border-t border-stone-200 pt-2">
+                      <div className="rounded border border-orange-200 bg-orange-50 px-2 py-1.5">
+                        <div className="text-[10px] font-semibold text-orange-700">Nec. total acum</div>
+                        <div className="text-xs font-bold text-orange-800">{necAcumValor > 0 ? money(necAcumValor) : '-'}</div>
+                        <div className="text-[10px] text-orange-700">Qtd {fmt(necAcumQtd)}</div>
+                      </div>
+                      <div className="rounded border border-red-200 bg-red-50 px-2 py-1.5">
+                        <div className="text-[10px] font-semibold text-red-700">Nec. individual total</div>
+                        <div className="text-xs font-bold text-red-800">{necIndividualValor > 0 ? money(necIndividualValor) : '-'}</div>
+                        <div className="text-[10px] text-red-700">Qtd {fmt(necIndividualQtd)}</div>
                       </div>
                     </div>
                   </div>

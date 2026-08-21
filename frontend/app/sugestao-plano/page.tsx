@@ -303,6 +303,10 @@ function roundDownByLot(qtd: number, lot: number) {
   return Math.floor(q / l) * l;
 }
 
+function planoNecessarioComCorte(necessidade: number, corteMin: number) {
+  return roundUpByLot(Math.max(0, Math.ceil(necessidade)), corteMin);
+}
+
 function mesSeguinte(mes: number) {
   const m = Number(mes || 0);
   if (!Number.isFinite(m) || m <= 0) return 1;
@@ -1527,6 +1531,34 @@ export default function SugestaoPlanoPage() {
     return { atual, sugerido, delta };
   }, [rowsVisiveisTela]);
 
+  function exportarAlteracoesCSV() {
+    const alteracoes = rows
+      .map((r) => ({
+        sku: r.idproduto,
+        antes: Math.round(r.planoUL || 0),
+        agora: periodoAlvo === 'UL' ? Math.round(r.planoSugerido || 0) : Math.round(r.planoUL || 0),
+        corteMinimo: Math.round(r.corteMin || 0),
+      }))
+      .filter((r) => r.antes !== r.agora);
+    if (!alteracoes.length) {
+      setOkMsg(periodoAlvo === 'UL'
+        ? 'Nenhum SKU com alteração no plano UL para exportar.'
+        : 'Selecione o período UL para exportar alterações do plano UL.');
+      return;
+    }
+    const header = ['idproduto', 'plano_ul_antes', 'plano_ul_agora', 'corte_minimo'];
+    const csv = [header, ...alteracoes]
+      .map((arr) => Object.values(arr).map((v) => `"${String(v ?? '').replaceAll('"', '""')}"`).join(','))
+      .join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sugestao_alteracoes_UL_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setOkMsg(`${alteracoes.length.toLocaleString('pt-BR')} SKUs alterados exportados.`);
+  }
+
   const resumoSuspensos = useMemo(() => {
     let totalSuspensos = 0;
     let planoSuspensos = 0;
@@ -1605,7 +1637,7 @@ export default function SugestaoPlanoPage() {
         const dispAnterior = Number(r.dispAnterior || 0);
         const projMes = Number(r.projMes || 0);
         const planoAtual = Number(r.planoAtual || 0);
-        const planoNecessario = Math.max(0, Math.ceil(projMes - dispAnterior));
+        const planoNecessario = planoNecessarioComCorte(projMes - dispAnterior, r.corteMin);
         const aumento = Math.max(0, planoNecessario - planoAtual);
         pecasNecessarias += aumento;
       }
@@ -1642,7 +1674,7 @@ export default function SugestaoPlanoPage() {
         const dispAnterior = Number(r.dispAnterior || 0);
         const projMes = Number(r.projMes || 0);
         const planoAtual = Number(r.planoAtual || 0);
-        const planoNecessario = Math.max(0, Math.ceil(projMes - dispAnterior));
+        const planoNecessario = planoNecessarioComCorte(projMes - dispAnterior, r.corteMin);
         const aumento = Math.max(0, planoNecessario - planoAtual);
         if (aumento > 0) {
           negativosItens += 1;
@@ -2176,8 +2208,8 @@ export default function SugestaoPlanoPage() {
             const planoAtual = Number(r.planoAtual || 0);
             // planoNecessario = o suficiente para dispPos >= 0
             // dispPos = dispAnterior + planoNovo - projMes >= 0
-            // planoNovo >= projMes - dispAnterior
-            const planoNecessario = Math.max(0, Math.ceil(projMes - dispAnterior));
+            // planoNovo >= projMes - dispAnterior, respeitando o corte minimo do SKU
+            const planoNecessario = planoNecessarioComCorte(projMes - dispAnterior, r.corteMin);
             // Só adiciona se o plano necessário for diferente do atual
             if (planoNecessario !== planoAtual) {
               negativosAtendidos.push(r);
@@ -2691,6 +2723,14 @@ export default function SugestaoPlanoPage() {
                 className="ml-auto px-4 py-2 text-xs font-bold rounded-lg bg-brand-primary text-white hover:bg-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all hover:shadow-md"
               >
                 {salvandoSugestao ? 'Salvando...' : 'Salvar sugestão'}
+              </button>
+              <button
+                type="button"
+                onClick={exportarAlteracoesCSV}
+                disabled={loading || rows.length === 0}
+                className="px-4 py-2 text-xs font-bold rounded-lg border border-brand-primary text-brand-primary hover:bg-brand-primary/5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Exportar alterações UL
               </button>
             </div>
           </div>

@@ -20,6 +20,7 @@ const mlRoutes = require("./routes/ml");
 const indicadoresOpRoutes = require("./routes/indicadores-op");
 const totvsModaRoutes = require("./routes/totvsModa");
 const excessoMpRoutes = require("./routes/excessoMp");
+const relatorioOpMpRoutes = require("./routes/relatorioOpMp");
 
 const app = express();
 
@@ -112,6 +113,7 @@ app.use("/api/ml",             mlRoutes);
 app.use("/api/indicadores-op", indicadoresOpRoutes);
 app.use("/api/totvs-moda",     totvsModaRoutes);
 app.use("/api/excesso-mp",     excessoMpRoutes);
+app.use("/api/relatorio-op-mp", relatorioOpMpRoutes);
 
 // Rota legada mantida para compatibilidade
 app.get("/api/vr-vendas-qtd", async (req, res) => {
@@ -147,8 +149,16 @@ app.use((_req, res) => {
 
 const listenPort = Number(PORT || API_PORT || 8000);
 
+async function ensureAnalisesIndexes() {
+  try {
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_snapshot_lotes_data_snapshot ON snapshot_lotes (data_snapshot)`);
+  } catch (error) {
+    console.warn('[startup] Nao foi possivel criar indice de snapshots:', error.message);
+  }
+}
+
 // Iniciar servidor após inicializar o cache no banco
-initCache(pool).then(() => {
+ensureAnalisesIndexes().then(() => initCache(pool)).then(() => {
   app.listen(listenPort, API_HOST, () => {
   console.log(`API ouvindo em http://${API_HOST}:${listenPort}`);
   console.log(`\nEndpoints disponiveis:`);

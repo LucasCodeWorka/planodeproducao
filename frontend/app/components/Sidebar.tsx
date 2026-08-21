@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, FlaskConical, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, Sparkles, PackagePlus, MapPin, BarChart3, ShoppingCart, WalletCards, GitCompareArrows } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -97,19 +97,9 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             {!collapsed && <span>Sugestão de Plano</span>}
           </button>
 
-          <button onClick={() => router.push('/edicao-limitada')} className={`${navItemBase} ${pathname === '/edicao-limitada' ? navActive : navInactive}`}>
-            <Sparkles size={20} className="shrink-0" />
-            {!collapsed && <span>Edição Limitada</span>}
-          </button>
-
           <button onClick={() => router.push('/sugestoes-aprovacoes')} className={`${navItemBase} ${pathname === '/sugestoes-aprovacoes' ? navActive : navInactive}`}>
             <CheckSquare size={20} className="shrink-0" />
             {!collapsed && <span>Sugestões/Aprovação</span>}
-          </button>
-
-          <button onClick={() => router.push('/pedido-compra')} className={`${navItemBase} ${pathname === '/pedido-compra' ? navActive : navInactive}`}>
-            <ShoppingCart size={20} className="shrink-0" />
-            {!collapsed && <span>Pedido de Compra</span>}
           </button>
 
           <button onClick={() => router.push('/capacidade')} className={`${navItemBase} ${pathname === '/capacidade' ? navActive : navInactive}`}>
@@ -127,22 +117,22 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             {!collapsed && <span>Estoque Loja Disponível</span>}
           </button>
 
-          <button onClick={() => router.push('/processo-local')} className={`${navItemBase} ${pathname === '/processo-local' ? navActive : navInactive}`}>
-            <MapPin size={20} className="shrink-0" />
-            {!collapsed && <span>Processo por Local</span>}
-          </button>
-
           <button onClick={() => router.push('/curva-abc')} className={`${navItemBase} ${pathname === '/curva-abc' ? navActive : navInactive}`}>
             <BarChart3 size={20} className="shrink-0" />
             {!collapsed && <span>Curva ABC</span>}
           </button>
 
-          <button onClick={() => router.push('/extrato-plano')} className={`${navItemBase} ${pathname === '/extrato-plano' ? navActive : navInactive}`}>
-            <GitCompareArrows size={20} className="shrink-0" />
-            {!collapsed && <span>Extrato Plano</span>}
-          </button>
+            <button onClick={() => router.push('/extrato-plano')} className={`${navItemBase} ${pathname === '/extrato-plano' ? navActive : navInactive}`}>
+              <GitCompareArrows size={20} className="shrink-0" />
+              {!collapsed && <span>Extrato Plano</span>}
+            </button>
 
-          <button onClick={() => router.push('/configuracoes')} className={`${navItemBase} ${pathname === '/configuracoes' ? navActive : navInactive}`}>
+            <button onClick={() => router.push('/relatorio-op-mp')} className={`${navItemBase} ${pathname === '/relatorio-op-mp' ? navActive : navInactive}`}>
+              <ClipboardList size={20} className="shrink-0" />
+              {!collapsed && <span>Relatório OP / MP</span>}
+            </button>
+
+            <button onClick={() => router.push('/configuracoes')} className={`${navItemBase} ${pathname === '/configuracoes' ? navActive : navInactive}`}>
             <SlidersHorizontal size={20} className="shrink-0" />
             {!collapsed && <span>Configurações</span>}
           </button>
@@ -168,21 +158,6 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             <button onClick={() => router.push('/orcamento-mp')} className={`${navItemBase} ${pathname === '/orcamento-mp' ? navActive : navInactive}`}>
               <WalletCards size={20} className="shrink-0" />
               {!collapsed && <span>Orcamento MP</span>}
-            </button>
-
-            <button onClick={() => router.push('/analise-mp-planos')} className={`${navItemBase} ${pathname === '/analise-mp-planos' ? navActive : navInactive}`}>
-              <Boxes size={20} className="shrink-0" />
-              {!collapsed && <span>Análise MP Planos</span>}
-            </button>
-
-            <button onClick={() => router.push('/laboratorio')} className={`${navItemBase} ${pathname === '/laboratorio' ? navActive : navInactive}`}>
-              <FlaskConical size={20} className="shrink-0" />
-              {!collapsed && <span>Laboratório</span>}
-            </button>
-
-            <button onClick={() => router.push('/diagnosticos')} className={`${navItemBase} ${pathname === '/diagnosticos' ? navActive : navInactive}`}>
-              <ClipboardList size={20} className="shrink-0" />
-              {!collapsed && <span>Diagnósticos</span>}
             </button>
           </div>
         </div>
