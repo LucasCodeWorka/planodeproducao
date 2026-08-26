@@ -90,6 +90,11 @@ type MpCalculada = MpRow & {
 type PercentualPeriodo = { qtdLote: number; qtdFinalizada: number; qtdGerouOp: number; percentual: number; percentualGerouOp: number };
 type DiasCapacidade = { porPeriodo: Record<Periodo, number>; acumulado: Record<Periodo, number>; capacidadeDiaria: number };
 type OpsAntigas = { qtdTotal: number; opsCount: number; porFaixa: Record<string, { qtd: number; ops: number }>; data: Array<{ cdProduto: string; nrOp: string; nrCiclo: string; dtInicio: string; diasEmProcesso: number; qtdEmProcesso: number; descricao: string; referencia: string }> };
+type ComparacaoSnapshotType = {
+  snapshotA?: { descricao?: string; totalPlanoAtual?: number };
+  snapshotB?: { descricao?: string; totalPlanoAtual?: number };
+  comparacao?: { diferencaTotal?: number; mpsAdicionadas?: number; mpsRemovidas?: number; mpsAlteradas?: number };
+};
 
 type OrcamentoCachePayload = {
   version: number;
@@ -250,7 +255,7 @@ export default function OrcamentoMpPage() {
   const [salvandoSnapshot, setSalvandoSnapshot] = useState(false);
   const [snapshotsModalAberto, setSnapshotsModalAberto] = useState(false);
   const [snapshotComparando, setSnapshotComparando] = useState<{ idA: number; idB: number } | null>(null);
-  const [comparacaoSnapshot, setComparacaoSnapshot] = useState<unknown>(null);
+  const [comparacaoSnapshot, setComparacaoSnapshot] = useState<ComparacaoSnapshotType | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -2700,22 +2705,22 @@ export default function OrcamentoMpPage() {
                       <div className="text-sm font-bold text-blue-800 mb-3">Comparacao de Versoes</div>
                       <div className="grid grid-cols-2 gap-4 text-xs">
                         <div>
-                          <div className="font-semibold text-gray-700">{(comparacaoSnapshot as { snapshotA?: { descricao?: string } })?.snapshotA?.descricao || 'Versao A'}</div>
-                          <div className="text-gray-500">{money((comparacaoSnapshot as { snapshotA?: { totalPlanoAtual?: number } })?.snapshotA?.totalPlanoAtual || 0)}</div>
+                          <div className="font-semibold text-gray-700">{comparacaoSnapshot.snapshotA?.descricao || 'Versao A'}</div>
+                          <div className="text-gray-500">{money(comparacaoSnapshot.snapshotA?.totalPlanoAtual || 0)}</div>
                         </div>
                         <div>
-                          <div className="font-semibold text-gray-700">{(comparacaoSnapshot as { snapshotB?: { descricao?: string } })?.snapshotB?.descricao || 'Versao B'}</div>
-                          <div className="text-gray-500">{money((comparacaoSnapshot as { snapshotB?: { totalPlanoAtual?: number } })?.snapshotB?.totalPlanoAtual || 0)}</div>
+                          <div className="font-semibold text-gray-700">{comparacaoSnapshot.snapshotB?.descricao || 'Versao B'}</div>
+                          <div className="text-gray-500">{money(comparacaoSnapshot.snapshotB?.totalPlanoAtual || 0)}</div>
                         </div>
                       </div>
                       <div className="mt-3 pt-3 border-t border-blue-200">
-                        <div className={`text-lg font-bold ${((comparacaoSnapshot as { comparacao?: { diferencaTotal?: number } })?.comparacao?.diferencaTotal || 0) > 0 ? 'text-amber-700' : 'text-blue-700'}`}>
-                          Diferenca: {((comparacaoSnapshot as { comparacao?: { diferencaTotal?: number } })?.comparacao?.diferencaTotal || 0) > 0 ? '+' : ''}{money((comparacaoSnapshot as { comparacao?: { diferencaTotal?: number } })?.comparacao?.diferencaTotal || 0)}
+                        <div className={`text-lg font-bold ${(comparacaoSnapshot.comparacao?.diferencaTotal || 0) > 0 ? 'text-amber-700' : 'text-blue-700'}`}>
+                          Diferenca: {(comparacaoSnapshot.comparacao?.diferencaTotal || 0) > 0 ? '+' : ''}{money(comparacaoSnapshot.comparacao?.diferencaTotal || 0)}
                         </div>
                         <div className="mt-2 text-xs text-gray-600">
-                          MPs adicionadas: {(comparacaoSnapshot as { comparacao?: { mpsAdicionadas?: number } })?.comparacao?.mpsAdicionadas || 0} |
-                          MPs removidas: {(comparacaoSnapshot as { comparacao?: { mpsRemovidas?: number } })?.comparacao?.mpsRemovidas || 0} |
-                          MPs alteradas: {(comparacaoSnapshot as { comparacao?: { mpsAlteradas?: number } })?.comparacao?.mpsAlteradas || 0}
+                          MPs adicionadas: {comparacaoSnapshot.comparacao?.mpsAdicionadas || 0} |
+                          MPs removidas: {comparacaoSnapshot.comparacao?.mpsRemovidas || 0} |
+                          MPs alteradas: {comparacaoSnapshot.comparacao?.mpsAlteradas || 0}
                         </div>
                       </div>
                     </div>
