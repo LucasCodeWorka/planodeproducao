@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Save, History, Trash2, GitCompare } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { Planejamento } from '../types';
 import { authHeaders, getToken } from '../lib/auth';
@@ -87,7 +87,7 @@ type MpCalculada = MpRow & {
   valorNecessidadeTotal: number;
 };
 
-type PercentualPeriodo = { qtdLote: number; qtdFinalizada: number; percentual: number };
+type PercentualPeriodo = { qtdLote: number; qtdFinalizada: number; qtdGerouOp: number; percentual: number; percentualGerouOp: number };
 type DiasCapacidade = { porPeriodo: Record<Periodo, number>; acumulado: Record<Periodo, number>; capacidadeDiaria: number };
 type OpsAntigas = { qtdTotal: number; opsCount: number; porFaixa: Record<string, { qtd: number; ops: number }>; data: Array<{ cdProduto: string; nrOp: string; nrCiclo: string; dtInicio: string; diasEmProcesso: number; qtdEmProcesso: number; descricao: string; referencia: string }> };
 
@@ -241,6 +241,16 @@ export default function OrcamentoMpPage() {
   const [opsAntigasModalAberto, setOpsAntigasModalAberto] = useState(false);
   const [pecasPAPorPeriodo, setPecasPAPorPeriodo] = useState<Record<Periodo, number>>({ MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
   const [pecasPAOriginalPorPeriodo, setPecasPAOriginalPorPeriodo] = useState<Record<Periodo, number>>({ MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
+
+  // Versionamento
+  type Snapshot = { id: number; descricao: string; createdAt: string; totalPlanoOriginal: number; totalPlanoAtual: number; totalDiferenca: number; qtdMps: number; qtdSkus: number };
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [snapshotModalAberto, setSnapshotModalAberto] = useState(false);
+  const [snapshotDescricao, setSnapshotDescricao] = useState('');
+  const [salvandoSnapshot, setSalvandoSnapshot] = useState(false);
+  const [snapshotsModalAberto, setSnapshotsModalAberto] = useState(false);
+  const [snapshotComparando, setSnapshotComparando] = useState<{ idA: number; idB: number } | null>(null);
+  const [comparacaoSnapshot, setComparacaoSnapshot] = useState<unknown>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -524,6 +534,115 @@ export default function OrcamentoMpPage() {
       setLoadingPrices(false);
     }
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // VERSIONAMENTO / SNAPSHOTS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async function carregarSnapshots() {
+    try {
+      const response = await fetchNoCache(`${API_URL}/api/producao/orcamento-mp-snapshots?marca=LIEBE`, { headers: authHeaders() }, 30000);
+      const payload = await response.json();
+      if (response.ok && payload?.success && Array.isArray(payload.data)) {
+        setSnapshots(payload.data);
+      }
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao carregar snapshots:', err);
+    }
+  }
+
+  async function salvarSnapshot() {
+    if (!snapshotDescricao.trim()) return;
+    setSalvandoSnapshot(true);
+    try {
+      // Calcular totais por periodo
+      const planoOriginalPorPeriodo: Record<string, number> = {};
+      const planoAtualPorPeriodo: Record<string, number> = {};
+      let totalPlanoOriginal = 0;
+      let totalPlanoAtual = 0;
+
+      for (const periodo of PERIODOS) {
+        planoOriginalPorPeriodo[periodo] = custoPlanoOriginal.valorConsumoPorPeriodo[periodo] || 0;
+        planoAtualPorPeriodo[periodo] = coberturaPorPeriodo[periodo]?.consumo || 0;
+        totalPlanoOriginal += planoOriginalPorPeriodo[periodo];
+        totalPlanoAtual += planoAtualPorPeriodo[periodo];
+      }
+
+      // Preparar detalhes das MPs (top 100 por valor)
+      const detalhesMps = rowsCalculadas
+        .map(row => ({
+          idmp: row.idmateriaprima,
+          artigo: row.artigo,
+          valorTotal: row.valorConsumo || 0,
+          consumoQtd: row.consumoAte || 0,
+        }))
+        .sort((a, b) => b.valorTotal - a.valorTotal)
+        .slice(0, 100);
+
+      const response = await fetchNoCache(`${API_URL}/api/producao/orcamento-mp-snapshot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          descricao: snapshotDescricao.trim(),
+          marca: 'LIEBE',
+          totalPlanoOriginal,
+          totalPlanoAtual,
+          planoOriginalPorPeriodo,
+          planoAtualPorPeriodo,
+          pecasPaOriginalPorPeriodo: pecasPAOriginalPorPeriodo,
+          pecasPaAtualPorPeriodo: pecasPAPorPeriodo,
+          detalhesMps,
+          qtdMps: rowsCalculadas.length,
+          qtdSkus: rowsBase.length,
+        }),
+      }, 60000);
+
+      const payload = await response.json();
+      if (response.ok && payload?.success) {
+        setSnapshotModalAberto(false);
+        setSnapshotDescricao('');
+        await carregarSnapshots();
+      } else {
+        alert('Erro ao salvar versão: ' + (payload?.error || 'Erro desconhecido'));
+      }
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao salvar snapshot:', err);
+      alert('Erro ao salvar versão');
+    } finally {
+      setSalvandoSnapshot(false);
+    }
+  }
+
+  async function compararSnapshots(idA: number, idB: number) {
+    setSnapshotComparando({ idA, idB });
+    try {
+      const response = await fetchNoCache(`${API_URL}/api/producao/orcamento-mp-snapshots/comparar?idA=${idA}&idB=${idB}`, { headers: authHeaders() }, 30000);
+      const payload = await response.json();
+      if (response.ok && payload?.success) {
+        setComparacaoSnapshot(payload.data);
+      }
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao comparar snapshots:', err);
+    }
+  }
+
+  async function excluirSnapshot(id: number) {
+    if (!confirm('Tem certeza que deseja excluir esta versão?')) return;
+    try {
+      await fetchNoCache(`${API_URL}/api/producao/orcamento-mp-snapshot/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      }, 30000);
+      await carregarSnapshots();
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao excluir snapshot:', err);
+    }
+  }
+
+  // Carregar snapshots ao montar
+  useEffect(() => {
+    carregarSnapshots();
+  }, []);
 
   async function carregarCachePersistido() {
     try {
@@ -1389,9 +1508,9 @@ export default function OrcamentoMpPage() {
                 const necIndividualValor = ativo ? totais.valorNecessidadeIndividualPorPeriodo[periodo] : 0;
                 // Excesso
                 const valorExcesso = ativo ? totais.valorExcessoPorPeriodo[periodo] : 0;
-                // Percentual finalizado
+                // Percentual gerou OP
                 const percData = percentualPorPeriodo[periodo];
-                const percentual = percData?.percentual ?? null;
+                const percentualGerouOp = percData?.percentualGerouOp ?? null;
                 // Dias faltantes (acumulado)
                 const diasFalt = diasFaltantesPorPeriodo[periodo];
                 // Dias individual e acumulado
@@ -1414,10 +1533,10 @@ export default function OrcamentoMpPage() {
                         <div className="text-[10px] text-gray-500">Excesso</div>
                       </div>
                       <div>
-                        <div className={`text-sm font-bold ${percentual !== null ? (percentual >= 100 ? 'text-emerald-600' : percentual >= 50 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}`}>
-                          {percentual !== null ? `${percentual.toFixed(1)}%` : '-'}
+                        <div className={`text-sm font-bold ${percentualGerouOp !== null ? (percentualGerouOp >= 100 ? 'text-emerald-600' : percentualGerouOp >= 50 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}`}>
+                          {percentualGerouOp !== null ? `${percentualGerouOp.toFixed(1)}%` : '-'}
                         </div>
-                        <div className="text-[10px] text-gray-500">Produzido</div>
+                        <div className="text-[10px] text-gray-500">Gerou OP</div>
                         <div className="mt-1 flex gap-1.5 items-baseline">
                           <span className={`text-xs font-semibold ${diasIndiv !== null ? 'text-blue-700' : 'text-gray-400'}`}>
                             {diasIndiv !== null ? `${diasIndiv.toFixed(1)}d` : '-'}
@@ -1457,8 +1576,8 @@ export default function OrcamentoMpPage() {
                 const ativo = periodosSelecionados.includes(periodo);
                 const qtdPlano = ativo ? pecasPAOriginalPorPeriodo[periodo] : 0;
                 const percData = percentualPorPeriodo[periodo];
-                const percentual = percData?.percentual ?? null;
-                const qtdFinalizada = percData?.qtdFinalizada ?? 0;
+                const percentualGerouOp = percData?.percentualGerouOp ?? null;
+                const qtdGerouOp = percData?.qtdGerouOp ?? 0;
                 const diasIndiv = diasCapacidade?.porPeriodo[periodo] ?? null;
                 const diasAcum = diasCapacidade?.acumulado[periodo] ?? null;
                 const diasFalt = diasFaltantesPorPeriodo[periodo];
@@ -1469,16 +1588,16 @@ export default function OrcamentoMpPage() {
                       <div>
                         <div className="text-sm font-bold text-stone-800">{qtdPlano > 0 ? fmt(qtdPlano) : '-'}</div>
                         <div className="text-[10px] text-gray-500">Plano</div>
-                        <div className={`mt-1 text-xs font-semibold ${qtdFinalizada > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                          {qtdFinalizada > 0 ? fmt(qtdFinalizada) : '-'}
+                        <div className={`mt-1 text-xs font-semibold ${qtdGerouOp > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                          {qtdGerouOp > 0 ? fmt(qtdGerouOp) : '-'}
                         </div>
-                        <div className="text-[10px] text-gray-500">Finalizado</div>
+                        <div className="text-[10px] text-gray-500">Gerou OP</div>
                       </div>
                       <div>
-                        <div className={`text-sm font-bold ${percentual !== null ? (percentual >= 100 ? 'text-emerald-600' : percentual >= 50 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}`}>
-                          {percentual !== null ? `${percentual.toFixed(1)}%` : '-'}
+                        <div className={`text-sm font-bold ${percentualGerouOp !== null ? (percentualGerouOp >= 100 ? 'text-emerald-600' : percentualGerouOp >= 50 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}`}>
+                          {percentualGerouOp !== null ? `${percentualGerouOp.toFixed(1)}%` : '-'}
                         </div>
-                        <div className="text-[10px] text-gray-500">Produzido</div>
+                        <div className="text-[10px] text-gray-500">% OP</div>
                         <div className="mt-1 flex gap-1.5 items-baseline">
                           <span className={`text-xs font-semibold ${diasIndiv !== null ? 'text-blue-700' : 'text-gray-400'}`}>
                             {diasIndiv !== null ? `${diasIndiv.toFixed(1)}d` : '-'}
@@ -1737,6 +1856,41 @@ export default function OrcamentoMpPage() {
                 <RefreshCw size={14} />
                 Atualizar
               </button>
+
+              {/* Indicador de alteração e botões de versionamento */}
+              <div className="mt-5 flex items-center gap-3">
+                {(() => {
+                  const totalOriginal = PERIODOS.reduce((acc, p) => acc + (custoPlanoOriginal?.valorConsumoPorPeriodo?.[p] || 0), 0);
+                  const totalAtual = PERIODOS.reduce((acc, p) => acc + (coberturaPorPeriodo?.[p]?.consumo || 0), 0);
+                  const diferenca = totalAtual - totalOriginal;
+                  const temDiferenca = Math.abs(diferenca) > 100;
+                  return (
+                    <>
+                      {temDiferenca && (
+                        <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${diferenca > 0 ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-blue-100 text-blue-800 border border-blue-300'}`}>
+                          {diferenca > 0 ? '+' : ''}{money(diferenca)} vs original
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+                <button
+                  type="button"
+                  onClick={() => setSnapshotModalAberto(true)}
+                  className="inline-flex items-center gap-1.5 rounded border border-emerald-500 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                >
+                  <Save size={14} />
+                  Salvar Versao
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSnapshotsModalAberto(true)}
+                  className="inline-flex items-center gap-1.5 rounded border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  <History size={14} />
+                  Historico ({snapshots.length})
+                </button>
+              </div>
 
               <div className="pt-5 text-[11px] text-gray-500">
                 <div>{cacheStatus || 'Cache persistido no banco'}</div>
@@ -2439,6 +2593,133 @@ export default function OrcamentoMpPage() {
                       </table>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal salvar versão */}
+          {snapshotModalAberto && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-md rounded-lg bg-white shadow-xl border border-gray-200">
+                <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+                  <div className="text-sm font-bold text-brand-dark">Salvar Versao do Orcamento</div>
+                  <button type="button" onClick={() => setSnapshotModalAberto(false)} className="text-gray-400 hover:text-gray-600">&times;</button>
+                </div>
+                <div className="px-5 py-4">
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">
+                    Descricao da versao
+                    <input
+                      type="text"
+                      value={snapshotDescricao}
+                      onChange={(e) => setSnapshotDescricao(e.target.value)}
+                      placeholder="Ex: Versao inicial, Ajuste pos-reuniao, etc."
+                      className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm font-normal"
+                      autoFocus
+                    />
+                  </label>
+                  <div className="mt-4 text-xs text-gray-500">
+                    <div>Total Plano Original: {money(PERIODOS.reduce((acc, p) => acc + (custoPlanoOriginal?.valorConsumoPorPeriodo?.[p] || 0), 0))}</div>
+                    <div>Total Plano Atual: {money(PERIODOS.reduce((acc, p) => acc + (coberturaPorPeriodo?.[p]?.consumo || 0), 0))}</div>
+                    <div>MPs: {rowsCalculadas.length} | SKUs: {rowsBase.length}</div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 border-t border-gray-200 px-5 py-3">
+                  <button type="button" onClick={() => setSnapshotModalAberto(false)} className="px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded">Cancelar</button>
+                  <button
+                    type="button"
+                    onClick={salvarSnapshot}
+                    disabled={salvandoSnapshot || !snapshotDescricao.trim()}
+                    className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded disabled:opacity-50"
+                  >
+                    {salvandoSnapshot ? 'Salvando...' : 'Salvar Versao'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal historico de versões */}
+          {snapshotsModalAberto && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-lg bg-white shadow-xl border border-gray-200">
+                <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+                  <div className="text-sm font-bold text-brand-dark">Historico de Versoes do Orcamento</div>
+                  <button type="button" onClick={() => { setSnapshotsModalAberto(false); setComparacaoSnapshot(null); setSnapshotComparando(null); }} className="text-gray-400 hover:text-gray-600">&times;</button>
+                </div>
+                <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">
+                  {snapshots.length === 0 ? (
+                    <div className="text-center text-gray-500 py-8">Nenhuma versao salva ainda.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {snapshots.map((snap, idx) => (
+                        <div key={snap.id} className={`flex items-center justify-between gap-4 p-3 rounded border ${snapshotComparando?.idA === snap.id || snapshotComparando?.idB === snap.id ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm text-gray-800">{snap.descricao}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {new Date(snap.createdAt).toLocaleString('pt-BR')} | {snap.qtdMps} MPs | {snap.qtdSkus} SKUs
+                            </div>
+                            <div className="text-xs mt-1">
+                              <span className="text-gray-600">Plano: </span>
+                              <span className="font-semibold">{money(snap.totalPlanoAtual)}</span>
+                              {snap.totalDiferenca !== 0 && (
+                                <span className={`ml-2 ${snap.totalDiferenca > 0 ? 'text-amber-600' : 'text-blue-600'}`}>
+                                  ({snap.totalDiferenca > 0 ? '+' : ''}{money(snap.totalDiferenca)} vs original)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => compararSnapshots(snapshots[idx].id, snapshots[0].id)}
+                                className="p-1.5 rounded text-blue-600 hover:bg-blue-100"
+                                title="Comparar com versao mais recente"
+                              >
+                                <GitCompare size={16} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => excluirSnapshot(snap.id)}
+                              className="p-1.5 rounded text-red-500 hover:bg-red-100"
+                              title="Excluir versao"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Resultado da comparação */}
+                  {comparacaoSnapshot && (
+                    <div className="mt-6 p-4 rounded border border-blue-200 bg-blue-50">
+                      <div className="text-sm font-bold text-blue-800 mb-3">Comparacao de Versoes</div>
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <div className="font-semibold text-gray-700">{(comparacaoSnapshot as { snapshotA?: { descricao?: string } })?.snapshotA?.descricao || 'Versao A'}</div>
+                          <div className="text-gray-500">{money((comparacaoSnapshot as { snapshotA?: { totalPlanoAtual?: number } })?.snapshotA?.totalPlanoAtual || 0)}</div>
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-700">{(comparacaoSnapshot as { snapshotB?: { descricao?: string } })?.snapshotB?.descricao || 'Versao B'}</div>
+                          <div className="text-gray-500">{money((comparacaoSnapshot as { snapshotB?: { totalPlanoAtual?: number } })?.snapshotB?.totalPlanoAtual || 0)}</div>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-blue-200">
+                        <div className={`text-lg font-bold ${((comparacaoSnapshot as { comparacao?: { diferencaTotal?: number } })?.comparacao?.diferencaTotal || 0) > 0 ? 'text-amber-700' : 'text-blue-700'}`}>
+                          Diferenca: {((comparacaoSnapshot as { comparacao?: { diferencaTotal?: number } })?.comparacao?.diferencaTotal || 0) > 0 ? '+' : ''}{money((comparacaoSnapshot as { comparacao?: { diferencaTotal?: number } })?.comparacao?.diferencaTotal || 0)}
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">
+                          MPs adicionadas: {(comparacaoSnapshot as { comparacao?: { mpsAdicionadas?: number } })?.comparacao?.mpsAdicionadas || 0} |
+                          MPs removidas: {(comparacaoSnapshot as { comparacao?: { mpsRemovidas?: number } })?.comparacao?.mpsRemovidas || 0} |
+                          MPs alteradas: {(comparacaoSnapshot as { comparacao?: { mpsAlteradas?: number } })?.comparacao?.mpsAlteradas || 0}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

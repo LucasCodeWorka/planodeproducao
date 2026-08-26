@@ -573,7 +573,7 @@ router.post("/plano-original", async (req, res) => {
 
 /**
  * GET /api/producao/percentual-finalizado
- * Retorna qtd_lote e qtd_finalizada por periodo para calcular % produzido
+ * Retorna qtd_lote, qtd_finalizada e qtd_gerouop por periodo
  * Filtrado por marca LIEBE e status EM LINHA/NOVA COLECAO
  * OTIMIZADO: Usa CTE para pré-filtrar produtos (evita f_dic_prd_classificacao no WHERE)
  */
@@ -597,7 +597,8 @@ router.get("/percentual-finalizado", async (req, res) => {
       SELECT
         UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
         SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qtd_lote,
-        SUM(COALESCE(a.qt_finalizada, 0))::FLOAT AS qtd_finalizada
+        SUM(COALESCE(a.qt_finalizada, 0))::FLOAT AS qtd_finalizada,
+        SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qtd_gerouop
       FROM vr_pcp_loteplop a
       INNER JOIN produtos_filtrados pf ON pf.cd_produto = a.cd_produto
       LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
@@ -612,11 +613,15 @@ router.get("/percentual-finalizado", async (req, res) => {
       if (!["MA", "PX", "UL", "QT", "QU"].includes(periodo)) continue;
       const qtdLote = Number(row.qtd_lote || 0);
       const qtdFinalizada = Number(row.qtd_finalizada || 0);
+      const qtdGerouOp = Number(row.qtd_gerouop || 0);
       const percentual = qtdLote > 0 ? (qtdFinalizada / qtdLote) * 100 : 0;
+      const percentualGerouOp = qtdLote > 0 ? (qtdGerouOp / qtdLote) * 100 : 0;
       data[periodo] = {
         qtdLote: Math.round(qtdLote),
         qtdFinalizada: Math.round(qtdFinalizada),
+        qtdGerouOp: Math.round(qtdGerouOp),
         percentual: Math.round(percentual * 10) / 10, // 1 casa decimal
+        percentualGerouOp: Math.round(percentualGerouOp * 10) / 10, // 1 casa decimal
       };
     }
 
@@ -949,6 +954,422 @@ router.get("/ops-antigas", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Erro ao buscar OPs antigas",
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/producao/plano-ops-geradas
+ * Analisa a diferenca entre plano original e restante (OPs ja geradas)
+ * Mostra quais SKUs tiveram OPs geradas por periodo
+ */
+router.get("/plano-ops-geradas", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const periodo = String(req.query.periodo || 'PX').toUpperCase();
+
+    if (!['MA', 'PX', 'UL', 'QT', 'QU'].includes(periodo)) {
+      return res.status(400).json({ success: false, error: "Periodo invalido" });
+    }
+
+    // Buscar SKUs com OPs geradas no periodo
+    const result = await pool.query(`
+      SELECT
+        a.cd_produto::TEXT AS idproduto,
+        f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
+        f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar) AS produto,
+        p.cd_auxiliar AS periodo,
+        SUM(COALESCE(a.qt_lote, 0))::FLOAT AS plano_original,
+        SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qt_gerou_op,
+        SUM(GREATEST(a.qt_lote - COALESCE(a.qt_gerouop, 0), 0))::FLOAT AS plano_restante
+      FROM vr_pcp_lotepl2 a
+      LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
+      WHERE p.tp_situacao = 1
+        AND UPPER(p.cd_auxiliar) = $1
+        AND COALESCE(a.qt_gerouop, 0) > 0
+      GROUP BY a.cd_produto, p.cd_auxiliar
+      ORDER BY SUM(COALESCE(a.qt_gerouop, 0)) DESC
+      LIMIT 100
+    `, [periodo]);
+
+    // Calcular totais
+    const totais = result.rows.reduce((acc, row) => {
+      acc.planoOriginal += Number(row.plano_original || 0);
+      acc.qtGerouOp += Number(row.qt_gerou_op || 0);
+      acc.planoRestante += Number(row.plano_restante || 0);
+      return acc;
+    }, { planoOriginal: 0, qtGerouOp: 0, planoRestante: 0 });
+
+    return res.status(200).json({
+      success: true,
+      periodo,
+      totais: {
+        planoOriginal: Math.round(totais.planoOriginal),
+        qtGerouOp: Math.round(totais.qtGerouOp),
+        planoRestante: Math.round(totais.planoRestante),
+        skusComOp: result.rows.length
+      },
+      data: result.rows.map(row => ({
+        idproduto: row.idproduto,
+        referencia: row.referencia,
+        produto: row.produto,
+        planoOriginal: Math.round(Number(row.plano_original || 0)),
+        qtGerouOp: Math.round(Number(row.qt_gerou_op || 0)),
+        planoRestante: Math.round(Number(row.plano_restante || 0)),
+        percentualGerado: Number(row.plano_original || 0) > 0
+          ? Math.round((Number(row.qt_gerou_op || 0) / Number(row.plano_original || 0)) * 100)
+          : 0
+      }))
+    });
+  } catch (error) {
+    console.error("[plano-ops-geradas] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao buscar OPs geradas",
+      details: error.message
+    });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// VERSIONAMENTO DO ORCAMENTO MP
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function ensureOrcamentoSnapshotsTable(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.app_orcamento_mp_snapshots (
+      id SERIAL PRIMARY KEY,
+      descricao TEXT NOT NULL,
+      marca TEXT NOT NULL DEFAULT 'LIEBE',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+      -- Totais gerais
+      total_plano_original NUMERIC(15,2) NOT NULL DEFAULT 0,
+      total_plano_atual NUMERIC(15,2) NOT NULL DEFAULT 0,
+      total_diferenca NUMERIC(15,2) NOT NULL DEFAULT 0,
+
+      -- Totais por periodo (JSONB: {MA: valor, PX: valor, ...})
+      plano_original_por_periodo JSONB NOT NULL DEFAULT '{}',
+      plano_atual_por_periodo JSONB NOT NULL DEFAULT '{}',
+
+      -- Pecas PA por periodo
+      pecas_pa_original_por_periodo JSONB NOT NULL DEFAULT '{}',
+      pecas_pa_atual_por_periodo JSONB NOT NULL DEFAULT '{}',
+
+      -- Detalhes por MP (array de objetos com idmp, artigo, valores)
+      detalhes_mps JSONB NOT NULL DEFAULT '[]',
+
+      -- Metadata
+      qtd_mps INTEGER NOT NULL DEFAULT 0,
+      qtd_skus INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+}
+
+/**
+ * POST /api/producao/orcamento-mp-snapshot
+ * Salva uma versao/snapshot do orcamento MP atual
+ */
+router.post("/orcamento-mp-snapshot", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    await ensureOrcamentoSnapshotsTable(pool);
+
+    const {
+      descricao,
+      marca = 'LIEBE',
+      totalPlanoOriginal = 0,
+      totalPlanoAtual = 0,
+      planoOriginalPorPeriodo = {},
+      planoAtualPorPeriodo = {},
+      pecasPaOriginalPorPeriodo = {},
+      pecasPaAtualPorPeriodo = {},
+      detalhesMps = [],
+      qtdMps = 0,
+      qtdSkus = 0,
+    } = req.body;
+
+    if (!descricao || !descricao.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Descricao e obrigatoria"
+      });
+    }
+
+    const totalDiferenca = totalPlanoAtual - totalPlanoOriginal;
+
+    const result = await pool.query(`
+      INSERT INTO public.app_orcamento_mp_snapshots (
+        descricao, marca, total_plano_original, total_plano_atual, total_diferenca,
+        plano_original_por_periodo, plano_atual_por_periodo,
+        pecas_pa_original_por_periodo, pecas_pa_atual_por_periodo,
+        detalhes_mps, qtd_mps, qtd_skus
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id, created_at
+    `, [
+      descricao.trim(),
+      marca,
+      totalPlanoOriginal,
+      totalPlanoAtual,
+      totalDiferenca,
+      JSON.stringify(planoOriginalPorPeriodo),
+      JSON.stringify(planoAtualPorPeriodo),
+      JSON.stringify(pecasPaOriginalPorPeriodo),
+      JSON.stringify(pecasPaAtualPorPeriodo),
+      JSON.stringify(detalhesMps),
+      qtdMps,
+      qtdSkus
+    ]);
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        id: result.rows[0].id,
+        createdAt: result.rows[0].created_at,
+        descricao: descricao.trim()
+      }
+    });
+  } catch (error) {
+    console.error("[orcamento-mp-snapshot] Erro ao salvar:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao salvar snapshot do orcamento",
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/producao/orcamento-mp-snapshots
+ * Lista todos os snapshots salvos
+ */
+router.get("/orcamento-mp-snapshots", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    await ensureOrcamentoSnapshotsTable(pool);
+
+    const marca = String(req.query.marca || 'LIEBE').trim().toUpperCase();
+
+    const result = await pool.query(`
+      SELECT
+        id, descricao, marca, created_at,
+        total_plano_original, total_plano_atual, total_diferenca,
+        qtd_mps, qtd_skus
+      FROM public.app_orcamento_mp_snapshots
+      WHERE UPPER(marca) = $1
+      ORDER BY created_at DESC
+      LIMIT 100
+    `, [marca]);
+
+    return res.status(200).json({
+      success: true,
+      data: result.rows.map(row => ({
+        id: row.id,
+        descricao: row.descricao,
+        marca: row.marca,
+        createdAt: row.created_at,
+        totalPlanoOriginal: Number(row.total_plano_original || 0),
+        totalPlanoAtual: Number(row.total_plano_atual || 0),
+        totalDiferenca: Number(row.total_diferenca || 0),
+        qtdMps: Number(row.qtd_mps || 0),
+        qtdSkus: Number(row.qtd_skus || 0),
+      }))
+    });
+  } catch (error) {
+    console.error("[orcamento-mp-snapshots] Erro ao listar:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao listar snapshots",
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/producao/orcamento-mp-snapshot/:id
+ * Busca detalhes de um snapshot especifico
+ */
+router.get("/orcamento-mp-snapshot/:id", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    await ensureOrcamentoSnapshotsTable(pool);
+
+    const id = Number(req.params.id);
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ success: false, error: "ID invalido" });
+    }
+
+    const result = await pool.query(`
+      SELECT * FROM public.app_orcamento_mp_snapshots WHERE id = $1
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: "Snapshot nao encontrado" });
+    }
+
+    const row = result.rows[0];
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: row.id,
+        descricao: row.descricao,
+        marca: row.marca,
+        createdAt: row.created_at,
+        totalPlanoOriginal: Number(row.total_plano_original || 0),
+        totalPlanoAtual: Number(row.total_plano_atual || 0),
+        totalDiferenca: Number(row.total_diferenca || 0),
+        planoOriginalPorPeriodo: row.plano_original_por_periodo || {},
+        planoAtualPorPeriodo: row.plano_atual_por_periodo || {},
+        pecasPaOriginalPorPeriodo: row.pecas_pa_original_por_periodo || {},
+        pecasPaAtualPorPeriodo: row.pecas_pa_atual_por_periodo || {},
+        detalhesMps: row.detalhes_mps || [],
+        qtdMps: Number(row.qtd_mps || 0),
+        qtdSkus: Number(row.qtd_skus || 0),
+      }
+    });
+  } catch (error) {
+    console.error("[orcamento-mp-snapshot/:id] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao buscar snapshot",
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/producao/orcamento-mp-snapshots/comparar
+ * Compara dois snapshots
+ */
+router.get("/orcamento-mp-snapshots/comparar", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    await ensureOrcamentoSnapshotsTable(pool);
+
+    const idA = Number(req.query.idA);
+    const idB = Number(req.query.idB);
+
+    if (!idA || !idB || isNaN(idA) || isNaN(idB)) {
+      return res.status(400).json({ success: false, error: "IDs invalidos" });
+    }
+
+    const result = await pool.query(`
+      SELECT * FROM public.app_orcamento_mp_snapshots WHERE id = ANY($1)
+    `, [[idA, idB]]);
+
+    if (result.rows.length !== 2) {
+      return res.status(404).json({ success: false, error: "Um ou ambos snapshots nao encontrados" });
+    }
+
+    const snapA = result.rows.find(r => r.id === idA);
+    const snapB = result.rows.find(r => r.id === idB);
+
+    // Comparar totais
+    const diferencaTotal = Number(snapB.total_plano_atual || 0) - Number(snapA.total_plano_atual || 0);
+
+    // Comparar por periodo
+    const periodosA = snapA.plano_atual_por_periodo || {};
+    const periodosB = snapB.plano_atual_por_periodo || {};
+    const diferencaPorPeriodo = {};
+    for (const p of ['MA', 'PX', 'UL', 'QT', 'QU']) {
+      diferencaPorPeriodo[p] = Number(periodosB[p] || 0) - Number(periodosA[p] || 0);
+    }
+
+    // Comparar MPs (simplificado - mostra MPs que mudaram)
+    const mpsA = new Map((snapA.detalhes_mps || []).map(m => [m.idmp, m]));
+    const mpsB = new Map((snapB.detalhes_mps || []).map(m => [m.idmp, m]));
+
+    const mpsAlteradas = [];
+    const mpsAdicionadas = [];
+    const mpsRemovidas = [];
+
+    for (const [idmp, mpB] of mpsB.entries()) {
+      const mpA = mpsA.get(idmp);
+      if (!mpA) {
+        mpsAdicionadas.push({ idmp, ...mpB });
+      } else {
+        const diffValor = Number(mpB.valorTotal || 0) - Number(mpA.valorTotal || 0);
+        if (Math.abs(diffValor) > 0.01) {
+          mpsAlteradas.push({
+            idmp,
+            artigo: mpB.artigo,
+            valorAntes: Number(mpA.valorTotal || 0),
+            valorDepois: Number(mpB.valorTotal || 0),
+            diferenca: diffValor
+          });
+        }
+      }
+    }
+
+    for (const [idmp, mpA] of mpsA.entries()) {
+      if (!mpsB.has(idmp)) {
+        mpsRemovidas.push({ idmp, ...mpA });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        snapshotA: {
+          id: snapA.id,
+          descricao: snapA.descricao,
+          createdAt: snapA.created_at,
+          totalPlanoAtual: Number(snapA.total_plano_atual || 0)
+        },
+        snapshotB: {
+          id: snapB.id,
+          descricao: snapB.descricao,
+          createdAt: snapB.created_at,
+          totalPlanoAtual: Number(snapB.total_plano_atual || 0)
+        },
+        comparacao: {
+          diferencaTotal,
+          diferencaPorPeriodo,
+          mpsAdicionadas: mpsAdicionadas.length,
+          mpsRemovidas: mpsRemovidas.length,
+          mpsAlteradas: mpsAlteradas.length,
+          detalhesAlteracoes: {
+            adicionadas: mpsAdicionadas.slice(0, 20),
+            removidas: mpsRemovidas.slice(0, 20),
+            alteradas: mpsAlteradas
+              .sort((a, b) => Math.abs(b.diferenca) - Math.abs(a.diferenca))
+              .slice(0, 20)
+          }
+        }
+      }
+    });
+  } catch (error) {
+    console.error("[orcamento-mp-snapshots/comparar] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao comparar snapshots",
+      details: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/producao/orcamento-mp-snapshot/:id
+ * Remove um snapshot
+ */
+router.delete("/orcamento-mp-snapshot/:id", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const id = Number(req.params.id);
+
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ success: false, error: "ID invalido" });
+    }
+
+    await pool.query(`DELETE FROM public.app_orcamento_mp_snapshots WHERE id = $1`, [id]);
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("[orcamento-mp-snapshot DELETE] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao remover snapshot",
       details: error.message
     });
   }

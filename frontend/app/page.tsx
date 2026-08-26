@@ -142,6 +142,9 @@ export default function Home() {
   const [filtroCoberturaMinima, setFiltroCoberturaMinima] = useState<string>('');
   const [filtroEmProcessoMinimo, setFiltroEmProcessoMinimo] = useState<string>('');
   const [projecoes,    setProjecoes]    = useState<ProjecoesMap>({});
+  const [cortesMinimos, setCortesMinimos] = useState<Record<string, number>>({});
+  const [loadingCortesMinimos, setLoadingCortesMinimos] = useState(true);
+  const [erroCortesMinimos, setErroCortesMinimos] = useState(false);
   const [vendasReais,  setVendasReais]  = useState<Record<string, Record<string, number>>>({});
   const [top30Ids,     setTop30Ids]     = useState<Set<string>>(new Set());
   const [top30Refs,    setTop30Refs]    = useState<Set<string>>(new Set());
@@ -185,6 +188,7 @@ export default function Home() {
     buscarDados();
     buscarStatusCache();
     buscarProjecoes();
+    buscarCortesMinimos();
     buscarReprojecaoFechada();
     buscarTop30();
     buscarAprovadas();
@@ -228,6 +232,27 @@ export default function Home() {
         if (data.periodos) setPeriodos(data.periodos as PeriodosPlano);
       }
     } catch { /* silencioso */ }
+  }
+
+  async function buscarCortesMinimos() {
+    setLoadingCortesMinimos(true);
+    setErroCortesMinimos(false);
+    try {
+      const res = await fetchNoCache(`${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      const data = await res.json();
+      const mapa: Record<string, number> = {};
+      for (const item of Array.isArray(data?.data) ? data.data : []) {
+        const id = String(item?.idproduto || '').trim();
+        if (id) mapa[id] = Number(item?.corte_min || 0);
+      }
+      setCortesMinimos(mapa);
+    } catch {
+      setCortesMinimos({});
+      setErroCortesMinimos(true);
+    } finally {
+      setLoadingCortesMinimos(false);
+    }
   }
 
   async function buscarCurvaABC() {
@@ -763,6 +788,29 @@ export default function Home() {
     );
   }, [dadosPagina, filtroCoberturaMinima, filtroEmProcessoMinimo]);
 
+  const skusSemCorteMinimo = useMemo(() => {
+    const contagem = {
+      permanente: new Set<string>(),
+      permanenteCorNova: new Set<string>(),
+    };
+
+    for (const item of dados) {
+      const continuidade = String(item.produto.continuidade || '').trim().toUpperCase();
+      if (continuidade !== 'PERMANENTE' && continuidade !== 'PERMANENTE COR NOVA') continue;
+
+      const idproduto = String(item.produto.idproduto || '').trim();
+      if (!idproduto || Number(cortesMinimos[idproduto] || 0) > 0) continue;
+
+      if (continuidade === 'PERMANENTE') contagem.permanente.add(idproduto);
+      else contagem.permanenteCorNova.add(idproduto);
+    }
+
+    return {
+      permanente: contagem.permanente.size,
+      permanenteCorNova: contagem.permanenteCorNova.size,
+    };
+  }, [dados, cortesMinimos]);
+
   const analiseCobertura = useMemo(() => {
     let base = dadosPagina;
 
@@ -1254,6 +1302,28 @@ export default function Home() {
                     </div>
                   ));
                 })()}
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Cadastro de corte mínimo</span>
+                  <div className="flex-1 h-px bg-amber-100" />
+                  <span className="text-[10px] text-gray-400">SKUs sem valor cadastrado</span>
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <div className="text-[11px] text-gray-400 mb-0.5">Permanente sem corte mínimo</div>
+                    <div className={`text-xl font-bold font-mono ${skusSemCorteMinimo.permanente > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {loadingCortesMinimos ? '...' : erroCortesMinimos ? '—' : skusSemCorteMinimo.permanente.toLocaleString('pt-BR')}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-gray-400 mb-0.5">Permanente cor nova sem corte mínimo</div>
+                    <div className={`text-xl font-bold font-mono ${skusSemCorteMinimo.permanenteCorNova > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {loadingCortesMinimos ? '...' : erroCortesMinimos ? '—' : skusSemCorteMinimo.permanenteCorNova.toLocaleString('pt-BR')}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Filtros integrados */}
