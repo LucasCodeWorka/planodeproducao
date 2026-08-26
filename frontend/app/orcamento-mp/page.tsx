@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw, Save, History, Trash2, GitCompare } from 'lucide-react';
+import { RefreshCw, Save, History, Trash2, GitCompare, Eye, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { Planejamento } from '../types';
 import { authHeaders, getToken } from '../lib/auth';
@@ -249,6 +249,18 @@ export default function OrcamentoMpPage() {
 
   // Versionamento
   type Snapshot = { id: number; descricao: string; createdAt: string; totalPlanoOriginal: number; totalPlanoAtual: number; totalDiferenca: number; qtdMps: number; qtdSkus: number };
+  type SnapshotDetalhe = {
+    id: number; descricao: string; createdAt: string;
+    totalPlanoOriginal: number; totalPlanoAtual: number; totalDiferenca: number;
+    detalhesMps: Array<{
+      idmp: number; nome: string; cor: string; artigo: string; unidade: string;
+      estoque: number; valorUnitario: number; consumoQtd: number; valorConsumo: number;
+      necessidadeRegra: number; valorNecessidadeRegra: number;
+      necessidadeTotal: number; valorNecessidadeTotal: number;
+      comprasRegra: number; valorComprasRegra: number;
+      comprasTotal: number; valorComprasTotal: number;
+    }>;
+  };
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [snapshotModalAberto, setSnapshotModalAberto] = useState(false);
   const [snapshotDescricao, setSnapshotDescricao] = useState('');
@@ -256,6 +268,8 @@ export default function OrcamentoMpPage() {
   const [snapshotsModalAberto, setSnapshotsModalAberto] = useState(false);
   const [snapshotComparando, setSnapshotComparando] = useState<{ idA: number; idB: number } | null>(null);
   const [comparacaoSnapshot, setComparacaoSnapshot] = useState<ComparacaoSnapshotType | null>(null);
+  const [snapshotDetalheAberto, setSnapshotDetalheAberto] = useState<SnapshotDetalhe | null>(null);
+  const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
 
   useEffect(() => {
     if (!getToken()) {
@@ -573,16 +587,29 @@ export default function OrcamentoMpPage() {
         totalPlanoAtual += planoAtualPorPeriodo[periodo];
       }
 
-      // Preparar detalhes das MPs (top 100 por valor)
+      // Preparar detalhes de TODAS as MPs com dados completos
       const detalhesMps = rowsCalculadas
         .map(row => ({
           idmp: row.idmateriaprima,
+          nome: row.nome_materiaprima,
+          cor: row.cor,
           artigo: row.artigo,
-          valorTotal: row.valorConsumo || 0,
+          unidade: row.unidade,
+          estoque: row.estoquetotal || 0,
+          valorUnitario: row.valorUnitario || 0,
           consumoQtd: row.consumoAte || 0,
+          valorConsumo: row.valorConsumo || 0,
+          necessidadeRegra: row.necessidadeRegra || 0,
+          valorNecessidadeRegra: row.valorNecessidadeRegra || 0,
+          necessidadeTotal: row.necessidadeTotal || 0,
+          valorNecessidadeTotal: row.valorNecessidadeTotal || 0,
+          comprasRegra: row.comprasRegra || 0,
+          valorComprasRegra: row.valorComprasRegra || 0,
+          comprasTotal: row.comprasTotal || 0,
+          valorComprasTotal: row.valorComprasTotal || 0,
         }))
-        .sort((a, b) => b.valorTotal - a.valorTotal)
-        .slice(0, 100);
+        .filter(mp => mp.consumoQtd > 0 || mp.necessidadeRegra > 0)
+        .sort((a, b) => b.valorConsumo - a.valorConsumo);
 
       const response = await fetchNoCache(`${API_URL}/api/producao/orcamento-mp-snapshot`, {
         method: 'POST',
@@ -628,6 +655,24 @@ export default function OrcamentoMpPage() {
       }
     } catch (err) {
       console.error('[orcamento-mp] Erro ao comparar snapshots:', err);
+    }
+  }
+
+  async function verDetalhesSnapshot(id: number) {
+    setCarregandoDetalhe(true);
+    try {
+      const response = await fetchNoCache(`${API_URL}/api/producao/orcamento-mp-snapshot/${id}`, { headers: authHeaders() }, 30000);
+      const payload = await response.json();
+      if (response.ok && payload?.success) {
+        setSnapshotDetalheAberto(payload.data);
+      } else {
+        alert('Erro ao carregar detalhes: ' + (payload?.error || 'Erro desconhecido'));
+      }
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao carregar detalhes do snapshot:', err);
+      alert('Erro ao carregar detalhes');
+    } finally {
+      setCarregandoDetalhe(false);
     }
   }
 
@@ -2675,6 +2720,15 @@ export default function OrcamentoMpPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => verDetalhesSnapshot(snap.id)}
+                              disabled={carregandoDetalhe}
+                              className="p-1.5 rounded text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
+                              title="Ver detalhes item a item"
+                            >
+                              <Eye size={16} />
+                            </button>
                             {idx > 0 && (
                               <button
                                 type="button"
@@ -2725,6 +2779,88 @@ export default function OrcamentoMpPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Detalhes do Snapshot */}
+          {snapshotDetalheAberto && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4">
+              <div className="w-full max-w-6xl max-h-[95vh] overflow-hidden rounded-lg bg-white shadow-xl border border-gray-200 flex flex-col">
+                <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 bg-emerald-50">
+                  <div>
+                    <div className="text-sm font-bold text-emerald-800">{snapshotDetalheAberto.descricao}</div>
+                    <div className="text-xs text-emerald-600 mt-0.5">
+                      {new Date(snapshotDetalheAberto.createdAt).toLocaleString('pt-BR')} |
+                      Total: {money(snapshotDetalheAberto.totalPlanoAtual)}
+                      {snapshotDetalheAberto.totalDiferenca !== 0 && (
+                        <span className={snapshotDetalheAberto.totalDiferenca > 0 ? 'text-amber-600' : 'text-blue-600'}>
+                          {' '}({snapshotDetalheAberto.totalDiferenca > 0 ? '+' : ''}{money(snapshotDetalheAberto.totalDiferenca)} vs original)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setSnapshotDetalheAberto(null)} className="p-1.5 rounded hover:bg-emerald-100">
+                    <X size={20} className="text-emerald-700" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-auto p-4">
+                  <div className="text-xs text-gray-500 mb-2">{snapshotDetalheAberto.detalhesMps?.length || 0} MPs com consumo/necessidade</div>
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-100 sticky top-0">
+                      <tr>
+                        <th className="text-left p-2 font-semibold">MP</th>
+                        <th className="text-left p-2 font-semibold">Nome</th>
+                        <th className="text-left p-2 font-semibold">Cor</th>
+                        <th className="text-left p-2 font-semibold">Artigo</th>
+                        <th className="text-right p-2 font-semibold">Estoque</th>
+                        <th className="text-right p-2 font-semibold">Consumo</th>
+                        <th className="text-right p-2 font-semibold">R$ Consumo</th>
+                        <th className="text-right p-2 font-semibold">Necessidade</th>
+                        <th className="text-right p-2 font-semibold">R$ Necessidade</th>
+                        <th className="text-right p-2 font-semibold">Compras</th>
+                        <th className="text-right p-2 font-semibold">R$ Compras</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(snapshotDetalheAberto.detalhesMps || []).map((mp, idx) => (
+                        <tr key={mp.idmp} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="p-2 font-mono">{mp.idmp}</td>
+                          <td className="p-2 truncate max-w-[200px]" title={mp.nome}>{mp.nome}</td>
+                          <td className="p-2">{mp.cor}</td>
+                          <td className="p-2">{mp.artigo}</td>
+                          <td className="p-2 text-right">{fmt(mp.estoque)}</td>
+                          <td className="p-2 text-right">{fmt(mp.consumoQtd)}</td>
+                          <td className="p-2 text-right text-emerald-700">{money(mp.valorConsumo)}</td>
+                          <td className="p-2 text-right">{fmt(mp.necessidadeRegra)}</td>
+                          <td className="p-2 text-right text-amber-700">{money(mp.valorNecessidadeRegra)}</td>
+                          <td className="p-2 text-right">{fmt(mp.comprasRegra)}</td>
+                          <td className="p-2 text-right text-blue-700">{money(mp.valorComprasRegra)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {(!snapshotDetalheAberto.detalhesMps || snapshotDetalheAberto.detalhesMps.length === 0) && (
+                    <div className="text-center text-gray-500 py-8">
+                      Esta versao nao possui detalhes de MPs salvos.<br />
+                      <span className="text-xs">Versoes antigas podem nao ter os detalhes completos.</span>
+                    </div>
+                  )}
+                </div>
+                <div className="border-t border-gray-200 px-5 py-3 bg-gray-50 flex justify-between items-center">
+                  <div className="text-xs text-gray-500">
+                    Totais: Consumo {money(snapshotDetalheAberto.detalhesMps?.reduce((s, m) => s + (m.valorConsumo || 0), 0) || 0)} |
+                    Necessidade {money(snapshotDetalheAberto.detalhesMps?.reduce((s, m) => s + (m.valorNecessidadeRegra || 0), 0) || 0)} |
+                    Compras {money(snapshotDetalheAberto.detalhesMps?.reduce((s, m) => s + (m.valorComprasRegra || 0), 0) || 0)}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSnapshotDetalheAberto(null)}
+                    className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                  >
+                    Fechar
+                  </button>
                 </div>
               </div>
             </div>

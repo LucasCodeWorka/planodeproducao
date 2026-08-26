@@ -1037,8 +1037,21 @@ router.get("/plano-ops-geradas", async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function ensureOrcamentoSnapshotsTable(pool) {
+  // Verificar se a tabela existe primeiro para evitar erro de sequence duplicada
+  const check = await pool.query(`
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name = 'app_orcamento_mp_snapshots'
+    )
+  `);
+
+  if (check.rows[0].exists) {
+    return; // Tabela ja existe, nao precisa criar
+  }
+
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS public.app_orcamento_mp_snapshots (
+    CREATE TABLE public.app_orcamento_mp_snapshots (
       id SERIAL PRIMARY KEY,
       descricao TEXT NOT NULL,
       marca TEXT NOT NULL DEFAULT 'LIEBE',
