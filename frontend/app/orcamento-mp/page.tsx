@@ -234,7 +234,7 @@ export default function OrcamentoMpPage() {
   const [showComprasForaModal, setShowComprasForaModal] = useState(false);
   const [excessoModalPeriodo, setExcessoModalPeriodo] = useState<Periodo | null>(null);
   const [excessoArtigosExpandidos, setExcessoArtigosExpandidos] = useState<Set<string>>(new Set());
-  const [percentualPorPeriodo, setPercentualPorPeriodo] = useState<Record<Periodo, { qtdLote: number; qtdFinalizada: number; percentual: number } | null>>({ MA: null, PX: null, UL: null, QT: null, QU: null });
+  const [percentualPorPeriodo, setPercentualPorPeriodo] = useState<Record<Periodo, PercentualPeriodo | null>>({ MA: null, PX: null, UL: null, QT: null, QU: null });
   const [diasFaltantesPorPeriodo, setDiasFaltantesPorPeriodo] = useState<Record<Periodo, number | null>>({ MA: null, PX: null, UL: null, QT: null, QU: null });
   const [diasCapacidade, setDiasCapacidade] = useState<{ porPeriodo: Record<Periodo, number>; acumulado: Record<Periodo, number>; capacidadeDiaria: number } | null>(null);
   const [opsAntigas, setOpsAntigas] = useState<{ qtdTotal: number; opsCount: number; porFaixa: Record<string, { qtd: number; ops: number }>; data: Array<{ cdProduto: string; nrOp: string; nrCiclo: string; dtInicio: string; diasEmProcesso: number; qtdEmProcesso: number; descricao: string; referencia: string }> } | null>(null);
