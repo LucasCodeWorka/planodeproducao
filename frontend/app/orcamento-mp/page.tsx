@@ -1552,6 +1552,7 @@ export default function OrcamentoMpPage() {
               {PERIODOS.map((periodo) => {
                 const ativo = periodosSelecionados.includes(periodo);
                 const valorOriginal = ativo ? custoPlanoOriginal.valorConsumoPorPeriodo[periodo] : 0;
+                const valorAtual = ativo ? (coberturaPorPeriodo[periodo]?.consumo || 0) : 0;
                 const necAcumQtd = ativo ? totais.necessidadeCumulativaPorPeriodo[periodo] : 0;
                 const necAcumValor = ativo ? totais.valorNecessidadeCumulativaPorPeriodo[periodo] : 0;
                 const necIndividualQtd = ativo ? totais.necessidadeIndividualPorPeriodo[periodo] : 0;
@@ -1571,8 +1572,9 @@ export default function OrcamentoMpPage() {
                     <div className="text-[11px] font-semibold text-gray-500 mb-1">{periodo}</div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <div className="text-sm font-bold text-stone-800">{valorOriginal > 0 ? money(valorOriginal) : '-'}</div>
+                        <div className="text-sm font-bold text-stone-800">{valorAtual > 0 ? money(valorAtual) : '-'}</div>
                         <div className="text-[10px] text-gray-500">Plano</div>
+                        <div className="text-xs text-gray-500">{valorOriginal > 0 ? money(valorOriginal) : '-'}</div>
                         <div
                           className={`mt-1 text-xs font-semibold ${valorExcesso > 0 ? 'text-orange-600 cursor-pointer hover:underline' : 'text-gray-400'}`}
                           onClick={valorExcesso > 0 ? () => setExcessoModalPeriodo(periodo) : undefined}
