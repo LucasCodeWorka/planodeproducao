@@ -96,6 +96,14 @@ type ComparacaoSnapshotType = {
   comparacao?: { diferencaTotal?: number; mpsAdicionadas?: number; mpsRemovidas?: number; mpsAlteradas?: number };
 };
 
+type ConsumoMpLotes = {
+  data: Record<Periodo, number>;
+  gerouOp: Record<Periodo, number>;
+  pendente: Record<Periodo, number>;
+  qtdLote: Record<Periodo, number>;
+  qtdGerouOp: Record<Periodo, number>;
+};
+
 type OrcamentoCachePayload = {
   version: number;
   rowsBase: MpRow[];
@@ -109,6 +117,7 @@ type OrcamentoCachePayload = {
   opsAntigas?: OpsAntigas | null;
   pecasPAPorPeriodo?: Record<Periodo, number>;
   pecasPAOriginalPorPeriodo?: Record<Periodo, number>;
+  consumoMpLotes?: ConsumoMpLotes | null;
 };
 
 type SortDir = 'asc' | 'desc';
@@ -247,13 +256,7 @@ export default function OrcamentoMpPage() {
   const [pecasPAPorPeriodo, setPecasPAPorPeriodo] = useState<Record<Periodo, number>>({ MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
   const [pecasPAOriginalPorPeriodo, setPecasPAOriginalPorPeriodo] = useState<Record<Periodo, number>>({ MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
   // Consumo de MP baseado nos lotes reais (qt_lote)
-  const [consumoMpLotes, setConsumoMpLotes] = useState<{
-    data: Record<Periodo, number>;
-    gerouOp: Record<Periodo, number>;
-    pendente: Record<Periodo, number>;
-    qtdLote: Record<Periodo, number>;
-    qtdGerouOp: Record<Periodo, number>;
-  } | null>(null);
+  const [consumoMpLotes, setConsumoMpLotes] = useState<ConsumoMpLotes | null>(null);
 
   // Versionamento
   type Snapshot = { id: number; descricao: string; createdAt: string; totalPlanoOriginal: number; totalPlanoAtual: number; totalDiferenca: number; qtdMps: number; qtdSkus: number };
@@ -424,6 +427,7 @@ export default function OrcamentoMpPage() {
         opsAntigas: dadosAdicionais.opsAntigas,
         pecasPAPorPeriodo: totaisPecasPA,
         pecasPAOriginalPorPeriodo: totaisPecasPAOriginal,
+        consumoMpLotes: dadosAdicionais.consumoMpLotes,
       });
     } catch (e) {
       setRowsBase([]);
@@ -447,6 +451,7 @@ export default function OrcamentoMpPage() {
     let resultDiasFaltantes: Record<Periodo, number | null> = { MA: null, PX: null, UL: null, QT: null, QU: null };
     let resultDiasCapacidade: DiasCapacidade | null = null;
     let resultOpsAntigas: OpsAntigas | null = null;
+    let resultConsumoMpLotes: ConsumoMpLotes | null = null;
 
     // Carregar cada endpoint separadamente para que falha de um não afete os outros
     // 1. Percentual finalizado
@@ -470,13 +475,14 @@ export default function OrcamentoMpPage() {
       const pConsumoLotes = await rConsumoLotes.json();
       console.log('[orcamento-mp] consumo-mp-lotes resposta:', pConsumoLotes?.success);
       if (rConsumoLotes.ok && pConsumoLotes?.success) {
-        setConsumoMpLotes({
+        resultConsumoMpLotes = {
           data: pConsumoLotes.data || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
           gerouOp: pConsumoLotes.gerouOp || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
           pendente: pConsumoLotes.pendente || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
           qtdLote: pConsumoLotes.qtdLote || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
           qtdGerouOp: pConsumoLotes.qtdGerouOp || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
-        });
+        };
+        setConsumoMpLotes(resultConsumoMpLotes);
       }
     } catch (err) {
       console.error('[orcamento-mp] Erro ao buscar consumo-mp-lotes:', err);
@@ -551,6 +557,7 @@ export default function OrcamentoMpPage() {
       diasFaltantesPorPeriodo: resultDiasFaltantes,
       diasCapacidade: resultDiasCapacidade,
       opsAntigas: resultOpsAntigas,
+      consumoMpLotes: resultConsumoMpLotes,
     };
   }
 
@@ -742,10 +749,11 @@ export default function OrcamentoMpPage() {
       if (data.opsAntigas) setOpsAntigas(data.opsAntigas);
       if (data.pecasPAPorPeriodo) setPecasPAPorPeriodo(data.pecasPAPorPeriodo);
       if (data.pecasPAOriginalPorPeriodo) setPecasPAOriginalPorPeriodo(data.pecasPAOriginalPorPeriodo);
+      if (data.consumoMpLotes) setConsumoMpLotes(data.consumoMpLotes);
       setCacheUpdatedAt(payload.updatedAt || data.createdAt || null);
       setCacheStatus('Cache carregado');
       // Retorna se tem dados adicionais ou não
-      return { hasAdditionalData: !!(data.percentualPorPeriodo && data.diasCapacidade) };
+      return { hasAdditionalData: !!(data.percentualPorPeriodo && data.diasCapacidade && data.consumoMpLotes) };
     } catch {
       return false;
     }
