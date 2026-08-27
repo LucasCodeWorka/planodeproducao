@@ -599,7 +599,7 @@ router.get("/percentual-finalizado", async (req, res) => {
         SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qtd_lote,
         SUM(COALESCE(a.qt_finalizada, 0))::FLOAT AS qtd_finalizada,
         SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qtd_gerouop
-      FROM vr_pcp_loteplop a
+      FROM vr_pcp_lotepl2 a
       INNER JOIN produtos_filtrados pf ON pf.cd_produto = a.cd_produto
       LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
       WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
@@ -664,7 +664,7 @@ router.get("/consumo-mp-lotes", async (req, res) => {
         UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
         SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qt_lote,
         SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qt_gerouop
-      FROM vr_pcp_loteplop a
+      FROM vr_pcp_lotepl2 a
       INNER JOIN produtos_filtrados pf ON pf.cd_produto = a.cd_produto
       LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
       WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
