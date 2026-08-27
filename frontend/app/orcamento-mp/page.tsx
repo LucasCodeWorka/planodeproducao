@@ -582,7 +582,7 @@ export default function OrcamentoMpPage() {
 
       for (const periodo of PERIODOS) {
         planoOriginalPorPeriodo[periodo] = custoPlanoOriginal.valorConsumoPorPeriodo[periodo] || 0;
-        planoAtualPorPeriodo[periodo] = coberturaPorPeriodo[periodo]?.consumo || 0;
+        planoAtualPorPeriodo[periodo] = custoPlanoAtual.valorConsumoPorPeriodo[periodo] || 0;
         totalPlanoOriginal += planoOriginalPorPeriodo[periodo];
         totalPlanoAtual += planoAtualPorPeriodo[periodo];
       }
@@ -1181,6 +1181,22 @@ export default function OrcamentoMpPage() {
     });
   }, [rowsOriginalBase, priceOptionsByMp]);
 
+  // Custo do plano ATUAL (usando rowsCalculadas com precos atuais)
+  const custoPlanoAtual = useMemo(() => {
+    return rowsCalculadas.reduce((acc, row) => {
+      const preco = row.valorUnitario || 0;
+      for (const periodo of PERIODOS) {
+        const consumoPeriodo = valorPeriodo(row, 'consumo', periodo);
+        acc.consumoPorPeriodo[periodo] += consumoPeriodo;
+        acc.valorConsumoPorPeriodo[periodo] += consumoPeriodo * preco;
+      }
+      return acc;
+    }, {
+      consumoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 } as Record<Periodo, number>,
+      valorConsumoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 } as Record<Periodo, number>,
+    });
+  }, [rowsCalculadas]);
+
   const valorConsumoOriginalAte = useMemo(() => {
     return periodosAte(planoAte).reduce((acc, periodo) => acc + custoPlanoOriginal.valorConsumoPorPeriodo[periodo], 0);
   }, [custoPlanoOriginal, planoAte]);
@@ -1552,7 +1568,7 @@ export default function OrcamentoMpPage() {
               {PERIODOS.map((periodo) => {
                 const ativo = periodosSelecionados.includes(periodo);
                 const valorOriginal = ativo ? custoPlanoOriginal.valorConsumoPorPeriodo[periodo] : 0;
-                const valorAtual = ativo ? (coberturaPorPeriodo[periodo]?.consumo || 0) : 0;
+                const valorAtual = ativo ? custoPlanoAtual.valorConsumoPorPeriodo[periodo] : 0;
                 const necAcumQtd = ativo ? totais.necessidadeCumulativaPorPeriodo[periodo] : 0;
                 const necAcumValor = ativo ? totais.valorNecessidadeCumulativaPorPeriodo[periodo] : 0;
                 const necIndividualQtd = ativo ? totais.necessidadeIndividualPorPeriodo[periodo] : 0;
@@ -1913,7 +1929,7 @@ export default function OrcamentoMpPage() {
               <div className="mt-5 flex items-center gap-3">
                 {(() => {
                   const totalOriginal = PERIODOS.reduce((acc, p) => acc + (custoPlanoOriginal?.valorConsumoPorPeriodo?.[p] || 0), 0);
-                  const totalAtual = PERIODOS.reduce((acc, p) => acc + (coberturaPorPeriodo?.[p]?.consumo || 0), 0);
+                  const totalAtual = PERIODOS.reduce((acc, p) => acc + (custoPlanoAtual?.valorConsumoPorPeriodo?.[p] || 0), 0);
                   const diferenca = totalAtual - totalOriginal;
                   const temDiferenca = Math.abs(diferenca) > 100;
                   return (
@@ -2672,7 +2688,7 @@ export default function OrcamentoMpPage() {
                   </label>
                   <div className="mt-4 text-xs text-gray-500">
                     <div>Total Plano Original: {money(PERIODOS.reduce((acc, p) => acc + (custoPlanoOriginal?.valorConsumoPorPeriodo?.[p] || 0), 0))}</div>
-                    <div>Total Plano Atual: {money(PERIODOS.reduce((acc, p) => acc + (coberturaPorPeriodo?.[p]?.consumo || 0), 0))}</div>
+                    <div>Total Plano Atual: {money(PERIODOS.reduce((acc, p) => acc + (custoPlanoAtual?.valorConsumoPorPeriodo?.[p] || 0), 0))}</div>
                     <div>MPs: {rowsCalculadas.length} | SKUs: {rowsBase.length}</div>
                   </div>
                 </div>
