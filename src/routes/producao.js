@@ -635,6 +635,157 @@ router.get("/percentual-finalizado", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/producao/consumo-mp-lotes
+ * Calcula o consumo de MP baseado nos lotes reais (qt_lote), não na matriz
+ */
+router.get("/consumo-mp-lotes", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const marca = String(req.query.marca || "LIEBE").trim().toUpperCase();
+    const statusList = String(req.query.status || "EM LINHA,NOVA COLECAO")
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+
+    console.log(`[consumo-mp-lotes] Iniciando calculo para marca=${marca}, status=${statusList.join(',')}`);
+    const t0 = Date.now();
+
+    // 1. Buscar lotes por produto/período
+    const lotesResult = await pool.query(`
+      WITH produtos_filtrados AS (
+        SELECT cd_produto
+        FROM vr_prd_prdgrade
+        WHERE UPPER(TRIM(COALESCE(f_dic_prd_classificacao(cd_produto, 'DS'::text, 20::bigint), ''))) = $1
+          AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(cd_produto, 'DS'::text, 27::bigint), ''))) = ANY($2)
+      )
+      SELECT
+        a.cd_produto,
+        UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
+        SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qt_lote,
+        SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qt_gerouop
+      FROM vr_pcp_loteplop a
+      INNER JOIN produtos_filtrados pf ON pf.cd_produto = a.cd_produto
+      LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
+      WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
+        AND p.tp_situacao = 1
+      GROUP BY a.cd_produto, p.cd_auxiliar
+    `, [marca, statusList]);
+
+    console.log(`[consumo-mp-lotes] Encontrados ${lotesResult.rows.length} registros de lotes`);
+
+    // Agrupar lotes por produto
+    const lotesPorProduto = {};
+    for (const row of lotesResult.rows) {
+      const cdProduto = String(row.cd_produto || '').trim();
+      const periodo = String(row.periodo || '').toUpperCase();
+      if (!cdProduto || !['MA', 'PX', 'UL', 'QT', 'QU'].includes(periodo)) continue;
+
+      if (!lotesPorProduto[cdProduto]) {
+        lotesPorProduto[cdProduto] = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, gerouOp: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 } };
+      }
+      lotesPorProduto[cdProduto][periodo] = Number(row.qt_lote || 0);
+      lotesPorProduto[cdProduto].gerouOp[periodo] = Number(row.qt_gerouop || 0);
+    }
+
+    const produtosComLote = Object.keys(lotesPorProduto);
+    console.log(`[consumo-mp-lotes] ${produtosComLote.length} produtos com lotes`);
+
+    if (produtosComLote.length === 0) {
+      return res.json({
+        success: true,
+        data: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+        gerouOp: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+        pendente: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+        qtdLote: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+        qtdGerouOp: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      });
+    }
+
+    // 2. Buscar estrutura de MP para os produtos (primeiro nível)
+    const estruturaResult = await pool.query(`
+      SELECT
+        e.cd_produto,
+        e.cd_componente,
+        COALESCE(e.qt_utilizada, 0) AS qt_utilizada,
+        COALESCE(mp.vl_customedio, 0) AS custo_mp
+      FROM prd_estrutura e
+      LEFT JOIN vr_est_saldos mp ON mp.cd_produto = e.cd_componente AND mp.cd_deposito = '01'
+      WHERE e.cd_produto = ANY($1)
+        AND e.tp_situacao = 1
+        AND e.tp_estrutura = 'MP'
+    `, [produtosComLote]);
+
+    console.log(`[consumo-mp-lotes] Encontrados ${estruturaResult.rows.length} registros de estrutura`);
+
+    // Agrupar estrutura por produto
+    const estruturaPorProduto = {};
+    for (const row of estruturaResult.rows) {
+      const cdProduto = String(row.cd_produto || '').trim();
+      if (!cdProduto) continue;
+
+      if (!estruturaPorProduto[cdProduto]) {
+        estruturaPorProduto[cdProduto] = [];
+      }
+      estruturaPorProduto[cdProduto].push({
+        cdComponente: row.cd_componente,
+        qtUtilizada: Number(row.qt_utilizada || 0),
+        custoMp: Number(row.custo_mp || 0),
+      });
+    }
+
+    // 3. Calcular consumo de MP por período
+    const consumoPorPeriodo = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
+    const consumoGerouOp = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
+    const consumoPendente = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
+    const qtdLotePorPeriodo = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
+    const qtdGerouOpPorPeriodo = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
+
+    for (const cdProduto of produtosComLote) {
+      const lotes = lotesPorProduto[cdProduto];
+      const estrutura = estruturaPorProduto[cdProduto] || [];
+
+      // Calcular custo de MP por unidade do produto
+      let custoMpPorUnidade = 0;
+      for (const comp of estrutura) {
+        custoMpPorUnidade += comp.qtUtilizada * comp.custoMp;
+      }
+
+      // Calcular consumo por período
+      for (const periodo of ['MA', 'PX', 'UL', 'QT', 'QU']) {
+        const qtLote = lotes[periodo] || 0;
+        const qtGerouOp = lotes.gerouOp[periodo] || 0;
+        const qtPendente = Math.max(0, qtLote - qtGerouOp);
+
+        qtdLotePorPeriodo[periodo] += qtLote;
+        qtdGerouOpPorPeriodo[periodo] += qtGerouOp;
+        consumoPorPeriodo[periodo] += qtLote * custoMpPorUnidade;
+        consumoGerouOp[periodo] += qtGerouOp * custoMpPorUnidade;
+        consumoPendente[periodo] += qtPendente * custoMpPorUnidade;
+      }
+    }
+
+    console.log(`[consumo-mp-lotes] Calculo concluido em ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    console.log(`[consumo-mp-lotes] Consumo MA=${consumoPorPeriodo.MA.toFixed(2)}, PX=${consumoPorPeriodo.PX.toFixed(2)}`);
+
+    return res.json({
+      success: true,
+      data: consumoPorPeriodo,
+      gerouOp: consumoGerouOp,
+      pendente: consumoPendente,
+      qtdLote: qtdLotePorPeriodo,
+      qtdGerouOp: qtdGerouOpPorPeriodo,
+    });
+  } catch (error) {
+    console.error("[consumo-mp-lotes] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao calcular consumo de MP por lotes",
+      details: error.message
+    });
+  }
+});
+
 router.get("/orcamento-mp-cache", async (req, res) => {
   try {
     const pool = req.app.get("pool");

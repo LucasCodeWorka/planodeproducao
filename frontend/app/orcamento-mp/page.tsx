@@ -246,6 +246,14 @@ export default function OrcamentoMpPage() {
   const [opsAntigasModalAberto, setOpsAntigasModalAberto] = useState(false);
   const [pecasPAPorPeriodo, setPecasPAPorPeriodo] = useState<Record<Periodo, number>>({ MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
   const [pecasPAOriginalPorPeriodo, setPecasPAOriginalPorPeriodo] = useState<Record<Periodo, number>>({ MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
+  // Consumo de MP baseado nos lotes reais (qt_lote)
+  const [consumoMpLotes, setConsumoMpLotes] = useState<{
+    data: Record<Periodo, number>;
+    gerouOp: Record<Periodo, number>;
+    pendente: Record<Periodo, number>;
+    qtdLote: Record<Periodo, number>;
+    qtdGerouOp: Record<Periodo, number>;
+  } | null>(null);
 
   // Versionamento
   type Snapshot = { id: number; descricao: string; createdAt: string; totalPlanoOriginal: number; totalPlanoAtual: number; totalDiferenca: number; qtdMps: number; qtdSkus: number };
@@ -453,6 +461,25 @@ export default function OrcamentoMpPage() {
       }
     } catch (err) {
       console.error('[orcamento-mp] Erro ao buscar percentual-finalizado:', err);
+    }
+
+    // 1b. Consumo de MP baseado nos lotes reais
+    try {
+      console.log('[orcamento-mp] Buscando consumo-mp-lotes...');
+      const rConsumoLotes = await fetchNoCache(`${API_URL}/api/producao/consumo-mp-lotes?marca=LIEBE&status=EM LINHA,NOVA COLECAO`, { headers: authHeaders() }, 180000);
+      const pConsumoLotes = await rConsumoLotes.json();
+      console.log('[orcamento-mp] consumo-mp-lotes resposta:', pConsumoLotes?.success);
+      if (rConsumoLotes.ok && pConsumoLotes?.success) {
+        setConsumoMpLotes({
+          data: pConsumoLotes.data || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          gerouOp: pConsumoLotes.gerouOp || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          pendente: pConsumoLotes.pendente || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          qtdLote: pConsumoLotes.qtdLote || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          qtdGerouOp: pConsumoLotes.qtdGerouOp || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+        });
+      }
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao buscar consumo-mp-lotes:', err);
     }
 
     // 2. Dias resumo
@@ -1573,20 +1600,16 @@ export default function OrcamentoMpPage() {
                 const necIndividualValor = ativo ? totais.valorNecessidadeIndividualPorPeriodo[periodo] : 0;
                 // Excesso
                 const valorExcesso = ativo ? totais.valorExcessoPorPeriodo[periodo] : 0;
-                // Dados do plano baseado em qt_lote (lotes reais)
+                // Dados do plano baseado em qt_lote (lotes reais) - usando nova API
                 const percData = percentualPorPeriodo[periodo];
-                const qtdLote = percData?.qtdLote ?? 0;
-                const qtdGerouOp = percData?.qtdGerouOp ?? 0;
-                const qtdPendente = Math.max(0, qtdLote - qtdGerouOp);
                 const percentualGerouOp = percData?.percentualGerouOp ?? null;
-                // Calcular valor de MP por peça PA (baseado no plano/consumo calculado)
-                const consumoMpCalculado = ativo ? custoPlanoAtual.valorConsumoPorPeriodo[periodo] : 0;
-                const pecasPlanoCalculado = pecasPAPorPeriodo[periodo] || 0;
-                const valorMpPorPeca = pecasPlanoCalculado > 0 ? consumoMpCalculado / pecasPlanoCalculado : 0;
-                // Valor do plano baseado em qt_lote (lotes reais)
-                const valorPlanoTotal = valorMpPorPeca * qtdLote;
-                const valorGerouOp = valorMpPorPeca * qtdGerouOp;
-                const valorPendente = valorMpPorPeca * qtdPendente;
+                // Valores de MP calculados diretamente dos lotes
+                const qtdLote = consumoMpLotes?.qtdLote?.[periodo] ?? 0;
+                const qtdGerouOp = consumoMpLotes?.qtdGerouOp?.[periodo] ?? 0;
+                const qtdPendente = Math.max(0, qtdLote - qtdGerouOp);
+                const valorPlanoTotal = ativo ? (consumoMpLotes?.data?.[periodo] ?? 0) : 0;
+                const valorGerouOp = ativo ? (consumoMpLotes?.gerouOp?.[periodo] ?? 0) : 0;
+                const valorPendente = ativo ? (consumoMpLotes?.pendente?.[periodo] ?? 0) : 0;
                 // Dias faltantes (acumulado)
                 const diasFalt = diasFaltantesPorPeriodo[periodo];
                 // Dias individual e acumulado
