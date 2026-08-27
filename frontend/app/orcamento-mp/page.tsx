@@ -444,6 +444,7 @@ export default function OrcamentoMpPage() {
     diasFaltantesPorPeriodo: Record<Periodo, number | null>;
     diasCapacidade: DiasCapacidade | null;
     opsAntigas: OpsAntigas | null;
+    consumoMpLotes: ConsumoMpLotes | null;
   }> {
     console.log('[orcamento-mp] Iniciando carregarDadosAdicionais...');
 
