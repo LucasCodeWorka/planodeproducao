@@ -642,35 +642,23 @@ router.get("/percentual-finalizado", async (req, res) => {
 router.get("/consumo-mp-lotes", async (req, res) => {
   try {
     const pool = req.app.get("pool");
-    const marca = String(req.query.marca || "LIEBE").trim().toUpperCase();
-    const statusList = String(req.query.status || "EM LINHA,NOVA COLECAO")
-      .split(",")
-      .map((s) => s.trim().toUpperCase())
-      .filter(Boolean);
 
-    console.log(`[consumo-mp-lotes] Iniciando calculo para marca=${marca}, status=${statusList.join(',')}`);
+    console.log(`[consumo-mp-lotes] Iniciando calculo...`);
     const t0 = Date.now();
 
-    // 1. Buscar lotes por produto/período
+    // 1. Buscar lotes por produto/período (todos os lotes ativos)
     const lotesResult = await pool.query(`
-      WITH produtos_filtrados AS (
-        SELECT cd_produto
-        FROM vr_prd_prdgrade
-        WHERE UPPER(TRIM(COALESCE(f_dic_prd_classificacao(cd_produto, 'DS'::text, 20::bigint), ''))) = $1
-          AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(cd_produto, 'DS'::text, 27::bigint), ''))) = ANY($2)
-      )
       SELECT
         a.cd_produto,
         UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
         SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qt_lote,
         SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qt_gerouop
       FROM vr_pcp_lotepl2 a
-      INNER JOIN produtos_filtrados pf ON pf.cd_produto = a.cd_produto
       LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
       WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
         AND p.tp_situacao = 1
       GROUP BY a.cd_produto, p.cd_auxiliar
-    `, [marca, statusList]);
+    `);
 
     console.log(`[consumo-mp-lotes] Encontrados ${lotesResult.rows.length} registros de lotes`);
 
