@@ -1567,17 +1567,22 @@ export default function OrcamentoMpPage() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               {PERIODOS.map((periodo) => {
                 const ativo = periodosSelecionados.includes(periodo);
-                const valorOriginal = ativo ? custoPlanoOriginal.valorConsumoPorPeriodo[periodo] : 0;
-                const valorAtual = ativo ? custoPlanoAtual.valorConsumoPorPeriodo[periodo] : 0;
                 const necAcumQtd = ativo ? totais.necessidadeCumulativaPorPeriodo[periodo] : 0;
                 const necAcumValor = ativo ? totais.valorNecessidadeCumulativaPorPeriodo[periodo] : 0;
                 const necIndividualQtd = ativo ? totais.necessidadeIndividualPorPeriodo[periodo] : 0;
                 const necIndividualValor = ativo ? totais.valorNecessidadeIndividualPorPeriodo[periodo] : 0;
                 // Excesso
                 const valorExcesso = ativo ? totais.valorExcessoPorPeriodo[periodo] : 0;
-                // Percentual gerou OP
+                // Dados do plano baseado em qt_lote
                 const percData = percentualPorPeriodo[periodo];
+                const qtdLote = percData?.qtdLote ?? 0;
+                const qtdGerouOp = percData?.qtdGerouOp ?? 0;
+                const qtdPendente = Math.max(0, qtdLote - qtdGerouOp);
                 const percentualGerouOp = percData?.percentualGerouOp ?? null;
+                // Valor do plano (MP) proporcional às peças
+                const valorPlanoTotal = ativo ? custoPlanoAtual.valorConsumoPorPeriodo[periodo] : 0;
+                const valorGerouOp = qtdLote > 0 ? valorPlanoTotal * (qtdGerouOp / qtdLote) : 0;
+                const valorPendente = valorPlanoTotal - valorGerouOp;
                 // Dias faltantes (acumulado)
                 const diasFalt = diasFaltantesPorPeriodo[periodo];
                 // Dias individual e acumulado
@@ -1588,9 +1593,18 @@ export default function OrcamentoMpPage() {
                     <div className="text-[11px] font-semibold text-gray-500 mb-1">{periodo}</div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <div className="text-sm font-bold text-stone-800">{valorAtual > 0 ? money(valorAtual) : '-'}</div>
-                        <div className="text-[10px] text-gray-500">Plano</div>
-                        <div className="text-xs text-gray-500">{valorOriginal > 0 ? money(valorOriginal) : '-'}</div>
+                        <div className="text-sm font-bold text-stone-800">{valorPlanoTotal > 0 ? money(valorPlanoTotal) : '-'}</div>
+                        <div className="text-[10px] text-gray-500">Plano ({fmt(qtdLote)} pç)</div>
+                        <div className="text-xs font-semibold text-emerald-700">{valorGerouOp > 0 ? money(valorGerouOp) : '-'}</div>
+                        <div className="text-[10px] text-gray-500">Gerou OP ({fmt(qtdGerouOp)} pç)</div>
+                        <div className="text-xs font-semibold text-amber-700">{valorPendente > 0 ? money(valorPendente) : '-'}</div>
+                        <div className="text-[10px] text-gray-500">Pendente ({fmt(qtdPendente)} pç)</div>
+                      </div>
+                      <div>
+                        <div className={`text-sm font-bold ${percentualGerouOp !== null ? (percentualGerouOp >= 100 ? 'text-emerald-600' : percentualGerouOp >= 50 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}`}>
+                          {percentualGerouOp !== null ? `${percentualGerouOp.toFixed(1)}%` : '-'}
+                        </div>
+                        <div className="text-[10px] text-gray-500">Gerou OP</div>
                         <div
                           className={`mt-1 text-xs font-semibold ${valorExcesso > 0 ? 'text-orange-600 cursor-pointer hover:underline' : 'text-gray-400'}`}
                           onClick={valorExcesso > 0 ? () => setExcessoModalPeriodo(periodo) : undefined}
@@ -1599,12 +1613,6 @@ export default function OrcamentoMpPage() {
                           {valorExcesso > 0 ? money(valorExcesso) : '-'}
                         </div>
                         <div className="text-[10px] text-gray-500">Excesso</div>
-                      </div>
-                      <div>
-                        <div className={`text-sm font-bold ${percentualGerouOp !== null ? (percentualGerouOp >= 100 ? 'text-emerald-600' : percentualGerouOp >= 50 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}`}>
-                          {percentualGerouOp !== null ? `${percentualGerouOp.toFixed(1)}%` : '-'}
-                        </div>
-                        <div className="text-[10px] text-gray-500">Gerou OP</div>
                         <div className="mt-1 flex gap-1.5 items-baseline">
                           <span className={`text-xs font-semibold ${diasIndiv !== null ? 'text-blue-700' : 'text-gray-400'}`}>
                             {diasIndiv !== null ? `${diasIndiv.toFixed(1)}d` : '-'}
