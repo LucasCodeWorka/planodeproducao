@@ -1573,16 +1573,20 @@ export default function OrcamentoMpPage() {
                 const necIndividualValor = ativo ? totais.valorNecessidadeIndividualPorPeriodo[periodo] : 0;
                 // Excesso
                 const valorExcesso = ativo ? totais.valorExcessoPorPeriodo[periodo] : 0;
-                // Dados do plano baseado em qt_lote
+                // Dados do plano baseado em qt_lote (lotes reais)
                 const percData = percentualPorPeriodo[periodo];
                 const qtdLote = percData?.qtdLote ?? 0;
                 const qtdGerouOp = percData?.qtdGerouOp ?? 0;
                 const qtdPendente = Math.max(0, qtdLote - qtdGerouOp);
                 const percentualGerouOp = percData?.percentualGerouOp ?? null;
-                // Valor do plano (MP) proporcional às peças
-                const valorPlanoTotal = ativo ? custoPlanoAtual.valorConsumoPorPeriodo[periodo] : 0;
-                const valorGerouOp = qtdLote > 0 ? valorPlanoTotal * (qtdGerouOp / qtdLote) : 0;
-                const valorPendente = valorPlanoTotal - valorGerouOp;
+                // Calcular valor de MP por peça PA (baseado no plano/consumo calculado)
+                const consumoMpCalculado = ativo ? custoPlanoAtual.valorConsumoPorPeriodo[periodo] : 0;
+                const pecasPlanoCalculado = pecasPAPorPeriodo[periodo] || 0;
+                const valorMpPorPeca = pecasPlanoCalculado > 0 ? consumoMpCalculado / pecasPlanoCalculado : 0;
+                // Valor do plano baseado em qt_lote (lotes reais)
+                const valorPlanoTotal = valorMpPorPeca * qtdLote;
+                const valorGerouOp = valorMpPorPeca * qtdGerouOp;
+                const valorPendente = valorMpPorPeca * qtdPendente;
                 // Dias faltantes (acumulado)
                 const diasFalt = diasFaltantesPorPeriodo[periodo];
                 // Dias individual e acumulado
