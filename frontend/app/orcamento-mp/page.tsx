@@ -594,7 +594,7 @@ export default function OrcamentoMpPage() {
           nome: row.nome_materiaprima,
           cor: row.cor,
           artigo: row.artigo,
-          unidade: row.unidade,
+          unidade: row.unidade_compra || 'UND',
           estoque: row.estoquetotal || 0,
           valorUnitario: row.valorUnitario || 0,
           consumoQtd: row.consumoAte || 0,
