@@ -1181,9 +1181,9 @@ export default function OrcamentoMpPage() {
     });
   }, [rowsOriginalBase, priceOptionsByMp]);
 
-  // Custo do plano ATUAL (usando rowsCalculadas com precos atuais)
+  // Custo do plano ATUAL (usando rowsComValores SEM filtros, com precos atuais)
   const custoPlanoAtual = useMemo(() => {
-    return rowsCalculadas.reduce((acc, row) => {
+    return rowsComValores.reduce((acc, row) => {
       const preco = row.valorUnitario || 0;
       for (const periodo of PERIODOS) {
         const consumoPeriodo = valorPeriodo(row, 'consumo', periodo);
@@ -1195,7 +1195,7 @@ export default function OrcamentoMpPage() {
       consumoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 } as Record<Periodo, number>,
       valorConsumoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 } as Record<Periodo, number>,
     });
-  }, [rowsCalculadas]);
+  }, [rowsComValores]);
 
   const valorConsumoOriginalAte = useMemo(() => {
     return periodosAte(planoAte).reduce((acc, periodo) => acc + custoPlanoOriginal.valorConsumoPorPeriodo[periodo], 0);
