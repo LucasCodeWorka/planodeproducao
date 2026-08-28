@@ -691,34 +691,80 @@ router.get("/consumo-mp-lotes", async (req, res) => {
     }
 
     // 2. Buscar estrutura de MP para os produtos (primeiro nível)
-    const estruturaResult = await pool.query(`
-      SELECT
-        e.cd_produto,
-        e.cd_componente,
-        COALESCE(e.qt_utilizada, 0) AS qt_utilizada,
-        COALESCE(mp.vl_customedio, 0) AS custo_mp
-      FROM prd_estrutura e
-      LEFT JOIN vr_est_saldos mp ON mp.cd_produto = e.cd_componente AND mp.cd_deposito = '01'
-      WHERE e.cd_produto = ANY($1)
-        AND e.tp_situacao = 1
-        AND e.tp_estrutura = 'MP'
-    `, [produtosComLote]);
+    let estruturaResult;
+    try {
+      estruturaResult = await pool.query(`
+        SELECT
+          c.cd_produtopa::TEXT AS cd_produto,
+          c.cd_produtomp::TEXT AS cd_componente,
+          SUM(COALESCE(c.qt_consumo, 0))::FLOAT AS qt_utilizada
+        FROM vr_pcp_fccconsumo c
+        WHERE c.cd_produtopa::TEXT = ANY($1::TEXT[])
+        GROUP BY c.cd_produtopa, c.cd_produtomp
+      `, [produtosComLote]);
+    } catch {
+      estruturaResult = await pool.query(`
+        SELECT
+          c.cd_produtopa::TEXT AS cd_produto,
+          c.cd_produtomp::TEXT AS cd_componente,
+          SUM(COALESCE(c.qt_consumo, 0))::FLOAT AS qt_utilizada
+        FROM vr_pcp_fcconsumo c
+        WHERE c.cd_produtopa::TEXT = ANY($1::TEXT[])
+        GROUP BY c.cd_produtopa, c.cd_produtomp
+      `, [produtosComLote]);
+    }
 
     console.log(`[consumo-mp-lotes] Encontrados ${estruturaResult.rows.length} registros de estrutura`);
+
+    const componentesMp = Array.from(new Set(
+      estruturaResult.rows
+        .map((row) => String(row.cd_componente || '').trim())
+        .filter(Boolean)
+    ));
+
+    const custoPorMp = {};
+    if (componentesMp.length > 0) {
+      const custosResult = await pool.query(`
+        SELECT
+          c.cd_produtomp::TEXT AS cd_componente,
+          MAX(COALESCE(
+            f_prd_valor_produto2(
+              '1'::bigint,
+              '1'::bigint,
+              'C'::bpchar,
+              '2'::bigint,
+              c.cd_produtomp,
+              NULL::timestamp
+            ), 0
+          ))::FLOAT AS custo_mp
+        FROM vr_pcp_fcconsumo c
+        WHERE c.cd_produtomp::TEXT = ANY($1::TEXT[])
+        GROUP BY c.cd_produtomp
+      `, [componentesMp]);
+
+      for (const row of custosResult.rows) {
+        const cdComponente = String(row.cd_componente || '').trim();
+        const custo = Number(row.custo_mp || 0);
+        if (cdComponente && custo > 0) custoPorMp[cdComponente] = custo;
+      }
+    }
+
+    console.log(`[consumo-mp-lotes] MPs com custo=${Object.keys(custoPorMp).length}/${componentesMp.length}`);
 
     // Agrupar estrutura por produto
     const estruturaPorProduto = {};
     for (const row of estruturaResult.rows) {
       const cdProduto = String(row.cd_produto || '').trim();
+      const cdComponente = String(row.cd_componente || '').trim();
       if (!cdProduto) continue;
 
       if (!estruturaPorProduto[cdProduto]) {
         estruturaPorProduto[cdProduto] = [];
       }
       estruturaPorProduto[cdProduto].push({
-        cdComponente: row.cd_componente,
+        cdComponente,
         qtUtilizada: Number(row.qt_utilizada || 0),
-        custoMp: Number(row.custo_mp || 0),
+        custoMp: Number(custoPorMp[cdComponente] || 0),
       });
     }
 

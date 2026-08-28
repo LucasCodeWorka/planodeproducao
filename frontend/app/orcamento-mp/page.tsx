@@ -1610,8 +1610,6 @@ export default function OrcamentoMpPage() {
                 // Excesso
                 const valorExcesso = ativo ? totais.valorExcessoPorPeriodo[periodo] : 0;
                 // Dados do plano baseado em qt_lote (lotes reais) - usando nova API
-                const percData = percentualPorPeriodo[periodo];
-                const percentualGerouOp = percData?.percentualGerouOp ?? null;
                 // Valores de MP calculados diretamente dos lotes
                 const qtdLote = consumoMpLotes?.qtdLote?.[periodo] ?? 0;
                 const qtdGerouOp = consumoMpLotes?.qtdGerouOp?.[periodo] ?? 0;
@@ -1619,6 +1617,8 @@ export default function OrcamentoMpPage() {
                 const valorPlanoTotal = ativo ? (consumoMpLotes?.data?.[periodo] ?? 0) : 0;
                 const valorGerouOp = ativo ? (consumoMpLotes?.gerouOp?.[periodo] ?? 0) : 0;
                 const valorPendente = ativo ? (consumoMpLotes?.pendente?.[periodo] ?? 0) : 0;
+                // Este percentual precisa usar os mesmos lotes exibidos acima.
+                const percentualGerouOp = qtdLote > 0 ? (qtdGerouOp / qtdLote) * 100 : null;
                 // Dias faltantes (acumulado)
                 const diasFalt = diasFaltantesPorPeriodo[periodo];
                 // Dias individual e acumulado
