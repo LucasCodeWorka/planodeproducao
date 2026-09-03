@@ -12,8 +12,75 @@ import { projecaoMesPlanejamento } from './lib/projecao';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MARCA_FIXA = 'LIEBE';
 const STATUS_FIXO = 'EM LINHA,NOVA COLECAO';
+const APROVADAS_LIMIT = 10;
+const DIAS_RECUPERAR_NEGATIVOS = new Set([1, 10, 20]);
+const PARAM_SIMULAR_DIA_ROTINA = 'simularDiaRotina';
+const PERIODOS_RECUPERAR_NEGATIVOS = ['MA', 'PX', 'UL', 'QT', 'QU', 'SX'] as const;
+const MESES_PT = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+function dateInputValue(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function dataLocalInputValue(date: Date) {
+  const ano = date.getFullYear();
+  const mes = String(date.getMonth() + 1).padStart(2, '0');
+  const dia = String(date.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
+function defaultDataDe() {
+  const date = new Date();
+  date.setDate(date.getDate() - 10);
+  return dateInputValue(date);
+}
+
+function isSimulandoDiaRotina() {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get(PARAM_SIMULAR_DIA_ROTINA) === '1';
+}
+
+function inicioCicloRecuperarNegativos(date = new Date()) {
+  const dia = date.getDate();
+  const inicio = new Date(date);
+  if (dia >= 20) inicio.setDate(20);
+  else if (dia >= 10) inicio.setDate(10);
+  else inicio.setDate(1);
+  return inicio;
+}
+
+function fimCicloRecuperarNegativos(date = new Date()) {
+  const dia = date.getDate();
+  const fim = new Date(date);
+  if (dia >= 20) fim.setMonth(fim.getMonth() + 1, 0);
+  else if (dia >= 10) fim.setDate(19);
+  else fim.setDate(9);
+  return fim;
+}
+
+function proximaRotinaRecuperarNegativos(date = new Date()) {
+  const dia = date.getDate();
+  const proxima = new Date(date);
+  if (dia < 10) proxima.setDate(10);
+  else if (dia < 20) proxima.setDate(20);
+  else proxima.setMonth(proxima.getMonth() + 1, 1);
+  return proxima;
+}
+
+function formatDateBR(date: Date) {
+  return date.toLocaleDateString('pt-BR');
+}
+
+function taxaMesesFechados(base = new Date()) {
+  return [3, 2, 1].map((voltar) => {
+    const date = new Date(base.getFullYear(), base.getMonth() - voltar, 1);
+    const mes = date.getMonth() + 1;
+    return { mes, ano: date.getFullYear(), label: MESES_PT[mes] };
+  }) as [{ mes: number; ano: number; label: string }, { mes: number; ano: number; label: string }, { mes: number; ano: number; label: string }];
+}
 
 type SerieMes = { mes: string; total: number; top30: number; demais: number; kissme: number };
+type PeriodoRecuperarNegativos = typeof PERIODOS_RECUPERAR_NEGATIVOS[number];
 
 function clampPct(v: number) {
   if (!Number.isFinite(v)) return 0;
@@ -41,6 +108,19 @@ type AnaliseAprovada = {
     statusAprovacao?: 'PENDENTE' | 'APROVADA';
     planos?: PlanoSnapshotItem[];
   };
+};
+
+type RotinaNegativosInfo = {
+  inicio: string;
+  fim: string;
+  proxima: string;
+  simulando: boolean;
+};
+
+type PreviaNegativoPeriodo = {
+  periodo: PeriodoRecuperarNegativos;
+  skus: number;
+  pecas: number;
 };
 
 type ReprojecaoPreview = {
@@ -132,6 +212,7 @@ export default function Home() {
   const [apenasNegativos, setApenasNegativos] = useState(false);
   const [filtroNegativoPeriodo, setFiltroNegativoPeriodo] = useState<'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT' | 'QU' | 'SX'>('TODOS');
   const [filtroNaoPrecisaProduzir, setFiltroNaoPrecisaProduzir] = useState(false);
+  const [filtroSomenteComPlano, setFiltroSomenteComPlano] = useState(true);
   const [filtroContinuidade, setFiltroContinuidade] = useState<string[]>([]);
   const [filtroSuspensos, setFiltroSuspensos] = useState<'INCLUIR' | 'EXCLUIR'>('INCLUIR');
   const [filtroReferencia, setFiltroReferencia] = useState('');
@@ -176,6 +257,10 @@ export default function Home() {
     oficinas: { nome: string; pior_dias: number; media_dias: number }[];
     outrosLocais: { nome: string; pior_dias: number; media_dias: number }[];
   }>({ oficinas: [], outrosLocais: [] });
+  const [mostrarModalNegativos, setMostrarModalNegativos] = useState(false);
+  const [rotinaNegativosInfo, setRotinaNegativosInfo] = useState<RotinaNegativosInfo | null>(null);
+  const taxaMeses = useMemo(() => taxaMesesFechados(), []);
+  const taxaFiltroLabel = useMemo(() => taxaMeses.map((m) => m.label.charAt(0).toUpperCase() + m.label.slice(1)).join('/'), [taxaMeses]);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reprojecaoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -185,6 +270,7 @@ export default function Home() {
       router.replace('/login');
       return;
     }
+    verificarRotinaRecuperarNegativos();
     buscarDados();
     buscarStatusCache();
     buscarProjecoes();
@@ -197,6 +283,40 @@ export default function Home() {
     buscarIndicadoresOutrosLocais();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function verificarRotinaRecuperarNegativos() {
+    try {
+      const hoje = new Date();
+      const simulandoDiaRotina = isSimulandoDiaRotina();
+      const ciclo = inicioCicloRecuperarNegativos(hoje);
+      const fimCiclo = fimCicloRecuperarNegativos(hoje);
+      setRotinaNegativosInfo({
+        inicio: formatDateBR(ciclo),
+        fim: formatDateBR(fimCiclo),
+        proxima: formatDateBR(proximaRotinaRecuperarNegativos(hoje)),
+        simulando: simulandoDiaRotina,
+      });
+      const params = new URLSearchParams({
+        tipo: 'SUGESTAO_PLANO',
+        origem: 'RECUPERAR_NEGATIVOS',
+        de: dataLocalInputValue(ciclo),
+        ate: dataLocalInputValue(hoje),
+        limit: '50',
+      });
+      const res = await fetchNoCache(`${API_URL}/api/simulacoes?${params}`, { headers: authHeaders() });
+      const data = await res.json();
+      const jaSalvouRotina = res.ok && Array.isArray(data?.data) && data.data.some((item: AnaliseAprovada & { parametros?: { origem?: string } }) => {
+        return String(item?.parametros?.origem || '').trim().toUpperCase() === 'RECUPERAR_NEGATIVOS';
+      });
+      setMostrarModalNegativos(simulandoDiaRotina || !jaSalvouRotina);
+    } catch {
+      setMostrarModalNegativos(true);
+    }
+  }
+
+  function verRecuperarNegativosMaisTarde() {
+    setMostrarModalNegativos(false);
+  }
 
   async function buscarIndicadoresOutrosLocais() {
     try {
@@ -303,7 +423,14 @@ export default function Home() {
   async function buscarAprovadas() {
     try {
       console.log('[buscarAprovadas] Iniciando fetch...');
-      const res = await fetchNoCache(`${API_URL}/api/simulacoes`, { headers: authHeaders() });
+      const params = new URLSearchParams({
+        tipo: 'SUGESTAO_PLANO,LAB_SUGESTAO_RETIRADA',
+        statusAprovacao: 'APROVADA',
+        limit: String(APROVADAS_LIMIT),
+        de: defaultDataDe(),
+        ate: dateInputValue(new Date()),
+      });
+      const res = await fetchNoCache(`${API_URL}/api/simulacoes?${params}`, { headers: authHeaders() });
       console.log('[buscarAprovadas] Resposta:', res.status, res.ok);
       if (!res.ok) {
         console.error('[buscarAprovadas] Resposta não OK:', res.status);
@@ -312,7 +439,7 @@ export default function Home() {
       const data = await res.json();
       console.log('[buscarAprovadas] Total recebido:', data?.data?.length || 0);
       const lista = (Array.isArray(data?.data) ? data.data : []) as AnaliseAprovada[];
-      const aprov = lista.filter((a) => a?.parametros?.statusAprovacao === 'APROVADA' && Array.isArray(a?.parametros?.planos));
+      const aprov = lista.filter((a) => Array.isArray(a?.parametros?.planos));
       console.log('[buscarAprovadas] Aprovadas com planos:', aprov.length);
       setAprovadas(aprov);
       setAprovadasSelecionadasIds((prev) => {
@@ -364,14 +491,24 @@ export default function Home() {
       return;
     }
     try {
-      const rReal = await fetchNoCache(`${API_URL}/api/analises/projecao-vs-venda`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ ano: new Date().getFullYear(), ids }),
-      });
-      if (!rReal.ok) throw new Error(`Vendas reais erro ${rReal.status}`);
-      const pReal = await rReal.json();
-      setVendasReais((pReal && pReal.data) || {});
+      const anos = Array.from(new Set(taxaMeses.map((m) => m.ano)));
+      const respostas = await Promise.all(anos.map(async (ano) => {
+        const rReal = await fetchNoCache(`${API_URL}/api/analises/projecao-vs-venda`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ ano, ids }),
+        });
+        if (!rReal.ok) throw new Error(`Vendas reais erro ${rReal.status}`);
+        return rReal.json();
+      }));
+      const merged: Record<string, Record<string, number>> = {};
+      for (const payload of respostas) {
+        const data = (payload && payload.data) || {};
+        for (const [id, meses] of Object.entries(data)) {
+          merged[id] = { ...(merged[id] || {}), ...(meses as Record<string, number>) };
+        }
+      }
+      setVendasReais(merged);
     } catch {
       setVendasReais({});
     }
@@ -406,7 +543,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [taxaMeses]);
 
   useEffect(() => {
     if (!building) return;
@@ -649,8 +786,21 @@ export default function Home() {
       });
     }
 
+    // Filtro para excluir SKUs sem plano em nenhum período (só tem estoque+processo para vender)
+    if (filtroSomenteComPlano) {
+      base = base.filter((i) => {
+        const pMA = Number(i.plano?.ma || 0);
+        const pPX = Number(i.plano?.px || 0);
+        const pUL = Number(i.plano?.ul || 0);
+        const pQT = Number((i.plano as { qt?: number } | undefined)?.qt || 0);
+        const pQU = Number((i.plano as { qu?: number } | undefined)?.qu || 0);
+        const pSX = Number((i.plano as { sx?: number } | undefined)?.sx || 0);
+        return pMA > 0 || pPX > 0 || pUL > 0 || pQT > 0 || pQU > 0 || pSX > 0;
+      });
+    }
+
     return base;
-  }, [dadosAtivosComEstoqueLojas, filtroContinuidade, filtroSuspensos, filtroLinha, filtroFamilia, filtroCurvaABC, curvaABC, referenciasDeParaSet]);
+  }, [dadosAtivosComEstoqueLojas, filtroContinuidade, filtroSuspensos, filtroLinha, filtroFamilia, filtroCurvaABC, curvaABC, referenciasDeParaSet, filtroSomenteComPlano]);
 
   const projecoesAtivas = useMemo<ProjecoesMap>(() => {
     if (!considerarProjecaoNova || reprojecaoPreview.length === 0) return projecoes;
@@ -1012,6 +1162,75 @@ export default function Home() {
     };
   }, [dadosPagina, projecoesAtivas, periodos]);
 
+  const previaNegativosRotina = useMemo<PreviaNegativoPeriodo[]>(() => {
+    const statusPermitidos = STATUS_FIXO.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+    const totais: Record<PeriodoRecuperarNegativos, { skus: number; pecas: number }> = {
+      MA: { skus: 0, pecas: 0 },
+      PX: { skus: 0, pecas: 0 },
+      UL: { skus: 0, pecas: 0 },
+      QT: { skus: 0, pecas: 0 },
+      QU: { skus: 0, pecas: 0 },
+      SX: { skus: 0, pecas: 0 },
+    };
+
+    const mesQT = periodos.QT || mesNormalizado((periodos.UL || 0) + 1);
+    const mesQU = periodos.QU || mesNormalizado(mesQT + 1);
+    const mesSX = mesNormalizado(mesQU + 1);
+
+    for (const i of dadosAtivos) {
+      const marca = String(i.produto?.marca || '').trim().toUpperCase();
+      const status = String(i.produto?.status || '').trim().toUpperCase();
+      const continuidade = String(i.produto?.continuidade || '').trim().toUpperCase();
+      if (marca !== MARCA_FIXA) continue;
+      if (!statusPermitidos.some((s) => status.startsWith(s))) continue;
+      if (continuidade !== 'PERMANENTE' && continuidade !== 'PERMANENTE COR NOVA') continue;
+
+      const proj = projecoesAtivas[String(i.produto.idproduto)] ?? null;
+      const dispAtual = Number(i.estoques.estoque_atual || 0) - Number(i.demanda.pedidos_pendentes || 0);
+      const emP = Number(i.estoques.em_processo || 0);
+      const pMA = Number(i.plano?.ma || 0);
+      const pPX = Number(i.plano?.px || 0);
+      const pUL = Number(i.plano?.ul || 0);
+      const pQT = Number((i.plano as { qt?: number } | undefined)?.qt || 0);
+      const pQU = Number((i.plano as { qu?: number } | undefined)?.qu || 0);
+      const pSX = Number((i.plano as { sx?: number } | undefined)?.sx || 0);
+      const prMA = proj ? projecaoMesPlanejamento(Number(proj[String(periodos.MA)] || 0), periodos.MA) : 0;
+      const prPX = proj ? Number(proj[String(periodos.PX)] || 0) : 0;
+      const prUL = proj ? Number(proj[String(periodos.UL)] || 0) : 0;
+      const prQT = proj ? Number(proj[String(mesQT)] || 0) : 0;
+      const prQU = proj ? Number(proj[String(mesQU)] || 0) : 0;
+      const prSX = proj ? Number(proj[String(mesSX)] || 0) : 0;
+
+      const saldos: Record<PeriodoRecuperarNegativos, number> = {
+        MA: dispAtual + emP + pMA - prMA,
+        PX: 0,
+        UL: 0,
+        QT: 0,
+        QU: 0,
+        SX: 0,
+      };
+      saldos.PX = saldos.MA + pPX - prPX;
+      saldos.UL = saldos.PX + pUL - prUL;
+      saldos.QT = saldos.UL + pQT - prQT;
+      saldos.QU = saldos.QT + pQU - prQU;
+      saldos.SX = saldos.QU + pSX - prSX;
+
+      for (const periodo of PERIODOS_RECUPERAR_NEGATIVOS) {
+        const saldo = saldos[periodo];
+        if (saldo < 0) {
+          totais[periodo].skus += 1;
+          totais[periodo].pecas += Math.abs(saldo);
+        }
+      }
+    }
+
+    return PERIODOS_RECUPERAR_NEGATIVOS.map((periodo) => ({
+      periodo,
+      skus: totais[periodo].skus,
+      pecas: Math.round(totais[periodo].pecas),
+    }));
+  }, [dadosAtivos, projecoesAtivas, periodos]);
+
   const resumoRiscoMpPlano = useMemo(() => {
     let planoMA = 0;
     let planoPX = 0;
@@ -1212,6 +1431,89 @@ export default function Home() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar onCollapse={setSidebarCollapsed} />
 
+      {mostrarModalNegativos && (
+        <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-6">
+          <div className="w-full max-w-3xl bg-white rounded-lg shadow-2xl border border-amber-200 overflow-hidden">
+            <div className="bg-amber-600 px-6 py-4">
+              <div className="text-white text-lg font-bold">Recuperacao de negativos pendente</div>
+              <div className="text-amber-50 text-sm">
+                Falta salvar a sugestao desta rotina para o ciclo atual.
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <div className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Pendente desde</div>
+                  <div className="text-2xl font-bold text-amber-800">{rotinaNegativosInfo?.inicio || '-'}</div>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ciclo atual</div>
+                  <div className="text-lg font-bold text-gray-900">
+                    {rotinaNegativosInfo ? `${rotinaNegativosInfo.inicio} a ${rotinaNegativosInfo.fim}` : '-'}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                  <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Como concluir</div>
+                  <div className="text-lg font-bold text-emerald-800">Salvar simulacao</div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Previa dos negativos</div>
+                    <div className="text-sm font-semibold text-gray-800">Somente Permanente e Permanente cor nova</div>
+                  </div>
+                  {(loading || Object.keys(projecoesAtivas).length === 0) && <div className="text-xs text-gray-500">Carregando valores...</div>}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+                  {previaNegativosRotina.map((p) => (
+                    <div key={p.periodo} className={`rounded-md border px-3 py-2 ${p.pecas > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
+                      <div className={`text-sm font-bold ${p.pecas > 0 ? 'text-red-700' : 'text-gray-700'}`}>{p.periodo}</div>
+                      {(loading || Object.keys(projecoesAtivas).length === 0) ? (
+                        <>
+                          <div className="h-6 w-16 rounded bg-gray-200 animate-pulse mt-1" />
+                          <div className="h-3 w-12 rounded bg-gray-200 animate-pulse mt-2" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-lg font-bold text-gray-900">{p.pecas.toLocaleString('pt-BR')}</div>
+                          <div className="text-[11px] text-gray-500">{p.skus.toLocaleString('pt-BR')} SKUs</div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-700">
+                <p>
+                  Abra o painel, escolha o periodo que precisa corrigir e salve a sugestao de recuperacao. Enquanto nenhuma simulacao
+                  de recuperacao de negativos for salva neste ciclo, este aviso volta ao abrir o plano ou apertar F5.
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  Rotina programada para os dias 1, 10 e 20. Proxima verificacao: {rotinaNegativosInfo?.proxima || '-'}.
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={verRecuperarNegativosMaisTarde}
+                  className="px-4 py-2 text-sm font-semibold border border-gray-300 rounded hover:bg-gray-50"
+                >
+                  Ver mais tarde
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/recuperar-negativos')}
+                  className="px-4 py-2 text-sm font-semibold bg-amber-600 text-white rounded hover:bg-amber-700"
+                >
+                  Resolver agora
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className={`flex-1 min-w-0 ${ml} transition-all duration-300 flex flex-col min-h-screen`}>
 
         {/* Header */}
@@ -1357,6 +1659,17 @@ export default function Home() {
                           <option value="QU">{nomeMesCurto(periodos.QU || (((periodos.QT || ((periodos.UL % 12) + 1)) % 12) + 1)).toUpperCase()}</option>
                         </select>
                       )}
+                      <button
+                        onClick={() => setFiltroSomenteComPlano((v) => !v)}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded border transition-colors ml-1 ${
+                          filtroSomenteComPlano
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        }`}
+                        title="Exibir apenas SKUs que têm plano em algum período"
+                      >
+                        Com Plano
+                      </button>
                     </div>
                   </div>
 
@@ -1396,7 +1709,7 @@ export default function Home() {
                         {abrirSeletorAprovadas && (
                           <div className="absolute z-[200] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
                             <div className="mb-1 flex items-center justify-between">
-                              <span className="text-[11px] text-gray-500">Escolha as simulações</span>
+                              <span className="text-[11px] text-gray-500">Ultimas {APROVADAS_LIMIT} aprovadas</span>
                               <div className="flex items-center gap-1">
                                 <button
                                   type="button"
@@ -1770,7 +2083,7 @@ export default function Home() {
                   </div>
 
                   <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Taxa Jan/Fev</label>
+                    <label className="block text-xs font-semibold text-brand-dark mb-1">{taxaFiltroLabel}</label>
                     <select
                       value={filtroTaxa}
                       onChange={(e) => setFiltroTaxa(e.target.value as 'TODAS' | 'ATE_70')}
@@ -1974,6 +2287,7 @@ export default function Home() {
               dados={dadosPagina}
               projecoes={projecoesAtivas}
               vendasReais={vendasReais}
+              taxaMeses={taxaMeses}
               periodos={periodos}
               apenasNegativos={apenasNegativos}
               filtroNegativoPeriodo={filtroNegativoPeriodo}

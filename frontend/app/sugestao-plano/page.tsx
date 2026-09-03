@@ -527,7 +527,7 @@ export default function SugestaoPlanoPage() {
     setError(null);
     const tCarregar = nowMs();
     try {
-      const params = new URLSearchParams({ limit: '5000', marca: MARCA_FIXA, status: STATUS_FIXO });
+      const params = new URLSearchParams({ limit: '5000', marca: MARCA_FIXA, status: STATUS_FIXO, prefer_cache: 'true' });
       const medirFetch = async (label: string, url: string, init?: RequestInit) => {
         const t = nowMs();
         const response = await fetchNoCache(url, init);
@@ -1532,28 +1532,37 @@ export default function SugestaoPlanoPage() {
   }, [rowsVisiveisTela]);
 
   function exportarAlteracoesCSV() {
+    const planoAtualPeriodo = (r: Row) => {
+      if (periodoAlvo === 'MA') return r.planoMA;
+      if (periodoAlvo === 'PX') return r.planoPX;
+      if (periodoAlvo === 'UL') return r.planoUL;
+      if (periodoAlvo === 'QT') return r.planoQT;
+      if (periodoAlvo === 'QU') return r.planoQU;
+      return r.planoSX;
+    };
+    const periodoLower = periodoAlvo.toLowerCase();
     const alteracoes = rows
       .map((r) => ({
         sku: r.idproduto,
-        antes: Math.round(r.planoUL || 0),
-        agora: periodoAlvo === 'UL' ? Math.round(r.planoSugerido || 0) : Math.round(r.planoUL || 0),
+        antes: Math.round(planoAtualPeriodo(r) || 0),
+        agora: Math.round(r.planoSugerido || 0),
+        coberturaAntes: Number(r.estoqueMin || 0) > 0 ? Number(r.dispMesAlvo || 0) / Number(r.estoqueMin || 0) : 0,
+        coberturaDepois: Number(r.estoqueMin || 0) > 0 ? Number(r.dispPos || 0) / Number(r.estoqueMin || 0) : 0,
         corteMinimo: Math.round(r.corteMin || 0),
       }))
       .filter((r) => r.antes !== r.agora);
     if (!alteracoes.length) {
-      setOkMsg(periodoAlvo === 'UL'
-        ? 'Nenhum SKU com alteração no plano UL para exportar.'
-        : 'Selecione o período UL para exportar alterações do plano UL.');
+      setOkMsg('Nenhum SKU com alteracao no plano ' + periodoAlvo + ' para exportar.');
       return;
     }
-    const header = ['idproduto', 'plano_ul_antes', 'plano_ul_agora', 'corte_minimo'];
+    const header = ['idproduto', `plano_${periodoLower}_antes`, `plano_${periodoLower}_agora`, 'cobertura_antes', 'cobertura_depois', 'corte_minimo'];
     const csv = [header, ...alteracoes]
       .map((arr) => Object.values(arr).map((v) => `"${String(v ?? '').replaceAll('"', '""')}"`).join(','))
       .join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `sugestao_alteracoes_UL_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `sugestao_alteracoes_${periodoAlvo}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     setOkMsg(`${alteracoes.length.toLocaleString('pt-BR')} SKUs alterados exportados.`);
@@ -2730,7 +2739,7 @@ export default function SugestaoPlanoPage() {
                 disabled={loading || rows.length === 0}
                 className="px-4 py-2 text-xs font-bold rounded-lg border border-brand-primary text-brand-primary hover:bg-brand-primary/5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Exportar alterações UL
+                Exportar alteracoes {periodoAlvo}
               </button>
             </div>
           </div>

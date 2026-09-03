@@ -8,6 +8,8 @@ const DATA_DIR = path.join(__dirname, "../../data");
 const GRUPOS_FILE = path.join(DATA_DIR, "capacidade_grupos.json");
 const GRUPO_REFS_FILE = path.join(DATA_DIR, "capacidade_grupo_refs.json");
 const DIAS_FILE = path.join(DATA_DIR, "capacidade_dias.json");
+const DEFAULT_REAL_GROUP_IDS = [82, 83, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 421, 681, 722, 1241, 1402, 1422];
+const realCapacityCache = { data: null, timestamp: 0 };
 
 // Cache para dias-resumo (evita recalcular a cada requisição)
 const diasResumoCache = { data: null, timestamp: 0 };
@@ -133,19 +135,19 @@ async function queryTempoBaseRows(pool, filters = {}) {
   const where = [];
   if (filters.idreferencia) {
     params.push(String(filters.idreferencia).trim().toUpperCase());
-    where.push(`base.idreferencia = $${params.length}`);
+    where.push(`so.cd_seqgrupopa::TEXT = $${params.length}`);
   }
   if (filters.referencia) {
     params.push(String(filters.referencia).trim().toUpperCase());
-    where.push(`base.referencia_padrao = $${params.length}`);
+    where.push(`COALESCE(refmap.referencia_padrao, '')::TEXT = $${params.length}`);
   }
   if (Array.isArray(filters.idreferencias) && filters.idreferencias.length) {
     params.push(filters.idreferencias);
-    where.push(`base.idreferencia = ANY($${params.length}::text[])`);
+    where.push(`so.cd_seqgrupopa::TEXT = ANY($${params.length}::text[])`);
   }
   if (Array.isArray(filters.referencias) && filters.referencias.length) {
     params.push(filters.referencias);
-    where.push(`base.referencia_padrao = ANY($${params.length}::text[])`);
+    where.push(`COALESCE(refmap.referencia_padrao, '')::TEXT = ANY($${params.length}::text[])`);
   }
 
   const sql = `
@@ -174,6 +176,100 @@ async function queryTempoBaseRows(pool, filters = {}) {
   `;
 
   return pool.query(sql, params);
+}
+
+async function queryRealCapacityReferences(pool) {
+  if (realCapacityCache.data && Date.now() - realCapacityCache.timestamp < 5 * 60 * 1000) {
+    return realCapacityCache.data;
+  }
+
+  const result = await pool.query(`
+    WITH grupos_filtro (cd_local) AS (
+      SELECT unnest($1::text[])
+    ),
+    cache_base AS (
+      SELECT
+        e.cd_grupo::text AS cd_grupo,
+        DATE_TRUNC('month', e.dt_ref)::date AS mes,
+        SUM(COALESCE(e.tempo_produzido_min, 0))::float AS minutos,
+        COUNT(DISTINCT e.dt_ref) FILTER (WHERE COALESCE(e.tempo_produzido_min, 0) > 0)::int AS dias
+      FROM pcp_cache_eficiencia_dia e
+      JOIN grupos_filtro gf ON gf.cd_local = e.cd_grupo::text
+      WHERE e.dt_ref >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '11 months')::date
+        AND e.dt_ref < DATE_TRUNC('month', CURRENT_DATE)::date
+      GROUP BY e.cd_grupo, DATE_TRUNC('month', e.dt_ref)
+    ),
+    movimentos_atual AS (
+      SELECT
+        m.cd_localorigem::text AS cd_grupo,
+        m.dt_movimento::date AS dt_ref,
+        m.cd_produto,
+        COALESCE(m.qt_movimento, 0)::float AS qt_movimento
+      FROM vr_cdf_movopi m
+      JOIN grupos_filtro gf ON gf.cd_local = m.cd_localorigem::text
+      WHERE m.tp_historicomov = 51
+        AND m.in_estorno = 'F'
+        AND m.dt_movimento::date >= DATE_TRUNC('month', CURRENT_DATE)::date
+        AND m.dt_movimento::date < CURRENT_DATE
+    ),
+    tempo_padrao_atual AS (
+      SELECT
+        p.cd_produto,
+        SUM(COALESCE(NULLIF(s.hr_tempo, 0), o.hr_tempopadrao * 1440))::float AS minutos
+      FROM mv_prd_referencia_produto p
+      JOIN vr_cdf_seqope s ON s.cd_seqgrupo = p.cd_seqgrupo
+      JOIN vr_cdf_operac o ON o.cd_operacao = s.cd_operacao
+      WHERE o.cd_tipooperacao IN (1, 3, 4)
+        AND p.cd_produto IN (SELECT DISTINCT cd_produto FROM movimentos_atual)
+      GROUP BY p.cd_produto
+    ),
+    atual_base AS (
+      SELECT
+        mv.cd_grupo,
+        DATE_TRUNC('month', mv.dt_ref)::date AS mes,
+        SUM(mv.qt_movimento * COALESCE(tp.minutos, 0))::float AS minutos,
+        COUNT(DISTINCT mv.dt_ref) FILTER (WHERE mv.qt_movimento > 0)::int AS dias
+      FROM movimentos_atual mv
+      LEFT JOIN tempo_padrao_atual tp ON tp.cd_produto = mv.cd_produto
+      GROUP BY mv.cd_grupo, DATE_TRUNC('month', mv.dt_ref)
+    ),
+    base AS (
+      SELECT * FROM cache_base
+      UNION ALL
+      SELECT * FROM atual_base
+    ),
+    por_mes AS (
+      SELECT cd_grupo, mes, SUM(minutos)::float AS minutos, SUM(dias)::int AS dias
+      FROM base
+      GROUP BY cd_grupo, mes
+    ),
+    ultimo AS (
+      SELECT DISTINCT ON (cd_grupo)
+        cd_grupo, minutos AS minutos_ultimo_mes, dias AS dias_ultimo_mes, mes AS ultimo_mes
+      FROM por_mes
+      ORDER BY cd_grupo, mes DESC
+    )
+    SELECT
+      pm.cd_grupo,
+      SUM(pm.minutos)::float AS minutos_12m,
+      SUM(pm.dias)::int AS dias_12m,
+      u.minutos_ultimo_mes,
+      u.dias_ultimo_mes,
+      u.ultimo_mes
+    FROM por_mes pm
+    JOIN ultimo u ON u.cd_grupo = pm.cd_grupo
+    GROUP BY pm.cd_grupo, u.minutos_ultimo_mes, u.dias_ultimo_mes, u.ultimo_mes
+  `, [DEFAULT_REAL_GROUP_IDS.map(String)]);
+
+  const data = result.rows.map((row) => ({
+    cdGrupo: String(row.cd_grupo || '').trim(),
+    media12m: Number(row.minutos_12m || 0) / Math.max(1, Number(row.dias_12m || 0)),
+    ultimoMes: Number(row.minutos_ultimo_mes || 0) / Math.max(1, Number(row.dias_ultimo_mes || 0)),
+    ultimoMesData: row.ultimo_mes,
+  }));
+  realCapacityCache.data = data;
+  realCapacityCache.timestamp = Date.now();
+  return data;
 }
 
 router.get("/grupos", auth, (_req, res) => {
@@ -362,6 +458,109 @@ router.get("/config", auth, (_req, res) => {
   });
 });
 
+// Minutos realmente produzidos por grupo. Meses fechados usam o cache diário;
+// o mês atual usa os movimentos do ERP até ontem.
+router.get("/real", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const hoje = new Date();
+    const inicioPadrao = new Date(hoje.getFullYear(), hoje.getMonth() - 11, 1).toISOString().slice(0, 10);
+    const de = String(req.query.de || inicioPadrao).slice(0, 10);
+    const ate = String(req.query.ate || hoje.toISOString().slice(0, 10)).slice(0, 10);
+    const grupos = parseListQuery(req.query.grupos).filter((value) => /^\d+$/.test(value));
+    const gruposIds = (grupos.length ? grupos : DEFAULT_REAL_GROUP_IDS.map(String));
+
+    const result = await pool.query(`
+      WITH grupos_filtro (cd_local) AS (
+        SELECT unnest($3::text[])
+      ),
+      cache_base AS (
+        SELECT
+          e.cd_grupo::text AS cd_grupo,
+          DATE_TRUNC('month', e.dt_ref)::date AS mes,
+          SUM(COALESCE(e.tempo_produzido_min, 0))::float AS minutos,
+          COUNT(DISTINCT e.dt_ref) FILTER (WHERE COALESCE(e.tempo_produzido_min, 0) > 0)::int AS dias_com_movimento,
+          0::float AS pecas
+        FROM pcp_cache_eficiencia_dia e
+        JOIN grupos_filtro gf ON gf.cd_local = e.cd_grupo::text
+        WHERE e.dt_ref >= $1::date
+          AND e.dt_ref < $2::date
+          AND e.dt_ref < DATE_TRUNC('month', CURRENT_DATE)::date
+        GROUP BY e.cd_grupo, DATE_TRUNC('month', e.dt_ref)
+      ),
+      movimentos_atual AS (
+        SELECT
+          m.cd_localorigem::text AS cd_grupo,
+          m.dt_movimento::date AS dt_ref,
+          m.cd_produto,
+          COALESCE(m.qt_movimento, 0)::float AS qt_movimento
+        FROM vr_cdf_movopi m
+        JOIN grupos_filtro gf ON gf.cd_local = m.cd_localorigem::text
+        WHERE m.tp_historicomov = 51
+          AND m.in_estorno = 'F'
+          AND m.dt_movimento::date >= GREATEST($1::date, DATE_TRUNC('month', CURRENT_DATE)::date)
+          AND m.dt_movimento::date < LEAST($2::date, CURRENT_DATE)
+      ),
+      tempo_padrao_atual AS (
+        SELECT
+          p.cd_produto,
+          SUM(COALESCE(NULLIF(s.hr_tempo, 0), o.hr_tempopadrao * 1440))::float AS minutos
+        FROM mv_prd_referencia_produto p
+        JOIN vr_cdf_seqope s ON s.cd_seqgrupo = p.cd_seqgrupo
+        JOIN vr_cdf_operac o ON o.cd_operacao = s.cd_operacao
+        WHERE o.cd_tipooperacao IN (1, 3, 4)
+          AND p.cd_produto IN (SELECT DISTINCT cd_produto FROM movimentos_atual)
+        GROUP BY p.cd_produto
+      ),
+      atual_base AS (
+        SELECT
+          mv.cd_grupo,
+          DATE_TRUNC('month', mv.dt_ref)::date AS mes,
+          SUM(mv.qt_movimento * COALESCE(tp.minutos, 0))::float AS minutos,
+          COUNT(DISTINCT mv.dt_ref) FILTER (WHERE mv.qt_movimento > 0)::int AS dias_com_movimento,
+          SUM(mv.qt_movimento)::float AS pecas
+        FROM movimentos_atual mv
+        LEFT JOIN tempo_padrao_atual tp ON tp.cd_produto = mv.cd_produto
+        GROUP BY mv.cd_grupo, DATE_TRUNC('month', mv.dt_ref)
+      ),
+      base AS (
+        SELECT * FROM cache_base
+        UNION ALL
+        SELECT * FROM atual_base
+      )
+      SELECT
+        COALESCE(l.ds_local, b.cd_grupo)::text AS grupo,
+        b.cd_grupo,
+        b.mes,
+        ROUND(SUM(b.minutos)::numeric, 2)::float AS minutos_trabalhados,
+        SUM(b.dias_com_movimento)::int AS dias_com_movimento,
+        SUM(b.pecas)::float AS pecas
+      FROM base b
+      LEFT JOIN pcp_cache_locais l ON l.cd_local::text = b.cd_grupo
+      GROUP BY l.ds_local, b.cd_grupo, b.mes
+      ORDER BY b.mes, grupo
+    `, [de, ate, gruposIds]);
+
+    return res.json({
+      success: true,
+      de,
+      ate,
+      grupos: gruposIds,
+      data: result.rows.map((row) => ({
+        grupo: String(row.grupo || '').trim(),
+        cdGrupo: String(row.cd_grupo || '').trim(),
+        mes: row.mes,
+        minutosTrabalhados: Number(row.minutos_trabalhados || 0),
+        diasComMovimento: Number(row.dias_com_movimento || 0),
+        pecas: Number(row.pecas || 0),
+      })),
+    });
+  } catch (error) {
+    console.error('[capacidade/real] Erro:', error);
+    return res.status(500).json({ success: false, error: 'Erro ao consultar capacidade real', details: error.message });
+  }
+});
+
 // ── GET /api/capacidade/matriz ─────────────────────────────────────────────────
 // Endpoint otimizado que retorna a matriz de capacidade já calculada
 // Faz todos os cálculos no backend para melhor performance
@@ -375,6 +574,20 @@ router.get("/matriz", auth, async (req, res) => {
     const grupos = readGrupos();
     const grupoRefs = readGrupoRefs();
     const dias = readDias();
+    const fonteCapacidade = ['planilha', 'ultimo_mes', 'media_12_meses'].includes(String(req.query.fonte_capacidade || '').toLowerCase())
+      ? String(req.query.fonte_capacidade).toLowerCase()
+      : 'planilha';
+    const capacidadeReal = fonteCapacidade === 'planilha' ? [] : await queryRealCapacityReferences(pool);
+    const locaisResult = capacidadeReal.length > 0
+      ? await pool.query(`SELECT cd_local::text AS cd_local, ds_local::text AS ds_local FROM pcp_cache_locais WHERE cd_local::text = ANY($1::text[])`, [capacidadeReal.map((row) => row.cdGrupo)])
+      : { rows: [] };
+    const nomePorLocal = new Map(locaisResult.rows.map((row) => [String(row.cd_local).trim(), String(row.ds_local || '').trim().toUpperCase()]));
+    const capacidadeRealPorGrupo = new Map();
+    for (const row of capacidadeReal) {
+      const valor = fonteCapacidade === 'ultimo_mes' ? row.ultimoMes : row.media12m;
+      const nome = nomePorLocal.get(row.cdGrupo);
+      if (nome && valor > 0) capacidadeRealPorGrupo.set(nome, valor);
+    }
 
     // 2. Carregar tempos por referência
     const temposResult = await queryTempoBaseRows(pool, {});
@@ -554,7 +767,7 @@ router.get("/matriz", auth, async (req, res) => {
     for (const g of grupos) {
       const grupo = g.grupo.toUpperCase();
       const refs = detalhesPorGrupo.get(grupo) || [];
-      const capacidadeDiaria = g.capacidade_diaria;
+      const capacidadeDiaria = capacidadeRealPorGrupo.get(grupo) || g.capacidade_diaria;
 
       // Capacidades por mês
       const capacidadeMA = capacidadeDiaria * (dias[String(periodos.MA)] || 0);
@@ -720,6 +933,7 @@ router.get("/matriz", auth, async (req, res) => {
       success: true,
       periodos,
       dias,
+      fonteCapacidade,
       grupos: gruposAnalise,
       resumo: totalGeral,
     });

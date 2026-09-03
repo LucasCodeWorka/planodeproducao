@@ -2,12 +2,23 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Planejamento, ProjecoesMap, PeriodosPlano, EstoqueLojaDisponivelAggregado } from '../types';
-import { projecaoMesDecorrida, projecaoMesPlanejamento } from '../lib/projecao';
+import { projecaoMesPlanejamento } from '../lib/projecao';
 
 const MESES_PT = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+type TaxaMes = { mes: number; ano?: number; label: string; proporcional?: boolean };
 
 function fmt(v: number, dec = 0) {
   return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function mesAnteriorFechado(base = new Date(), voltar: number) {
+  const date = new Date(base.getFullYear(), base.getMonth() - voltar, 1);
+  const mes = date.getMonth() + 1;
+  return { mes, ano: date.getFullYear(), label: MESES_PT[mes] };
+}
+
+function taxaMesesDefault(): [TaxaMes, TaxaMes, TaxaMes] {
+  return [mesAnteriorFechado(new Date(), 3), mesAnteriorFechado(new Date(), 2), mesAnteriorFechado(new Date(), 1)];
 }
 
 type Situacao = 'deficit' | 'abaixo' | 'ok';
@@ -42,7 +53,8 @@ function somar(
   projecoes: ProjecoesMap,
   vendasReais: Record<string, Record<string, number>>,
   periodos: PeriodosPlano,
-  excedentesLojas: Map<number, EstoqueLojaDisponivelAggregado> | null = null
+  excedentesLojas: Map<number, EstoqueLojaDisponivelAggregado> | null = null,
+  taxaMeses: [TaxaMes, TaxaMes, TaxaMes] = taxaMesesDefault()
 ): GrupoTotais {
   const mesQT = periodos.QT ?? (((periodos.UL || 1) - 1 + 1) % 12) + 1;
   const mesQU = periodos.QU ?? (((mesQT) % 12) + 1);
@@ -68,12 +80,12 @@ function somar(
     const prQT = hasProj ? (proj[String(mesQT)] ?? 0) : 0;
     const prQU = hasProj ? (proj[String(mesQU)] ?? 0) : 0;
     const prSX = hasProj ? (proj[String(mesSX)] ?? 0) : 0;
-    const prJan = hasProj ? (proj['1'] ?? 0) : 0;
-    const prFev = hasProj ? (proj['2'] ?? 0) : 0;
-    const prMarProp = hasProj ? projecaoMesDecorrida((proj['3'] ?? 0), 3) : 0;
-    const vdJan = real ? (real['1'] ?? 0) : 0;
-    const vdFev = real ? (real['2'] ?? 0) : 0;
-    const vdMar = real ? (real['3'] ?? 0) : 0;
+    const prJan = hasProj ? (proj[String(taxaMeses[0].mes)] ?? 0) : 0;
+    const prFev = hasProj ? (proj[String(taxaMeses[1].mes)] ?? 0) : 0;
+    const prMarProp = hasProj ? (proj[String(taxaMeses[2].mes)] ?? 0) : 0;
+    const vdJan = real ? (real[String(taxaMeses[0].mes)] ?? 0) : 0;
+    const vdFev = real ? (real[String(taxaMeses[1].mes)] ?? 0) : 0;
+    const vdMar = real ? (real[String(taxaMeses[2].mes)] ?? 0) : 0;
     const dMar = hasProj ? disp + emP + pMA - prMA : 0;
     const dAbr = hasProj ? dMar + pPX - prPX : 0;
     const dMai = hasProj ? dAbr + pUL - prUL : 0;
@@ -138,7 +150,8 @@ function agrupar(
   projecoes: ProjecoesMap,
   vendasReais: Record<string, Record<string, number>>,
   periodos: PeriodosPlano,
-  excedentesLojas: Map<number, EstoqueLojaDisponivelAggregado> | null = null
+  excedentesLojas: Map<number, EstoqueLojaDisponivelAggregado> | null = null,
+  taxaMeses: [TaxaMes, TaxaMes, TaxaMes] = taxaMesesDefault()
 ): ContGroup[] {
   const ordemContinuidade: Record<string, number> = {
     'PERMANENTE': 1,
@@ -164,10 +177,10 @@ function agrupar(
           const itens = [...raw].sort((a, b) =>
             `${a.produto.cor}-${a.produto.tamanho}`.localeCompare(`${b.produto.cor}-${b.produto.tamanho}`)
           );
-          return { referencia, nomeRef: raw[0]?.produto?.produto || '', itens, totais: somar(itens, projecoes, vendasReais, periodos, excedentesLojas) };
+          return { referencia, nomeRef: raw[0]?.produto?.produto || '', itens, totais: somar(itens, projecoes, vendasReais, periodos, excedentesLojas, taxaMeses) };
         })
         .sort((a, b) => a.referencia.localeCompare(b.referencia));
-      return { continuidade, referencias, totais: somar(referencias.flatMap(r => r.itens), projecoes, vendasReais, periodos, excedentesLojas) };
+      return { continuidade, referencias, totais: somar(referencias.flatMap(r => r.itens), projecoes, vendasReais, periodos, excedentesLojas, taxaMeses) };
     })
     .sort((a, b) => {
       const keyA = (a.continuidade || '').toUpperCase().trim();
@@ -287,6 +300,7 @@ interface Props {
   filtroCoberturaMinima?: string;
   filtroEmProcessoMinimo?: string;
   curvaABC?: Record<string, 'A' | 'B' | 'C' | 'D'>;
+  taxaMeses?: [TaxaMes, TaxaMes, TaxaMes];
   riscoMpPorSku?: Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean; qu: boolean; sx: boolean }>;
   detalheRiscoMpPorSku?: Record<string, {
     ma: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
@@ -318,6 +332,7 @@ export default function MatrizPlanejamentoTable({
   filtroCoberturaMinima = '',
   filtroEmProcessoMinimo = '',
   curvaABC = {},
+  taxaMeses = taxaMesesDefault(),
   riscoMpPorSku = {},
   detalheRiscoMpPorSku = {},
 }: Props) {
@@ -335,7 +350,7 @@ export default function MatrizPlanejamentoTable({
   const [expandedRefs,  setExpandedRefs ] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>('disponivel');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const marFactor = useMemo(() => projecaoMesDecorrida(1, 3), []);
+  const taxaLabels = taxaMeses.map((m) => m.label.charAt(0).toUpperCase() + m.label.slice(1)) as [string, string, string];
 
   // Modal de Em Processo por Local
   const [modalEmProcesso, setModalEmProcesso] = useState<{
@@ -514,10 +529,10 @@ export default function MatrizPlanejamentoTable({
       base = base.filter((i) => {
         const proj = projecoes[i.produto.idproduto] ?? null;
         const real = vendasReais[i.produto.idproduto] ?? null;
-        const projJan = proj ? (proj['1'] ?? 0) : 0;
-        const projFev = proj ? (proj['2'] ?? 0) : 0;
-        const vendaJan = real ? (real['1'] ?? 0) : 0;
-        const vendaFev = real ? (real['2'] ?? 0) : 0;
+        const projJan = proj ? (proj[String(taxaMeses[0].mes)] ?? 0) : 0;
+        const projFev = proj ? (proj[String(taxaMeses[1].mes)] ?? 0) : 0;
+        const vendaJan = real ? (real[String(taxaMeses[0].mes)] ?? 0) : 0;
+        const vendaFev = real ? (real[String(taxaMeses[1].mes)] ?? 0) : 0;
         if (projJan <= 0 || projFev <= 0) return false;
         const taxaJan = vendaJan / projJan;
         const taxaFev = vendaFev / projFev;
@@ -596,7 +611,7 @@ export default function MatrizPlanejamentoTable({
         return dispAtual < 0 || dispMA < 0 || dispPX < 0 || dispUL < 0 || dispQT < 0 || dispQU < 0;
       });
     }
-    const grouped = agrupar(base, projecoes, vendasReais, periodos, excedentesLojas);
+    const grouped = agrupar(base, projecoes, vendasReais, periodos, excedentesLojas, taxaMeses);
 
     const sortFactor = sortDir === 'asc' ? 1 : -1;
 
@@ -657,12 +672,12 @@ export default function MatrizPlanejamentoTable({
       const prQT = proj ? (proj[String(mesQT)] ?? 0) : 0;
       const prQU = proj ? (proj[String(mesQU)] ?? 0) : 0;
       const prSX = proj ? (proj[String(mesSX)] ?? 0) : 0;
-      const prJan = proj ? (proj['1'] ?? 0) : 0;
-      const prFev = proj ? (proj['2'] ?? 0) : 0;
-      const prMar = proj ? (proj['3'] ?? 0) * marFactor : 0;
-      const vdJan = real ? (real['1'] ?? 0) : 0;
-      const vdFev = real ? (real['2'] ?? 0) : 0;
-      const vdMar = real ? (real['3'] ?? 0) : 0;
+      const prJan = proj ? (proj[String(taxaMeses[0].mes)] ?? 0) : 0;
+      const prFev = proj ? (proj[String(taxaMeses[1].mes)] ?? 0) : 0;
+      const prMar = proj ? (proj[String(taxaMeses[2].mes)] ?? 0) : 0;
+      const vdJan = real ? (real[String(taxaMeses[0].mes)] ?? 0) : 0;
+      const vdFev = real ? (real[String(taxaMeses[1].mes)] ?? 0) : 0;
+      const vdMar = real ? (real[String(taxaMeses[2].mes)] ?? 0) : 0;
       const dispPosProcesso = disp + emP;
       const dMA = disp + emP + pMA - prMA;
       const dPX = dMA + pPX - prPX;
@@ -720,7 +735,7 @@ export default function MatrizPlanejamentoTable({
         }))
         .sort((a, b) => (refMetric(a.totais, sortKey) - refMetric(b.totais, sortKey)) * sortFactor),
     }));
-  }, [dados, filtroTexto, projecoes, vendasReais, periodos, apenasNegativos, filtroNegativoPeriodo, filtroContinuidade, filtroReferencia, filtroCor, filtroCobertura, filtroCoberturaBase, filtroTaxa, filtroCoberturaMinima, filtroEmProcessoMinimo, sortKey, sortDir, marFactor, mesQT, mesQU]);
+  }, [dados, filtroTexto, projecoes, vendasReais, periodos, apenasNegativos, filtroNegativoPeriodo, filtroContinuidade, filtroReferencia, filtroCor, filtroCobertura, filtroCoberturaBase, filtroTaxa, filtroCoberturaMinima, filtroEmProcessoMinimo, sortKey, sortDir, mesQT, mesQU, taxaMeses, excedentesLojas]);
 
   useEffect(() => {
     if (grupos.length === 0) return;
@@ -794,7 +809,7 @@ export default function MatrizPlanejamentoTable({
     const header = [
       'continuidade', 'referencia', 'produto', 'idproduto', 'cor', 'tamanho',
       'estoque_minimo', 'estoque', 'pedidos', 'disponivel_atual', 'em_processo', 'negativo_atual', 'negativo_pos_processo', 'cobertura_atual',
-      'taxa_jan_pct', 'taxa_fev_pct', 'taxa_mar_pct',
+      `taxa_${taxaLabels[0].toLowerCase()}_pct`, `taxa_${taxaLabels[1].toLowerCase()}_pct`, `taxa_${taxaLabels[2].toLowerCase()}_pct`,
       `proj_${mNomes[0]}`, `plano_${mNomes[0]}`, `disp_${mNomes[0]}`, `neg_${mNomes[0]}`, `cob_${mNomes[0]}`,
       `proj_${mNomes[1]}`, `plano_${mNomes[1]}`, `disp_${mNomes[1]}`, `neg_${mNomes[1]}`, `cob_${mNomes[1]}`,
       `proj_${mNomes[2]}`, `plano_${mNomes[2]}`, `disp_${mNomes[2]}`, `neg_${mNomes[2]}`, `cob_${mNomes[2]}`,
@@ -826,12 +841,12 @@ export default function MatrizPlanejamentoTable({
       const dQT = dUL + pQT - prQT;
       const dQU = dQT + pQU - prQU;
       const dSX = dQU + pSX - prSX;
-      const vendaJan = real ? (real['1'] ?? 0) : 0;
-      const vendaFev = real ? (real['2'] ?? 0) : 0;
-      const vendaMar = real ? (real['3'] ?? 0) : 0;
-      const projJan = proj ? (proj['1'] ?? 0) : 0;
-      const projFev = proj ? (proj['2'] ?? 0) : 0;
-      const projMar = proj ? (proj['3'] ?? 0) * marFactor : 0;
+      const vendaJan = real ? (real[String(taxaMeses[0].mes)] ?? 0) : 0;
+      const vendaFev = real ? (real[String(taxaMeses[1].mes)] ?? 0) : 0;
+      const vendaMar = real ? (real[String(taxaMeses[2].mes)] ?? 0) : 0;
+      const projJan = proj ? (proj[String(taxaMeses[0].mes)] ?? 0) : 0;
+      const projFev = proj ? (proj[String(taxaMeses[1].mes)] ?? 0) : 0;
+      const projMar = proj ? (proj[String(taxaMeses[2].mes)] ?? 0) : 0;
       const dispPosProcesso = dispAtual + emP;
       const cobAtual = min > 0 ? Number((dispAtual / min).toFixed(2)) : null;
       const cobMA = min > 0 ? Number((dMA / min).toFixed(2)) : null;
@@ -917,9 +932,9 @@ export default function MatrizPlanejamentoTable({
                   <th rowSpan={2} onClick={() => onSortClick('negativo')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Negativo{sortBadge('negativo')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('negativoPosProcesso')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Neg. Pós Proc.{sortBadge('negativoPosProcesso')}</th>
                   <th rowSpan={2} onClick={() => onSortClick('cobertura')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Cobertura{sortBadge('cobertura')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('taxaJan')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Taxa Jan{sortBadge('taxaJan')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('taxaFev')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Taxa Fev{sortBadge('taxaFev')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('taxaMar')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Taxa Mar{sortBadge('taxaMar')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('taxaJan')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">{taxaLabels[0]}{sortBadge('taxaJan')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('taxaFev')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">{taxaLabels[1]}{sortBadge('taxaFev')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('taxaMar')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">{taxaLabels[2]}{sortBadge('taxaMar')}</th>
                   <th colSpan={5} className="px-3 py-3.5 text-center bg-indigo-900 border-b border-indigo-700 font-bold">{mNomes[0]}</th>
                   <th colSpan={5} className="px-3 py-3.5 text-center bg-emerald-800 border-b border-emerald-700 font-bold">{mNomes[1]}</th>
                   <th colSpan={5} className="px-3 py-3.5 text-center bg-amber-700 border-b border-amber-600 font-bold">{mNomes[2]}</th>
@@ -982,9 +997,9 @@ export default function MatrizPlanejamentoTable({
                 <th onClick={() => onSortClick('negativo')} className="px-3 py-3 text-right cursor-pointer">Negativo{sortBadge('negativo')}</th>
                 <th onClick={() => onSortClick('negativoPosProcesso')} className="px-3 py-3 text-right cursor-pointer">Neg. Pós Proc.{sortBadge('negativoPosProcesso')}</th>
                 <th onClick={() => onSortClick('cobertura')} className="px-3 py-3 text-right cursor-pointer">Cobertura{sortBadge('cobertura')}</th>
-                <th onClick={() => onSortClick('taxaJan')} className="px-3 py-3 text-right cursor-pointer">Taxa Jan{sortBadge('taxaJan')}</th>
-                <th onClick={() => onSortClick('taxaFev')} className="px-3 py-3 text-right cursor-pointer">Taxa Fev{sortBadge('taxaFev')}</th>
-                <th onClick={() => onSortClick('taxaMar')} className="px-3 py-3 text-right cursor-pointer">Taxa Mar{sortBadge('taxaMar')}</th>
+                <th onClick={() => onSortClick('taxaJan')} className="px-3 py-3 text-right cursor-pointer">{taxaLabels[0]}{sortBadge('taxaJan')}</th>
+                <th onClick={() => onSortClick('taxaFev')} className="px-3 py-3 text-right cursor-pointer">{taxaLabels[1]}{sortBadge('taxaFev')}</th>
+                <th onClick={() => onSortClick('taxaMar')} className="px-3 py-3 text-right cursor-pointer">{taxaLabels[2]}{sortBadge('taxaMar')}</th>
                 <th onClick={() => onSortClick('planoMA')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[0]}{sortBadge('planoMA')}</th>
                 <th onClick={() => onSortClick('planoPX')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[1]}{sortBadge('planoPX')}</th>
                 <th onClick={() => onSortClick('planoUL')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[2]}{sortBadge('planoUL')}</th>
@@ -1429,15 +1444,15 @@ export default function MatrizPlanejamentoTable({
                                 <CellCob disp={disp} min={eMin} />
                               </td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
-                                <CellTaxa venda={(vendasReais[item.produto.idproduto]?.['1'] ?? 0)} proj={(projecoes[item.produto.idproduto]?.['1'] ?? 0)} />
+                                <CellTaxa venda={(vendasReais[item.produto.idproduto]?.[String(taxaMeses[0].mes)] ?? 0)} proj={(projecoes[item.produto.idproduto]?.[String(taxaMeses[0].mes)] ?? 0)} />
                               </td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
-                                <CellTaxa venda={(vendasReais[item.produto.idproduto]?.['2'] ?? 0)} proj={(projecoes[item.produto.idproduto]?.['2'] ?? 0)} />
+                                <CellTaxa venda={(vendasReais[item.produto.idproduto]?.[String(taxaMeses[1].mes)] ?? 0)} proj={(projecoes[item.produto.idproduto]?.[String(taxaMeses[1].mes)] ?? 0)} />
                               </td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums">
                                 <CellTaxa
-                                  venda={(vendasReais[item.produto.idproduto]?.['3'] ?? 0)}
-                                  proj={(projecoes[item.produto.idproduto]?.['3'] ?? 0) * marFactor}
+                                  venda={(vendasReais[item.produto.idproduto]?.[String(taxaMeses[2].mes)] ?? 0)}
+                                  proj={(projecoes[item.produto.idproduto]?.[String(taxaMeses[2].mes)] ?? 0)}
                                 />
                               </td>
                               {temProjecoes ? (

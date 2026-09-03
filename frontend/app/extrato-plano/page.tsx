@@ -125,6 +125,25 @@ interface RotacaoDetalhePayload {
   data?: RotacaoDetalheRow[];
 }
 
+interface OpsAntigasPayload {
+  success: boolean;
+  totais?: {
+    qtdTotal: number;
+    opsCount: number;
+  };
+  porFaixa?: Record<string, { qtd: number; ops: number }>;
+  data?: Array<{
+    cdProduto: string | number;
+    nrOp: string | number;
+    nrCiclo: string | number;
+    dtInicio: string;
+    diasEmProcesso: number;
+    qtdEmProcesso: number;
+    descricao: string;
+    referencia: string;
+  }>;
+}
+
 function fmt(v: number, d = 0) {
   return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
@@ -157,6 +176,14 @@ function tipoClass(tipo: string) {
   return 'bg-gray-100 text-gray-600 border-gray-200';
 }
 
+function prioridadeVirada(t: RotacaoTransicao | null) {
+  if (!t) return { tone: 'gray', label: 'Sem dados', texto: 'Selecione uma virada para analisar.' };
+  if (t.limbos > 0) return { tone: 'red', label: 'Investigar perdas', texto: `${fmt(t.limbos)} SKUs ficaram em limbo. Verifique se viraram OP, estoque ou se foram removidos sem justificativa.` };
+  if (t.inseridos > 20) return { tone: 'amber', label: 'Revisar inserções', texto: `${fmt(t.inseridos)} SKUs entraram do zero na virada. Confirme se são plano novo válido.` };
+  if (t.alterados > 0) return { tone: 'blue', label: 'Conferir ajustes', texto: `${fmt(t.alterados)} SKUs mudaram quantidade na virada. Foque nos maiores deltas.` };
+  return { tone: 'emerald', label: 'Virada saudável', texto: 'Não há limbo relevante na virada selecionada.' };
+}
+
 export default function ExtratoPlanoPage() {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -165,6 +192,7 @@ export default function ExtratoPlanoPage() {
   const [error, setError] = useState<string | null>(null);
   const [payload, setPayload] = useState<RotacaoPayload | null>(null);
   const [viradaSelecionada, setViradaSelecionada] = useState<RotacaoTransicao | null>(null);
+  const [opsAntigas, setOpsAntigas] = useState<OpsAntigasPayload | null>(null);
 
   // Estado para detalhes
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
@@ -195,16 +223,29 @@ export default function ExtratoPlanoPage() {
       const de = `${ano - 1}-12-20`;
       const ate = `${ano}-12-31`;
       const params = new URLSearchParams({ de, ate, limit: '100' });
-      const res = await fetchNoCache(
+      const [rotacaoResult, opsResult] = await Promise.allSettled([
+        fetchNoCache(
         `${API_URL}/api/analises/snapshot-lotes/rotacao-anual?${params}`,
         { headers: authHeaders() },
         180000
-      );
+        ),
+        fetchNoCache(
+          `${API_URL}/api/producao/ops-antigas?dias=20&marca=LIEBE&status=EM%20LINHA,NOVA%20COLECAO`,
+          { headers: authHeaders() },
+          120000
+        ),
+      ]);
+      if (rotacaoResult.status !== 'fulfilled') throw new Error('Erro ao carregar viradas do ano');
+      const res = rotacaoResult.value;
       const json = await res.json() as RotacaoPayload & { error?: string };
       if (!res.ok || !json?.success) {
         throw new Error(apiErrorMessage(json, 'Erro ao carregar viradas do ano'));
       }
       setPayload(json);
+      if (opsResult.status === 'fulfilled' && opsResult.value.ok) {
+        const opsJson = await opsResult.value.json() as OpsAntigasPayload;
+        if (opsJson?.success) setOpsAntigas(opsJson);
+      }
       if (json.transicoes?.length) {
         setViradaSelecionada(json.transicoes[json.transicoes.length - 1]);
       }
@@ -253,6 +294,31 @@ export default function ExtratoPlanoPage() {
     if (!payload?.rotacao) return null;
     return payload.rotacao;
   }, [payload]);
+
+  const diagnosticoVirada = useMemo(() => prioridadeVirada(viradaSelecionada), [viradaSelecionada]);
+
+  const itensCriticosVirada = useMemo(() => {
+    if (!detalheRotacao) return [];
+    return [
+      ...detalheRotacao.categorias.LIMBOS.map((r) => ({ ...r, prioridade: 1 })),
+      ...detalheRotacao.categorias.INSERIDOS.map((r) => ({ ...r, prioridade: 2 })),
+      ...detalheRotacao.categorias.PRODUZIDOS.map((r) => ({ ...r, prioridade: 3 })),
+      ...detalheRotacao.categorias.ALTERADOS.map((r) => ({ ...r, prioridade: 4 })),
+    ]
+      .sort((a, b) => a.prioridade - b.prioridade || Math.abs(b.delta) - Math.abs(a.delta))
+      .slice(0, 8);
+  }, [detalheRotacao]);
+
+  const opsMaisAtrasadas = useMemo(() => {
+    return [...(opsAntigas?.data || [])]
+      .sort((a, b) => Number(b.diasEmProcesso || 0) - Number(a.diasEmProcesso || 0))
+      .slice(0, 6);
+  }, [opsAntigas]);
+
+  const mpsCriticasCount = useMemo(() => {
+    const lista = detalhes?.impactoMp || [];
+    return lista.filter((m) => m.risco === 'FALTA_GERADA').length;
+  }, [detalhes]);
 
   // Filtrar SKUs
   const skusFiltrados = useMemo(() => {
@@ -330,6 +396,122 @@ export default function ExtratoPlanoPage() {
 
         {!loading && payload && (
           <>
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+              <div className="xl:col-span-8 space-y-4">
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-200 bg-slate-50">
+                    <div className="text-sm font-bold text-slate-800">Painel de acompanhamento</div>
+                    <div className="text-xs text-slate-500">Do plano emitido ate OP, producao, estoque e virada do mes</div>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-gray-100">
+                    <div className="p-4">
+                      <div className="text-[11px] uppercase font-semibold text-gray-500">Plano em rotacao</div>
+                      <div className="text-2xl font-bold text-gray-900">{fmt((viradaSelecionada?.preservados || 0) + (viradaSelecionada?.alterados || 0))}</div>
+                      <div className="text-xs text-gray-500">continuou entre periodos</div>
+                    </div>
+                    <div className="p-4">
+                      <div className="text-[11px] uppercase font-semibold text-gray-500">Virou OP/producao</div>
+                      <div className="text-2xl font-bold text-cyan-700">{fmt(viradaSelecionada?.produzidos || 0)}</div>
+                      <div className="text-xs text-gray-500">saiu do plano com OP</div>
+                    </div>
+                    <div className={`p-4 ${(viradaSelecionada?.limbos || 0) > 0 ? 'bg-red-50' : ''}`}>
+                      <div className="text-[11px] uppercase font-semibold text-gray-500">Perdido no caminho</div>
+                      <div className={`text-2xl font-bold ${(viradaSelecionada?.limbos || 0) > 0 ? 'text-red-700' : 'text-gray-900'}`}>{fmt(viradaSelecionada?.limbos || 0)}</div>
+                      <div className="text-xs text-gray-500">{fmt(viradaSelecionada?.porPeriodo.reduce((acc, p) => acc + p.pecasLimbo, 0) || 0)} pecas em limbo</div>
+                    </div>
+                    <div className={`p-4 ${(opsAntigas?.totais?.opsCount || 0) > 0 ? 'bg-amber-50' : ''}`}>
+                      <div className="text-[11px] uppercase font-semibold text-gray-500">OPs atrasadas</div>
+                      <div className={`text-2xl font-bold ${(opsAntigas?.totais?.opsCount || 0) > 0 ? 'text-amber-700' : 'text-gray-900'}`}>{fmt(opsAntigas?.totais?.opsCount || 0)}</div>
+                      <div className="text-xs text-gray-500">{fmt(opsAntigas?.totais?.qtdTotal || 0)} pecas em processo</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Foco da virada selecionada</div>
+                      <div className={`mt-1 text-lg font-bold ${diagnosticoVirada.tone === 'red' ? 'text-red-700' : diagnosticoVirada.tone === 'amber' ? 'text-amber-700' : diagnosticoVirada.tone === 'blue' ? 'text-blue-700' : diagnosticoVirada.tone === 'emerald' ? 'text-emerald-700' : 'text-gray-800'}`}>
+                        {diagnosticoVirada.label}
+                      </div>
+                      <p className="mt-1 text-sm text-gray-600">{diagnosticoVirada.texto}</p>
+                    </div>
+                    <button type="button" onClick={() => setTabDetalhe((viradaSelecionada?.limbos || 0) > 0 ? 'skus' : mpsCriticasCount > 0 ? 'mp' : 'posicoes')} className="px-3 py-2 rounded bg-brand-primary text-white text-xs font-bold">
+                      Ver detalhe
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <div className="text-sm font-bold text-gray-800 mb-3">Itens para investigar</div>
+                    <div className="space-y-2">
+                      {loadingDetalhes && <div className="text-sm text-gray-500">Carregando itens da virada...</div>}
+                      {!loadingDetalhes && itensCriticosVirada.map((r) => (
+                        <div key={`${r.sku}-${r.de}-${r.para}-${r.tipo}`} className="flex items-center justify-between gap-3 rounded border border-gray-100 bg-gray-50 px-3 py-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${tipoClass(r.tipo)}`}>{r.tipo === 'INSERIDO' ? 'INSERIDO' : r.tipo}</span>
+                              <span className="text-xs font-bold text-gray-800">{r.referencia || r.sku}</span>
+                            </div>
+                            <div className="text-[11px] text-gray-500 truncate">{r.produto || '-'} · {r.cor || '-'} / {r.tamanho || '-'}</div>
+                          </div>
+                          <div className="text-right text-xs font-mono">
+                            <div className={r.delta < 0 ? 'text-red-700 font-bold' : 'text-emerald-700 font-bold'}>{r.delta >= 0 ? '+' : ''}{fmt(r.delta)}</div>
+                            <div className="text-gray-500">{r.de || '-'} {'->'} {r.para || '-'}</div>
+                          </div>
+                        </div>
+                      ))}
+                      {!loadingDetalhes && itensCriticosVirada.length === 0 && <div className="text-sm text-gray-500">Nenhum item critico carregado para essa virada.</div>}
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg border border-gray-200 p-4">
+                    <div className="text-sm font-bold text-gray-800 mb-3">OPs mais atrasadas</div>
+                    <div className="space-y-2">
+                      {opsMaisAtrasadas.map((op) => (
+                        <div key={`${op.nrCiclo}-${op.nrOp}-${op.cdProduto}`} className="flex items-center justify-between gap-3 rounded border border-amber-100 bg-amber-50 px-3 py-2">
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-amber-800">OP {op.nrOp} · ciclo {op.nrCiclo}</div>
+                            <div className="text-[11px] text-amber-700 truncate">{op.referencia || op.cdProduto} · {op.descricao || '-'}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-bold text-amber-800">{fmt(op.diasEmProcesso)} dias</div>
+                            <div className="text-[11px] text-amber-700">{fmt(op.qtdEmProcesso)} pcs</div>
+                          </div>
+                        </div>
+                      ))}
+                      {opsMaisAtrasadas.length === 0 && <div className="text-sm text-gray-500">Nenhuma OP acima de 20 dias em processo.</div>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="xl:col-span-4 bg-white rounded-lg border border-gray-200 p-4">
+                <div className="text-sm font-bold text-gray-800">Linha do tempo</div>
+                <div className="text-xs text-gray-500 mb-3">Escolha uma virada para ver o antes e depois</div>
+                <div className="space-y-2 max-h-[520px] overflow-auto pr-1">
+                  {payload.transicoes.map((t) => {
+                    const selected = viradaSelecionada?.mes === t.mes;
+                    const statusClass = t.limbos > 0 ? 'border-red-300 bg-red-50' : t.inseridos > 20 ? 'border-amber-300 bg-amber-50' : 'border-emerald-200 bg-emerald-50';
+                    return (
+                      <button key={t.mes} type="button" onClick={() => setViradaSelecionada(t)} className={`w-full text-left rounded border px-3 py-2 transition ${selected ? 'ring-2 ring-brand-primary border-brand-primary bg-white' : statusClass}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-gray-800">{getAnoMes(t.mes)}</span>
+                          <span className="text-[11px] text-gray-500">{fmtDate(t.antes)} {'->'} {fmtDate(t.depois)}</span>
+                        </div>
+                        <div className="mt-1 grid grid-cols-3 gap-2 text-[11px]">
+                          <span className={t.produzidos > 0 ? 'text-cyan-700 font-semibold' : 'text-gray-500'}>OP {fmt(t.produzidos)}</span>
+                          <span className={t.limbos > 0 ? 'text-red-700 font-semibold' : 'text-gray-500'}>Limbo {fmt(t.limbos)}</span>
+                          <span className={t.inseridos > 0 ? 'text-amber-700 font-semibold' : 'text-gray-500'}>Novos {fmt(t.inseridos)}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
             {/* Seção superior: Cards + Timeline lado a lado */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               {/* Cards resumo (3 colunas) */}

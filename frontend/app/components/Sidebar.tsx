@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, ClipboardList, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, LineChart, Scissors } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, AlertTriangle } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -97,9 +97,9 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             {!collapsed && <span>Sugestão de Plano</span>}
           </button>
 
-          <button onClick={() => router.push('/reducao-plano')} className={`${navItemBase} ${pathname === '/reducao-plano' ? navActive : navInactive}`}>
-            <Scissors size={20} className="shrink-0" />
-            {!collapsed && <span>Reducao de Plano</span>}
+          <button onClick={() => router.push('/recuperar-negativos')} className={`${navItemBase} ${pathname === '/recuperar-negativos' ? navActive : navInactive}`}>
+            <AlertTriangle size={20} className="shrink-0" />
+            {!collapsed && <span>Recuperar Negativos</span>}
           </button>
 
           <button onClick={() => router.push('/sugestoes-aprovacoes')} className={`${navItemBase} ${pathname === '/sugestoes-aprovacoes' ? navActive : navInactive}`}>
@@ -117,16 +117,6 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             {!collapsed && <span>Matriz Capacidade</span>}
           </button>
 
-          <button onClick={() => router.push('/estoque-longo-prazo')} className={`${navItemBase} ${pathname === '/estoque-longo-prazo' ? navActive : navInactive}`}>
-            <LineChart size={20} className="shrink-0" />
-            {!collapsed && <span>Estoque Longo Prazo</span>}
-          </button>
-
-          <button onClick={() => router.push('/excessos')} className={`${navItemBase} ${pathname === '/excessos' ? navActive : navInactive}`}>
-            <PackagePlus size={20} className="shrink-0" />
-            {!collapsed && <span>Estoque Loja Disponível</span>}
-          </button>
-
           <button onClick={() => router.push('/curva-abc')} className={`${navItemBase} ${pathname === '/curva-abc' ? navActive : navInactive}`}>
             <BarChart3 size={20} className="shrink-0" />
             {!collapsed && <span>Curva ABC</span>}
@@ -135,11 +125,6 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             <button onClick={() => router.push('/extrato-plano')} className={`${navItemBase} ${pathname === '/extrato-plano' ? navActive : navInactive}`}>
               <GitCompareArrows size={20} className="shrink-0" />
               {!collapsed && <span>Extrato Plano</span>}
-            </button>
-
-            <button onClick={() => router.push('/relatorio-op-mp')} className={`${navItemBase} ${pathname === '/relatorio-op-mp' ? navActive : navInactive}`}>
-              <ClipboardList size={20} className="shrink-0" />
-              {!collapsed && <span>Relatório OP / MP</span>}
             </button>
 
             <button onClick={() => router.push('/configuracoes')} className={`${navItemBase} ${pathname === '/configuracoes' ? navActive : navInactive}`}>

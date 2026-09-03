@@ -30,20 +30,14 @@ const MESES_TRANSICAO_NOVA_COLECAO = ['1', '2', '3', '4', '5', '6', '7', '8', '9
 function calcularPeriodos() {
   const hoje = new Date();
   const mesAtualJs = hoje.getMonth(); // 0-11
-  const ano = hoje.getFullYear();
-  const diaAtual = hoje.getDate();
 
-  // Último dia do mês atual
-  const ultimoDia = new Date(ano, mesAtualJs + 1, 0).getDate();
-  const eUltimoDia = diaAtual === ultimoDia;
-
-  // Se é último dia, considera próximo mês como MA, senão usa o atual
-  let ma = eUltimoDia ? mesAtualJs + 2 : mesAtualJs + 1; // +1 pois getMonth() retorna 0-11
+  // Vira o plano naturalmente apenas no dia 1, quando o mes calendario muda.
+  let ma = mesAtualJs + 1; // +1 pois getMonth() retorna 0-11
 
   // Normaliza para 1-12
   if (ma > 12) ma -= 12;
 
-  // Períodos sequenciais: MA, MA+1, MA+2, MA+3
+  // Periodos sequenciais: MA, MA+1, MA+2, MA+3
   const px = ma + 1 > 12 ? ma + 1 - 12 : ma + 1;
   const ul = ma + 2 > 12 ? ma + 2 - 12 : ma + 2;
   const qt = ma + 3 > 12 ? ma + 3 - 12 : ma + 3;

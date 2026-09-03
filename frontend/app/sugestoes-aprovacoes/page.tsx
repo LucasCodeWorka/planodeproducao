@@ -10,6 +10,17 @@ import { projecaoMesPlanejamento } from '../lib/projecao';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MARCA_FIXA = 'LIEBE';
 const STATUS_FIXO = 'EM LINHA';
+const SUGESTOES_LIMIT = 10;
+
+function dateInputValue(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function defaultDataDe() {
+  const date = new Date();
+  date.setDate(date.getDate() - 10);
+  return dateInputValue(date);
+}
 
 type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number; qu?: number; sx?: number };
 type Suggestion = {
@@ -100,9 +111,15 @@ export default function SugestoesAprovacoesPage() {
     setError(null);
     try {
       const params = new URLSearchParams({ limit: '5000', marca: MARCA_FIXA, status: STATUS_FIXO });
+      const paramsSugestoes = new URLSearchParams({
+        tipo: 'LAB_SUGESTAO_RETIRADA,SUGESTAO_PLANO',
+        limit: String(SUGESTOES_LIMIT),
+        de: defaultDataDe(),
+        ate: dateInputValue(new Date()),
+      });
       const [rMatriz, rAnalises, rProj] = await Promise.all([
         fetch(`${API_URL}/api/producao/matriz?${params}`),
-        fetch(`${API_URL}/api/simulacoes`, { headers: authHeaders() }),
+        fetch(`${API_URL}/api/simulacoes?${paramsSugestoes}`, { headers: authHeaders() }),
         fetch(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
       ]);
       if (!rMatriz.ok) throw new Error(`Matriz erro ${rMatriz.status}`);
@@ -112,16 +129,15 @@ export default function SugestoesAprovacoesPage() {
       const pAnalises = await rAnalises.json();
       const pProj = await rProj.json();
       const base = (pMatriz.data || []) as Planejamento[];
-      const sugs = (Array.isArray(pAnalises?.data) ? pAnalises.data : [])
-        .filter((s: Suggestion) => {
-          const t = String(s?.parametros?.tipo || '');
-          return t === 'LAB_SUGESTAO_RETIRADA' || t === 'SUGESTAO_PLANO';
-        });
+      const sugs = (Array.isArray(pAnalises?.data) ? pAnalises.data : []) as Suggestion[];
       setDadosBase(base);
       setProjecoes((pProj && pProj.data) || {});
       if (pProj && pProj.periodos) setPeriodos(pProj.periodos as PeriodosPlano);
       setSugestoes(sugs);
-      if (sugs.length > 0) setSelectedId((prev) => prev || sugs[0].id);
+      setSelectedId((prev) => {
+        if (prev && sugs.some((s) => s.id === prev)) return prev;
+        return sugs[0]?.id || '';
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar sugestões');
     } finally {

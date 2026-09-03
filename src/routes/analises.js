@@ -83,16 +83,85 @@ async function migrateLegacyFile(pool) {
   }
 }
 
-async function readAnalises(pool) {
+function normalizeDateBound(value, endOfDay = false) {
+  const raw = String(value || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const date = new Date(`${raw}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}`);
+  const time = date.getTime();
+  return Number.isFinite(time) ? time : null;
+}
+
+function filterAnalises(data, options = {}) {
+  const tipos = Array.isArray(options.tipos) ? options.tipos : [];
+  const statusAprovacao = String(options.statusAprovacao || "").trim().toUpperCase();
+  const origem = String(options.origem || "").trim().toUpperCase();
+  const deMs = normalizeDateBound(options.de, false);
+  const ateMs = normalizeDateBound(options.ate, true);
+  const limit = Math.min(Math.max(Number(options.limit) || 200, 1), 200);
+
+  return data
+    .filter((item) => {
+      const tipo = String(item?.parametros?.tipo || "").trim();
+      if (tipos.length && !tipos.includes(tipo)) return false;
+      if (statusAprovacao) {
+        const status = String(item?.parametros?.statusAprovacao || "PENDENTE").trim().toUpperCase();
+        if (status !== statusAprovacao) return false;
+      }
+      if (origem) {
+        const itemOrigem = String(item?.parametros?.origem || "").trim().toUpperCase();
+        if (itemOrigem !== origem) return false;
+      }
+      const createdAt = Number(item?.createdAt || 0);
+      if (deMs !== null && createdAt < deMs) return false;
+      if (ateMs !== null && createdAt > ateMs) return false;
+      return true;
+    })
+    .sort((a, b) => Number(b?.createdAt || 0) - Number(a?.createdAt || 0))
+    .slice(0, limit);
+}
+
+async function readAnalises(pool, options = {}) {
   await ensureSimulacoesTable(pool);
   await migrateLegacyFile(pool);
+
+  const where = [];
+  const values = [];
+  const tipos = Array.isArray(options.tipos) ? options.tipos.filter(Boolean) : [];
+  const statusAprovacao = String(options.statusAprovacao || "").trim().toUpperCase();
+  const origem = String(options.origem || "").trim().toUpperCase();
+  const deMs = normalizeDateBound(options.de, false);
+  const ateMs = normalizeDateBound(options.ate, true);
+  const limit = Math.min(Math.max(Number(options.limit) || 200, 1), 200);
+
+  if (tipos.length) {
+    values.push(tipos);
+    where.push(`parametros::jsonb ->> 'tipo' = ANY($${values.length}::TEXT[])`);
+  }
+  if (statusAprovacao) {
+    values.push(statusAprovacao);
+    where.push(`UPPER(COALESCE(parametros::jsonb ->> 'statusAprovacao', 'PENDENTE')) = $${values.length}`);
+  }
+  if (origem) {
+    values.push(origem);
+    where.push(`UPPER(COALESCE(parametros::jsonb ->> 'origem', '')) = $${values.length}`);
+  }
+  if (deMs !== null) {
+    values.push(deMs);
+    where.push(`created_at >= $${values.length}`);
+  }
+  if (ateMs !== null) {
+    values.push(ateMs);
+    where.push(`created_at <= $${values.length}`);
+  }
+  values.push(limit);
 
   const result = await pool.query(`
     SELECT id, nome, created_at, updated_at, parametros, resumo, observacoes
     FROM ${TABLE_NAME}
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
     ORDER BY created_at DESC
-    LIMIT 200
-  `);
+    LIMIT $${values.length}
+  `, values);
 
   return result.rows.map((row) => ({
     id: String(row.id),
@@ -115,8 +184,21 @@ function safeParseJson(raw, fallback) {
 
 router.get("/", async (req, res) => {
   try {
-    const pool = req.app.get("pool");
-    const data = await readAnalises(pool);
+    const options = {
+      tipos: String(req.query.tipo || "")
+        .split(",")
+        .map((tipo) => tipo.trim())
+        .filter(Boolean),
+      statusAprovacao: req.query.statusAprovacao,
+      origem: req.query.origem,
+      de: req.query.de,
+      ate: req.query.ate,
+      limit: req.query.limit,
+    };
+    const hasExplicitFilters = Boolean(req.query.tipo || req.query.statusAprovacao || req.query.origem || req.query.de || req.query.ate || req.query.limit);
+    const data = req.query.source === "file"
+      ? (hasExplicitFilters ? filterAnalises(readAnalisesFile(), options) : readAnalisesFile())
+      : await readAnalises(req.app.get("pool"), options);
     return res.json({
       success: true,
       total: data.length,

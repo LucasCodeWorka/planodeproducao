@@ -1062,21 +1062,31 @@ router.get("/ops-antigas", async (req, res) => {
         WHERE opi.cd_empresa = 1
           AND opc.dt_encerramento IS NULL
           AND opc.dt_inicio IS NOT NULL
+          AND opc.dt_inicio::DATE >= DATE '2026-01-01'
+          AND opc.dt_inicio::DATE < DATE '2027-01-01'
           AND opc.dt_inicio::DATE < CURRENT_DATE - $1::INTEGER
           AND opi.tp_situacao IN (5, 10, 15, 20)
           AND COALESCE(opc.cd_categoria, 0) <> 15
           AND (opi.qt_real - COALESCE(opi.qt_finalizada, 0)) > 0
         GROUP BY opi.cd_produto, opi.nr_op, opi.nr_ciclo, opc.dt_inicio
       ),
+      grade_por_produto AS (
+        SELECT
+          g.cd_produto,
+          MAX(g.nm_produto) AS descricao,
+          MAX(g.cd_seqgrupo) AS referencia
+        FROM vr_prd_prdgrade g
+        GROUP BY g.cd_produto
+      ),
       ops_com_grade AS (
         SELECT
           op.*,
-          g.nm_produto AS descricao,
-          g.cd_seqgrupo AS referencia,
+          g.descricao,
+          g.referencia,
           UPPER(TRIM(COALESCE(f_dic_prd_classificacao(op.cd_produto, 'DS'::text, 20::bigint), ''))) AS marca,
           UPPER(TRIM(COALESCE(f_dic_prd_classificacao(op.cd_produto, 'DS'::text, 27::bigint), ''))) AS status
         FROM ops_em_processo op
-        LEFT JOIN vr_prd_prdgrade g ON g.cd_produto = op.cd_produto
+        LEFT JOIN grade_por_produto g ON g.cd_produto = op.cd_produto
       )
       SELECT cd_produto, nr_op, nr_ciclo, dt_inicio, dias_em_processo, qtd_em_processo, descricao, referencia
       FROM ops_com_grade
@@ -1087,9 +1097,11 @@ router.get("/ops-antigas", async (req, res) => {
     // Calcular totais
     const totais = result.rows.reduce((acc, row) => {
       acc.qtdTotal += Number(row.qtd_em_processo || 0);
-      acc.opsCount += 1;
+      acc.opKeys.add(`${row.cd_empresa || 1}|${row.nr_ciclo}|${row.nr_op}`);
       return acc;
-    }, { qtdTotal: 0, opsCount: 0 });
+    }, { qtdTotal: 0, opsCount: 0, opKeys: new Set() });
+    totais.opsCount = totais.opKeys.size;
+    delete totais.opKeys;
 
     // Agrupar por faixa de dias
     const porFaixa = {
@@ -1098,22 +1110,32 @@ router.get("/ops-antigas", async (req, res) => {
       "46-60 dias": { qtd: 0, ops: 0 },
       "60+ dias": { qtd: 0, ops: 0 },
     };
+    const opsPorFaixa = {
+      "20-30 dias": new Set(),
+      "31-45 dias": new Set(),
+      "46-60 dias": new Set(),
+      "60+ dias": new Set(),
+    };
     for (const row of result.rows) {
       const dias = Number(row.dias_em_processo || 0);
       const qtd = Number(row.qtd_em_processo || 0);
+      const opKey = `${row.cd_empresa || 1}|${row.nr_ciclo}|${row.nr_op}`;
       if (dias <= 30) {
         porFaixa["20-30 dias"].qtd += qtd;
-        porFaixa["20-30 dias"].ops += 1;
+        opsPorFaixa["20-30 dias"].add(opKey);
       } else if (dias <= 45) {
         porFaixa["31-45 dias"].qtd += qtd;
-        porFaixa["31-45 dias"].ops += 1;
+        opsPorFaixa["31-45 dias"].add(opKey);
       } else if (dias <= 60) {
         porFaixa["46-60 dias"].qtd += qtd;
-        porFaixa["46-60 dias"].ops += 1;
+        opsPorFaixa["46-60 dias"].add(opKey);
       } else {
         porFaixa["60+ dias"].qtd += qtd;
-        porFaixa["60+ dias"].ops += 1;
+        opsPorFaixa["60+ dias"].add(opKey);
       }
+    }
+    for (const faixa of Object.keys(porFaixa)) {
+      porFaixa[faixa].ops = opsPorFaixa[faixa].size;
     }
 
     return res.status(200).json({

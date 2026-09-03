@@ -40,6 +40,14 @@ type TempoDebugRow = {
   hr_tempopadrao: string;
   tempo_resolvido: number;
 };
+type CapacidadeRealRow = {
+  grupo: string;
+  cdGrupo: string;
+  mes: string;
+  minutosTrabalhados: number;
+  diasComMovimento: number;
+  pecas: number;
+};
 
 type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number; qu?: number; sx?: number };
 type AnaliseAprovada = {
@@ -255,6 +263,17 @@ export default function CapacidadePage() {
   const [aprovadasSelecionadasIds, setAprovadasSelecionadasIds] = useState<string[]>([]);
   const [abrirSeletorAprovadas, setAbrirSeletorAprovadas] = useState(false);
   const [aplicarAprovadas, setAplicarAprovadas] = useState(false);
+  const [capacidadeReal, setCapacidadeReal] = useState<CapacidadeRealRow[]>([]);
+  const [modoCapacidade, setModoCapacidade] = useState<'planejado' | 'real'>('planejado');
+  const [fonteCapacidade, setFonteCapacidade] = useState<'ultimo_mes' | 'media_3_meses'>('ultimo_mes');
+  const [horizonteCapacidade, setHorizonteCapacidade] = useState<'MA' | 'PX' | 'UL' | 'QT' | 'QU' | 'SX'>('PX');
+  const hojeIso = new Date().toISOString().slice(0, 10);
+  const [realDe, setRealDe] = useState(() => {
+    const inicio = new Date();
+    inicio.setMonth(inicio.getMonth() - 2, 1);
+    return inicio.toISOString().slice(0, 10);
+  });
+  const [realAte, setRealAte] = useState(hojeIso);
   const mesJunho = useMemo(() => ((Number(periodos.UL) % 12) + 1), [periodos.UL]);
   const mesOutubro = useMemo(() => ((mesJunho % 12) + 1), [mesJunho]);
   const mesNovembro = useMemo(() => ((mesOutubro % 12) + 1), [mesOutubro]);
@@ -271,18 +290,21 @@ export default function CapacidadePage() {
     setLoading(true);
     setError(null);
     try {
-      const [rConfig, rMatriz, rProj, rAnalises] = await Promise.all([
+      const [rConfig, rMatriz, rProj, rAnalises, rReal] = await Promise.all([
         fetchNoCache(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=${encodeURIComponent(MARCA_FIXA)}&status=${encodeURIComponent(STATUS_FIXO)}`),
+        fetchNoCache(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=${encodeURIComponent(MARCA_FIXA)}&status=${encodeURIComponent(STATUS_FIXO)}&fonte_capacidade=${fonteCapacidade}`),
         fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/simulacoes`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/simulacoes?source=file`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/capacidade/real?de=${realDe}&ate=${realAte}`, { headers: authHeaders() }),
       ]);
       const pConfig = await rConfig.json();
       const pMatriz = await rMatriz.json();
       const pProj = await rProj.json();
       const pAnalises = await rAnalises.json();
+      const pReal = await rReal.json();
       if (!rConfig.ok || !pConfig.success) throw new Error(pConfig.error || 'Erro ao carregar configuração de capacidade');
       if (!rMatriz.ok || !pMatriz.success) throw new Error(pMatriz.error || 'Erro ao carregar matriz');
+      if (rReal.ok && pReal.success) setCapacidadeReal(Array.isArray(pReal.data) ? pReal.data : []);
       const gruposConfig = Array.isArray(pConfig?.data?.grupos) ? pConfig.data.grupos : [];
       const grupoRefsConfig = Array.isArray(pConfig?.data?.grupo_refs) ? pConfig.data.grupo_refs : [];
       const refsCapacidade = Array.from(new Set(
@@ -844,6 +866,46 @@ export default function CapacidadePage() {
     });
   }, [grupoRefs, planoPorRefMap, processoPorRefMap, tempoPorRefMap, seqgrupoPorRefMap, gruposPorReferenciaMap, capacidadeDiariaPorGrupoMap]);
 
+  const capacidadeDiariaPorFonte = useMemo(() => {
+    const porGrupo = new Map<string, { minutos: number; dias: number; ultimoMes?: string; ultimoMinutos: number; ultimoDias: number }>();
+    const inicioMesAtual = new Date();
+    inicioMesAtual.setDate(1);
+    const inicioMesAtualIso = inicioMesAtual.toISOString().slice(0, 10);
+    const mesesFechados = capacidadeReal
+      .map((row) => String(row.mes).slice(0, 10))
+      .filter((mes) => mes < inicioMesAtualIso);
+    const ultimoMesGlobal = mesesFechados.sort().pop() || '';
+    for (const row of capacidadeReal) {
+      const grupo = norm(row.grupo);
+      if (!grupo) continue;
+      const atual = porGrupo.get(grupo) || { minutos: 0, dias: 0, ultimoMinutos: 0, ultimoDias: 0 };
+      atual.minutos += Number(row.minutosTrabalhados || 0);
+      atual.dias += Number(row.diasComMovimento || 0);
+      const mes = String(row.mes).slice(0, 10);
+      if (mes === ultimoMesGlobal) {
+        atual.ultimoMes = mes;
+        atual.ultimoMinutos = Number(row.minutosTrabalhados || 0);
+        atual.ultimoDias = Number(row.diasComMovimento || 0);
+      }
+      porGrupo.set(grupo, atual);
+    }
+    const media12 = new Map<string, number>();
+    const ultimoMes = new Map<string, number>();
+    porGrupo.forEach((valores, grupo) => {
+      const media = valores.dias > 0 ? valores.minutos / valores.dias : 0;
+      const ultimo = valores.ultimoDias > 0 ? valores.ultimoMinutos / valores.ultimoDias : 0;
+      if (media > 0) media12.set(grupo, media);
+      if (ultimo > 0) ultimoMes.set(grupo, ultimo);
+    });
+    return { media12, ultimoMes };
+  }, [capacidadeReal]);
+
+  const capacidadeDiariaSelecionada = useMemo(() => {
+    return fonteCapacidade === 'ultimo_mes'
+      ? capacidadeDiariaPorFonte.ultimoMes
+      : capacidadeDiariaPorFonte.media12;
+  }, [capacidadeDiariaPorFonte, fonteCapacidade]);
+
   const gruposAnalise = useMemo<GrupoAnaliseRow[]>(() => {
     const detalhesPorGrupo = new Map<string, RefAnaliseRow[]>();
     for (const detalhe of detalhesRef) {
@@ -853,9 +915,12 @@ export default function CapacidadePage() {
     return grupos
       .map((grupo) => {
         const refs = detalhesPorGrupo.get(grupo.grupo) || [];
-        const capacidadeMA = Number(grupo.capacidade_diaria || 0) * Number(dias[String(periodos.MA)] || 0);
-        const capacidadePX = Number(grupo.capacidade_diaria || 0) * Number(dias[String(periodos.PX)] || 0);
-        const capacidadeUL = Number(grupo.capacidade_diaria || 0) * Number(dias[String(periodos.UL)] || 0);
+        const capacidadeDiaria = capacidadeDiariaSelecionada.size > 0
+          ? (capacidadeDiariaSelecionada.get(norm(grupo.grupo)) || 0)
+          : Number(grupo.capacidade_diaria || 0);
+        const capacidadeMA = capacidadeDiaria * Number(dias[String(periodos.MA)] || 0);
+        const capacidadePX = capacidadeDiaria * Number(dias[String(periodos.PX)] || 0);
+        const capacidadeUL = capacidadeDiaria * Number(dias[String(periodos.UL)] || 0);
         const processoPecas = refs.reduce((acc, r) => acc + r.processoPecas, 0);
         const processoCarga = refs.reduce((acc, r) => acc + r.processoCarga, 0);
         const cargaMAPlano = refs.reduce((acc, r) => acc + r.cargaMA, 0);
@@ -865,9 +930,9 @@ export default function CapacidadePage() {
         const cargaJUN = refs.reduce((acc, r) => acc + r.cargaJUN, 0);
         const cargaOUT = refs.reduce((acc, r) => acc + r.cargaOUT, 0);
         const cargaNOV = refs.reduce((acc, r) => acc + r.cargaNOV, 0);
-        const capacidadeJUN = Number(grupo.capacidade_diaria || 0) * Number(dias[String(mesJunho)] || 0);
-        const capacidadeOUT = Number(grupo.capacidade_diaria || 0) * Number(dias[String(mesOutubro)] || 0);
-        const capacidadeNOV = Number(grupo.capacidade_diaria || 0) * Number(dias[String(mesNovembro)] || 0);
+        const capacidadeJUN = capacidadeDiaria * Number(dias[String(mesJunho)] || 0);
+        const capacidadeOUT = capacidadeDiaria * Number(dias[String(mesOutubro)] || 0);
+        const capacidadeNOV = capacidadeDiaria * Number(dias[String(mesNovembro)] || 0);
         const planoMA = refs.reduce((acc, r) => acc + r.planoMA, 0);
         const planoPX = refs.reduce((acc, r) => acc + r.planoPX, 0);
         const planoUL = refs.reduce((acc, r) => acc + r.planoUL, 0);
@@ -890,26 +955,26 @@ export default function CapacidadePage() {
         const atendimentoJUN = cargaJUN > 0 ? Math.max(0, Math.min(100, ((Math.max(0, saldoAcumUL) + capacidadeJUN) / cargaJUN) * 100)) : 100;
         const atendimentoOUT = cargaOUT > 0 ? Math.max(0, Math.min(100, ((Math.max(0, saldoAcumJUN) + capacidadeOUT) / cargaOUT) * 100)) : 100;
         const atendimentoNOV = cargaNOV > 0 ? Math.max(0, Math.min(100, ((Math.max(0, saldoAcumOUT) + capacidadeNOV) / cargaNOV) * 100)) : 100;
-        const diasNecMA = Number(grupo.capacidade_diaria || 0) > 0 ? (cargaMA / Number(grupo.capacidade_diaria || 0)) : 0;
-        const diasNecPX = Number(grupo.capacidade_diaria || 0) > 0 ? (cargaPX / Number(grupo.capacidade_diaria || 0)) : 0;
-        const diasNecUL = Number(grupo.capacidade_diaria || 0) > 0 ? (cargaUL / Number(grupo.capacidade_diaria || 0)) : 0;
-        const diasNecJUN = Number(grupo.capacidade_diaria || 0) > 0 ? (cargaJUN / Number(grupo.capacidade_diaria || 0)) : 0;
-        const diasNecOUT = Number(grupo.capacidade_diaria || 0) > 0 ? (cargaOUT / Number(grupo.capacidade_diaria || 0)) : 0;
-        const diasNecNOV = Number(grupo.capacidade_diaria || 0) > 0 ? (cargaNOV / Number(grupo.capacidade_diaria || 0)) : 0;
+        const diasNecMA = capacidadeDiaria > 0 ? (cargaMA / capacidadeDiaria) : 0;
+        const diasNecPX = capacidadeDiaria > 0 ? (cargaPX / capacidadeDiaria) : 0;
+        const diasNecUL = capacidadeDiaria > 0 ? (cargaUL / capacidadeDiaria) : 0;
+        const diasNecJUN = capacidadeDiaria > 0 ? (cargaJUN / capacidadeDiaria) : 0;
+        const diasNecOUT = capacidadeDiaria > 0 ? (cargaOUT / capacidadeDiaria) : 0;
+        const diasNecNOV = capacidadeDiaria > 0 ? (cargaNOV / capacidadeDiaria) : 0;
         const diasTotal = diasNecMA + diasNecPX + diasNecUL + diasNecJUN + diasNecOUT + diasNecNOV;
         const atendimentoTotal = cargaTotal > 0 ? Math.max(0, Math.min(100, (capacidadeTotal / cargaTotal) * 100)) : 100;
         const diasFaltMA = Math.max(0, diasNecMA - Number(dias[String(periodos.MA)] || 0));
-        const diasFaltPX = Math.max(0, diasNecPX - Number(dias[String(periodos.PX)] || 0) - Math.max(0, saldoAcumMA / Math.max(1, Number(grupo.capacidade_diaria || 0))));
-        const diasFaltUL = Math.max(0, diasNecUL - Number(dias[String(periodos.UL)] || 0) - Math.max(0, saldoAcumPX / Math.max(1, Number(grupo.capacidade_diaria || 0))));
-        const diasFaltJUN = Math.max(0, diasNecJUN - Number(dias[String(mesJunho)] || 0) - Math.max(0, saldoAcumUL / Math.max(1, Number(grupo.capacidade_diaria || 0))));
-        const diasFaltOUT = Math.max(0, diasNecOUT - Number(dias[String(mesOutubro)] || 0) - Math.max(0, saldoAcumJUN / Math.max(1, Number(grupo.capacidade_diaria || 0))));
-        const diasFaltNOV = Math.max(0, diasNecNOV - Number(dias[String(mesNovembro)] || 0) - Math.max(0, saldoAcumOUT / Math.max(1, Number(grupo.capacidade_diaria || 0))));
+        const diasFaltPX = Math.max(0, diasNecPX - Number(dias[String(periodos.PX)] || 0) - Math.max(0, saldoAcumMA / Math.max(1, capacidadeDiaria)));
+        const diasFaltUL = Math.max(0, diasNecUL - Number(dias[String(periodos.UL)] || 0) - Math.max(0, saldoAcumPX / Math.max(1, capacidadeDiaria)));
+        const diasFaltJUN = Math.max(0, diasNecJUN - Number(dias[String(mesJunho)] || 0) - Math.max(0, saldoAcumUL / Math.max(1, capacidadeDiaria)));
+        const diasFaltOUT = Math.max(0, diasNecOUT - Number(dias[String(mesOutubro)] || 0) - Math.max(0, saldoAcumJUN / Math.max(1, capacidadeDiaria)));
+        const diasFaltNOV = Math.max(0, diasNecNOV - Number(dias[String(mesNovembro)] || 0) - Math.max(0, saldoAcumOUT / Math.max(1, capacidadeDiaria)));
         const difCapacidadeAteAbr = (capacidadeMA + capacidadePX) - (processoCarga + cargaMAPlano + cargaPX);
         return {
           grupo: grupo.grupo,
           tipo: grupo.tipo || '-',
           pessoasIdeal: null,
-          capacidadeDiaria: grupo.capacidade_diaria,
+          capacidadeDiaria,
           refsMapeadas: refs.length,
           refsComTempo,
           processoPecas,
@@ -923,12 +988,12 @@ export default function CapacidadePage() {
           tempoMaio: cargaUL,
           tempoPrp: processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN + cargaOUT + cargaNOV,
           difCapacidadeFinal: (capacidadeMA + capacidadePX + capacidadeUL + capacidadeJUN + capacidadeOUT + capacidadeNOV) - (processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN + cargaOUT + cargaNOV),
-          diasDif: Number(grupo.capacidade_diaria || 0) > 0
-            ? (((capacidadeMA + capacidadePX + capacidadeUL + capacidadeJUN + capacidadeOUT + capacidadeNOV) - (processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN + cargaOUT + cargaNOV)) / Number(grupo.capacidade_diaria || 0))
+          diasDif: capacidadeDiaria > 0
+            ? (((capacidadeMA + capacidadePX + capacidadeUL + capacidadeJUN + capacidadeOUT + capacidadeNOV) - (processoCarga + cargaMAPlano + cargaPX + cargaUL + cargaJUN + cargaOUT + cargaNOV)) / capacidadeDiaria)
             : 0,
           difCapacidadeAteAbr,
-          diasDifAteAbr: Number(grupo.capacidade_diaria || 0) > 0
-            ? (difCapacidadeAteAbr / Number(grupo.capacidade_diaria || 0))
+          diasDifAteAbr: capacidadeDiaria > 0
+            ? (difCapacidadeAteAbr / capacidadeDiaria)
             : 0,
           planoMA,
           planoPX,
@@ -987,7 +1052,7 @@ export default function CapacidadePage() {
         return true;
       })
       .sort((a, b) => a.grupo.localeCompare(b.grupo));
-  }, [detalhesRef, grupos, dias, periodos, mesJunho, mesOutubro, mesNovembro, filtroGrupo, filtroTipo, somenteEstourados]);
+  }, [detalhesRef, grupos, dias, periodos, mesJunho, mesOutubro, mesNovembro, filtroGrupo, filtroTipo, somenteEstourados, capacidadeDiariaSelecionada]);
 
   const detalhesRefFiltrados = useMemo(() => {
     const gruposVisiveis = new Set(gruposAnalise.map((g) => g.grupo));
@@ -1092,6 +1157,91 @@ export default function CapacidadePage() {
     };
   }, [gruposAnalise, dias, periodos, mesJunho, mesOutubro, mesNovembro]);
 
+  const cenariosDias = useMemo(() => {
+    const diasPorEtapa = [
+      Number(dias[String(periodos.MA)] || 0),
+      Number(dias[String(periodos.PX)] || 0),
+      Number(dias[String(periodos.UL)] || 0),
+      Number(dias[String(mesJunho)] || 0),
+      Number(dias[String(mesOutubro)] || 0),
+      Number(dias[String(mesNovembro)] || 0),
+    ];
+    const indiceHorizonte = { MA: 0, PX: 1, UL: 2, QT: 3, QU: 4, SX: 5 }[horizonteCapacidade];
+    const diasDisponiveis = diasPorEtapa.slice(0, indiceHorizonte + 1).reduce((total, valor) => total + valor, 0);
+    const calcular = (nome: string, capacidadePorGrupo: (grupo: GrupoCapacidadeRow) => number) => {
+      let capacidadeDiariaTotal = 0;
+      const diasPorPeriodo = { processo: 0, ma: 0, px: 0, ul: 0, jun: 0, out: 0, nov: 0 };
+      for (const grupo of grupos) {
+        capacidadeDiariaTotal += capacidadePorGrupo(grupo);
+      }
+      const cargasPorPeriodo = {
+        processo: auditoriaDetalheResumo.processoCarga,
+        ma: Math.max(0, auditoriaDetalheResumo.cargaMA - auditoriaDetalheResumo.processoCarga),
+        px: auditoriaDetalheResumo.cargaPX,
+        ul: auditoriaDetalheResumo.cargaUL,
+        jun: auditoriaDetalheResumo.cargaJUN,
+        out: auditoriaDetalheResumo.cargaOUT,
+        nov: auditoriaDetalheResumo.cargaNOV,
+      };
+      const cargaTotal = Object.values(cargasPorPeriodo).reduce((total, carga) => total + carga, 0);
+      const diasNecessarios = capacidadeDiariaTotal > 0 ? cargaTotal / capacidadeDiariaTotal : 0;
+      if (capacidadeDiariaTotal > 0) {
+        for (const chave of Object.keys(diasPorPeriodo) as Array<keyof typeof diasPorPeriodo>) {
+          diasPorPeriodo[chave] = cargasPorPeriodo[chave] / capacidadeDiariaTotal;
+        }
+      }
+      return {
+        nome,
+        capacidadeDiariaTotal,
+        capacidadeTotal: capacidadeDiariaTotal * diasDisponiveis,
+        diasNecessarios,
+        diasDisponiveis,
+        diasFaltantes: diasNecessarios - diasDisponiveis,
+        diasPorPeriodo,
+      };
+    };
+    return [
+      calcular('Último mês', (grupo) => capacidadeDiariaPorFonte.ultimoMes.get(norm(grupo.grupo)) || 0),
+      calcular('Média real 3 meses', (grupo) => capacidadeDiariaPorFonte.media12.get(norm(grupo.grupo)) || 0),
+    ];
+  }, [grupos, gruposAnalise, auditoriaDetalheResumo, dias, periodos, mesJunho, mesOutubro, mesNovembro, horizonteCapacidade, capacidadeDiariaPorFonte]);
+
+  const resumoAteHorizonte = useMemo(() => {
+    const etapas = [
+      { chave: 'MA', dias: Number(dias[String(periodos.MA)] || 0), carga: (row: GrupoAnaliseRow) => row.cargaMA },
+      { chave: 'PX', dias: Number(dias[String(periodos.PX)] || 0), carga: (row: GrupoAnaliseRow) => row.cargaPX },
+      { chave: 'UL', dias: Number(dias[String(periodos.UL)] || 0), carga: (row: GrupoAnaliseRow) => row.cargaUL },
+      { chave: 'QT', dias: Number(dias[String(mesJunho)] || 0), carga: (row: GrupoAnaliseRow) => row.cargaJUN },
+      { chave: 'QU', dias: Number(dias[String(mesOutubro)] || 0), carga: (row: GrupoAnaliseRow) => row.cargaOUT },
+      { chave: 'SX', dias: Number(dias[String(mesNovembro)] || 0), carga: (row: GrupoAnaliseRow) => row.cargaNOV },
+    ];
+    const limite = Math.max(0, etapas.findIndex((etapa) => etapa.chave === horizonteCapacidade));
+    const selecionadas = etapas.slice(0, limite + 1);
+    const cargas = {
+      MA: auditoriaDetalheResumo.cargaMA,
+      PX: auditoriaDetalheResumo.cargaPX,
+      UL: auditoriaDetalheResumo.cargaUL,
+      QT: auditoriaDetalheResumo.cargaJUN,
+      QU: auditoriaDetalheResumo.cargaOUT,
+      SX: auditoriaDetalheResumo.cargaNOV,
+    };
+    const tempo = auditoriaDetalheResumo.processoCarga + selecionadas.reduce((total, etapa) => total + cargas[etapa.chave as keyof typeof cargas], 0);
+    const capacidadeDiariaTotal = gruposAnalise.reduce((total, row) => total + row.capacidadeDiaria, 0);
+    const diasNecessarios = capacidadeDiariaTotal > 0 ? tempo / capacidadeDiariaTotal : 0;
+    const diasDisponiveis = selecionadas.reduce((total, etapa) => total + etapa.dias, 0);
+    return {
+      tempo,
+      diasNecessarios,
+      diasDisponiveis,
+      gap: diasNecessarios - diasDisponiveis,
+      nome: horizonteCapacidade === 'MA' ? nomeMes(periodos.MA)
+        : horizonteCapacidade === 'PX' ? nomeMes(periodos.PX)
+          : horizonteCapacidade === 'UL' ? nomeMes(periodos.UL)
+            : horizonteCapacidade === 'QT' ? nomeMes(mesJunho)
+              : horizonteCapacidade === 'QU' ? nomeMes(mesOutubro) : nomeMes(mesNovembro),
+    };
+  }, [gruposAnalise, auditoriaDetalheResumo, dias, periodos, mesJunho, mesOutubro, mesNovembro, horizonteCapacidade]);
+
   const gruposPorTipo = useMemo(() => {
     const map = new Map<string, {
       tipo: string;
@@ -1190,6 +1340,48 @@ export default function CapacidadePage() {
           {loading && <div className="bg-white rounded-lg border p-4 text-sm text-gray-500">Carregando capacidade...</div>}
           {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{error}</div>}
           {okMsg && <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700">{okMsg}</div>}
+
+          <section className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold text-brand-dark">Fonte da capacidade</div>
+                <div className="text-[11px] text-gray-500">Compare o plano da planilha com os minutos realmente produzidos no ERP.</div>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="text-[11px] text-gray-600">Capacidade baseada em<select value={fonteCapacidade} onChange={(e) => setFonteCapacidade(e.target.value as typeof fonteCapacidade)} className="ml-1 border border-gray-300 rounded px-2 py-1.5 text-xs"><option value="ultimo_mes">Último mês</option><option value="media_3_meses">Média real 3 meses</option></select></label>
+                <label className="text-[11px] text-gray-600">De<input type="date" value={realDe} onChange={(e) => setRealDe(e.target.value)} className="ml-1 border border-gray-300 rounded px-2 py-1.5 text-xs" /></label>
+                <label className="text-[11px] text-gray-600">Até<input type="date" value={realAte} onChange={(e) => setRealAte(e.target.value)} className="ml-1 border border-gray-300 rounded px-2 py-1.5 text-xs" /></label>
+                <button type="button" onClick={carregar} className="px-3 py-2 text-xs font-semibold rounded border border-brand-primary text-brand-primary hover:bg-blue-50">Atualizar real</button>
+              </div>
+            </div>
+            <div className="flex gap-1 border-b border-gray-200">
+              {(['planejado', 'real'] as const).map((modo) => (
+                <button key={modo} type="button" onClick={() => setModoCapacidade(modo)} className={`px-3 py-2 text-xs font-semibold border-b-2 ${modoCapacidade === modo ? 'border-brand-primary text-brand-primary' : 'border-transparent text-gray-500'}`}>
+                  {modo === 'planejado' ? 'Planejado' : 'Real'}
+                </button>
+              ))}
+            </div>
+            {modoCapacidade !== 'planejado' && (
+              <div className="overflow-auto border border-gray-200 rounded">
+                <table className="min-w-full text-xs">
+                  <thead className="bg-gray-50"><tr><th className="px-3 py-2 text-left">Grupo</th><th className="px-3 py-2 text-left">Mês</th><th className="px-3 py-2 text-right">Minutos reais</th><th className="px-3 py-2 text-right">Dias</th><th className="px-3 py-2 text-right">Peças</th><th className="px-3 py-2 text-right">Min/dia</th></tr></thead>
+                  <tbody>
+                    {capacidadeReal.map((row) => (
+                      <tr key={`${row.cdGrupo}-${row.mes}`} className="border-t border-gray-100">
+                        <td className="px-3 py-2 font-medium">{row.grupo || row.cdGrupo}</td>
+                        <td className="px-3 py-2">{String(row.mes).slice(0, 7)}</td>
+                        <td className="px-3 py-2 text-right font-semibold">{row.minutosTrabalhados.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+                        <td className="px-3 py-2 text-right">{fmtInt(row.diasComMovimento)}</td>
+                        <td className="px-3 py-2 text-right">{fmtInt(row.pecas)}</td>
+                        <td className="px-3 py-2 text-right">{(row.minutosTrabalhados / Math.max(1, row.diasComMovimento)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+                      </tr>
+                    ))}
+                    {capacidadeReal.length === 0 && <tr><td colSpan={6} className="px-3 py-4 text-center text-gray-500">Nenhum movimento real encontrado no período.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
 
           <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-wrap gap-3 items-end relative z-20">
             <div className="min-w-[280px] relative">
@@ -1328,7 +1520,45 @@ export default function CapacidadePage() {
               </section>
 
               <section className="p-5 bg-[radial-gradient(circle_at_top,#f3efe9_0%,#ffffff_68%)]">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-stone-500">Capacidade Consolidada</div>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-stone-500">Capacidade Consolidada</div>
+                  <label className="text-[11px] text-stone-600">
+                    Ver gap até
+                    <select value={horizonteCapacidade} onChange={(e) => setHorizonteCapacidade(e.target.value as typeof horizonteCapacidade)} className="ml-2 rounded border border-stone-300 bg-white px-2 py-1.5 text-xs">
+                      <option value="MA">Plano {nomeMes(periodos.MA)}</option>
+                      <option value="PX">Plano {nomeMes(periodos.PX)}</option>
+                      <option value="UL">Plano {nomeMes(periodos.UL)}</option>
+                      <option value="QT">Plano {nomeMes(mesJunho)}</option>
+                      <option value="QU">Plano {nomeMes(mesOutubro)}</option>
+                      <option value="SX">Plano {nomeMes(mesNovembro)}</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="mt-3 rounded-2xl border border-brand-dark/15 bg-brand-dark/[0.04] p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Resultado acumulado até {resumoAteHorizonte.nome}</div>
+                  <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div><div className="text-[11px] text-stone-500">Tempo acumulado</div><div className="text-lg font-bold text-brand-dark">{resumoAteHorizonte.tempo.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} min</div></div>
+                    <div><div className="text-[11px] text-stone-500">Dias necessários</div><div className="text-lg font-bold text-brand-dark">{resumoAteHorizonte.diasNecessarios.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div></div>
+                    <div><div className="text-[11px] text-stone-500">Dias disponíveis</div><div className="text-lg font-bold text-brand-dark">{resumoAteHorizonte.diasDisponiveis.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</div></div>
+                    <div><div className="text-[11px] text-stone-500">Gap</div><div className={`text-lg font-bold ${toneClass(resumoAteHorizonte.gap)}`}>{resumoAteHorizonte.gap >= 0 ? '+' : ''}{resumoAteHorizonte.gap.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} dias</div></div>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+                  {false && cenariosDias.map((cenario) => (
+                    <div key={cenario.nome} className="rounded-2xl border border-stone-200 bg-white p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">{cenario.nome}</div>
+                      <div className="mt-2 text-2xl font-bold text-brand-dark">
+                        {cenario.diasNecessarios.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} dias
+                      </div>
+                      <div className="mt-1 text-[11px] text-stone-500">
+                        Disponíveis: {cenario.diasDisponiveis.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} dias
+                      </div>
+                      <div className={`mt-1 text-[11px] font-semibold ${toneClass(cenario.diasFaltantes)}`}>
+                        {cenario.diasFaltantes >= 0 ? 'Faltam' : 'Sobram'} {Math.abs(cenario.diasFaltantes).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} dias
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 <div className="mt-4 rounded-[24px] border border-stone-200 bg-white p-5">
                   <div className="text-[11px] uppercase tracking-wide text-stone-500">Tempo total</div>
                   <div className="mt-2 text-4xl font-bold text-brand-dark">{resumo.tempoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</div>
@@ -1352,6 +1582,47 @@ export default function CapacidadePage() {
                   {/* Detalhamento por período */}
                   <div className="mt-4 border-t border-stone-200 pt-4">
                     <div className="text-[11px] uppercase tracking-wide text-stone-500 mb-3">Detalhamento por Período</div>
+                    <div className="mb-4 overflow-x-auto rounded-xl border border-stone-200">
+                      <table className="w-full min-w-[680px] text-xs">
+                        <thead className="bg-stone-100 text-stone-600">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Período</th>
+                            <th className="px-3 py-2 text-right">Tempo (min)</th>
+                            {cenariosDias.map((cenario) => (
+                              <th key={cenario.nome} className="px-3 py-2 text-right">Dias · {cenario.nome}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            ['Em processo', auditoriaDetalheResumo.processoCarga, 'processo'],
+                            [`Plano ${nomeMes(periodos.MA)}`, auditoriaDetalheResumo.cargaMA - auditoriaDetalheResumo.processoCarga, 'ma'],
+                            [`Plano ${nomeMes(periodos.PX)}`, auditoriaDetalheResumo.cargaPX, 'px'],
+                            [`Plano ${nomeMes(periodos.UL)}`, auditoriaDetalheResumo.cargaUL, 'ul'],
+                            [`Plano ${nomeMes(mesJunho)}`, auditoriaDetalheResumo.cargaJUN, 'jun'],
+                            [`Plano ${nomeMes(mesOutubro)}`, auditoriaDetalheResumo.cargaOUT, 'out'],
+                            [`Plano ${nomeMes(mesNovembro)}`, auditoriaDetalheResumo.cargaNOV, 'nov'],
+                          ].map(([nome, tempo, chave]) => (
+                            <tr key={String(chave)} className="border-t border-stone-100">
+                              <td className="px-3 py-2 font-medium text-stone-700">{nome}</td>
+                              <td className="px-3 py-2 text-right text-stone-700">{Number(tempo).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+                              {cenariosDias.map((cenario) => (
+                                <td key={`${cenario.nome}-${chave}`} className="px-3 py-2 text-right text-stone-700">
+                                  {cenario.diasPorPeriodo[chave as keyof typeof cenario.diasPorPeriodo].toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                          <tr className="border-t-2 border-stone-300 bg-stone-50 font-semibold">
+                            <td className="px-3 py-2">TOTAL</td>
+                            <td className="px-3 py-2 text-right">{resumo.tempoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+                            {cenariosDias.map((cenario) => (
+                              <td key={`total-${cenario.nome}`} className="px-3 py-2 text-right">{cenario.diasNecessarios.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</td>
+                            ))}
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                     <div className="space-y-2 text-xs">
                       {/* Em Processo */}
                       <div className="flex items-center justify-between p-2 rounded-lg bg-amber-50 border border-amber-200">

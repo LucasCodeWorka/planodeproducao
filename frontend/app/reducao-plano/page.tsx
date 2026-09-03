@@ -214,7 +214,11 @@ export default function ReducaoPlanoPage() {
         const marca = norm(item.produto?.marca || '');
         const status = norm(item.produto?.status || '');
         const continuidade = norm(item.produto?.continuidade || '');
-        return marca === MARCA_FIXA && status.startsWith(STATUS_FIXO) && ['PERMANENTE', 'PERMANENTE COR NOVA'].includes(continuidade);
+        if (!(marca === MARCA_FIXA && status.startsWith(STATUS_FIXO) && ['PERMANENTE', 'PERMANENTE COR NOVA'].includes(continuidade))) return false;
+        // Exclui SKUs sem plano em nenhum período (só tem estoque+processo para vender)
+        const plano = getPlano(item);
+        const temPlano = PERIODOS.some((p) => Number(plano[p] || 0) > 0);
+        return temPlano;
       })
       .map((item) => {
         const id = String(item.produto.idproduto || '');
@@ -396,6 +400,13 @@ export default function ReducaoPlanoPage() {
     const antecipacaoPorPeriodo: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
     const skusComReducao: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
     const skusComAntecipacao: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
+    // Projeção de estoque
+    const projecaoPorPeriodo: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
+    const saldoPorPeriodo: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
+    let estoqueAtualTotal = 0;
+    let emProcessoTotal = 0;
+    let pedidosPendentesTotal = 0;
+    let estoqueMinimoTotal = 0;
     let excessoReduzivel = 0;
     let saldoFinalPositivo = 0;
     let saldoFinalNegativo = 0;
@@ -404,19 +415,47 @@ export default function ReducaoPlanoPage() {
     let skusAnalisados = 0;
 
     // Filtra dados igual ao rows, mas sem depender de periodoAlvo
+    // Exclui SKUs sem plano em nenhum período (só tem estoque+processo para vender)
     const dadosFiltrados = dados.filter((item) => {
       const marca = norm(item.produto?.marca || '');
       const status = norm(item.produto?.status || '');
       const continuidade = norm(item.produto?.continuidade || '');
-      return marca === MARCA_FIXA && status.startsWith(STATUS_FIXO) && ['PERMANENTE', 'PERMANENTE COR NOVA'].includes(continuidade);
+      if (!(marca === MARCA_FIXA && status.startsWith(STATUS_FIXO) && ['PERMANENTE', 'PERMANENTE COR NOVA'].includes(continuidade))) return false;
+      const plano = getPlano(item);
+      const temPlano = PERIODOS.some((p) => Number(plano[p] || 0) > 0);
+      return temPlano;
     });
 
-    // Primeiro passo: calcular plano total por período
+    // Primeiro passo: calcular totais de estoque, projeções e plano
+    const meses = mesesDoPlano(periodos);
     dadosFiltrados.forEach((item) => {
       const plano = getPlano(item);
+      const id = String(item.produto.idproduto || '');
+      const proj = projecoes[id] || {};
+
+      // Totais de estoque
+      estoqueAtualTotal += Number(item.estoques.estoque_atual || 0);
+      emProcessoTotal += Number(item.estoques.em_processo || 0);
+      pedidosPendentesTotal += Number(item.demanda.pedidos_pendentes || 0);
+      estoqueMinimoTotal += Number(item.estoques.estoque_minimo || 0);
+
+      // Plano e projeção por período
       PERIODOS.forEach((p) => {
         planoTotal[p] += Number(plano[p] || 0);
+        const mes = meses[p];
+        const projMes = p === 'MA'
+          ? projecaoMesPlanejamento(Number(proj[String(mes)] || 0), mes)
+          : Number(proj[String(mes)] || 0);
+        projecaoPorPeriodo[p] += projMes;
       });
+    });
+
+    // Calcular saldo por período (acumulativo)
+    const disponivelInicial = estoqueAtualTotal - pedidosPendentesTotal + emProcessoTotal;
+    let saldoAcumulado = disponivelInicial;
+    PERIODOS.forEach((p) => {
+      saldoAcumulado = saldoAcumulado + planoTotal[p] - projecaoPorPeriodo[p];
+      saldoPorPeriodo[p] = saldoAcumulado;
     });
 
     // Encontrar o último período com plano
@@ -537,6 +576,10 @@ export default function ReducaoPlanoPage() {
       }
     });
 
+    // Calcular cobertura média (em meses) no último período
+    const projecaoMediaMensal = Object.values(projecaoPorPeriodo).reduce((a, b) => a + b, 0) / 6;
+    const coberturaMesesFinal = projecaoMediaMensal > 0 ? saldoPorPeriodo[ultimoPeriodoComPlano] / projecaoMediaMensal : 0;
+
     return {
       planoTotal,
       planoTotalGeral,
@@ -556,6 +599,16 @@ export default function ReducaoPlanoPage() {
       skusComDeficit,
       skusTotal: skusAnalisados,
       ultimoPeriodo: ultimoPeriodoComPlano,
+      // Projeção de estoque
+      estoqueAtualTotal,
+      emProcessoTotal,
+      pedidosPendentesTotal,
+      estoqueMinimoTotal,
+      disponivelInicial: estoqueAtualTotal - pedidosPendentesTotal + emProcessoTotal,
+      projecaoPorPeriodo,
+      saldoPorPeriodo,
+      projecaoTotalGeral: Object.values(projecaoPorPeriodo).reduce((a, b) => a + b, 0),
+      coberturaMesesFinal,
     };
   }, [dados, projecoes, periodos, cortes, usarMeioCorte]);
 
@@ -800,7 +853,7 @@ export default function ReducaoPlanoPage() {
               </div>
             </div>
 
-            {/* 3. Antes e Depois - Visão completa */}
+            {/* Cálculos compartilhados: planoNovo e antecipacaoCedida */}
             {(() => {
               // Calcula antecipação cedida por período (o que o período dá para o anterior)
               const antecipacaoCedida: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
@@ -825,8 +878,20 @@ export default function ReducaoPlanoPage() {
 
               const diferencaTotal = resumoGeral.planoTotalGeral - planoNovoTotal;
 
+              // Calcula saldo com plano novo (após reduções)
+              const saldoNovoporPeriodo: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
+              let saldoNovoAcumulado = resumoGeral.disponivelInicial;
+              periodosComPlano.forEach((p) => {
+                const producaoNova = planoNovo[p] || 0;
+                saldoNovoAcumulado = saldoNovoAcumulado + producaoNova - resumoGeral.projecaoPorPeriodo[p];
+                saldoNovoporPeriodo[p] = saldoNovoAcumulado;
+              });
+              const reducaoEstoqueFinal = resumoGeral.saldoPorPeriodo[resumoGeral.ultimoPeriodo] - saldoNovoporPeriodo[resumoGeral.ultimoPeriodo];
+
               return (
-            <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded border border-slate-300 p-2">
+                <>
+            {/* 3. Antes e Depois - Visão completa */}
+            <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded border border-slate-300 p-2 mb-3">
               <div className="text-[11px] font-bold text-slate-800 mb-1">📈 Antes e Depois (reduções + antecipações)</div>
               <table className="w-full text-[11px]">
                 <thead>
@@ -906,11 +971,115 @@ export default function ReducaoPlanoPage() {
                 💡 Redução líquida: <strong className="text-red-600">{fmt(resumoGeral.reducaoSequencialTotal)}</strong> · Antecipação apenas redistribui
               </div>
             </div>
+
+            {/* 4. Projeção de Estoque - Comparação Atual vs Novo */}
+            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded border border-indigo-300 p-2 mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-bold text-indigo-800">📦 Projeção de Estoque (atual vs novo)</span>
+                <span className="text-[10px] font-bold text-red-600">Redução de estoque: -{fmt(reducaoEstoqueFinal)}</span>
+              </div>
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="border-b border-indigo-300">
+                    <th className="text-left py-0.5 px-1 text-indigo-600"></th>
+                    <th className="text-center py-0.5 px-1 text-indigo-600 font-bold bg-indigo-100">INICIAL</th>
+                    {periodosComPlano.map((p) => (
+                      <th key={p} className="text-center py-0.5 px-1 text-indigo-600 font-bold">{p}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-indigo-200 bg-indigo-50">
+                    <td className="py-0.5 px-1 text-indigo-700 font-semibold">Disponível Inicial</td>
+                    <td className="text-center py-0.5 px-1 font-mono font-semibold text-indigo-700">{fmt(resumoGeral.disponivelInicial)}</td>
+                    {periodosComPlano.map((p) => (
+                      <td key={p} className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-indigo-200">
+                    <td className="py-0.5 px-1 text-emerald-700">Produção Atual</td>
+                    <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
+                    {periodosComPlano.map((p) => (
+                      <td key={p} className="text-center py-0.5 px-1 font-mono text-emerald-600">+{fmt(resumoGeral.planoTotal[p])}</td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-indigo-200 bg-red-50">
+                    <td className="py-0.5 px-1 text-red-700">Produção Nova</td>
+                    <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
+                    {periodosComPlano.map((p) => (
+                      <td key={p} className="text-center py-0.5 px-1 font-mono text-red-600">+{fmt(planoNovo[p])}</td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-indigo-200">
+                    <td className="py-0.5 px-1 text-orange-700">Projeção Vendas</td>
+                    <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
+                    {periodosComPlano.map((p) => (
+                      <td key={p} className="text-center py-0.5 px-1 font-mono text-orange-600">-{fmt(resumoGeral.projecaoPorPeriodo[p])}</td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-indigo-200 bg-slate-100">
+                    <td className="py-0.5 px-1 text-slate-700 font-semibold">Saldo Atual</td>
+                    <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
+                    {periodosComPlano.map((p) => {
+                      const saldo = resumoGeral.saldoPorPeriodo[p];
+                      return (
+                        <td key={p} className={`text-center py-0.5 px-1 font-mono font-semibold ${saldo >= 0 ? 'text-slate-700' : 'text-red-700'}`}>
+                          {fmt(saldo)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr className="bg-emerald-100 font-bold">
+                    <td className="py-0.5 px-1 text-emerald-800">Saldo Novo</td>
+                    <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
+                    {periodosComPlano.map((p) => {
+                      const saldo = saldoNovoporPeriodo[p];
+                      return (
+                        <td key={p} className={`text-center py-0.5 px-1 font-mono ${saldo >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                          {fmt(saldo)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr className="border-t border-indigo-300 text-[10px] bg-red-50">
+                    <td className="py-0.5 px-1 text-red-600 font-semibold">Δ Redução</td>
+                    <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
+                    {periodosComPlano.map((p) => {
+                      const diff = resumoGeral.saldoPorPeriodo[p] - saldoNovoporPeriodo[p];
+                      return (
+                        <td key={p} className="text-center py-0.5 px-1 font-mono font-bold text-red-600">
+                          {diff > 0 ? `-${fmt(diff)}` : '-'}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr className="text-[10px]">
+                    <td className="py-0.5 px-1 text-indigo-500">Cobertura Nova</td>
+                    <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
+                    {periodosComPlano.map((p) => {
+                      const saldo = saldoNovoporPeriodo[p];
+                      const projMedia = resumoGeral.projecaoPorPeriodo[p] || 1;
+                      const cobertura = saldo / projMedia;
+                      return (
+                        <td key={p} className={`text-center py-0.5 px-1 font-mono font-semibold ${cobertura >= 1 ? 'text-emerald-600' : cobertura >= 0 ? 'text-amber-600' : 'text-red-600'}`}>
+                          {cobertura.toFixed(1)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+              <div className="text-[9px] text-indigo-500 mt-1">
+                📊 Estoque final {resumoGeral.ultimoPeriodo}: <strong>{fmt(resumoGeral.saldoPorPeriodo[resumoGeral.ultimoPeriodo])}</strong> → <strong className="text-emerald-600">{fmt(saldoNovoporPeriodo[resumoGeral.ultimoPeriodo])}</strong>
+                <span className="text-red-600 ml-1">(redução de {fmt(reducaoEstoqueFinal)} peças)</span>
+              </div>
+            </div>
+                </>
               );
             })()}
 
-            {/* 4. Resumo executivo inline */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] bg-emerald-50 rounded border border-emerald-200 px-2 py-1.5 mb-2">
+            {/* 5. Resumo executivo inline */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] bg-emerald-50 rounded border border-emerald-200 px-2 py-1.5 mb-3">
               <span className="font-bold text-emerald-800">📋 Resumo:</span>
               <span className="text-emerald-700">Melhor: <strong>{resumoGeral.melhorPeriodo}</strong> (-{fmt(resumoGeral.melhorReducao)})</span>
               <span className="text-emerald-700">Máx. todos: <strong>-{fmt(resumoGeral.reducaoSequencialTotal)}</strong> ({((resumoGeral.reducaoSequencialTotal / resumoGeral.planoTotalGeral) * 100).toFixed(1)}%)</span>
