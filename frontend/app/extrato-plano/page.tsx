@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import { authHeaders, getToken } from '../lib/auth';
@@ -144,6 +144,24 @@ interface OpsAntigasPayload {
   }>;
 }
 
+interface LoteExecucaoRow {
+  sku: string;
+  referencia: string;
+  produto: string;
+  cor: string;
+  tamanho: string;
+  continuidade: string;
+  periodo: string;
+  qtdLote: number;
+  qtdGerouOp: number;
+  qtdReal: number;
+  qtdFinalizada: number;
+  qtdProcesso: number;
+  lotes: string[];
+  ops: string[];
+  situacao: 'FINALIZADO' | 'EM_PROCESSO' | 'GERADO' | 'PLANEJADO';
+}
+
 function fmt(v: number, d = 0) {
   return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
@@ -193,6 +211,7 @@ export default function ExtratoPlanoPage() {
   const [payload, setPayload] = useState<RotacaoPayload | null>(null);
   const [viradaSelecionada, setViradaSelecionada] = useState<RotacaoTransicao | null>(null);
   const [opsAntigas, setOpsAntigas] = useState<OpsAntigasPayload | null>(null);
+  const [lotesExecucao, setLotesExecucao] = useState<LoteExecucaoRow[]>([]);
 
   // Estado para detalhes
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
@@ -223,7 +242,7 @@ export default function ExtratoPlanoPage() {
       const de = `${ano - 1}-12-20`;
       const ate = `${ano}-12-31`;
       const params = new URLSearchParams({ de, ate, limit: '100' });
-      const [rotacaoResult, opsResult] = await Promise.allSettled([
+      const [rotacaoResult, opsResult, lotesResult] = await Promise.allSettled([
         fetchNoCache(
         `${API_URL}/api/analises/snapshot-lotes/rotacao-anual?${params}`,
         { headers: authHeaders() },
@@ -231,6 +250,11 @@ export default function ExtratoPlanoPage() {
         ),
         fetchNoCache(
           `${API_URL}/api/producao/ops-antigas?dias=20&marca=LIEBE&status=EM%20LINHA,NOVA%20COLECAO`,
+          { headers: authHeaders() },
+          120000
+        ),
+        fetchNoCache(
+          `${API_URL}/api/producao/lotes-execucao-matriz?marca=LIEBE&status=EM%20LINHA,NOVA%20COLECAO`,
           { headers: authHeaders() },
           120000
         ),
@@ -245,6 +269,10 @@ export default function ExtratoPlanoPage() {
       if (opsResult.status === 'fulfilled' && opsResult.value.ok) {
         const opsJson = await opsResult.value.json() as OpsAntigasPayload;
         if (opsJson?.success) setOpsAntigas(opsJson);
+      }
+      if (lotesResult.status === 'fulfilled' && lotesResult.value.ok) {
+        const lotesJson = await lotesResult.value.json() as { success?: boolean; data?: LoteExecucaoRow[] };
+        if (lotesJson?.success) setLotesExecucao(Array.isArray(lotesJson.data) ? lotesJson.data : []);
       }
       if (json.transicoes?.length) {
         setViradaSelecionada(json.transicoes[json.transicoes.length - 1]);
@@ -319,6 +347,31 @@ export default function ExtratoPlanoPage() {
     const lista = detalhes?.impactoMp || [];
     return lista.filter((m) => m.risco === 'FALTA_GERADA').length;
   }, [detalhes]);
+
+  const lotesPorReferencia = useMemo(() => {
+    const mapa = new Map<string, LoteExecucaoRow[]>();
+    for (const row of lotesExecucao) {
+      const lista = mapa.get(row.referencia) || [];
+      lista.push(row);
+      mapa.set(row.referencia, lista);
+    }
+    return Array.from(mapa.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [lotesExecucao]);
+
+  const resumoLotes = useMemo(() => lotesExecucao.reduce((acc, row) => {
+    acc.lotes += row.lotes.length;
+    acc.gerado += row.qtdGerouOp;
+    acc.processo += row.qtdProcesso;
+    acc.finalizado += row.qtdFinalizada;
+    return acc;
+  }, { lotes: 0, gerado: 0, processo: 0, finalizado: 0 }), [lotesExecucao]);
+
+  function loteCell(rows: LoteExecucaoRow[], periodo: string) {
+    const row = rows.find((item) => item.periodo === periodo);
+    if (!row) return <span className="text-slate-300">-</span>;
+    const cor = row.situacao === 'FINALIZADO' ? 'text-emerald-700 bg-emerald-50' : row.situacao === 'EM_PROCESSO' ? 'text-amber-700 bg-amber-50' : row.situacao === 'GERADO' ? 'text-blue-700 bg-blue-50' : 'text-slate-500 bg-slate-50';
+    return <span className={`inline-flex min-w-[82px] flex-col items-end rounded px-1.5 py-1 ${cor}`} title={`Lote(s): ${row.lotes.join(', ') || '-'} | OP(s): ${row.ops.join(', ') || '-'}`}><b>{fmt(row.qtdLote)} lote</b><small className="text-[9px] font-semibold">G {fmt(row.qtdGerouOp)} · P {fmt(row.qtdProcesso)} · F {fmt(row.qtdFinalizada)}</small></span>;
+  }
 
   // Filtrar SKUs
   const skusFiltrados = useMemo(() => {
@@ -396,6 +449,56 @@ export default function ExtratoPlanoPage() {
 
         {!loading && payload && (
           <>
+            <section className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-bold text-slate-800">Execucao dos lotes</div>
+                  <div className="text-xs text-slate-500">Acompanhe o lote desde a geracao da OP ate a finalizacao</div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-[11px]">
+                  <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">OP gerada {fmt(resumoLotes.gerado)}</span>
+                  <span className="rounded bg-amber-50 px-2 py-1 text-amber-700">Em processo {fmt(resumoLotes.processo)}</span>
+                  <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-700">Finalizado {fmt(resumoLotes.finalizado)}</span>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-[980px] w-full border-collapse text-xs">
+                  <thead className="bg-slate-800 text-white">
+                    <tr>
+                      <th className="sticky left-0 z-10 bg-slate-800 px-3 py-2 text-left">Referencia / SKU</th>
+                      <th className="px-3 py-2 text-center">Lotes</th>
+                      {['MA', 'PX', 'UL', 'QT', 'QU', 'SX'].map((periodo) => <th key={periodo} className="px-3 py-2 text-right">{periodo}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {lotesPorReferencia.map(([referencia, rows]) => {
+                      const skus = Array.from(new Set(rows.map((row) => row.sku)));
+                      const totalLotes = new Set(rows.flatMap((row) => row.lotes)).size;
+                      return (
+                        <React.Fragment key={referencia}>
+                          <tr className="bg-slate-100 font-semibold text-slate-800">
+                            <td className="sticky left-0 z-10 bg-slate-100 px-3 py-2"><span className="font-mono mr-2">{referencia}</span><span className="text-slate-500">{rows[0]?.produto || '-'}</span></td>
+                            <td className="px-3 py-2 text-center">{fmt(totalLotes)}</td>
+                            {['MA', 'PX', 'UL', 'QT', 'QU', 'SX'].map((periodo) => <td key={periodo} className="px-3 py-2 text-right">{loteCell(rows, periodo)}</td>)}
+                          </tr>
+                          {skus.map((sku) => {
+                            const skuRows = rows.filter((row) => row.sku === sku);
+                            return <tr key={`${referencia}-${sku}`} className="bg-white hover:bg-slate-50">
+                              <td className="sticky left-0 z-10 bg-white px-3 py-2 pl-8"><span className="font-mono text-slate-600">{sku}</span><span className="ml-2 text-slate-500">{skuRows[0]?.cor || '-'} / {skuRows[0]?.tamanho || '-'}</span></td>
+                              <td className="px-3 py-2 text-center text-slate-500">{fmt(new Set(skuRows.flatMap((row) => row.lotes)).size)}</td>
+                              {['MA', 'PX', 'UL', 'QT', 'QU', 'SX'].map((periodo) => <td key={periodo} className="px-3 py-2 text-right">{loteCell(skuRows, periodo)}</td>)}
+                            </tr>;
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
+                    {!lotesPorReferencia.length && <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">Nenhum lote operacional encontrado.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-t border-slate-100 px-4 py-2 text-[11px] text-slate-500">Passe o mouse sobre uma celula para ver os numeros dos lotes e das OPs.</div>
+            </section>
+
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
               <div className="xl:col-span-8 space-y-4">
                 <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">

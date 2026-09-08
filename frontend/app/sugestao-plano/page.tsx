@@ -48,6 +48,21 @@ type SugestaoCfg = {
   usar_corte_minimo: boolean;
   usar_op_minima_ref: boolean;
 };
+type FechamentoEstoqueMinimo = {
+  ano: number;
+  mes: number;
+  label: string;
+  minimo: number;
+  variacao: number | null;
+  mediaSem: number;
+  mediaTri: number;
+};
+type EstoqueMinimoHistoricoRow = {
+  sku: string;
+  fechamentos: FechamentoEstoqueMinimo[];
+  variacao12: number | null;
+  variacao23: number | null;
+};
 type Row = {
   idproduto: string;
   idreferencia: string;
@@ -283,8 +298,8 @@ function chaveItem(item: Planejamento) {
   return `REF-${item.produto.referencia || ''}-${item.produto.cor || ''}-${item.produto.tamanho || ''}`;
 }
 
-function fmt(v: number) {
-  return Math.round(v || 0).toLocaleString('pt-BR');
+function fmt(v: number, d = 0) {
+  return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
 function normRef(ref: string) {
@@ -384,6 +399,8 @@ export default function SugestaoPlanoPage() {
   const [dados, setDados] = useState<Planejamento[]>([]);
   const [projecoes, setProjecoes] = useState<ProjecoesMap>({});
   const [vendasReais, setVendasReais] = useState<VendasReaisMap>({});
+  const [estoqueMinimoHistorico, setEstoqueMinimoHistorico] = useState<EstoqueMinimoHistoricoRow[]>([]);
+  const [fechamentosEstoqueMinimo, setFechamentosEstoqueMinimo] = useState<Array<{ ano: number; mes: number; label: string }>>([]);
   const [reprojecaoPreview, setReprojecaoPreview] = useState<ReprojecaoPreview[]>([]);
   const [periodos, setPeriodos] = useState<PeriodosPlano>({
     MA: new Date().getMonth() + 1,
@@ -453,6 +470,20 @@ export default function SugestaoPlanoPage() {
     refsEscopoDetalhe: [],
     refsPlanoTotalDetalhe: [],
   });
+
+  const resumoEstoqueMinimoHistorico = useMemo(() => {
+    const ids = new Set(dados.map((item) => String(item.produto.idproduto)));
+    const rows = estoqueMinimoHistorico.filter((item) => ids.has(item.sku));
+    const totais = fechamentosEstoqueMinimo.map((fechamento, index) => ({
+      ...fechamento,
+      total: rows.reduce((total, row) => total + Number(row.fechamentos[index]?.minimo || 0), 0),
+      mediaTri: rows.length ? rows.reduce((total, row) => total + Number(row.fechamentos[index]?.mediaTri || 0), 0) : 0,
+    }));
+    return totais.map((item, index) => ({
+      ...item,
+      variacaoAnterior: index > 0 && totais[index - 1].total ? ((item.total - totais[index - 1].total) / totais[index - 1].total) * 100 : null,
+    }));
+  }, [dados, estoqueMinimoHistorico, fechamentosEstoqueMinimo]);
   const [mpModalRef, setMpModalRef] = useState<{
     idreferencia: string;
     bloqueada?: boolean;
@@ -586,6 +617,7 @@ export default function SugestaoPlanoPage() {
         .map((i) => Number(i.produto.idproduto))
         .filter((n) => Number.isFinite(n))
         .slice(0, 5000);
+
 
       setLoading(false);
       setCarregandoComplementos(true);
@@ -2366,6 +2398,43 @@ export default function SugestaoPlanoPage() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
               Recalculando impacto de matéria-prima no plano...
             </div>
+          )}
+
+          {resumoEstoqueMinimoHistorico.length > 0 && (
+            <section className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm font-bold text-slate-800">Evolucao do estoque minimo</div>
+                  <div className="text-xs text-slate-500">Reconstrucao dos tres ultimos fechamentos para os SKUs carregados</div>
+                </div>
+                <div className="text-[11px] text-slate-500">A variacao mostra a mudanca do minimo, nao do plano</div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-[760px] w-full text-xs">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Fechamento</th>
+                      {resumoEstoqueMinimoHistorico.map((item) => <th key={`${item.ano}-${item.mes}`} className="px-4 py-2 text-right">{item.label}/{item.ano}</th>)}
+                      <th className="px-4 py-2 text-right">Var. 1º → 2º</th>
+                      <th className="px-4 py-2 text-right">Var. 2º → 3º</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-slate-100">
+                      <td className="px-4 py-2 font-semibold text-slate-700">Estoque minimo total</td>
+                      {resumoEstoqueMinimoHistorico.map((item) => <td key={`${item.ano}-${item.mes}-min`} className="px-4 py-2 text-right font-mono font-bold text-slate-800">{fmt(item.total, 0)}</td>)}
+                      <td className={`px-4 py-2 text-right font-mono font-bold ${((resumoEstoqueMinimoHistorico[1]?.variacaoAnterior || 0) > 0) ? 'text-red-600' : 'text-emerald-600'}`}>{resumoEstoqueMinimoHistorico[1] ? `${fmt(resumoEstoqueMinimoHistorico[1].total - resumoEstoqueMinimoHistorico[0].total, 0)} (${fmt(resumoEstoqueMinimoHistorico[1].variacaoAnterior || 0, 1)}%)` : '-'}</td>
+                      <td className={`px-4 py-2 text-right font-mono font-bold ${((resumoEstoqueMinimoHistorico[2]?.variacaoAnterior || 0) > 0) ? 'text-red-600' : 'text-emerald-600'}`}>{resumoEstoqueMinimoHistorico[2] ? `${fmt(resumoEstoqueMinimoHistorico[2].total - resumoEstoqueMinimoHistorico[1].total, 0)} (${fmt(resumoEstoqueMinimoHistorico[2].variacaoAnterior || 0, 1)}%)` : '-'}</td>
+                    </tr>
+                    <tr className="border-t border-slate-100">
+                      <td className="px-4 py-2 text-slate-500">Media trimestral usada</td>
+                      {resumoEstoqueMinimoHistorico.map((item) => <td key={`${item.ano}-${item.mes}-tri`} className="px-4 py-2 text-right font-mono text-slate-600">{fmt(item.mediaTri, 0)}</td>)}
+                      <td colSpan={2} className="px-4 py-2 text-right text-slate-400">-</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           )}
 
           {/* Painel de Controles - Layout Organizado */}

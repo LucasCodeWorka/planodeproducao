@@ -636,6 +636,165 @@ router.get("/percentual-finalizado", async (req, res) => {
 });
 
 /**
+ * GET /api/producao/lotes-execucao-matriz
+ * Matriz operacional dos lotes: gerado, em processo e finalizado.
+ */
+router.get("/lotes-execucao-matriz", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const marca = String(req.query.marca || "LIEBE").trim().toUpperCase();
+    const statusList = String(req.query.status || "EM LINHA,NOVA COLECAO")
+      .split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+
+    const result = await pool.query(`
+      WITH lotes AS (
+        SELECT
+          a.cd_produto::TEXT AS sku,
+          UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
+          a.nr_lote::TEXT AS nr_lote,
+          SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qtd_lote,
+          SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qtd_gerouop,
+          SUM(COALESCE(a.qt_real, 0))::FLOAT AS qtd_real,
+          SUM(COALESCE(a.qt_finalizada, 0))::FLOAT AS qtd_finalizada,
+          ARRAY_AGG(DISTINCT a.nr_op::TEXT) FILTER (WHERE a.nr_op IS NOT NULL) AS ops
+        FROM vr_pcp_loteplop a
+        JOIN pcp_lotepv p ON p.nr_lote = a.nr_lote
+        WHERE p.tp_situacao = 1
+          AND UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) IN ('MA', 'PX', 'UL', 'QT', 'QU', 'SX')
+        GROUP BY a.cd_produto, p.cd_auxiliar, a.nr_lote
+      ),
+      consolidados AS (
+        SELECT
+          l.sku,
+          l.periodo,
+          SUM(l.qtd_lote)::FLOAT AS qtd_lote,
+          SUM(l.qtd_gerouop)::FLOAT AS qtd_gerouop,
+          SUM(l.qtd_real)::FLOAT AS qtd_real,
+          SUM(l.qtd_finalizada)::FLOAT AS qtd_finalizada,
+          ARRAY_AGG(DISTINCT l.nr_lote) AS lotes,
+          ARRAY(SELECT DISTINCT op FROM lotes lx CROSS JOIN LATERAL unnest(lx.ops) op WHERE lx.sku = l.sku AND lx.periodo = l.periodo) AS ops
+        FROM lotes l
+        GROUP BY l.sku, l.periodo
+      )
+      SELECT
+        c.*,
+        f_dic_prd_nivel(c.sku::BIGINT, 'CD'::bpchar) AS referencia,
+        f_dic_prd_nivel(c.sku::BIGINT, 'DS'::bpchar) AS produto,
+        g.ds_cor AS cor,
+        g.ds_tamanho AS tamanho,
+        f_dic_prd_classificacao(c.sku::BIGINT, 'DS'::text, 802::bigint) AS continuidade,
+        CASE
+          WHEN c.qtd_real > 0 AND c.qtd_finalizada >= c.qtd_real THEN 'FINALIZADO'
+          WHEN c.qtd_real > c.qtd_finalizada THEN 'EM_PROCESSO'
+          WHEN c.qtd_gerouop > 0 THEN 'GERADO'
+          ELSE 'PLANEJADO'
+        END AS situacao
+      FROM consolidados c
+      LEFT JOIN vr_prd_prdgrade g ON g.cd_produto::TEXT = c.sku
+      WHERE UPPER(TRIM(COALESCE(f_dic_prd_classificacao(c.sku::BIGINT, 'DS'::text, 20::bigint), ''))) = $1
+        AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(c.sku::BIGINT, 'DS'::text, 27::bigint), ''))) = ANY($2)
+      ORDER BY referencia, c.sku, c.periodo
+    `, [marca, statusList]);
+
+    return res.json({
+      success: true,
+      data: result.rows.map((row) => ({
+        sku: String(row.sku || ''),
+        referencia: String(row.referencia || 'SEM REFERENCIA').trim(),
+        produto: String(row.produto || '').trim(),
+        cor: String(row.cor || '').trim(),
+        tamanho: String(row.tamanho || '').trim(),
+        continuidade: String(row.continuidade || 'SEM CONTINUIDADE').trim(),
+        periodo: String(row.periodo || '').trim().toUpperCase(),
+        qtdLote: Math.round(Number(row.qtd_lote || 0)),
+        qtdGerouOp: Math.round(Number(row.qtd_gerouop || 0)),
+        qtdReal: Math.round(Number(row.qtd_real || 0)),
+        qtdFinalizada: Math.round(Number(row.qtd_finalizada || 0)),
+        qtdProcesso: Math.max(0, Math.round(Number(row.qtd_real || 0) - Number(row.qtd_finalizada || 0))),
+        lotes: Array.isArray(row.lotes) ? row.lotes.map(String) : [],
+        ops: Array.isArray(row.ops) ? row.ops.filter(Boolean).map(String) : [],
+        situacao: String(row.situacao || 'PLANEJADO'),
+      }))
+    });
+  } catch (error) {
+    console.error("[lotes-execucao-matriz] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao consultar execucao dos lotes", details: error.message });
+  }
+});
+
+/**
+ * GET /api/producao/estoque-minimo-fechamentos
+ * Reconstrói o estoque mínimo dos três últimos meses fechados.
+ */
+router.all("/estoque-minimo-fechamentos", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const marca = String(req.query.marca || "LIEBE").trim().toUpperCase();
+    const statusList = String(req.query.status || "EM LINHA,NOVA COLECAO")
+      .split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+    const ids = Array.isArray(req.body?.ids) ? [...new Set(req.body.ids.map((id) => String(id || '').trim()).filter(Boolean))] : [];
+    const hoje = new Date();
+    const fechamentos = [3, 2, 1].map((voltar) => {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - voltar, 1);
+      return { ano: d.getFullYear(), mes: d.getMonth() + 1, label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '') };
+    });
+    const primeiro = fechamentos[0];
+    const inicio = new Date(primeiro.ano - 1, primeiro.mes <= 6 ? 0 : 6, 1);
+    const inicioIso = inicio.toISOString().slice(0, 10);
+    const anosVendas = [...new Set([primeiro.ano - 1, primeiro.ano])];
+
+    if (!ids.length) return res.json({ success: true, fechamentos, data: [] });
+    const idsNumericos = ids.map((id) => Number(id)).filter(Number.isFinite);
+    const result = await pool.query(`
+      SELECT v.idproduto::TEXT AS sku, EXTRACT(YEAR FROM v.data)::INT AS ano, EXTRACT(MONTH FROM v.data)::INT AS mes, SUM(v.qt_liquida)::FLOAT AS qtd
+      FROM vr_vendas_qtd v
+      WHERE v.idproduto = ANY($1::BIGINT[])
+        AND EXTRACT(YEAR FROM v.data)::INT = ANY($2::INT[])
+      GROUP BY v.idproduto, EXTRACT(YEAR FROM v.data), EXTRACT(MONTH FROM v.data)
+    `, [idsNumericos, anosVendas]);
+
+    const vendas = new Map();
+    for (const row of result.rows) {
+      const sku = String(row.sku);
+      const mes = `${row.ano}-${String(row.mes).padStart(2, '0')}`;
+      if (!vendas.has(sku)) vendas.set(sku, new Map());
+      vendas.get(sku).set(mes, Number(row.qtd || 0));
+    }
+    const calcular = (sku, fechamento) => {
+      const mapa = vendas.get(sku) || new Map();
+      const semInicio = new Date(fechamento.ano - 1, fechamento.mes <= 6 ? 0 : 6, 1);
+      const semFim = new Date(semInicio.getFullYear(), semInicio.getMonth() + 6, 1);
+      let sem = 0;
+      for (let d = new Date(semInicio); d < semFim; d.setMonth(d.getMonth() + 1)) sem += mapa.get(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) || 0;
+      let tri = 0;
+      for (let offset = 3; offset >= 1; offset -= 1) {
+        const d = new Date(fechamento.ano, fechamento.mes - offset, 1);
+        tri += mapa.get(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`) || 0;
+      }
+      const mediaSem = sem / 6;
+      const mediaTri = tri / 3;
+      let variacao = mediaSem ? ((mediaTri - mediaSem) / mediaSem) * 100 : null;
+      let minimo = !mediaSem ? mediaTri : !mediaTri ? mediaSem : (variacao >= 49 || variacao <= -50) ? mediaTri : (mediaSem + mediaTri) / 2;
+      return { minimo, variacao, mediaSem, mediaTri };
+    };
+
+    const data = Array.from(vendas.keys()).map((sku) => {
+      const valores = fechamentos.map((fechamento) => calcular(sku, fechamento));
+      return {
+        sku,
+        fechamentos: fechamentos.map((fechamento, index) => ({ ...fechamento, ...valores[index], minimo: Math.round(valores[index].minimo * 100) / 100 })),
+        variacao12: valores[0].minimo ? ((valores[1].minimo - valores[0].minimo) / valores[0].minimo) * 100 : null,
+        variacao23: valores[1].minimo ? ((valores[2].minimo - valores[1].minimo) / valores[1].minimo) * 100 : null,
+      };
+    });
+    return res.json({ success: true, fechamentos, data });
+  } catch (error) {
+    console.error("[estoque-minimo-fechamentos] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao reconstruir estoque mínimo", details: error.message });
+  }
+});
+
+/**
  * GET /api/producao/consumo-mp-lotes
  * Calcula o consumo de MP baseado nos lotes reais (qt_lote), não na matriz
  */
@@ -879,6 +1038,31 @@ router.post("/orcamento-mp-cache", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Erro ao salvar cache do orcamento MP",
+      details: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/producao/orcamento-mp-cache
+ * Limpa o cache do orçamento MP para forçar recarga dos dados
+ */
+router.delete("/orcamento-mp-cache", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const key = String(req.query?.key || ORCAMENTO_MP_CACHE_KEY);
+
+    await ensureOrcamentoMpCacheTable(pool);
+    await pool.query(`DELETE FROM public.app_orcamento_mp_cache WHERE cache_key = $1`, [key]);
+
+    return res.status(200).json({
+      success: true,
+      message: "Cache do orcamento MP limpo com sucesso",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao limpar cache do orcamento MP",
       details: error.message
     });
   }

@@ -71,6 +71,10 @@ function formatDateBR(date: Date) {
   return date.toLocaleDateString('pt-BR');
 }
 
+function fmt(value: number) {
+  return Number(value || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+}
+
 function taxaMesesFechados(base = new Date()) {
   return [3, 2, 1].map((voltar) => {
     const date = new Date(base.getFullYear(), base.getMonth() - voltar, 1);
@@ -174,6 +178,9 @@ type ExecucaoPlanoResumo = {
   }>;
 };
 
+type HistoricoMinimoFechamento = { ano: number; mes: number; label: string; minimo: number; mediaTri: number };
+type HistoricoMinimoRow = { sku: string; fechamentos: HistoricoMinimoFechamento[] };
+
 function mesNormalizado(mes: number) {
   const m = Number(mes || 0);
   if (!Number.isFinite(m) || m <= 0) return 1;
@@ -201,6 +208,9 @@ export default function Home() {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dados,        setDados]        = useState<Planejamento[]>([]);
+  const [historicoMinimo, setHistoricoMinimo] = useState<HistoricoMinimoRow[]>([]);
+  const [fechamentosMinimo, setFechamentosMinimo] = useState<Array<{ ano: number; mes: number; label: string }>>([]);
+  const [historicoMinimoStatus, setHistoricoMinimoStatus] = useState<'idle' | 'carregando' | 'ok' | 'erro'>('idle');
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
   const [fromCache,    setFromCache]    = useState(false);
@@ -514,6 +524,32 @@ export default function Home() {
     }
   }
 
+  async function carregarHistoricoMinimo(ids: number[]) {
+    if (!ids.length) return;
+    setHistoricoMinimoStatus('carregando');
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 180000);
+      const r = await fetchNoCache(`${API_URL}/api/producao/estoque-minimo-fechamentos?marca=${MARCA_FIXA}&status=${encodeURIComponent(STATUS_FIXO)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ ids: ids.map(String) }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!r.ok) throw new Error(`Historico ${r.status}`);
+      const payload = await r.json();
+      if (payload?.success) {
+        setHistoricoMinimo(Array.isArray(payload.data) ? payload.data : []);
+        setFechamentosMinimo(Array.isArray(payload.fechamentos) ? payload.fechamentos : []);
+        setHistoricoMinimoStatus(Array.isArray(payload.data) && payload.data.length ? 'ok' : 'erro');
+      } else setHistoricoMinimoStatus('erro');
+    } catch {
+      setHistoricoMinimoStatus('erro');
+      // A matriz principal continua disponivel se o historico nao responder.
+    }
+  }
+
   const buscarDados = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -544,6 +580,12 @@ export default function Home() {
       setLoading(false);
     }
   }, [taxaMeses]);
+
+  useEffect(() => {
+    // O historico mensal sera reativado por cache consolidado; nao consultar a view pesada na abertura.
+    return;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dados]);
 
   useEffect(() => {
     if (!building) return;
@@ -1427,6 +1469,16 @@ export default function Home() {
 
   const ml = sidebarCollapsed ? 'ml-20' : 'ml-64';
 
+  const resumoHistoricoMinimo = useMemo(() => {
+    const ids = new Set(dados.map((item) => String(item.produto.idproduto)));
+    const rows = historicoMinimo.filter((item) => ids.has(item.sku));
+    return fechamentosMinimo.map((fechamento, index) => ({
+      ...fechamento,
+      total: rows.reduce((sum, row) => sum + Number(row.fechamentos[index]?.minimo || 0), 0),
+      mediaTri: rows.reduce((sum, row) => sum + Number(row.fechamentos[index]?.mediaTri || 0), 0),
+    }));
+  }, [dados, historicoMinimo, fechamentosMinimo]);
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar onCollapse={setSidebarCollapsed} />
@@ -2274,6 +2326,47 @@ export default function Home() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
               Recalculando impacto de matéria-prima no plano de produção...
             </div>
+          )}
+
+          {false && !loading && (
+            <section className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm font-bold text-slate-800">Evolucao do estoque minimo</div>
+                  <div className="text-xs text-slate-500">Tres ultimos fechamentos dos SKUs carregados no plano</div>
+                </div>
+                <div className="text-[11px] text-slate-500">A variacao mostra a mudanca do minimo, nao do plano</div>
+              </div>
+              {resumoHistoricoMinimo.length === 0 ? (
+                <div className="px-4 py-4 text-sm text-slate-500">
+                  {historicoMinimoStatus === 'erro' ? 'Historico nao carregado: a consulta demorou mais de 15 segundos e foi interrompida.' : 'Calculando os fechamentos historicos...'}
+                </div>
+              ) : <div className="overflow-x-auto">
+                <table className="min-w-[760px] w-full text-xs">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Fechamento</th>
+                      {resumoHistoricoMinimo.map((item) => <th key={`${item.ano}-${item.mes}`} className="px-4 py-2 text-right">{item.label}/{item.ano}</th>)}
+                      <th className="px-4 py-2 text-right">Var. 1º → 2º</th>
+                      <th className="px-4 py-2 text-right">Var. 2º → 3º</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-slate-100">
+                      <td className="px-4 py-2 font-semibold text-slate-700">Estoque minimo total</td>
+                      {resumoHistoricoMinimo.map((item) => <td key={`${item.ano}-${item.mes}-min`} className="px-4 py-2 text-right font-mono font-bold">{fmt(item.total)}</td>)}
+                      <td className="px-4 py-2 text-right font-mono font-bold">{resumoHistoricoMinimo.length >= 2 ? fmt(resumoHistoricoMinimo[1].total - resumoHistoricoMinimo[0].total) : '-'}</td>
+                      <td className="px-4 py-2 text-right font-mono font-bold">{resumoHistoricoMinimo.length >= 3 ? fmt(resumoHistoricoMinimo[2].total - resumoHistoricoMinimo[1].total) : '-'}</td>
+                    </tr>
+                    <tr className="border-t border-slate-100">
+                      <td className="px-4 py-2 text-slate-500">Media trimestral usada</td>
+                      {resumoHistoricoMinimo.map((item) => <td key={`${item.ano}-${item.mes}-tri`} className="px-4 py-2 text-right font-mono text-slate-600">{fmt(item.mediaTri)}</td>)}
+                      <td colSpan={2} className="px-4 py-2 text-right text-slate-400">-</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>}
+            </section>
           )}
 
           {/* Tabela */}
