@@ -755,16 +755,24 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
       const vendaBase = Number(vendasMap.get(String(id)) || 0);
       const percentualAtendido = projBase > 0 ? (vendaBase / projBase) * 100 : 0;
       const variacaoPercentual = percentualAtendido - 100;
+      // Calcular meses QU e SX (quinto e sexto)
+      const mesQU = periodos.QT + 1 > 12 ? periodos.QT + 1 - 12 : periodos.QT + 1;
+      const mesSX = mesQU + 1 > 12 ? mesQU + 1 - 12 : mesQU + 1;
+
       const originalMeses = {
         ma: Number(proj[String(periodos.MA)] || 0),
         px: Number(proj[String(periodos.PX)] || 0),
         ul: Number(proj[String(periodos.UL)] || 0),
         qt: Number(proj[String(periodos.QT)] || 0),
+        qu: Number(proj[String(mesQU)] || 0),
+        sx: Number(proj[String(mesSX)] || 0),
       };
       const ma = aplicarReprojecaoMes(originalMeses.ma, percentualAtendido);
       const px = aplicarReprojecaoMes(originalMeses.px, percentualAtendido);
       const ul = aplicarReprojecaoMes(originalMeses.ul, percentualAtendido);
       const qt = aplicarReprojecaoMes(originalMeses.qt, percentualAtendido);
+      const qu = aplicarReprojecaoMes(originalMeses.qu, percentualAtendido);
+      const sx = aplicarReprojecaoMes(originalMeses.sx, percentualAtendido);
 
       const usaPonderadaComTrava = ma.regra.acao === 'AUMENTO_CHEIO';
       const usaMediaNoMesSubsequente = ma.regra.acao === 'MEDIA_ENTRE_ORIGINAL_E_CORRIGIDA';
@@ -774,12 +782,14 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
         px: Math.round((originalMeses.px * 0.7) + (Number(px.valorCorrigido || 0) * 0.3)),
         ul: Math.round((originalMeses.ul * 0.7) + (Number(ul.valorCorrigido || 0) * 0.3)),
         qt: Math.round((originalMeses.qt * 0.7) + (Number(qt.valorCorrigido || 0) * 0.3)),
+        qu: Math.round((originalMeses.qu * 0.7) + (Number(qu.valorCorrigido || 0) * 0.3)),
+        sx: Math.round((originalMeses.sx * 0.7) + (Number(sx.valorCorrigido || 0) * 0.3)),
       };
       const recalculadaBase = usaPonderadaComTrava
         ? recalculadaPonderada
         : (usaMediaNoMesSubsequente || usaQuedaLeveNoMesSubsequente)
-          ? { ma: originalMeses.ma, px: px.valor, ul: ul.valor, qt: qt.valor }
-          : { ma: ma.valor, px: px.valor, ul: ul.valor, qt: qt.valor };
+          ? { ma: originalMeses.ma, px: px.valor, ul: ul.valor, qt: qt.valor, qu: qu.valor, sx: sx.valor }
+          : { ma: ma.valor, px: px.valor, ul: ul.valor, qt: qt.valor, qu: qu.valor, sx: sx.valor };
       const recalculadaFinal = usaPonderadaComTrava
         ? aplicarTravaNegativoReprojecao(
             originalMeses,
@@ -825,12 +835,16 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
           px: Math.round(originalMeses.px),
           ul: Math.round(originalMeses.ul),
           qt: Math.round(originalMeses.qt),
+          qu: Math.round(originalMeses.qu),
+          sx: Math.round(originalMeses.sx),
         },
         recalculada: {
           ma: recalculadaFinal.ma,
           px: recalculadaFinal.px,
           ul: recalculadaFinal.ul,
           qt: recalculadaFinal.qt,
+          qu: recalculadaFinal.qu || qu.valor,
+          sx: recalculadaFinal.sx || sx.valor,
         },
         travaNegativo: {
           aplicada: Boolean(recalculadaFinal.travaNegativoAplicada),

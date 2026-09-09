@@ -59,6 +59,16 @@ type RowNegativo = {
   saldoProximoAntes: number | null;
   saldoProximoApos: number | null;
   melhoriaProximo: number;
+  coberturaMinCurva: number;
+  estoqueMinCoberturaAlvo: number;
+  faltaParaCobertura: number;
+};
+
+type ConfigSugestao = {
+  cobertura_min_a: number;
+  cobertura_min_b: number;
+  cobertura_min_c: number;
+  cobertura_min_d: number;
 };
 type RefGroup = {
   referencia: string;
@@ -96,6 +106,17 @@ function fmtPct(v: number | null) {
   if (v === null || !Number.isFinite(v)) return '-';
   const sinal = v > 0 ? '+' : '';
   return `${sinal}${v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
+function getCoberturaMinByCurva(curva: CurvaABC, config: ConfigSugestao | null): number {
+  if (!config) return 0;
+  switch (curva) {
+    case 'A': return config.cobertura_min_a;
+    case 'B': return config.cobertura_min_b;
+    case 'C': return config.cobertura_min_c;
+    case 'D': return config.cobertura_min_d;
+    default: return 0;
+  }
 }
 
 function norm(value: string) {
@@ -228,6 +249,7 @@ export default function RecuperarNegativosPage() {
   const [cortes, setCortes] = useState<Record<string, number>>({});
   const [curvaABC, setCurvaABC] = useState<Record<string, CurvaABC>>({});
   const [reprojecao, setReprojecao] = useState<Record<string, ReprojecaoItem>>({});
+  const [configSugestao, setConfigSugestao] = useState<ConfigSugestao | null>(null);
   const [periodoAlvo, setPeriodoAlvo] = useState<Periodo>('MA');
   const [usarMeioCorte, setUsarMeioCorte] = useState(true);
   const [filtroCont, setFiltroCont] = useState('TODAS');
@@ -260,10 +282,11 @@ export default function RecuperarNegativosPage() {
     setOkMsg(null);
     try {
       const params = new URLSearchParams({ limit: '5000', marca: MARCA_FIXA, status: STATUS_FIXO, prefer_cache: 'true' });
-      const [rMatriz, rProj, rCortes] = await Promise.all([
+      const [rMatriz, rProj, rCortes, rConfig] = await Promise.all([
         fetchNoCache(`${API_URL}/api/producao/matriz?${params}`),
         fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/configuracoes/sugestao-plano`, { headers: authHeaders() }),
       ]);
       if (!rMatriz.ok || !rProj.ok || !rCortes.ok) throw new Error('Erro ao carregar negativos');
       const pMatriz = await rMatriz.json();
@@ -278,6 +301,11 @@ export default function RecuperarNegativosPage() {
       setProjecoes((pProj?.data || {}) as ProjecoesMap);
       if (pProj?.periodos) setPeriodos(pProj.periodos as PeriodosPlano);
       setCortes(mapaCortes);
+      // Carregar config de cobertura
+      if (rConfig.ok) {
+        const pConfig = await rConfig.json();
+        setConfigSugestao(pConfig?.data || null);
+      }
       void carregarComplementares();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar');
@@ -342,7 +370,16 @@ export default function RecuperarNegativosPage() {
           : variacaoFallback;
         const corteInteiro = Math.max(1, Number(cortes[id] || 0) || Math.round(Number(item.estoques.estoque_minimo || 1)));
         const lote = usarMeioCorte ? Math.max(1, Math.round(corteInteiro / 2)) : corteInteiro;
-        const sugestao = negativo > 0 ? roundUpByLot(negativo, lote) : 0;
+        // Calcular cobertura mínima alvo por curva
+        const coberturaMinCurva = getCoberturaMinByCurva(curvaRef, configSugestao);
+        const estoqueMinCoberturaAlvo = estoqueMin * coberturaMinCurva;
+        // Saldo após zerar negativo = saldoPeriodo + negativo (fica 0 se saldoPeriodo era negativo)
+        const saldoAposZerar = saldoPeriodo + negativo;
+        // Falta para atingir cobertura mínima
+        const faltaParaCobertura = Math.max(0, estoqueMinCoberturaAlvo - saldoAposZerar);
+        // Necessidade total = zerar negativo + atingir cobertura mínima
+        const necessidadeTotal = negativo + faltaParaCobertura;
+        const sugestao = necessidadeTotal > 0 ? roundUpByLot(necessidadeTotal, lote) : 0;
         const prox = periodoSeguinte(periodoAlvo);
         const saldoProximoAntes = prox ? Number(disp[prox] || 0) : null;
         const saldoProximoApos = saldoProximoAntes !== null ? saldoProximoAntes + sugestao : null;
@@ -374,12 +411,15 @@ export default function RecuperarNegativosPage() {
           saldoProximoAntes,
           saldoProximoApos,
           melhoriaProximo: Math.max(0, negativoProximoAntes - negativoProximoApos),
+          coberturaMinCurva,
+          estoqueMinCoberturaAlvo,
+          faltaParaCobertura,
         };
       })
       .filter((row) => row.negativo > 0)
       .filter((row) => filtroCurvaABC.length === 0 || filtroCurvaABC.includes(row.curvaABC))
       .sort((a, b) => b.negativo - a.negativo);
-  }, [dados, projecoes, periodos, cortes, periodoAlvo, usarMeioCorte, filtroCont, filtroCurvaABC, curvaABC, reprojecao]);
+  }, [dados, projecoes, periodos, cortes, periodoAlvo, usarMeioCorte, filtroCont, filtroCurvaABC, curvaABC, reprojecao, configSugestao]);
 
   const resumo = useMemo(() => ({
     skus: rows.length,
@@ -393,6 +433,11 @@ export default function RecuperarNegativosPage() {
       ? ((rows.reduce((acc, r) => acc + r.projNova, 0) - rows.reduce((acc, r) => acc + r.projAtual, 0)) / rows.reduce((acc, r) => acc + r.projAtual, 0)) * 100
       : null,
     melhoriaProximo: rows.reduce((acc, r) => acc + r.melhoriaProximo, 0),
+    // Métricas de cobertura mínima
+    coberturaMinMedia: rows.length > 0
+      ? rows.reduce((acc, r) => acc + r.coberturaMinCurva, 0) / rows.length
+      : 0,
+    totalFaltaCobertura: rows.reduce((acc, r) => acc + r.faltaParaCobertura, 0),
   }), [rows]);
 
   const gruposRef = useMemo<RefGroup[]>(() => {
@@ -651,10 +696,11 @@ export default function RecuperarNegativosPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
             <div className="bg-white rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">SKUs negativos</div><div className="text-xl font-bold">{fmt(resumo.skus)}</div></div>
             <div className="bg-white rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Referencias</div><div className="text-xl font-bold">{fmt(resumo.refs)}</div></div>
             <div className="bg-red-50 rounded-lg border border-red-200 p-3"><div className="text-xs text-red-700">Negativo</div><div className="text-xl font-bold text-red-700">{fmt(resumo.negativo)}</div></div>
+            <div className="bg-amber-50 rounded-lg border border-amber-200 p-3"><div className="text-xs text-amber-700">Cob. min alvo</div><div className="text-xl font-bold text-amber-700">{fmtCob(resumo.coberturaMinMedia)}</div></div>
             <div className="bg-emerald-50 rounded-lg border border-emerald-200 p-3"><div className="text-xs text-emerald-700">Plano sugerido</div><div className="text-xl font-bold text-emerald-700">{fmt(resumo.sugestao)}</div></div>
             <div className="bg-white rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Cob. apos</div><div className="text-xl font-bold">{fmtCob(resumo.coberturaApos)}</div></div>
             <div className="bg-blue-50 rounded-lg border border-blue-200 p-3"><div className="text-xs text-blue-700">Melhora prox.</div><div className="text-xl font-bold text-blue-700">{fmt(resumo.melhoriaProximo)}</div></div>

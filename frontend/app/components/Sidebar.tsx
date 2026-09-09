@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, AlertTriangle } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, AlertTriangle, MinusCircle } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -100,6 +100,11 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
           <button onClick={() => router.push('/recuperar-negativos')} className={`${navItemBase} ${pathname === '/recuperar-negativos' ? navActive : navInactive}`}>
             <AlertTriangle size={20} className="shrink-0" />
             {!collapsed && <span>Recuperar Negativos</span>}
+          </button>
+
+          <button onClick={() => router.push('/reducao-plano')} className={`${navItemBase} ${pathname === '/reducao-plano' ? navActive : navInactive}`}>
+            <MinusCircle size={20} className="shrink-0" />
+            {!collapsed && <span>Redução de Plano</span>}
           </button>
 
           <button onClick={() => router.push('/sugestoes-aprovacoes')} className={`${navItemBase} ${pathname === '/sugestoes-aprovacoes' ? navActive : navInactive}`}>

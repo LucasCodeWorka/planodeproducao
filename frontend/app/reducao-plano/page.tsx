@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import { PeriodosPlano, Planejamento, ProjecoesMap } from '../types';
@@ -50,6 +50,22 @@ type ReducaoRow = {
   refTransferenciaTotal?: number;
   refSkus?: number;
   refSkusBloqueados?: number;
+};
+
+type RefGroup = {
+  referencia: string;
+  produto: string;
+  continuidade: string;
+  linha: string;
+  familia: string;
+  curva: 'A' | 'B' | 'C' | 'D';
+  itens: ReducaoRow[];
+  skus: number;
+  reducaoTotal: number;
+  transferenciaTotal: number;
+  planoAtual: number;
+  planoNovo: number;
+  skusBloqueados: number;
 };
 
 function fmt(v: number) {
@@ -163,6 +179,8 @@ export default function ReducaoPlanoPage() {
   const [limiteReducaoPct, setLimiteReducaoPct] = useState(100);
   const [limiteExtraTolerancia, setLimiteExtraTolerancia] = useState(0);
   const [modoAnalise, setModoAnalise] = useState<ModoAnalise>('SKU');
+  const [expandedRefs, setExpandedRefs] = useState<Set<string>>(new Set());
+  const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -301,6 +319,7 @@ export default function ReducaoPlanoPage() {
       if (filtroCont !== 'TODAS' && norm(r.continuidade) !== filtroCont) return false;
       if (filtroLinha !== 'TODAS' && norm(r.linha) !== filtroLinha) return false;
       if (filtroFamilia !== 'TODAS' && norm(r.familia) !== filtroFamilia) return false;
+      if (filtroCurvaABC.length > 0 && !filtroCurvaABC.includes(r.curva)) return false;
       return true;
     });
 
@@ -380,7 +399,7 @@ export default function ReducaoPlanoPage() {
         }
         return r.reducaoSegura > 0 || r.transferencia > 0;
       });
-  }, [rows, filtroCont, filtroLinha, filtroFamilia, somenteComReducao, periodoAlvo, usarMeioCorte, modoAnalise, limiteExtraTolerancia]);
+  }, [rows, filtroCont, filtroLinha, filtroFamilia, filtroCurvaABC, somenteComReducao, periodoAlvo, usarMeioCorte, modoAnalise, limiteExtraTolerancia]);
 
   const resumo = useMemo(() => ({
     skusReducao: rowsVisiveis.filter((r) => r.reducaoSegura > 0).length,
@@ -391,6 +410,59 @@ export default function ReducaoPlanoPage() {
     extraTolerancia: rowsVisiveis.reduce((acc, r) => acc + r.extraTolerancia, 0),
     refsReducao: new Set(rowsVisiveis.filter((r) => r.reducaoSegura > 0).map((r) => norm(r.referencia))).size,
   }), [rowsVisiveis]);
+
+  // Agrupamento por referência para estrutura expansível
+  const gruposRef = useMemo<RefGroup[]>(() => {
+    const map = new Map<string, ReducaoRow[]>();
+    rowsVisiveis.forEach((row) => {
+      const key = norm(row.referencia) || row.referencia;
+      const atual = map.get(key) || [];
+      atual.push(row);
+      map.set(key, atual);
+    });
+
+    return Array.from(map.entries())
+      .map(([referencia, itens]) => ({
+        referencia,
+        produto: itens[0]?.produto || '-',
+        continuidade: itens[0]?.continuidade || '-',
+        linha: itens[0]?.linha || '-',
+        familia: itens[0]?.familia || '-',
+        curva: itens[0]?.curva || 'B',
+        itens: [...itens].sort((a, b) => `${a.cor}-${a.tamanho}`.localeCompare(`${b.cor}-${b.tamanho}`)),
+        skus: itens.length,
+        reducaoTotal: itens.reduce((acc, r) => acc + r.reducaoSegura, 0),
+        transferenciaTotal: itens.reduce((acc, r) => acc + r.transferencia, 0),
+        planoAtual: itens.reduce((acc, r) => acc + Number(r.plano[periodoAlvo] || 0), 0),
+        planoNovo: itens.reduce((acc, r) => acc + r.planoTargetNovo, 0),
+        skusBloqueados: itens.filter((r) => Number(r.plano[periodoAlvo] || 0) > 0 && r.reducaoSegura <= 0).length,
+      }))
+      .sort((a, b) => (b.reducaoTotal + b.transferenciaTotal) - (a.reducaoTotal + a.transferenciaTotal));
+  }, [rowsVisiveis, periodoAlvo]);
+
+  function toggleRef(ref: string) {
+    setExpandedRefs((prev) => {
+      const next = new Set(prev);
+      if (next.has(ref)) next.delete(ref);
+      else next.add(ref);
+      return next;
+    });
+  }
+
+  function expandirTodas() {
+    setExpandedRefs(new Set(gruposRef.map((g) => g.referencia)));
+  }
+
+  function recolherTodas() {
+    setExpandedRefs(new Set());
+  }
+
+  function toggleCurva(curva: 'A' | 'B' | 'C' | 'D') {
+    setFiltroCurvaABC((prev) => {
+      if (prev.includes(curva)) return prev.filter((c) => c !== curva);
+      return [...prev, curva];
+    });
+  }
 
   // Resumo geral: análise do plano completo
   // Calcula independente do período selecionado, usando dados base
@@ -769,6 +841,28 @@ export default function ReducaoPlanoPage() {
             <button onClick={carregar} disabled={loading} className="px-3 py-1.5 text-xs font-semibold border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60">
               Atualizar
             </button>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-semibold text-gray-600 mr-1">Curva:</span>
+              {(['A', 'B', 'C', 'D'] as const).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => toggleCurva(c)}
+                  className={`px-2 py-1 text-xs font-semibold rounded border transition-colors ${
+                    filtroCurvaABC.includes(c)
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <button onClick={expandirTodas} disabled={gruposRef.length === 0} className="px-3 py-1.5 text-xs font-semibold border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60">
+              Abrir refs
+            </button>
+            <button onClick={recolherTodas} disabled={expandedRefs.size === 0} className="px-3 py-1.5 text-xs font-semibold border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60">
+              Recolher
+            </button>
           </div>
 
           {/* Resumo Geral do Plano */}
@@ -1144,37 +1238,50 @@ export default function ReducaoPlanoPage() {
             <table className="min-w-full text-xs">
               <thead className="sticky top-0 bg-gray-100 z-10">
                 <tr>
+                  <th className="text-left px-2 py-2 w-6"></th>
                   <th className="text-left px-2 py-2">Ref</th>
-                  {modoAnalise === 'REFERENCIA' && <th className="text-right px-2 py-2">Red. ref</th>}
-                  {modoAnalise === 'REFERENCIA' && <th className="text-right px-2 py-2">Bloq.</th>}
-                  <th className="text-left px-2 py-2">Cor/Tam</th>
                   <th className="text-left px-2 py-2">Curva</th>
+                  <th className="text-right px-2 py-2">SKUs</th>
                   <th className="text-right px-2 py-2">Plano {periodoAlvo}</th>
-                  <th className="text-right px-2 py-2">Saldo min futuro</th>
                   <th className="text-right px-2 py-2">Reduzir</th>
                   <th className="text-right px-2 py-2">Novo {periodoAlvo}</th>
                   <th className="text-right px-2 py-2">Trazer prox.</th>
-                  <th className="text-right px-2 py-2">Saldo {periodoAlvo} apos</th>
                 </tr>
               </thead>
               <tbody>
-                {rowsVisiveis.slice(0, 1000).map((r, idx) => (
-                  <tr key={r.chave} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200`}>
-                    <td className="px-2 py-1.5 font-semibold">{r.referencia}</td>
-                    {modoAnalise === 'REFERENCIA' && <td className="px-2 py-1.5 text-right font-mono font-semibold text-red-700">{fmt(Number(r.refReducaoTotal || 0))}</td>}
-                    {modoAnalise === 'REFERENCIA' && <td className={`px-2 py-1.5 text-right font-mono ${Number(r.refSkusBloqueados || 0) > 0 ? 'text-amber-700 font-semibold' : 'text-gray-500'}`}>{fmt(Number(r.refSkusBloqueados || 0))}/{fmt(Number(r.refSkus || 0))}</td>}
-                    <td className="px-2 py-1.5">{r.cor} / {r.tamanho}</td>
-                    <td className="px-2 py-1.5">{r.curva}</td>
-                    <td className="px-2 py-1.5 text-right font-mono">{fmt(r.plano[periodoAlvo])}</td>
-                    <td className={`px-2 py-1.5 text-right font-mono ${r.menorSaldoFuturo < 0 ? 'text-red-700 font-bold' : 'text-gray-700'}`}>{fmt(r.menorSaldoFuturo)}</td>
-                    <td className="px-2 py-1.5 text-right font-mono text-red-700 font-semibold">{fmt(r.reducaoSegura)}</td>
-                    <td className="px-2 py-1.5 text-right font-mono">{fmt(r.planoTargetNovo)}</td>
-                    <td className="px-2 py-1.5 text-right font-mono text-blue-700 font-semibold">{r.next ? fmt(r.transferencia) : '-'}</td>
-                    <td className={`px-2 py-1.5 text-right font-mono ${r.dispTargetPosTransfer < 0 ? 'text-red-700 font-bold' : 'text-emerald-700'}`}>{fmt(r.dispTargetPosTransfer)}</td>
-                  </tr>
+                {gruposRef.slice(0, 200).map((grupo) => (
+                  <Fragment key={grupo.referencia}>
+                    {/* Linha do grupo (clicável) */}
+                    <tr
+                      onClick={() => toggleRef(grupo.referencia)}
+                      className="bg-white border-t border-gray-200 cursor-pointer hover:bg-gray-50"
+                    >
+                      <td className="px-2 py-1.5 text-gray-500">{expandedRefs.has(grupo.referencia) ? '▼' : '▶'}</td>
+                      <td className="px-2 py-1.5 font-semibold">{grupo.referencia}</td>
+                      <td className="px-2 py-1.5">{grupo.curva}</td>
+                      <td className="px-2 py-1.5 text-right font-mono">{grupo.skus}</td>
+                      <td className="px-2 py-1.5 text-right font-mono">{fmt(grupo.planoAtual)}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-red-700 font-semibold">{fmt(grupo.reducaoTotal)}</td>
+                      <td className="px-2 py-1.5 text-right font-mono">{fmt(grupo.planoNovo)}</td>
+                      <td className="px-2 py-1.5 text-right font-mono text-blue-700 font-semibold">{fmt(grupo.transferenciaTotal)}</td>
+                    </tr>
+                    {/* Linhas dos SKUs (se expandido) */}
+                    {expandedRefs.has(grupo.referencia) && grupo.itens.map((r) => (
+                      <tr key={r.chave} className="bg-gray-50/70 border-t border-gray-100">
+                        <td className="px-2 py-1"></td>
+                        <td className="px-2 py-1 pl-6 text-gray-600">{r.cor} / {r.tamanho}</td>
+                        <td className="px-2 py-1 text-gray-500">{r.curva}</td>
+                        <td className="px-2 py-1 text-right font-mono text-gray-500">1</td>
+                        <td className="px-2 py-1 text-right font-mono">{fmt(r.plano[periodoAlvo])}</td>
+                        <td className="px-2 py-1 text-right font-mono text-red-600">{fmt(r.reducaoSegura)}</td>
+                        <td className="px-2 py-1 text-right font-mono">{fmt(r.planoTargetNovo)}</td>
+                        <td className="px-2 py-1 text-right font-mono text-blue-600">{r.next ? fmt(r.transferencia) : '-'}</td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
-                {rowsVisiveis.length === 0 && (
-                  <tr><td colSpan={modoAnalise === 'REFERENCIA' ? 11 : 9} className="px-3 py-8 text-center text-gray-500">Nenhuma oportunidade encontrada.</td></tr>
+                {gruposRef.length === 0 && (
+                  <tr><td colSpan={8} className="px-3 py-8 text-center text-gray-500">Nenhuma oportunidade encontrada.</td></tr>
                 )}
               </tbody>
             </table>
