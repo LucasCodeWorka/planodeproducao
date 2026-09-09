@@ -14,6 +14,12 @@ const STATUS_FIXO = 'EM LINHA';
 const PERIODOS = ['MA', 'PX', 'UL', 'QT', 'QU', 'SX'] as const;
 const EXTRA_MEIO_CORTE_MAX = 5000;
 const EXTRA_TOLERANCIA_OPTIONS = [0, 2500, 5000, 7500, 10000];
+const HORIZONTE_OPTIONS = [
+  { value: 2, label: '2M (MA→PX)', periodos: ['MA', 'PX'] as const },
+  { value: 3, label: '3M (MA→UL)', periodos: ['MA', 'PX', 'UL'] as const },
+  { value: 4, label: '4M (MA→QT)', periodos: ['MA', 'PX', 'UL', 'QT'] as const },
+  { value: 6, label: 'Completo', periodos: ['MA', 'PX', 'UL', 'QT', 'QU', 'SX'] as const },
+] as const;
 
 type Periodo = typeof PERIODOS[number];
 type PlanoCompleto = Record<Periodo, number>;
@@ -181,6 +187,13 @@ export default function ReducaoPlanoPage() {
   const [modoAnalise, setModoAnalise] = useState<ModoAnalise>('SKU');
   const [expandedRefs, setExpandedRefs] = useState<Set<string>>(new Set());
   const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
+  const [horizonteMeses, setHorizonteMeses] = useState<2 | 3 | 4 | 6>(4);
+
+  // Períodos filtrados pelo horizonte selecionado
+  const periodosVisiveis = useMemo(() => {
+    const opcao = HORIZONTE_OPTIONS.find((h) => h.value === horizonteMeses);
+    return (opcao?.periodos || PERIODOS) as readonly Periodo[];
+  }, [horizonteMeses]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -467,6 +480,7 @@ export default function ReducaoPlanoPage() {
   // Resumo geral: análise do plano completo
   // Calcula independente do período selecionado, usando dados base
   const resumoGeral = useMemo(() => {
+    const PERIODOS_ANALISE = PERIODOS;
     const planoTotal: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
     const reducaoPorPeriodo: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
     const antecipacaoPorPeriodo: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
@@ -511,8 +525,8 @@ export default function ReducaoPlanoPage() {
       pedidosPendentesTotal += Number(item.demanda.pedidos_pendentes || 0);
       estoqueMinimoTotal += Number(item.estoques.estoque_minimo || 0);
 
-      // Plano e projeção por período
-      PERIODOS.forEach((p) => {
+      // Plano e projeção por período (apenas os visíveis)
+      PERIODOS_ANALISE.forEach((p) => {
         planoTotal[p] += Number(plano[p] || 0);
         const mes = meses[p];
         const projMes = p === 'MA'
@@ -525,13 +539,13 @@ export default function ReducaoPlanoPage() {
     // Calcular saldo por período (acumulativo)
     const disponivelInicial = estoqueAtualTotal - pedidosPendentesTotal + emProcessoTotal;
     let saldoAcumulado = disponivelInicial;
-    PERIODOS.forEach((p) => {
+    PERIODOS_ANALISE.forEach((p) => {
       saldoAcumulado = saldoAcumulado + planoTotal[p] - projecaoPorPeriodo[p];
       saldoPorPeriodo[p] = saldoAcumulado;
     });
 
-    // Encontrar o último período com plano
-    const periodosComPlano = PERIODOS.filter((p) => planoTotal[p] > 0);
+    // Encontrar o último período com plano (dentro do horizonte)
+    const periodosComPlano = PERIODOS_ANALISE.filter((p) => planoTotal[p] > 0);
     const ultimoPeriodoComPlano = periodosComPlano[periodosComPlano.length - 1] || 'QT';
 
     // Segundo passo: calcular redução para cada SKU e período
@@ -547,14 +561,14 @@ export default function ReducaoPlanoPage() {
 
       // Calcula redução e antecipação para CADA período de forma independente
       periodosComPlano.forEach((p, pIdx) => {
-        const idx = PERIODOS.indexOf(p);
+        const idx = PERIODOS_ANALISE.indexOf(p);
         const planoNoPeriodo = Number(plano[p] || 0);
         const saldoPeriodo = Number(disp[p] || 0);
         const nextPeriodo = periodosComPlano[pIdx + 1] || null;
 
         // REDUÇÃO: se tem plano e saldo positivo futuro
         if (planoNoPeriodo > 0) {
-          const saldosFuturos = PERIODOS.slice(idx).map((pf) => Number(disp[pf] || 0));
+          const saldosFuturos = PERIODOS_ANALISE.slice(idx).map((pf) => Number(disp[pf] || 0));
           const menorSaldoFuturo = Math.min(...saldosFuturos);
           const maxReducaoSegura = Math.min(planoNoPeriodo, Math.max(0, menorSaldoFuturo));
           const reducaoComLote = roundDownByLot(maxReducaoSegura, lote);
@@ -590,7 +604,7 @@ export default function ReducaoPlanoPage() {
         skusComDeficit++;
       }
 
-      // Menor saldo futuro (apenas períodos com plano)
+      // Menor saldo futuro (apenas períodos visíveis com plano)
       const menorSaldo = Math.min(...periodosComPlano.map((p) => Number(disp[p] || 0)));
       if (menorSaldo > 0) {
         excessoReduzivel += menorSaldo;
@@ -619,11 +633,11 @@ export default function ReducaoPlanoPage() {
       periodosComPlano.forEach((p) => {
         // Recalcula disp com o plano ajustado
         const dispAtual = calcularDisp(item, projecoes, periodos, planoAjustado);
-        const idx = PERIODOS.indexOf(p);
+        const idx = PERIODOS_ANALISE.indexOf(p);
         const planoNoPeriodo = Number(planoAjustado[p] || 0);
 
         if (planoNoPeriodo > 0) {
-          const saldosFuturos = PERIODOS.slice(idx).map((pf) => Number(dispAtual[pf] || 0));
+          const saldosFuturos = PERIODOS_ANALISE.slice(idx).map((pf) => Number(dispAtual[pf] || 0));
           const menorSaldoFuturo = Math.min(...saldosFuturos);
           const maxReducao = Math.min(planoNoPeriodo, Math.max(0, menorSaldoFuturo));
           const reducaoComLote = roundDownByLot(maxReducao, lote);
@@ -790,6 +804,12 @@ export default function ReducaoPlanoPage() {
 
           <div className="bg-white rounded-lg border border-gray-200 p-3 flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold text-gray-600">Horizonte</span>
+              <select value={horizonteMeses} onChange={(e) => setHorizonteMeses(Number(e.target.value) as 2 | 3 | 4 | 6)} className="border border-gray-300 rounded px-2 py-1.5 text-xs bg-amber-50 border-amber-300 font-semibold">
+                {HORIZONTE_OPTIONS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold text-gray-600">Periodo</span>
               <select value={periodoAlvo} onChange={(e) => setPeriodoAlvo(e.target.value as Periodo)} className="border border-gray-300 rounded px-2 py-1.5 text-xs">
                 {PERIODOS.filter((p) => resumoGeral.planoTotal[p] > 0 || rows.length === 0).map((p) => <option key={p} value={p}>{p}</option>)}
@@ -867,9 +887,12 @@ export default function ReducaoPlanoPage() {
 
           {/* Resumo Geral do Plano */}
           {(() => {
+            // periodosComPlano: todos os períodos com plano
+            // periodosExibidos: apenas os visíveis pelo horizonte selecionado
             const periodosComPlano = PERIODOS.filter((p) => resumoGeral.planoTotal[p] > 0);
-            const primeiro = periodosComPlano[0] || 'MA';
-            const ultimo = periodosComPlano[periodosComPlano.length - 1] || 'MA';
+            const periodosExibidos = periodosComPlano.filter((p) => periodosVisiveis.includes(p));
+            const primeiro = periodosExibidos[0] || 'MA';
+            const ultimo = periodosExibidos[periodosExibidos.length - 1] || 'MA';
             const tituloRange = primeiro === ultimo ? primeiro : `${primeiro} → ${ultimo}`;
             return (
           <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-300 p-3">
@@ -879,7 +902,7 @@ export default function ReducaoPlanoPage() {
             </div>
             {/* Cards de plano por período */}
             <div className="grid grid-cols-4 gap-2 mb-2">
-              {periodosComPlano.map((p) => {
+              {periodosExibidos.map((p) => {
                 const plano = resumoGeral.planoTotal[p];
                 return (
                   <div key={p} className="rounded border bg-white px-2 py-1.5 text-center">
@@ -898,7 +921,7 @@ export default function ReducaoPlanoPage() {
                   <span className="text-[9px] text-gray-500">clique para selecionar</span>
                 </div>
                 <div className="grid grid-cols-4 gap-1">
-                  {periodosComPlano.map((p) => {
+                  {periodosExibidos.map((p) => {
                     const reducao = resumoGeral.reducaoPorPeriodo[p];
                     const isMelhor = p === resumoGeral.melhorPeriodo;
                     const isSelecionado = p === periodoAlvo;
@@ -926,10 +949,10 @@ export default function ReducaoPlanoPage() {
               <div className="bg-gray-50 rounded border border-gray-300 p-2">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] font-bold text-gray-700">Aplicar em TODOS ({primeiro}→{ultimo})</span>
-                  <span className="text-[9px] font-bold text-red-600">-{fmt(resumoGeral.reducaoSequencialTotal)} total</span>
+                  <span className="text-[9px] font-bold text-red-600">-{fmt(periodosExibidos.reduce((acc, p) => acc + resumoGeral.reducaoSequencial[p], 0))} total</span>
                 </div>
                 <div className="grid grid-cols-4 gap-1">
-                  {periodosComPlano.map((p) => {
+                  {periodosExibidos.map((p) => {
                     const seqReducao = resumoGeral.reducaoSequencial[p];
                     const indReducao = resumoGeral.reducaoPorPeriodo[p];
                     const perdido = indReducao - seqReducao;
@@ -949,7 +972,7 @@ export default function ReducaoPlanoPage() {
 
             {/* Cálculos compartilhados: planoNovo e antecipacaoCedida */}
             {(() => {
-              // Calcula antecipação cedida por período (o que o período dá para o anterior)
+              // Calcula antecipação cedida por período (o que o período dá para o anterior) - usando TODOS os períodos para cálculo correto
               const antecipacaoCedida: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
               periodosComPlano.forEach((p, idx) => {
                 if (idx > 0) {
@@ -958,7 +981,7 @@ export default function ReducaoPlanoPage() {
                 }
               });
 
-              // Plano novo = atual - redução + recebido - cedido
+              // Plano novo = atual - redução + recebido - cedido (usa todos os períodos para cálculo correto)
               const planoNovo: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
               let planoNovoTotal = 0;
               periodosComPlano.forEach((p) => {
@@ -991,7 +1014,7 @@ export default function ReducaoPlanoPage() {
                 <thead>
                   <tr className="border-b border-slate-300">
                     <th className="text-left py-0.5 px-1 text-slate-600"></th>
-                    {periodosComPlano.map((p) => (
+                    {periodosExibidos.map((p) => (
                       <th key={p} className="text-center py-0.5 px-1 text-slate-600 font-bold">{p}</th>
                     ))}
                     <th className="text-center py-0.5 px-1 text-slate-800 font-bold bg-slate-200">TOTAL</th>
@@ -1000,23 +1023,23 @@ export default function ReducaoPlanoPage() {
                 <tbody>
                   <tr className="border-b border-slate-200">
                     <td className="py-0.5 px-1 text-slate-600">Atual</td>
-                    {periodosComPlano.map((p) => (
+                    {periodosExibidos.map((p) => (
                       <td key={p} className="text-center py-0.5 px-1 font-mono">{fmt(resumoGeral.planoTotal[p])}</td>
                     ))}
-                    <td className="text-center py-0.5 px-1 font-mono font-bold bg-slate-100">{fmt(resumoGeral.planoTotalGeral)}</td>
+                    <td className="text-center py-0.5 px-1 font-mono font-bold bg-slate-100">{fmt(periodosExibidos.reduce((acc, p) => acc + resumoGeral.planoTotal[p], 0))}</td>
                   </tr>
                   <tr className="border-b border-slate-200 bg-red-50">
                     <td className="py-0.5 px-1 text-red-700">Redução</td>
-                    {periodosComPlano.map((p) => (
+                    {periodosExibidos.map((p) => (
                       <td key={p} className="text-center py-0.5 px-1 font-mono text-red-600">
                         {resumoGeral.reducaoSequencial[p] > 0 ? `-${fmt(resumoGeral.reducaoSequencial[p])}` : '-'}
                       </td>
                     ))}
-                    <td className="text-center py-0.5 px-1 font-mono font-bold text-red-700 bg-red-100">-{fmt(resumoGeral.reducaoSequencialTotal)}</td>
+                    <td className="text-center py-0.5 px-1 font-mono font-bold text-red-700 bg-red-100">-{fmt(periodosExibidos.reduce((acc, p) => acc + resumoGeral.reducaoSequencial[p], 0))}</td>
                   </tr>
                   <tr className="border-b border-slate-200 bg-blue-50">
                     <td className="py-0.5 px-1 text-blue-700">Antecip. (+)</td>
-                    {periodosComPlano.map((p) => {
+                    {periodosExibidos.map((p) => {
                       const recebido = resumoGeral.antecipacaoPorPeriodo[p] || 0;
                       return (
                         <td key={p} className="text-center py-0.5 px-1 font-mono text-blue-600">
@@ -1024,11 +1047,11 @@ export default function ReducaoPlanoPage() {
                         </td>
                       );
                     })}
-                    <td className="text-center py-0.5 px-1 font-mono font-bold text-blue-700 bg-blue-100">+{fmt(resumoGeral.antecipacaoTotalGeral)}</td>
+                    <td className="text-center py-0.5 px-1 font-mono font-bold text-blue-700 bg-blue-100">+{fmt(periodosExibidos.reduce((acc, p) => acc + (resumoGeral.antecipacaoPorPeriodo[p] || 0), 0))}</td>
                   </tr>
                   <tr className="border-b border-slate-200 bg-orange-50">
                     <td className="py-0.5 px-1 text-orange-700">Cedido (-)</td>
-                    {periodosComPlano.map((p) => {
+                    {periodosExibidos.map((p) => {
                       const cedido = antecipacaoCedida[p] || 0;
                       return (
                         <td key={p} className="text-center py-0.5 px-1 font-mono text-orange-600">
@@ -1036,18 +1059,18 @@ export default function ReducaoPlanoPage() {
                         </td>
                       );
                     })}
-                    <td className="text-center py-0.5 px-1 font-mono font-bold text-orange-700 bg-orange-100">-{fmt(resumoGeral.antecipacaoTotalGeral)}</td>
+                    <td className="text-center py-0.5 px-1 font-mono font-bold text-orange-700 bg-orange-100">-{fmt(periodosExibidos.reduce((acc, p) => acc + (antecipacaoCedida[p] || 0), 0))}</td>
                   </tr>
                   <tr className="bg-emerald-50 font-semibold">
                     <td className="py-0.5 px-1 text-emerald-700">Novo</td>
-                    {periodosComPlano.map((p) => (
+                    {periodosExibidos.map((p) => (
                       <td key={p} className="text-center py-0.5 px-1 font-mono text-emerald-700">{fmt(planoNovo[p])}</td>
                     ))}
-                    <td className="text-center py-0.5 px-1 font-mono font-bold text-emerald-800 bg-emerald-100">{fmt(planoNovoTotal)}</td>
+                    <td className="text-center py-0.5 px-1 font-mono font-bold text-emerald-800 bg-emerald-100">{fmt(periodosExibidos.reduce((acc, p) => acc + planoNovo[p], 0))}</td>
                   </tr>
                   <tr className="border-t border-slate-300 text-[10px]">
                     <td className="py-0.5 px-1 text-slate-500">Diferença</td>
-                    {periodosComPlano.map((p) => {
+                    {periodosExibidos.map((p) => {
                       const diff = resumoGeral.planoTotal[p] - planoNovo[p];
                       return (
                         <td key={p} className={`text-center py-0.5 px-1 font-semibold ${diff > 0 ? 'text-red-600' : diff < 0 ? 'text-blue-600' : 'text-slate-500'}`}>
@@ -1055,8 +1078,8 @@ export default function ReducaoPlanoPage() {
                         </td>
                       );
                     })}
-                    <td className={`text-center py-0.5 px-1 font-bold bg-slate-100 ${diferencaTotal > 0 ? 'text-red-700' : 'text-slate-600'}`}>
-                      {diferencaTotal > 0 ? `-${fmt(diferencaTotal)}` : fmt(diferencaTotal)}
+                    <td className={`text-center py-0.5 px-1 font-bold bg-slate-100 ${periodosExibidos.reduce((acc, p) => acc + (resumoGeral.planoTotal[p] - planoNovo[p]), 0) > 0 ? 'text-red-700' : 'text-slate-600'}`}>
+                      {periodosExibidos.reduce((acc, p) => acc + (resumoGeral.planoTotal[p] - planoNovo[p]), 0) > 0 ? `-${fmt(periodosExibidos.reduce((acc, p) => acc + (resumoGeral.planoTotal[p] - planoNovo[p]), 0))}` : fmt(periodosExibidos.reduce((acc, p) => acc + (resumoGeral.planoTotal[p] - planoNovo[p]), 0))}
                     </td>
                   </tr>
                 </tbody>
@@ -1070,14 +1093,14 @@ export default function ReducaoPlanoPage() {
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded border border-indigo-300 p-2 mb-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[11px] font-bold text-indigo-800">📦 Projeção de Estoque (atual vs novo)</span>
-                <span className="text-[10px] font-bold text-red-600">Redução de estoque: -{fmt(reducaoEstoqueFinal)}</span>
+                <span className="text-[10px] font-bold text-red-600">Redução de estoque em {ultimo}: -{fmt(resumoGeral.saldoPorPeriodo[ultimo] - saldoNovoporPeriodo[ultimo])}</span>
               </div>
               <table className="w-full text-[11px]">
                 <thead>
                   <tr className="border-b border-indigo-300">
                     <th className="text-left py-0.5 px-1 text-indigo-600"></th>
                     <th className="text-center py-0.5 px-1 text-indigo-600 font-bold bg-indigo-100">INICIAL</th>
-                    {periodosComPlano.map((p) => (
+                    {periodosExibidos.map((p) => (
                       <th key={p} className="text-center py-0.5 px-1 text-indigo-600 font-bold">{p}</th>
                     ))}
                   </tr>
@@ -1086,35 +1109,35 @@ export default function ReducaoPlanoPage() {
                   <tr className="border-b border-indigo-200 bg-indigo-50">
                     <td className="py-0.5 px-1 text-indigo-700 font-semibold">Disponível Inicial</td>
                     <td className="text-center py-0.5 px-1 font-mono font-semibold text-indigo-700">{fmt(resumoGeral.disponivelInicial)}</td>
-                    {periodosComPlano.map((p) => (
+                    {periodosExibidos.map((p) => (
                       <td key={p} className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
                     ))}
                   </tr>
                   <tr className="border-b border-indigo-200">
                     <td className="py-0.5 px-1 text-emerald-700">Produção Atual</td>
                     <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
-                    {periodosComPlano.map((p) => (
+                    {periodosExibidos.map((p) => (
                       <td key={p} className="text-center py-0.5 px-1 font-mono text-emerald-600">+{fmt(resumoGeral.planoTotal[p])}</td>
                     ))}
                   </tr>
                   <tr className="border-b border-indigo-200 bg-red-50">
                     <td className="py-0.5 px-1 text-red-700">Produção Nova</td>
                     <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
-                    {periodosComPlano.map((p) => (
+                    {periodosExibidos.map((p) => (
                       <td key={p} className="text-center py-0.5 px-1 font-mono text-red-600">+{fmt(planoNovo[p])}</td>
                     ))}
                   </tr>
                   <tr className="border-b border-indigo-200">
                     <td className="py-0.5 px-1 text-orange-700">Projeção Vendas</td>
                     <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
-                    {periodosComPlano.map((p) => (
+                    {periodosExibidos.map((p) => (
                       <td key={p} className="text-center py-0.5 px-1 font-mono text-orange-600">-{fmt(resumoGeral.projecaoPorPeriodo[p])}</td>
                     ))}
                   </tr>
                   <tr className="border-b border-indigo-200 bg-slate-100">
                     <td className="py-0.5 px-1 text-slate-700 font-semibold">Saldo Atual</td>
                     <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
-                    {periodosComPlano.map((p) => {
+                    {periodosExibidos.map((p) => {
                       const saldo = resumoGeral.saldoPorPeriodo[p];
                       return (
                         <td key={p} className={`text-center py-0.5 px-1 font-mono font-semibold ${saldo >= 0 ? 'text-slate-700' : 'text-red-700'}`}>
@@ -1126,7 +1149,7 @@ export default function ReducaoPlanoPage() {
                   <tr className="bg-emerald-100 font-bold">
                     <td className="py-0.5 px-1 text-emerald-800">Saldo Novo</td>
                     <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
-                    {periodosComPlano.map((p) => {
+                    {periodosExibidos.map((p) => {
                       const saldo = saldoNovoporPeriodo[p];
                       return (
                         <td key={p} className={`text-center py-0.5 px-1 font-mono ${saldo >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
@@ -1138,7 +1161,7 @@ export default function ReducaoPlanoPage() {
                   <tr className="border-t border-indigo-300 text-[10px] bg-red-50">
                     <td className="py-0.5 px-1 text-red-600 font-semibold">Δ Redução</td>
                     <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
-                    {periodosComPlano.map((p) => {
+                    {periodosExibidos.map((p) => {
                       const diff = resumoGeral.saldoPorPeriodo[p] - saldoNovoporPeriodo[p];
                       return (
                         <td key={p} className="text-center py-0.5 px-1 font-mono font-bold text-red-600">
@@ -1150,7 +1173,7 @@ export default function ReducaoPlanoPage() {
                   <tr className="text-[10px]">
                     <td className="py-0.5 px-1 text-indigo-500">Cobertura Nova</td>
                     <td className="text-center py-0.5 px-1 font-mono text-gray-400">-</td>
-                    {periodosComPlano.map((p) => {
+                    {periodosExibidos.map((p) => {
                       const saldo = saldoNovoporPeriodo[p];
                       const projMedia = resumoGeral.projecaoPorPeriodo[p] || 1;
                       const cobertura = saldo / projMedia;
@@ -1164,8 +1187,8 @@ export default function ReducaoPlanoPage() {
                 </tbody>
               </table>
               <div className="text-[9px] text-indigo-500 mt-1">
-                📊 Estoque final {resumoGeral.ultimoPeriodo}: <strong>{fmt(resumoGeral.saldoPorPeriodo[resumoGeral.ultimoPeriodo])}</strong> → <strong className="text-emerald-600">{fmt(saldoNovoporPeriodo[resumoGeral.ultimoPeriodo])}</strong>
-                <span className="text-red-600 ml-1">(redução de {fmt(reducaoEstoqueFinal)} peças)</span>
+                📊 Estoque final {ultimo}: <strong>{fmt(resumoGeral.saldoPorPeriodo[ultimo])}</strong> → <strong className="text-emerald-600">{fmt(saldoNovoporPeriodo[ultimo])}</strong>
+                <span className="text-red-600 ml-1">(redução de {fmt(resumoGeral.saldoPorPeriodo[ultimo] - saldoNovoporPeriodo[ultimo])} peças)</span>
               </div>
             </div>
                 </>
@@ -1173,12 +1196,21 @@ export default function ReducaoPlanoPage() {
             })()}
 
             {/* 5. Resumo executivo inline */}
+            {(() => {
+              const planoVisivelTotal = periodosExibidos.reduce((acc, p) => acc + resumoGeral.planoTotal[p], 0);
+              const reducaoVisivelTotal = periodosExibidos.reduce((acc, p) => acc + resumoGeral.reducaoSequencial[p], 0);
+              const melhorPeriodoVisivel = periodosExibidos.reduce((best, p) =>
+                resumoGeral.reducaoPorPeriodo[p] > resumoGeral.reducaoPorPeriodo[best] ? p : best
+              , periodosExibidos[0]);
+              return (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] bg-emerald-50 rounded border border-emerald-200 px-2 py-1.5 mb-3">
-              <span className="font-bold text-emerald-800">📋 Resumo:</span>
-              <span className="text-emerald-700">Melhor: <strong>{resumoGeral.melhorPeriodo}</strong> (-{fmt(resumoGeral.melhorReducao)})</span>
-              <span className="text-emerald-700">Máx. todos: <strong>-{fmt(resumoGeral.reducaoSequencialTotal)}</strong> ({((resumoGeral.reducaoSequencialTotal / resumoGeral.planoTotalGeral) * 100).toFixed(1)}%)</span>
-              <span className="text-emerald-700">Plano: {fmt(resumoGeral.planoTotalGeral)} → <strong>{fmt(resumoGeral.planoTotalGeral - resumoGeral.reducaoSequencialTotal)}</strong></span>
+              <span className="font-bold text-emerald-800">📋 Resumo ({primeiro}→{ultimo}):</span>
+              <span className="text-emerald-700">Melhor: <strong>{melhorPeriodoVisivel}</strong> (-{fmt(resumoGeral.reducaoPorPeriodo[melhorPeriodoVisivel])})</span>
+              <span className="text-emerald-700">Máx. todos: <strong>-{fmt(reducaoVisivelTotal)}</strong> ({planoVisivelTotal > 0 ? ((reducaoVisivelTotal / planoVisivelTotal) * 100).toFixed(1) : '0'}%)</span>
+              <span className="text-emerald-700">Plano: {fmt(planoVisivelTotal)} → <strong>{fmt(planoVisivelTotal - reducaoVisivelTotal)}</strong></span>
             </div>
+              );
+            })()}
 
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
               <div className="bg-white rounded border px-2 py-1.5">
