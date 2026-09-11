@@ -281,24 +281,26 @@ export default function ProjecaoPermanentesPage() {
     }
 
     const result: ContGroup[] = [];
-    for (const [continuidade, itens] of contMap.entries()) {
+    contMap.forEach((itens, continuidade) => {
       const refMap = new Map<string, ItemProjecao[]>();
       for (const item of itens) {
         const key = item.referencia || '(sem referencia)';
         if (!refMap.has(key)) refMap.set(key, []);
         refMap.get(key)!.push(item);
       }
-      const referencias: RefGroup[] = Array.from(refMap.entries())
-        .map(([referencia, refItens]) => ({
+      const referencias: RefGroup[] = [];
+      refMap.forEach((refItens, referencia) => {
+        referencias.push({
           referencia,
           produto: refItens[0]?.produto || '',
           itens: refItens,
           totais: somarGrupo(refItens),
-        }))
-        .sort((a, b) => a.referencia.localeCompare(b.referencia));
+        });
+      });
+      referencias.sort((a, b) => a.referencia.localeCompare(b.referencia));
 
       result.push({ continuidade, itens, referencias, totais: somarGrupo(itens) });
-    }
+    });
     result.sort((a, b) => a.continuidade.localeCompare(b.continuidade));
     return result;
   }, [itensFiltrados]);
