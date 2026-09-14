@@ -1,90 +1,158 @@
 /**
  * Serviço para geração de projeções automáticas para itens PERMANENTE e PERMANENTE COR NOVA
  * Regras:
- * 1. Totalizadores = Vendas Fábrica × ajuste + Vendas Lojas (ajuste: 10% normal, 20% abril/maio)
+ * 1. Totalizadores = Vendas Fábrica × ajuste + Vendas Lojas (ajuste: 10% em todos os meses)
  * 2. Representatividade por SKU baseada em média 6m vs 3m (usa tendência se variação > 50%)
  * 3. Projeção = Totalizador × Representatividade
  */
 
 const { readCache } = require('../cache/matrizCache');
+const { isExcludedPlanningItem, normalizePlanningText } = require('./planningExclusions');
 
 // Ajustes de fábrica por mês (1 = janeiro, ..., 6 = junho)
 const AJUSTES_FABRICA = {
   1: 1.10,  // Janeiro: +10%
   2: 1.10,  // Fevereiro: +10%
   3: 1.10,  // Março: +10%
-  4: 1.20,  // Abril: +20%
-  5: 1.20,  // Maio: +20%
+  4: 1.10,  // Abril: +10%
+  5: 1.10,  // Maio: +10%
   6: 1.10,  // Junho: +10%
 };
 
 const MESES_SEMESTRE = [1, 2, 3, 4, 5, 6]; // jan a jun
 
 /**
- * Busca vendas por canal estimadas a partir do cache de planejamento
- * SUPER RÁPIDO: usa dados já carregados em memória
- * Multiplica média por 6 meses e distribui proporcionalmente
- * @param {Object} pool - Pool de conexão PostgreSQL (não usado)
- * @param {number} ano - Ano base (não usado, apenas para compatibilidade)
+ * Busca vendas reais por canal a partir da mv_vendas_qtd.
+ * Fábrica = empresa 1; Lojas = demais empresas.
+ * @param {Object} pool - Pool de conexão PostgreSQL
+ * @param {number} ano - Ano base
  * @returns {Promise<Object>} { fabrica: { 1: qtd, 2: qtd, ... }, lojas: { 1: qtd, 2: qtd, ... } }
  */
 async function buscarVendasPorCanal(pool, ano) {
-  console.log(`[projecao-permanentes] Estimando vendas por canal do cache...`);
+  console.log(`[projecao-permanentes] Buscando vendas reais por canal de ${ano}.1...`);
   const t0 = Date.now();
-
-  // Usa o cache matriz_planejamento que já está em memória
-  const cached = await readCache();
 
   const vendas = {
     fabrica: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
     lojas: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
   };
 
+  // O cadastro do banco preserva produtos que ja sairam de linha; o cache atual pode nao preserva-los.
+  let skusBanco = [];
+  try {
+    skusBanco = await buscarSkusPermanentesBanco(pool, ano);
+  } catch (error) {
+    console.warn(`[projecao-permanentes] Erro ao buscar catalogo do banco: ${error.message}`);
+  }
+
+  const idsBanco = skusBanco.map((sku) => Number(sku.idproduto)).filter(Number.isFinite);
+  if (idsBanco.length > 0) {
+    const result = await pool.query(`
+      WITH produtos AS (
+        SELECT UNNEST($1::BIGINT[]) AS idproduto
+      )
+      SELECT
+        EXTRACT(MONTH FROM v.data)::INT AS mes,
+        SUM(CASE WHEN v.idempresa = 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS fabrica,
+        SUM(CASE WHEN v.idempresa <> 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS lojas
+      FROM public.mv_vendas_qtd v
+      INNER JOIN produtos p ON p.idproduto = v.idproduto
+      WHERE v.data >= $2::DATE
+        AND v.data < $3::DATE
+        AND EXTRACT(MONTH FROM v.data) BETWEEN 1 AND 6
+      GROUP BY 1
+      ORDER BY 1
+    `, [idsBanco, `${ano}-01-01`, `${ano}-07-01`]);
+
+    for (const row of result.rows) {
+      const mes = Number(row.mes);
+      if (!MESES_SEMESTRE.includes(mes)) continue;
+      vendas.fabrica[mes] = Math.round(Number(row.fabrica) || 0);
+      vendas.lojas[mes] = Math.round(Number(row.lojas) || 0);
+    }
+
+    const totalVendasBanco = MESES_SEMESTRE.reduce(
+      (acc, mes) => acc + vendas.fabrica[mes] + vendas.lojas[mes],
+      0
+    );
+    console.log(`[projecao-permanentes] Vendas reais: ${totalVendasBanco.toFixed(0)} total em ${((Date.now()-t0)/1000).toFixed(3)}s`);
+    return vendas;
+  }
+
+  // Fallback legado: usa o cache apenas se o catalogo do banco estiver indisponivel.
+  const cached = await readCache();
+  let cacheData = [];
+
   if (!cached || !cached.data) {
-    console.log(`[projecao-permanentes] Cache não disponível, retornando zeros`);
-    return vendas;
+    console.log(`[projecao-permanentes] Cache não disponível, usando catálogo do banco`);
+  } else {
+    cacheData = cached.data.rows || cached.data;
+    if (!Array.isArray(cacheData)) {
+      console.log(`[projecao-permanentes] Cache inválido, usando catálogo do banco`);
+      cacheData = [];
+    }
   }
 
-  const cacheData = cached.data.rows || cached.data;
-
-  if (!Array.isArray(cacheData)) {
-    console.log(`[projecao-permanentes] Cache inválido, retornando zeros`);
-    return vendas;
-  }
-
-  // Filtra apenas produtos LIEBE e EM LINHA (os que entram no planejamento)
+  // Base historica da marca: inclui itens fora de linha, exceto edicao limitada.
   const produtosFiltrados = cacheData.filter(item => {
     const produto = item?.produto || {};
-    const marca = String(produto.marca || '').trim().toUpperCase();
-    const status = String(produto.status || '').trim().toUpperCase();
-    return marca === 'LIEBE' && status === 'EM LINHA';
+    const continuidade = normalizePlanningText(produto.continuidade);
+    const marca = normalizePlanningText(produto.marca);
+    return (
+      marca === 'LIEBE' &&
+      continuidade !== 'EDICAO LIMITADA' &&
+      !isExcludedPlanningItem({
+        referencia: produto.referencia,
+        produto: produto.produto,
+        apresentacao: produto.apresentacao,
+      })
+    );
   });
 
-  // Soma total de vendas (média mensal × 6)
-  // Usamos média_6m que já está calculada no cache
-  let totalVendas6m = 0;
-  for (const item of produtosFiltrados) {
-    const demanda = item?.demanda || {};
-    const media6m = Number(demanda.media_vendas_6m) || 0;
-    totalVendas6m += media6m * 6; // média mensal × 6 meses = total semestre
+  const ids = [...new Set(produtosFiltrados
+    .map(item => Number(item?.produto?.idproduto))
+    .filter(Number.isFinite)
+  )];
+
+  const idsConsulta = ids.length > 0
+    ? ids
+    : (await buscarSkusPermanentesBanco(pool, ano)).map((sku) => Number(sku.idproduto)).filter(Number.isFinite);
+
+  if (idsConsulta.length === 0) {
+    console.log(`[projecao-permanentes] Nenhum produto elegivel encontrado, retornando zeros`);
+    return vendas;
   }
 
-  // Distribui as vendas entre os meses (proporcionalmente - jan a jun)
-  // Distribuição média por mês: 100% / 6 = ~16.67% cada
-  // Usamos distribuição uniforme já que não temos dados por canal no cache
-  // Estimamos 70% fábrica, 30% lojas (baseado em proporção típica)
-  const pctFabrica = 0.70;
-  const pctLojas = 0.30;
-  const distribuicaoMeses = [0.15, 0.16, 0.17, 0.18, 0.17, 0.17]; // jan-jun (soma = 1.0)
+  const result = await pool.query(`
+    WITH produtos AS (
+      SELECT UNNEST($1::BIGINT[]) AS idproduto
+    )
+    SELECT
+      EXTRACT(MONTH FROM v.data)::INT AS mes,
+      SUM(CASE WHEN v.idempresa = 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS fabrica,
+      SUM(CASE WHEN v.idempresa <> 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS lojas
+    FROM public.mv_vendas_qtd v
+    INNER JOIN produtos p ON p.idproduto = v.idproduto
+    WHERE v.data >= $2::DATE
+      AND v.data < $3::DATE
+      AND EXTRACT(MONTH FROM v.data) BETWEEN 1 AND 6
+    GROUP BY 1
+    ORDER BY 1
+  `, [idsConsulta, `${ano}-01-01`, `${ano}-07-01`]);
 
-  for (let mes = 1; mes <= 6; mes++) {
-    const pctMes = distribuicaoMeses[mes - 1];
-    const vendasMes = totalVendas6m * pctMes;
-    vendas.fabrica[mes] = Math.round(vendasMes * pctFabrica);
-    vendas.lojas[mes] = Math.round(vendasMes * pctLojas);
+  for (const row of result.rows) {
+    const mes = Number(row.mes);
+    if (!MESES_SEMESTRE.includes(mes)) continue;
+    vendas.fabrica[mes] = Math.round(Number(row.fabrica) || 0);
+    vendas.lojas[mes] = Math.round(Number(row.lojas) || 0);
   }
 
-  console.log(`[projecao-permanentes] Vendas estimadas: ${totalVendas6m.toFixed(0)} total em ${((Date.now()-t0)/1000).toFixed(3)}s`);
+  const totalVendas6m = MESES_SEMESTRE.reduce(
+    (acc, mes) => acc + vendas.fabrica[mes] + vendas.lojas[mes],
+    0
+  );
+
+  console.log(`[projecao-permanentes] Vendas reais: ${totalVendas6m.toFixed(0)} total em ${((Date.now()-t0)/1000).toFixed(3)}s`);
 
   return vendas;
 }
@@ -118,13 +186,89 @@ function calcularTotalizadores(vendas) {
 }
 
 /**
+ * Busca SKUs permanentes direto do catálogo do banco.
+ * Usado como fallback quando o cache da matriz não está carregado.
+ * @param {Object} pool - Pool de conexão PostgreSQL
+ * @returns {Promise<Array>} Lista de SKUs com dados cadastrais
+ */
+async function buscarSkusPermanentesBanco(pool, ano = null, somenteAtuais = false) {
+  console.log('[projecao-permanentes] Buscando SKUs permanentes do banco...');
+  const t0 = Date.now();
+  const temPeriodoVenda = ano !== null && ano !== undefined && Number.isInteger(Number(ano));
+  const periodoVenda = temPeriodoVenda
+    ? `AND EXISTS (
+        SELECT 1
+        FROM public.mv_vendas_qtd vendas_periodo
+        WHERE vendas_periodo.idproduto = a.cd_produto
+          AND vendas_periodo.data >= $1::DATE
+          AND vendas_periodo.data < $2::DATE
+      )`
+    : '';
+  const parametros = temPeriodoVenda
+    ? [`${ano}-01-01`, `${ano}-07-01`]
+    : [];
+  const filtroStatusAtual = somenteAtuais
+    ? "AND UPPER(TRIM(COALESCE(p.status, ''))) IN ('EM LINHA', 'NOVA COLECAO')"
+    : '';
+
+  const result = await pool.query(`
+    SELECT *
+    FROM (
+      SELECT
+        a.cd_produto::TEXT AS idproduto,
+        a.ds_cor AS cor,
+        a.ds_tamanho AS tamanho,
+        a.nm_produto AS apresentacao,
+        f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
+        f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar) AS produto,
+        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint) AS marca,
+        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint) AS status,
+        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) AS continuidade,
+        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 23::bigint) AS linha
+      FROM vr_prd_prdgrade a
+      WHERE a.cd_produto < 1000000
+        AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
+        AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
+        ${periodoVenda}
+    ) p
+    WHERE UPPER(TRIM(COALESCE(p.marca, ''))) = 'LIEBE'
+      AND UPPER(TRIM(COALESCE(p.continuidade, ''))) IN ('PERMANENTE', 'PERMANENTE COR NOVA')
+      AND UPPER(TRIM(COALESCE(p.continuidade, ''))) NOT IN ('EDIÇÃO LIMITADA', 'EDICAO LIMITADA')
+      ${filtroStatusAtual}
+    ORDER BY p.referencia, p.idproduto
+  `, parametros);
+
+  const skus = result.rows
+    .filter((row) => !isExcludedPlanningItem({
+      referencia: row.referencia,
+      produto: row.produto,
+      apresentacao: row.apresentacao,
+    }))
+    .map((row) => ({
+      idproduto: String(row.idproduto || ''),
+      referencia: String(row.referencia || '').trim(),
+      produto: String(row.produto || '').trim(),
+      cor: String(row.cor || '').trim(),
+      tamanho: String(row.tamanho || '').trim(),
+      continuidade: String(row.continuidade || 'SEM CONTINUIDADE').trim().toUpperCase(),
+      status: String(row.status || 'INDEFINIDO').trim().toUpperCase(),
+      linha: String(row.linha || '').trim(),
+      media_6m: 0,
+      media_3m: 0,
+    }));
+
+  console.log(`[projecao-permanentes] SKUs do banco: ${skus.length} em ${((Date.now()-t0)/1000).toFixed(3)}s`);
+  return skus;
+}
+
+/**
  * Busca SKUs com continuidade PERMANENTE ou PERMANENTE COR NOVA
  * OTIMIZADO: usa o cache matriz_planejamento já existente em memória
  * Isso é INSTANTÂNEO pois apenas filtra dados já carregados
  * @param {Object} pool - Pool de conexão PostgreSQL (não usado, mantido para compatibilidade)
  * @returns {Promise<Array>} Lista de SKUs com dados cadastrais
  */
-async function buscarSkusPermanentes(pool) {
+async function buscarSkusPermanentes(pool, ano = null) {
   console.log('[projecao-permanentes] Buscando SKUs permanentes do cache...');
   const t0 = Date.now();
 
@@ -132,29 +276,34 @@ async function buscarSkusPermanentes(pool) {
   const cached = await readCache();
 
   if (!cached || !cached.data) {
-    console.log('[projecao-permanentes] Cache não disponível, retornando lista vazia');
-    return [];
+    console.log('[projecao-permanentes] Cache não disponível, usando banco');
+    return buscarSkusPermanentesBanco(pool, null, true);
   }
 
   const cacheData = cached.data.rows || cached.data;
 
   if (!Array.isArray(cacheData)) {
-    console.log('[projecao-permanentes] Cache inválido (não é array), retornando lista vazia');
-    return [];
+    console.log('[projecao-permanentes] Cache inválido (não é array), usando banco');
+    return buscarSkusPermanentesBanco(pool, null, true);
   }
 
-  // Filtra em memória: PERMANENTE ou PERMANENTE COR NOVA, LIEBE, EM LINHA ou NOVA COLECAO
-  // (mesmo critério de "elegível para planejamento" usado no restante do sistema)
+  // Inclui produtos fora de linha na base historica, exceto edicao limitada.
   const skusFiltrados = cacheData.filter(item => {
     const produto = item?.produto || {};
-    const continuidade = String(produto.continuidade || '').trim().toUpperCase();
-    const marca = String(produto.marca || '').trim().toUpperCase();
-    const status = String(produto.status || '').trim().toUpperCase();
+    const continuidade = normalizePlanningText(produto.continuidade);
+    const marca = normalizePlanningText(produto.marca);
+    const status = normalizePlanningText(produto.status);
 
     return (
-      (continuidade === 'PERMANENTE' || continuidade === 'PERMANENTE COR NOVA') &&
       marca === 'LIEBE' &&
-      (status === 'EM LINHA' || status === 'NOVA COLECAO')
+      (continuidade === 'PERMANENTE' || continuidade === 'PERMANENTE COR NOVA') &&
+      continuidade !== 'EDICAO LIMITADA' &&
+      (status === 'EM LINHA' || status === 'NOVA COLECAO') &&
+      !isExcludedPlanningItem({
+        referencia: produto.referencia,
+        produto: produto.produto,
+        apresentacao: produto.apresentacao,
+      })
     );
   });
 
@@ -172,6 +321,7 @@ async function buscarSkusPermanentes(pool) {
       tamanho: String(produto.tamanho || '').trim(),
       continuidade: String(produto.continuidade || 'SEM CONTINUIDADE').trim().toUpperCase(),
       status: String(produto.status || 'INDEFINIDO').trim().toUpperCase(),
+      linha: String(produto.linha || '').trim(),
       // Inclui dados de demanda do cache
       media_6m: Number(demanda.media_vendas_6m) || 0,
       media_3m: Number(demanda.media_vendas_3m) || 0,
@@ -180,8 +330,8 @@ async function buscarSkusPermanentes(pool) {
 }
 
 /**
- * Calcula médias de vendas a partir dos dados já presentes nos SKUs (do cache)
- * OTIMIZADO: Não faz query no banco, usa dados do cache
+ * Calcula médias de vendas a partir dos dados já presentes nos SKUs (do cache).
+ * Mantido como fallback/debug; o preview usa calcularMediasVendas para respeitar o anoBase.
  * @param {Object} pool - Pool de conexão PostgreSQL (não usado)
  * @param {Array} skus - Lista de SKUs com media_6m e media_3m já preenchidos
  * @param {number} anoBase - Ano base (não usado)
@@ -211,50 +361,17 @@ function calcularMediasVendasDoCache(skus) {
 }
 
 /**
- * Versão legada que consulta o banco (mantida para compatibilidade)
- * @deprecated Use calcularMediasVendasDoCache
+ * Calcula vendas reais para a representatividade.
+ * 6m = jan-jun do anoBase na MV; 3m atual = jun-ago na view vr_vendas_qtd.
  */
 async function calcularMediasVendas(pool, idprodutos, anoBase) {
   if (!idprodutos || idprodutos.length === 0) {
     return {};
   }
 
-  // Query para média 6 meses (jan-jun do ano base)
-  const query6m = `
-    SELECT
-      v.idproduto::TEXT AS idproduto,
-      COALESCE(AVG(v.qt_liquida), 0) AS media_6m,
-      COALESCE(SUM(v.qt_liquida), 0) AS total_6m
-    FROM vr_vendas_qtd v
-    WHERE v.idproduto = ANY($1::BIGINT[])
-      AND EXTRACT(YEAR FROM v.data) = $2
-      AND EXTRACT(MONTH FROM v.data) BETWEEN 1 AND 6
-    GROUP BY v.idproduto
-  `;
+  const ids = idprodutos.map((id) => Number(id)).filter(Number.isFinite);
 
-  // Query para média últimos 3 meses
-  const query3m = `
-    SELECT
-      v.idproduto::TEXT AS idproduto,
-      COALESCE(AVG(v.qt_liquida), 0) AS media_3m,
-      COALESCE(SUM(v.qt_liquida), 0) AS total_3m
-    FROM vr_vendas_qtd v
-    WHERE v.idproduto = ANY($1::BIGINT[])
-      AND v.data >= CURRENT_DATE - INTERVAL '3 months'
-    GROUP BY v.idproduto
-  `;
-
-  const ids = idprodutos.map((id) => Number(id));
-
-  const [result6m, result3m] = await Promise.all([
-    pool.query(query6m, [ids, anoBase]),
-    pool.query(query3m, [ids]),
-  ]);
-
-  // Mapear resultados
   const medias = {};
-
-  // Inicializa todos com zero
   for (const id of idprodutos) {
     medias[String(id)] = {
       media_6m: 0,
@@ -264,21 +381,100 @@ async function calcularMediasVendas(pool, idprodutos, anoBase) {
     };
   }
 
-  // Preenche com dados de 6 meses
-  for (const row of result6m.rows) {
-    const id = String(row.idproduto);
-    if (medias[id]) {
-      medias[id].media_6m = Number(row.media_6m) || 0;
-      medias[id].total_6m = Number(row.total_6m) || 0;
+  if (ids.length === 0) {
+    return medias;
+  }
+
+  const cached = await readCache();
+  const cacheRows = Array.isArray(cached?.data?.rows)
+    ? cached.data.rows
+    : (Array.isArray(cached?.data) ? cached.data : []);
+  const medias3mCache = new Map();
+
+  for (const item of cacheRows) {
+    const id = String(item?.produto?.idproduto || '');
+    const media3m = Number(item?.demanda?.media_vendas_3m);
+    if (id && Number.isFinite(media3m)) medias3mCache.set(id, media3m);
+  }
+
+  for (const id of ids) {
+    const media3m = medias3mCache.get(String(id));
+    if (media3m !== undefined) {
+      medias[String(id)].media_3m = media3m;
+      medias[String(id)].total_3m = media3m * 3;
     }
   }
 
-  // Preenche com dados de 3 meses
+  const idsSem3mCache = ids.filter((id) => !medias3mCache.has(String(id)));
+  const result6m = await pool.query(`
+      SELECT
+        v.idproduto::TEXT AS idproduto,
+        COALESCE(SUM(v.qt_liquida), 0)::FLOAT AS total_6m
+      FROM public.mv_vendas_qtd v
+      WHERE v.idproduto = ANY($1::BIGINT[])
+        AND v.data >= $2::DATE
+        AND v.data < $3::DATE
+      GROUP BY v.idproduto
+    `, [ids, `${anoBase}-01-01`, `${anoBase}-07-01`]);
+  const result3m = idsSem3mCache.length > 0
+    ? await pool.query(`
+      SELECT
+        vendas.idproduto::TEXT AS idproduto,
+        COALESCE(SUM(vendas.qt_liquida), 0)::FLOAT AS total_3m
+      FROM (
+        SELECT
+          i.cd_produto AS idproduto,
+          SUM(i.qt_solicitada * CASE WHEN t.tp_modalidade::TEXT = '3' THEN -1 ELSE 1 END::DOUBLE PRECISION) AS qt_liquida
+        FROM vr_tra_transacao t
+        INNER JOIN vr_tra_transitem i
+          ON t.nr_transacao = i.nr_transacao
+         AND t.cd_empresa = i.cd_empresa
+        WHERE t.cd_empresa <> 1
+          AND t.cd_operacao <> ALL (ARRAY[140, 76, 25, 26, 27, 273, 44, 240, 241, 242, 243, 244, 245, 239, 238, 237, 236]::BIGINT[])
+          AND i.dt_transacao >= $1::DATE
+          AND i.dt_transacao < $2::DATE
+          AND i.cd_produto = ANY($3::BIGINT[])
+          AND i.cd_compvend <> 1
+          AND t.tp_situacao <> 6
+          AND t.tp_modalidade::TEXT = ANY (ARRAY['3', '4']::TEXT[])
+        GROUP BY i.cd_produto
+
+        UNION ALL
+
+        SELECT
+          i.cd_produto AS idproduto,
+          SUM(i.qt_solicitada) AS qt_liquida
+        FROM vr_ped_pedidoc2 c
+        LEFT JOIN vr_ped_pedidoi i
+          ON c.cd_empresa = i.cd_empresa
+         AND i.cd_pedido = c.cd_pedido
+        WHERE c.dt_pedido >= $1::DATE
+          AND c.dt_pedido < $2::DATE
+          AND i.cd_produto = ANY($3::BIGINT[])
+          AND c.cd_cliente <> 110000001
+          AND c.cd_representant <> 32098
+          AND c.tp_situacao <> 6
+          AND c.cd_empresa = 1
+          AND c.cd_operacao = ANY (ARRAY[1, 18, 52, 166, 148, 98, 55, 97, 30, 79, 93, 137, 141, 142, 156, 159, 310, 598, 180, 58, 69, 85, 124, 182]::BIGINT[])
+        GROUP BY i.cd_produto
+      ) vendas
+      GROUP BY vendas.idproduto
+    `, [`${anoBase}-06-01`, `${anoBase}-09-01`, idsSem3mCache])
+    : { rows: [] };
+
+  for (const row of result6m.rows) {
+    const id = String(row.idproduto);
+    if (medias[id]) {
+      medias[id].total_6m = Number(row.total_6m) || 0;
+      medias[id].media_6m = medias[id].total_6m / 6;
+    }
+  }
+
   for (const row of result3m.rows) {
     const id = String(row.idproduto);
     if (medias[id]) {
-      medias[id].media_3m = Number(row.media_3m) || 0;
       medias[id].total_3m = Number(row.total_3m) || 0;
+      medias[id].media_3m = medias[id].total_3m / 3;
     }
   }
 
@@ -291,14 +487,19 @@ async function calcularMediasVendas(pool, idprodutos, anoBase) {
  * @param {Object} medias - { idproduto: { media_6m, total_6m, media_3m, total_3m } }
  * @returns {Object} { idproduto: { representatividade, usaTendencia, variacao_pct } }
  */
-function calcularRepresentatividade(medias) {
+ function calcularRepresentatividade(medias, totaisBase = null) {
   // Primeiro calcula totais globais
   let totalGeral6m = 0;
   let totalGeral3m = 0;
 
-  for (const id of Object.keys(medias)) {
-    totalGeral6m += Number(medias[id].total_6m) || 0;
-    totalGeral3m += Number(medias[id].total_3m) || 0;
+  if (totaisBase) {
+    totalGeral6m = Number(totaisBase.total_6m) || 0;
+    totalGeral3m = Number(totaisBase.total_3m) || 0;
+  } else {
+    for (const id of Object.keys(medias)) {
+      totalGeral6m += Number(medias[id].total_6m) || 0;
+      totalGeral3m += Number(medias[id].total_3m) || 0;
+    }
   }
 
   // Evita divisão por zero
@@ -365,6 +566,16 @@ function calcularRepresentatividade(medias) {
     };
   }
 
+  const somaRepresentatividade = Object.values(representatividades)
+    .reduce((acc, item) => acc + (Number(item.representatividade) || 0), 0);
+
+  if (somaRepresentatividade > 0) {
+    for (const id of Object.keys(representatividades)) {
+      representatividades[id].representatividade =
+        representatividades[id].representatividade / somaRepresentatividade;
+    }
+  }
+
   return representatividades;
 }
 
@@ -376,11 +587,44 @@ function calcularRepresentatividade(medias) {
  */
 function gerarProjecoes(totalizadores, representatividades) {
   const projecoes = {};
+  const ids = Object.keys(representatividades);
+
+  for (const id of ids) {
+    projecoes[id] = {};
+  }
+
+  for (const mes of MESES_SEMESTRE) {
+    const total = Math.round(Number(totalizadores[mes]?.total) || 0);
+    const calculos = ids.map((id) => {
+      const rep = Number(representatividades[id].representatividade) || 0;
+      const bruto = total * rep;
+      const base = Math.floor(bruto);
+      return { id, base, sobra: bruto - base };
+    });
+
+    let distribuido = calculos.reduce((acc, item) => acc + item.base, 0);
+    let restante = total - distribuido;
+
+    calculos.sort((a, b) => b.sobra - a.sobra);
+    for (const item of calculos) {
+      const adicional = restante > 0 ? 1 : 0;
+      projecoes[item.id][mes] = item.base + adicional;
+      restante -= adicional;
+    }
+  }
+
+  return projecoes;
+}
+
+/**
+ * @deprecated A distribuição com Math.round podia deixar a soma mensal diferente do totalizador.
+ */
+function gerarProjecoesComArredondamentoSimples(totalizadores, representatividades) {
+  const projecoes = {};
 
   for (const id of Object.keys(representatividades)) {
     const rep = representatividades[id].representatividade || 0;
     projecoes[id] = {};
-
     for (const mes of MESES_SEMESTRE) {
       const total = totalizadores[mes]?.total || 0;
       projecoes[id][mes] = Math.round(total * rep);
@@ -405,7 +649,7 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
   const totalizadores = calcularTotalizadores(vendas);
 
   // 3. Busca SKUs permanentes
-  const skus = await buscarSkusPermanentes(pool);
+  const skus = await buscarSkusPermanentes(pool, anoBase);
 
   if (skus.length === 0) {
     return {
@@ -422,20 +666,38 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
         totalProjecao: 0,
       },
       itens: [],
+      itensSemVenda: [],
     };
   }
 
-  // 4. Calcula médias usando dados do cache (instantâneo)
-  const medias = calcularMediasVendasDoCache(skus);
+  // 4. Calcula médias usando venda real do semestre base
+  const mediasBrutas = await calcularMediasVendas(pool, skus.map((sku) => sku.idproduto), anoBase);
+  const skusSemVenda = skus.filter((sku) => {
+    const media = mediasBrutas[String(sku.idproduto)] || {};
+    return (Number(media.total_6m) || 0) <= 0 && (Number(media.total_3m) || 0) <= 0;
+  });
+  const skusProjetaveis = skus.filter((sku) => {
+    const media = mediasBrutas[String(sku.idproduto)] || {};
+    const camposPt = [sku.tamanho, sku.referencia, sku.produto, sku.apresentacao]
+      .map((valor) => normalizePlanningText(valor));
+    const temVenda = (Number(media.total_6m) || 0) > 0 || (Number(media.total_3m) || 0) > 0;
+    const ehItemPt = camposPt.some((valor) => /^PT(?:\s|$)/.test(valor));
+    return temVenda && !ehItemPt;
+  });
+  const medias = Object.fromEntries(
+    skusProjetaveis.map((sku) => [String(sku.idproduto), mediasBrutas[String(sku.idproduto)]])
+  );
 
   // 5. Calcula representatividades
+  // Os SKUs atuais absorvem a participacao dos produtos que sairam de linha.
+  // Por isso, a representatividade 6m/3m e normalizada dentro da tabela atual.
   const representatividades = calcularRepresentatividade(medias);
 
   // 6. Gera projeções
   const projecoes = gerarProjecoes(totalizadores, representatividades);
 
   // 7. Monta resultado final
-  const itens = skus.map((sku) => {
+  const itens = skusProjetaveis.map((sku) => {
     const id = String(sku.idproduto);
     const rep = representatividades[id] || {};
     const proj = projecoes[id] || {};
@@ -468,6 +730,16 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
     };
   });
 
+  const itensSemVenda = skusSemVenda.map((sku) => ({
+    idproduto: String(sku.idproduto),
+    referencia: sku.referencia || '',
+    produto: sku.produto || '',
+    cor: sku.cor || '',
+    tamanho: sku.tamanho || '',
+    continuidade: sku.continuidade || '',
+    linha: sku.linha || '',
+  }));
+
   // 8. Calcula resumo
   const resumo = {
     totalSkus: itens.length,
@@ -494,6 +766,7 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
     totalizadores,
     resumo,
     itens,
+    itensSemVenda,
   };
 }
 

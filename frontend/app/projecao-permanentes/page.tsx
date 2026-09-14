@@ -46,6 +46,8 @@ type ItemProjecao = {
   totalProjecao: number;
 };
 
+type ItemSemVenda = Pick<ItemProjecao, 'idproduto' | 'referencia' | 'produto' | 'cor' | 'tamanho' | 'continuidade' | 'linha'>;
+
 type Resumo = {
   totalSkus: number;
   skusPermanente: number;
@@ -74,6 +76,7 @@ type PreviewData = {
   totalizadores: Record<number, Totalizador>;
   resumo: Resumo;
   itens: ItemProjecao[];
+  itensSemVenda?: ItemSemVenda[];
 };
 
 export default function ProjecaoPermanentesPage() {
@@ -413,14 +416,20 @@ export default function ProjecaoPermanentesPage() {
                     Totalizadores por Mes - Base {data.anoBase}.1 → Destino {data.anoDestino}.1
                   </div>
                   <div className="text-[11px] text-gray-500">
-                    Total {data.anoBase}.1: <span className="font-semibold text-gray-700">{fmt(
-                      [1, 2, 3, 4, 5, 6].reduce((acc, mes) => acc + (data.totalizadores[mes]?.total || 0), 0)
+                    Total base {data.anoBase}.1: <span className="font-semibold text-gray-700">{fmt(
+                      [1, 2, 3, 4, 5, 6].reduce((acc, mes) => {
+                        const t = data.totalizadores[mes];
+                        return acc + (t?.fabrica || 0) + (t?.lojas || 0);
+                      }, 0)
                     )}</span>
                     {' '}(Fab: {fmt(
                       [1, 2, 3, 4, 5, 6].reduce((acc, mes) => acc + (data.totalizadores[mes]?.fabrica || 0), 0)
                     )} + Lojas: {fmt(
                       [1, 2, 3, 4, 5, 6].reduce((acc, mes) => acc + (data.totalizadores[mes]?.lojas || 0), 0)
                     )})
+                    {' '}| Total projeção {data.anoDestino}.1: <span className="font-semibold text-emerald-700">{fmt(
+                      [1, 2, 3, 4, 5, 6].reduce((acc, mes) => acc + (data.totalizadores[mes]?.total || 0), 0)
+                    )}</span>
                   </div>
                 </div>
                 <div className="grid grid-cols-6 gap-3">
@@ -430,7 +439,9 @@ export default function ProjecaoPermanentesPage() {
                     return (
                       <div key={mes} className="rounded-lg border border-gray-200 p-3 text-center">
                         <div className="text-xs font-bold text-gray-500 uppercase">{MESES_NOMES[mes]}</div>
-                        <div className="text-lg font-bold text-gray-800 mt-1">{fmt(t.total)}</div>
+                        <div className="text-xs font-bold text-emerald-700 mt-1">Projeção {data.anoDestino}.1</div>
+                        <div className="text-xl font-extrabold text-emerald-700">{fmt(t.total)}</div>
+                        <div className="text-[10px] text-gray-500 mt-2">Total base {data.anoBase}.1: {fmt(t.fabrica + t.lojas)}</div>
                         <div className="text-[10px] text-gray-500 mt-1">
                           Fab: {fmt(t.fabrica)} × {t.ajuste.toFixed(2)}
                         </div>
@@ -751,6 +762,43 @@ export default function ProjecaoPermanentesPage() {
                   </table>
                 </div>
               </div>
+
+              {(data.itensSemVenda?.length || 0) > 0 && (
+                <div className="bg-white rounded-lg border border-amber-200 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-amber-200 bg-amber-50">
+                    <div className="text-sm font-semibold text-amber-800">
+                      SKUs sem venda em 6m e 3m ({data.itensSemVenda?.length || 0})
+                    </div>
+                    <div className="text-[11px] text-amber-700 mt-1">
+                      Mantidos separados e fora da projeção.
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto max-h-[360px]">
+                    <table className="w-full text-xs border-collapse">
+                      <thead className="sticky top-0 bg-amber-50 border-b border-amber-200">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold text-amber-800">SKU</th>
+                          <th className="px-3 py-2 text-left font-semibold text-amber-800">Referência</th>
+                          <th className="px-3 py-2 text-left font-semibold text-amber-800">Produto</th>
+                          <th className="px-3 py-2 text-left font-semibold text-amber-800">Cor</th>
+                          <th className="px-3 py-2 text-left font-semibold text-amber-800">Tamanho</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-amber-100">
+                        {data.itensSemVenda?.map((item) => (
+                          <tr key={item.idproduto}>
+                            <td className="px-3 py-1.5 font-mono text-gray-700">{item.idproduto}</td>
+                            <td className="px-3 py-1.5 text-gray-700">{item.referencia}</td>
+                            <td className="px-3 py-1.5 text-gray-700">{item.produto}</td>
+                            <td className="px-3 py-1.5 text-gray-700">{item.cor}</td>
+                            <td className="px-3 py-1.5 text-gray-700">{item.tamanho}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </>
           ) : null}
         </main>
