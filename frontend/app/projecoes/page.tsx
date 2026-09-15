@@ -132,6 +132,7 @@ export default function ProjecoesPage() {
   });
   const [filtroSemProj, setFiltroSemProj] = useState({ curva: 'TODAS', continuidade: 'TODAS', impacto: 'TODOS' });
   const [aplicandoSugestoes, setAplicandoSugestoes] = useState(false);
+  const [expandedContinuidades, setExpandedContinuidades] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!getToken()) { router.replace('/login'); return; }
@@ -463,6 +464,33 @@ export default function ProjecoesPage() {
       });
   }, [sugestoesFiltradas, top30Ids, top30Refs]);
 
+  // Funções para expandir/recolher continuidades
+  function toggleContinuidade(key: string) {
+    setExpandedContinuidades((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  function expandirTodasContinuidades() {
+    const todas = new Set<string>();
+    for (const nivelGroup of gruposReprojecao) {
+      for (const contGroup of nivelGroup.continuidades) {
+        todas.add(`${nivelGroup.nivel}-${contGroup.continuidade}`);
+      }
+    }
+    setExpandedContinuidades(todas);
+  }
+
+  function recolherTodasContinuidades() {
+    setExpandedContinuidades(new Set());
+  }
+
   const entradas = Object.entries(projecoes.data)
     .filter(([id]) => !filtro || id.includes(filtro.trim()))
     .sort(([a], [b]) => Number(a) - Number(b));
@@ -634,6 +662,20 @@ export default function ProjecoesPage() {
                     ))}
                   </select>
                 </label>
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={expandirTodasContinuidades}
+                    className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                  >
+                    Abrir todas
+                  </button>
+                  <button
+                    onClick={recolherTodasContinuidades}
+                    className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                  >
+                    Recolher
+                  </button>
+                </div>
               </div>
               <table className="w-full text-xs">
                 <thead>
@@ -690,13 +732,20 @@ export default function ProjecoesPage() {
                             const itensCont = contGroup.referencias.flatMap((r) => r.itens);
                             const tCont = totalizar(itensCont);
                             const atendCont = tCont.baseProj > 0 ? (tCont.baseVenda / tCont.baseProj) * 100 : 0;
+                            const contKey = `${nivelGroup.nivel}-${contGroup.continuidade}`;
+                            const isExpanded = expandedContinuidades.has(contKey);
                             return (
                               <Fragment key={`cont-${nivelGroup.nivel}-${contGroup.continuidade}`}>
-                                <tr className="bg-slate-100 border-t border-slate-200">
-                                  <td className="px-3 py-2 sticky left-0 bg-slate-100">-</td>
+                                <tr
+                                  className="bg-slate-100 border-t border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors"
+                                  onClick={() => toggleContinuidade(contKey)}
+                                >
+                                  <td className="px-3 py-2 sticky left-0 bg-slate-100">
+                                    <span className="text-gray-500">{isExpanded ? '▼' : '▶'}</span>
+                                  </td>
                                   <td className="px-3 py-2 font-semibold">{contGroup.continuidade}</td>
-                                  <td className="px-3 py-2">-</td>
-                                  <td className="px-3 py-2">-</td>
+                                  <td className="px-3 py-2 text-gray-500 text-[10px]">{contGroup.referencias.length} refs</td>
+                                  <td className="px-3 py-2 text-gray-500 text-[10px]">{itensCont.length} SKUs</td>
                                   <td className="px-3 py-2 text-right font-semibold">{fmt(tCont.baseProj)}</td>
                                   <td className="px-3 py-2 text-right font-semibold">{fmt(tCont.baseVenda)}</td>
                                   <td className="px-3 py-2 text-right font-semibold">{atendCont.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</td>
@@ -710,7 +759,7 @@ export default function ProjecoesPage() {
                                   <td className="px-3 py-2 text-right bg-teal-50">{fmt(tCont.qtOrig)}</td>
                                   <td className="px-3 py-2 text-right bg-teal-50">{fmt(tCont.qtCorr)}</td>
                                 </tr>
-                                {contGroup.referencias.map((refGroup) => {
+                                {isExpanded && contGroup.referencias.map((refGroup) => {
                                   const tRef = totalizar(refGroup.itens);
                                   const atendRef = tRef.baseProj > 0 ? (tRef.baseVenda / tRef.baseProj) * 100 : 0;
                                   return (
