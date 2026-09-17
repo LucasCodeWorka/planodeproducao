@@ -1,0 +1,17 @@
+{
+  "descricao": "Totalizadores de continuados por cenario, usados para simular a projecao no plano sem gravar em app_projecoes. Gerados em 16/09/2026.",
+  "cenarios": {
+    "cairo": {
+      "nome": "Regra do Cairo",
+      "detalhe": "Venda do mesmo mes de 2025 com +10% na fabrica, lojas sem ajuste.",
+      "ano": 2026,
+      "meses": { "9": 186815, "10": 169314, "11": 119005, "12": 71434 }
+    },
+    "envelope": {
+      "nome": "Envelope",
+      "detalhe": "Venda de 2025 x fator de nivel amortecido (1 + metade do crescimento acumulado). Fator 1,0335 em setembro e 1,0267 de outubro a dezembro.",
+      "ano": 2026,
+      "meses": { "9": 177369, "10": 160142, "11": 113325, "12": 69814 }
+    }
+  }
+}

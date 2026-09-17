@@ -5,6 +5,7 @@ const EXCLUDED_REFERENCE_CODES = new Set([
   '0140',
   '0171',
   '0172',
+  '0188',
 ]);
 
 const EXCLUDED_REFERENCE_LABELS = new Set([
@@ -14,6 +15,7 @@ const EXCLUDED_REFERENCE_LABELS = new Set([
   'PT 99 0140',
   'PT 99 0171',
   'PT 99 0172',
+  'PT 99 0188',
 ]);
 
 const EXCLUDED_PRODUCT_TERMS = [

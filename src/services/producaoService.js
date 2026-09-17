@@ -890,6 +890,8 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
       produto: produtoNome,
       apresentacao: row.apresentacao,
     })) continue;
+    // sem continuidade cadastrada o SKU nao entra no plano
+    if (!String(contMap.get(id) || '').trim()) continue;
     const status = (statusMap.get(id) || '').trim().toUpperCase();
     const emLinha = status === 'EM LINHA' || status === 'NOVA COLECAO';
 

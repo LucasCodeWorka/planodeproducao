@@ -119,10 +119,12 @@ function filterCache(cacheData, { referencias = [], marca = null, status = null 
     const apresentacao = String(r?.produto?.apresentacao || '').toUpperCase();
     const produto      = String(r?.produto?.produto      || '').toUpperCase();
     const tamanho = String(r?.produto?.tamanho || '').trim().toUpperCase();
+    const continuidade = String(r?.produto?.continuidade || '').trim();
     return (
       !apresentacao.includes('MEIA DE SEDA') &&
       !produto.includes('MEIA DE SEDA') &&
       tamanho !== 'PT 99' &&
+      continuidade !== '' &&
       !isExcludedPlanningItem({
         referencia: r?.produto?.referencia,
         produto: r?.produto?.produto,

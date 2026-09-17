@@ -18,3 +18,10 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Escala "confortável" da matriz do plano: mesma convenção do scorecard R1_PCP —
+   só duas medidas, corpo em text-sm (14px) e secundário em text-xs (12px),
+   com a hierarquia vindo do peso da fonte. Não mexe em cor, coluna nem espaçamento. */
+.matriz-fonte-confortavel .text-\[13px\] { font-size: 14px; }
+.matriz-fonte-confortavel .text-\[12px\] { font-size: 12px; }
+.matriz-fonte-confortavel .text-\[11px\] { font-size: 12px; }

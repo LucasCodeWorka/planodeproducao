@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, LogOut, Settings, TrendingDown, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, AlertTriangle, MinusCircle, CalendarRange, LineChart } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, ChevronDown, LogOut, Settings, TrendingDown, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, AlertTriangle, MinusCircle, CalendarRange, LineChart } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -9,8 +9,51 @@ interface SidebarProps {
   onCollapse?: (collapsed: boolean) => void;
 }
 
+const GRUPOS_NAV = [
+  {
+    id: 'projecoes',
+    titulo: 'Projeções',
+    Icon: TrendingDown,
+    itens: [
+      { href: '/projecoes', label: 'Projeções', Icon: TrendingDown },
+      { href: '/projecao-permanentes', label: 'Proj. Permanentes', Icon: CalendarRange },
+      { href: '/projecao-macro', label: 'Visão Macro', Icon: LineChart },
+    ],
+  },
+  {
+    id: 'planejamento',
+    titulo: 'Planejamento',
+    Icon: CalendarClock,
+    itens: [
+      { href: '/sugestao-plano', label: 'Sugestão de Plano', Icon: CalendarClock },
+      { href: '/recuperar-negativos', label: 'Recuperar Negativos', Icon: AlertTriangle },
+      { href: '/reducao-plano', label: 'Redução de Plano', Icon: MinusCircle },
+      { href: '/sugestoes-aprovacoes', label: 'Sugestões/Aprovação', Icon: CheckSquare },
+    ],
+  },
+  {
+    id: 'capacidade',
+    titulo: 'Capacidade',
+    Icon: Gauge,
+    itens: [
+      { href: '/capacidade', label: 'Capacidade', Icon: Gauge },
+      { href: '/capacidade-matriz', label: 'Matriz Capacidade', Icon: Gauge },
+    ],
+  },
+  {
+    id: 'analises',
+    titulo: 'Análises',
+    Icon: BarChart3,
+    itens: [
+      { href: '/curva-abc', label: 'Curva ABC', Icon: BarChart3 },
+      { href: '/extrato-plano', label: 'Extrato Plano', Icon: GitCompareArrows },
+    ],
+  },
+];
+
 export default function Sidebar({ onCollapse }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({});
   const [fontScale, setFontScale] = useState(1);
   const [zoomScale, setZoomScale] = useState(1);
   const router = useRouter();
@@ -38,6 +81,34 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
     window.localStorage.setItem('ui_zoom_scale', String(zoomScale));
   }, [zoomScale]);
 
+  // o Sidebar remonta a cada navegação, então o que está aberto vive no localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const salvo = JSON.parse(window.localStorage.getItem('ui_nav_grupos') || '{}');
+      if (salvo && typeof salvo === 'object') setGruposAbertos(salvo as Record<string, boolean>);
+    } catch { /* storage indisponível: começa tudo fechado */ }
+  }, []);
+
+  function alternarGrupo(id: string) {
+    setGruposAbertos((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try { window.localStorage.setItem('ui_nav_grupos', JSON.stringify(next)); } catch { /* sem storage */ }
+      return next;
+    });
+  }
+
+  // clicar no ícone de um grupo com a barra recolhida: abre a barra já naquele grupo
+  function abrirGrupoNaBarra(id: string) {
+    setCollapsed(false);
+    onCollapse?.(false);
+    setGruposAbertos((prev) => {
+      const next = { ...prev, [id]: true };
+      try { window.localStorage.setItem('ui_nav_grupos', JSON.stringify(next)); } catch { /* sem storage */ }
+      return next;
+    });
+  }
+
   function toggle() {
     const next = !collapsed;
     setCollapsed(next);
@@ -49,9 +120,9 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
     router.replace('/login');
   }
 
-  const navItemBase = 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium w-full text-left transition-colors';
-  const navActive = 'bg-brand-primary text-white';
-  const navInactive = 'text-gray-300 hover:bg-gray-700';
+  const navItemBase = 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium w-full text-left transition-all duration-150 ease-out';
+  const navActive = 'bg-brand-primary text-white shadow-sm';
+  const navInactive = 'text-gray-300 hover:bg-white/10 hover:text-white';
 
   function adjustFont(delta: number) {
     setFontScale((prev) => Math.max(0.9, Math.min(1.3, Number((prev + delta).toFixed(2)))));
@@ -87,62 +158,67 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
             {!collapsed && <span>Plano de Produção</span>}
           </button>
 
-          <button onClick={() => router.push('/projecoes')} className={`${navItemBase} ${pathname === '/projecoes' ? navActive : navInactive}`}>
-            <TrendingDown size={20} className="shrink-0" />
-            {!collapsed && <span>Projeções</span>}
-          </button>
+          {GRUPOS_NAV.map((grupo) => {
+            const IconeGrupo = grupo.Icon;
+            const temAtivo = grupo.itens.some((item) => item.href === pathname);
 
-          <button onClick={() => router.push('/projecao-permanentes')} className={`${navItemBase} ${pathname === '/projecao-permanentes' ? navActive : navInactive}`}>
-            <CalendarRange size={20} className="shrink-0" />
-            {!collapsed && <span>Proj. Permanentes</span>}
-          </button>
+            // Recolhida: um ícone por grupo, igual às entradas soltas — clicar abre a barra nele.
+            if (collapsed) {
+              return (
+                <button
+                  key={grupo.id}
+                  onClick={() => abrirGrupoNaBarra(grupo.id)}
+                  title={grupo.titulo}
+                  className={`${navItemBase} ${temAtivo ? navActive : navInactive}`}
+                >
+                  <IconeGrupo size={20} className="shrink-0" />
+                </button>
+              );
+            }
 
-          <button onClick={() => router.push('/projecao-macro')} className={`${navItemBase} ${pathname === '/projecao-macro' ? navActive : navInactive}`}>
-            <LineChart size={20} className="shrink-0" />
-            {!collapsed && <span>Visão Macro</span>}
-          </button>
+            // Aberta: sem escolha salva, abre o grupo da página atual.
+            const aberto = gruposAbertos[grupo.id] ?? temAtivo;
 
-          <button onClick={() => router.push('/sugestao-plano')} className={`${navItemBase} ${pathname === '/sugestao-plano' ? navActive : navInactive}`}>
-            <CalendarClock size={20} className="shrink-0" />
-            {!collapsed && <span>Sugestão de Plano</span>}
-          </button>
+            return (
+              <div key={grupo.id}>
+                <button
+                  onClick={() => alternarGrupo(grupo.id)}
+                  className={`${navItemBase} justify-between ${temAtivo ? 'text-white bg-gray-700/40' : navInactive}`}
+                >
+                  <span className="flex items-center gap-3">
+                    <IconeGrupo size={20} className="shrink-0" />
+                    <span>{grupo.titulo}</span>
+                  </span>
+                  <ChevronDown size={16} className={`shrink-0 transition-transform duration-300 ease-out ${aberto ? '' : '-rotate-90'}`} />
+                </button>
 
-          <button onClick={() => router.push('/recuperar-negativos')} className={`${navItemBase} ${pathname === '/recuperar-negativos' ? navActive : navInactive}`}>
-            <AlertTriangle size={20} className="shrink-0" />
-            {!collapsed && <span>Recuperar Negativos</span>}
-          </button>
+                {/* grid-rows 0fr→1fr anima a altura sem precisar medir o conteúdo, e nos dois sentidos */}
+                <div
+                  className={`grid transition-all duration-300 ease-out ${
+                    aberto ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="ml-4 mt-1 space-y-1 border-l border-gray-700 pl-2">
+                      {grupo.itens.map(({ href, label, Icon }) => (
+                        <button
+                          key={href}
+                          onClick={() => router.push(href)}
+                          tabIndex={aberto ? 0 : -1}
+                          className={`${navItemBase} ${pathname === href ? navActive : navInactive}`}
+                        >
+                          <Icon size={20} className="shrink-0" />
+                          <span>{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
 
-          <button onClick={() => router.push('/reducao-plano')} className={`${navItemBase} ${pathname === '/reducao-plano' ? navActive : navInactive}`}>
-            <MinusCircle size={20} className="shrink-0" />
-            {!collapsed && <span>Redução de Plano</span>}
-          </button>
-
-          <button onClick={() => router.push('/sugestoes-aprovacoes')} className={`${navItemBase} ${pathname === '/sugestoes-aprovacoes' ? navActive : navInactive}`}>
-            <CheckSquare size={20} className="shrink-0" />
-            {!collapsed && <span>Sugestões/Aprovação</span>}
-          </button>
-
-          <button onClick={() => router.push('/capacidade')} className={`${navItemBase} ${pathname === '/capacidade' ? navActive : navInactive}`}>
-            <Gauge size={20} className="shrink-0" />
-            {!collapsed && <span>Capacidade</span>}
-          </button>
-
-          <button onClick={() => router.push('/capacidade-matriz')} className={`${navItemBase} ${pathname === '/capacidade-matriz' ? navActive : navInactive}`}>
-            <Gauge size={20} className="shrink-0" />
-            {!collapsed && <span>Matriz Capacidade</span>}
-          </button>
-
-          <button onClick={() => router.push('/curva-abc')} className={`${navItemBase} ${pathname === '/curva-abc' ? navActive : navInactive}`}>
-            <BarChart3 size={20} className="shrink-0" />
-            {!collapsed && <span>Curva ABC</span>}
-          </button>
-
-            <button onClick={() => router.push('/extrato-plano')} className={`${navItemBase} ${pathname === '/extrato-plano' ? navActive : navInactive}`}>
-              <GitCompareArrows size={20} className="shrink-0" />
-              {!collapsed && <span>Extrato Plano</span>}
-            </button>
-
-            <button onClick={() => router.push('/configuracoes')} className={`${navItemBase} ${pathname === '/configuracoes' ? navActive : navInactive}`}>
+          <button onClick={() => router.push('/configuracoes')} className={`${navItemBase} ${pathname === '/configuracoes' ? navActive : navInactive}`}>
             <SlidersHorizontal size={20} className="shrink-0" />
             {!collapsed && <span>Configurações</span>}
           </button>

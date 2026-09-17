@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import MatrizPlanejamentoTable from './components/MatrizPlanejamentoTable';
+import MatrizPlanejamentoTable, { type GrupoTotais } from './components/MatrizPlanejamentoTable';
 import Sidebar from './components/Sidebar';
 import { Planejamento, ProjecoesMap, PeriodosPlano, EstoqueLojaDisponivelAggregado } from './types';
 import { getToken, authHeaders, clearToken } from './lib/auth';
@@ -12,6 +12,8 @@ import { projecaoMesPlanejamento } from './lib/projecao';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MARCA_FIXA = 'LIEBE';
 const STATUS_FIXO = 'EM LINHA,NOVA COLECAO';
+const CENARIO_STORAGE_KEY = 'pp_cenario_projecao';
+const CENARIO_MODO_STORAGE_KEY = 'pp_cenario_modo';
 const APROVADAS_LIMIT = 10;
 const DIAS_RECUPERAR_NEGATIVOS = new Set([1, 10, 20]);
 const PARAM_SIMULAR_DIA_ROTINA = 'simularDiaRotina';
@@ -232,7 +234,36 @@ export default function Home() {
   const [filtroTaxa, setFiltroTaxa] = useState<'TODAS' | 'ATE_70'>('TODAS');
   const [filtroCoberturaMinima, setFiltroCoberturaMinima] = useState<string>('');
   const [filtroEmProcessoMinimo, setFiltroEmProcessoMinimo] = useState<string>('');
+  // gap de dias acumulado por mês, na mesma regra da tela de Capacidade
+  const [gapPorPeriodo, setGapPorPeriodo] = useState<Record<string, number>>({});
+  // totais por continuidade que a matriz calcula, espelhados no quadro do topo
+  const [totaisContinuidade, setTotaisContinuidade] = useState<{ continuidade: string; totais: GrupoTotais }[]>([]);
+  // cobertura configurada por curva (mesma config que a Sugestão de Plano usa), só para consulta
+  const [cfgCurvas, setCfgCurvas] = useState({
+    cobertura_min_a: 0.5, cobertura_max_a: 1.0,
+    cobertura_min_b: 1.0, cobertura_max_b: 2.0,
+    cobertura_min_c: 1.0, cobertura_max_c: 2.5,
+    cobertura_min_d: 1.0, cobertura_max_d: 3.0,
+  });
   const [projecoes,    setProjecoes]    = useState<ProjecoesMap>({});
+  const [cenarioProjecao, setCenarioProjecao] = useState<'sistema' | 'cairo' | 'envelope'>('sistema');
+  const [modoCenario, setModoCenario] = useState<'reducao' | 'aumento' | 'completo'>('reducao');
+  const [cenarioInfo, setCenarioInfo] = useState<{
+    nome: string;
+    detalhe: string;
+    totalizadores: Record<string, number>;
+    modo?: 'reducao' | 'aumento' | 'completo';
+    resumo?: {
+      skusAlterados: number;
+      pecasReduzidas: number;
+      pecasAumentadas: number;
+      skusComReducao: number;
+      pecasDeReducao: number;
+      skusComAumento: number;
+      pecasDeAumento: number;
+    };
+  } | null>(null);
+  const [carregandoCenario, setCarregandoCenario] = useState(false);
   const [cortesMinimos, setCortesMinimos] = useState<Record<string, number>>({});
   const [loadingCortesMinimos, setLoadingCortesMinimos] = useState(true);
   const [erroCortesMinimos, setErroCortesMinimos] = useState(false);
@@ -280,11 +311,20 @@ export default function Home() {
       router.replace('/login');
       return;
     }
+    // Cairo/só reduções virou a projeção oficial, gravada em app_projecoes:
+    // a tela lê direto do banco, sem cenário por cima.
+    try {
+      localStorage.removeItem(CENARIO_STORAGE_KEY);
+      localStorage.removeItem(CENARIO_MODO_STORAGE_KEY);
+    } catch { /* navegador sem storage: nada a limpar */ }
+
     verificarRotinaRecuperarNegativos();
     buscarDados();
     buscarStatusCache();
-    buscarProjecoes();
+    buscarProjecoes('sistema', 'reducao').finally(() => setCarregandoCenario(false));
     buscarCortesMinimos();
+    buscarCfgCurvas();
+    buscarGapMensal();
     buscarReprojecaoFechada();
     buscarTop30();
     buscarAprovadas();
@@ -352,16 +392,66 @@ export default function Home() {
     } catch { /* silencioso */ }
   }
 
-  async function buscarProjecoes() {
+  async function buscarProjecoes(cenario: string = 'sistema', modo: string = 'reducao') {
     try {
-      const res  = await fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() });
+      const query = cenario && cenario !== 'sistema'
+        ? `?cenario=${encodeURIComponent(cenario)}&modo=${encodeURIComponent(modo)}`
+        : '';
+      const res  = await fetchNoCache(`${API_URL}/api/projecoes${query}`, { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       if (data.success) {
         setProjecoes(data.data as ProjecoesMap);
+        setCenarioInfo(data.cenario || null);
         if (data.periodos) setPeriodos(data.periodos as PeriodosPlano);
       }
     } catch { /* silencioso */ }
+  }
+
+  // Troca a projeção que alimenta o plano. Nada é gravado: o cenário vive só na resposta.
+  async function aplicarCenarioNaTela(
+    cenario: 'sistema' | 'cairo' | 'envelope',
+    modo: 'reducao' | 'aumento' | 'completo'
+  ) {
+    if (carregandoCenario) return;
+    setCenarioProjecao(cenario);
+    setModoCenario(modo);
+    try {
+      localStorage.setItem(CENARIO_STORAGE_KEY, cenario);
+      localStorage.setItem(CENARIO_MODO_STORAGE_KEY, modo);
+    } catch { /* navegador sem storage: a escolha vale só nesta sessão */ }
+    setCarregandoCenario(true);
+    try {
+      await buscarProjecoes(cenario, modo);
+    } finally {
+      setCarregandoCenario(false);
+    }
+  }
+
+  function trocarCenarioProjecao(cenario: 'sistema' | 'cairo' | 'envelope') {
+    if (cenario === cenarioProjecao) return;
+    void aplicarCenarioNaTela(cenario, modoCenario);
+  }
+
+  function trocarModoCenario(modo: 'reducao' | 'aumento' | 'completo') {
+    if (modo === modoCenario) return;
+    void aplicarCenarioNaTela(cenarioProjecao, modo);
+  }
+
+  function textoResumoCenario(info: NonNullable<typeof cenarioInfo>) {
+    const r = info.resumo;
+    const fmtPecas = (n: number) => Math.round(n || 0).toLocaleString('pt-BR');
+    if (!r) return `Simulando ${info.nome}. Nada gravado.`;
+    if (info.modo === 'reducao') {
+      const fora = r.pecasDeAumento > 0
+        ? ` ${fmtPecas(r.pecasDeAumento)} peças de aumento ficaram de fora, em ${r.skusComAumento} SKUs.`
+        : '';
+      return `${info.nome}, só reduções: −${fmtPecas(r.pecasReduzidas)} peças em ${r.skusAlterados} SKUs.${fora} Nada gravado.`;
+    }
+    if (info.modo === 'aumento') {
+      return `${info.nome}, só aumentos: +${fmtPecas(r.pecasAumentadas)} peças em ${r.skusAlterados} SKUs. Nada gravado.`;
+    }
+    return `${info.nome}, completo: −${fmtPecas(r.pecasReduzidas)} e +${fmtPecas(r.pecasAumentadas)} peças em ${r.skusAlterados} SKUs. Nada gravado.`;
   }
 
   async function buscarCortesMinimos() {
@@ -394,6 +484,41 @@ export default function Home() {
         setCurvaABC(data.porReferencia as Record<string, 'A' | 'B' | 'C' | 'D'>);
       }
     } catch { /* silencioso */ }
+  }
+
+  async function buscarGapMensal() {
+    try {
+      const res = await fetchNoCache(`${API_URL}/api/capacidade/gap-mensal`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data?.success || !Array.isArray(data.meses)) return;
+      const mapa: Record<string, number> = {};
+      for (const m of data.meses) {
+        const periodo = String(m?.periodo || '');
+        if (periodo) mapa[periodo] = Number(m?.gap || 0);
+      }
+      setGapPorPeriodo(mapa);
+    } catch { /* silencioso: sem gap o card só não mostra o indicador */ }
+  }
+
+  async function buscarCfgCurvas() {
+    try {
+      const res = await fetchNoCache(`${API_URL}/api/configuracoes/sugestao-plano`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const c = data?.data;
+      if (!c) return;
+      setCfgCurvas((prev) => ({
+        cobertura_min_a: Number(c.cobertura_min_a ?? prev.cobertura_min_a),
+        cobertura_max_a: Number(c.cobertura_max_a ?? prev.cobertura_max_a),
+        cobertura_min_b: Number(c.cobertura_min_b ?? prev.cobertura_min_b),
+        cobertura_max_b: Number(c.cobertura_max_b ?? prev.cobertura_max_b),
+        cobertura_min_c: Number(c.cobertura_min_c ?? prev.cobertura_min_c),
+        cobertura_max_c: Number(c.cobertura_max_c ?? prev.cobertura_max_c),
+        cobertura_min_d: Number(c.cobertura_min_d ?? prev.cobertura_min_d),
+        cobertura_max_d: Number(c.cobertura_max_d ?? prev.cobertura_max_d),
+      }));
+    } catch { /* silencioso: mantem os valores padrao */ }
   }
 
   async function buscarTop30() {
@@ -1617,7 +1742,7 @@ export default function Home() {
         </header>
 
         {/* Conteúdo */}
-        <main className="flex-1 min-w-0 px-6 py-5 space-y-4">
+        <main className="flex-1 min-w-0 px-4 py-3 space-y-3 xl:px-5">
 
           {/* mensagem de refresh */}
           {refreshMsg && (
@@ -1645,65 +1770,20 @@ export default function Home() {
             </div>
           )}
 
-          {/* KPIs unificados */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex">
-
-            {/* Grupo: Portfólio */}
-            <div className="flex-1 px-5 py-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Portfólio</span>
-                <div className="flex-1 h-px bg-gray-100" />
-              </div>
-              <div className="grid grid-cols-5 gap-6">
-                {(() => {
-                  const usarFiltrados = filtroCoberturaMinima.trim() || filtroEmProcessoMinimo.trim();
-                  const t = usarFiltrados ? totaisFiltrados : totais;
-                  return [
-                    { label: 'Itens',         value: t.itens.toLocaleString('pt-BR'),                                    accent: 'text-brand-primary' },
-                    { label: 'Estoque atual', value: t.estoque.toLocaleString('pt-BR',    { maximumFractionDigits: 0 }), accent: 'text-blue-600' },
-                    { label: 'Em processo',   value: t.emProc.toLocaleString('pt-BR',     { maximumFractionDigits: 0 }), accent: 'text-sky-600' },
-                    { label: 'Est. mínimo',   value: t.estoqueMin.toLocaleString('pt-BR', { maximumFractionDigits: 0 }), accent: 'text-gray-700' },
-                    { label: 'Pedidos pend.', value: t.pedidos.toLocaleString('pt-BR',    { maximumFractionDigits: 0 }), accent: 'text-amber-600' },
-                  ].map((c) => (
-                    <div key={c.label}>
-                      <div className="text-[11px] text-gray-400 mb-0.5">{c.label}</div>
-                      <div className={`text-xl font-bold font-mono ${c.accent}`}>{c.value}</div>
-                    </div>
-                  ));
-                })()}
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-gray-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Cadastro de corte mínimo</span>
-                  <div className="flex-1 h-px bg-amber-100" />
-                  <span className="text-[10px] text-gray-400">SKUs sem valor cadastrado</span>
+          {/* Barra de filtros */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-2.5">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Filtros</span>
+                  <div className="flex-1 h-px bg-gray-100" />
                 </div>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="relative z-[100] flex w-full flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                   <div>
-                    <div className="text-[11px] text-gray-400 mb-0.5">Permanente sem corte mínimo</div>
-                    <div className={`text-xl font-bold font-mono ${skusSemCorteMinimo.permanente > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                      {loadingCortesMinimos ? '...' : erroCortesMinimos ? '—' : skusSemCorteMinimo.permanente.toLocaleString('pt-BR')}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] text-gray-400 mb-0.5">Permanente cor nova sem corte mínimo</div>
-                    <div className={`text-xl font-bold font-mono ${skusSemCorteMinimo.permanenteCorNova > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                      {loadingCortesMinimos ? '...' : erroCortesMinimos ? '—' : skusSemCorteMinimo.permanenteCorNova.toLocaleString('pt-BR')}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Filtros integrados */}
-              <div className="mt-4 pt-3 border-t border-gray-100">
-                <div className="relative z-[100] flex flex-wrap gap-x-4 gap-y-2 items-end justify-center">
-                  <div>
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Filtro rápido</label>
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
                       <button
                         onClick={() => setApenasNegativos((v) => !v)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-l border transition-colors ${
+                        className={`inline-flex h-8 items-center px-3 text-xs font-semibold rounded-l-md border transition-colors ${
                           apenasNegativos
                             ? 'bg-red-600 text-white border-red-600'
                             : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
@@ -1715,7 +1795,7 @@ export default function Home() {
                         <select
                           value={filtroNegativoPeriodo}
                           onChange={(e) => setFiltroNegativoPeriodo(e.target.value as 'TODOS' | 'ATUAL' | 'MA' | 'PX' | 'UL' | 'QT' | 'QU')}
-                          className="px-2 py-1.5 text-xs border border-l-0 border-red-600 rounded-r bg-red-50 text-red-800 font-semibold"
+                          className="h-8 px-2 text-xs border border-l-0 border-red-600 rounded-r-md bg-red-50 text-red-800 font-semibold"
                         >
                           <option value="TODOS">Todos</option>
                           <option value="ATUAL">Atual</option>
@@ -1728,7 +1808,7 @@ export default function Home() {
                       )}
                       <button
                         onClick={() => setFiltroSomenteComPlano((v) => !v)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded border transition-colors ml-1 ${
+                        className={`inline-flex h-8 items-center px-3 text-xs font-semibold rounded-md border transition-colors ml-1 ${
                           filtroSomenteComPlano
                             ? 'bg-emerald-600 text-white border-emerald-600'
                             : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
@@ -1740,38 +1820,39 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Cobertura &gt;</label>
+                  <div className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 shadow-sm focus-within:border-brand-primary">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Cob. &gt;</span>
                     <input
                       type="text"
                       value={filtroCoberturaMinima}
                       onChange={(e) => setFiltroCoberturaMinima(e.target.value)}
-                      placeholder="ex: 1"
-                      className="w-20 px-2 py-1.5 text-xs border border-gray-300 rounded"
+                      placeholder="1"
+                      className="h-full w-10 border-0 bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-300"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Em Proc. &gt;</label>
+                  <div className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 shadow-sm focus-within:border-brand-primary">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Em proc. &gt;</span>
                     <input
                       type="text"
                       value={filtroEmProcessoMinimo}
                       onChange={(e) => setFiltroEmProcessoMinimo(e.target.value)}
-                      placeholder="ex: 0"
-                      className="w-20 px-2 py-1.5 text-xs border border-gray-300 rounded"
+                      placeholder="0"
+                      className="h-full w-10 border-0 bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-300"
                     />
                   </div>
 
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Simulação aprovada</label>
+                  <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className={`relative w-72 ${abrirSeletorAprovadas ? 'z-[200]' : 'z-10'}`}>
+                      <div className={`relative ${abrirSeletorAprovadas ? 'z-[200]' : 'z-10'}`}>
                         <button
                           type="button"
                           onClick={() => setAbrirSeletorAprovadas((v) => !v)}
-                          className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs text-left bg-white hover:bg-gray-50"
+                          className="inline-flex h-8 w-[220px] items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 text-left shadow-sm hover:bg-gray-50"
                         >
-                          Selecionadas: {aprovadasSelecionadasIds.length}/{aprovadas.length} {abrirSeletorAprovadas ? '▲' : '▼'}
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Simulação</span>
+                          <span className="flex-1 truncate text-xs text-gray-700">{aprovadasSelecionadasIds.length}/{aprovadas.length}</span>
+                          <span className="text-[9px] text-gray-400">{abrirSeletorAprovadas ? '▲' : '▼'}</span>
                         </button>
                         {abrirSeletorAprovadas && (
                           <div className="absolute z-[200] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
@@ -1819,7 +1900,7 @@ export default function Home() {
                       </div>
                       <button
                         onClick={() => setAplicarAprovadas((v) => !v)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
+                        className={`inline-flex h-8 items-center px-3 text-xs font-semibold rounded-md border transition-colors ${
                           aplicarAprovadas
                             ? 'bg-brand-primary text-white border-brand-primary'
                             : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
@@ -1833,79 +1914,59 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Projeção</label>
-                    <div className="flex flex-col gap-1.5">
-                      <button
-                        onClick={() => setConsiderarProjecaoNova((v) => !v)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
-                          considerarProjecaoNova
-                            ? 'bg-violet-600 text-white border-violet-600'
-                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        {considerarProjecaoNova ? 'Projeção MA/PX ativa' : 'Aplicar projeção nova em MA/PX'}
-                      </button>
-                      {recalculandoProjecao ? (
-                        <div className="flex items-center gap-1.5 text-[11px] text-violet-700">
-                          <svg className="animate-spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                          </svg>
-                          Gerando novos cálculos...
-                        </div>
-                      ) : (
-                        considerarProjecaoNova && resultadoReprojecaoMsg && (
-                          <div className="text-[11px] text-gray-500 max-w-[280px] leading-relaxed">
-                            {resultadoReprojecaoMsg}
-                          </div>
-                        )
+                  <div className="mx-1 h-6 w-px bg-gray-200" />
+                  <div>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="mr-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Curva</span>
+                      {(['A', 'B', 'C', 'D'] as const).map((curva) => (
+                        <button
+                          key={curva}
+                          onClick={() => {
+                            setFiltroCurvaABC((prev) => {
+                              if (prev.includes(curva)) return prev.filter((c) => c !== curva);
+                              return [...prev, curva];
+                            });
+                          }}
+                          className={`inline-flex h-8 w-8 items-center justify-center text-xs font-bold rounded-md border transition-colors ${
+                            filtroCurvaABC.includes(curva)
+                              ? curva === 'A'
+                                ? 'bg-green-600 text-white border-green-600'
+                                : curva === 'C'
+                                  ? 'bg-red-600 text-white border-red-600'
+                                  : curva === 'D'
+                                    ? 'bg-amber-600 text-white border-amber-600'
+                                    : 'bg-gray-600 text-white border-gray-600'
+                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {curva}
+                        </button>
+                      ))}
+                      {filtroCurvaABC.length > 0 && (
+                        <button
+                          onClick={() => setFiltroCurvaABC([])}
+                          className="px-2 py-1.5 text-[10px] text-gray-500 hover:text-gray-700"
+                        >
+                          Limpar
+                        </button>
                       )}
                     </div>
                   </div>
-
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Estoque Lojas</label>
-                    <div className="flex flex-col gap-1.5">
-                      <button
-                        onClick={() => setUsarEstoqueLojas((v) => !v)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
-                          usarEstoqueLojas
-                            ? 'bg-purple-600 text-white border-purple-600'
-                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        {usarEstoqueLojas ? 'Lojas ativas' : 'Usar estoque lojas'}
-                      </button>
-                      {carregandoEstoqueLojas ? (
-                        <div className="flex items-center gap-1.5 text-[11px] text-purple-700">
-                          <svg className="animate-spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                          </svg>
-                          Carregando estoque disponível...
-                        </div>
-                      ) : (
-                        usarEstoqueLojas && estoqueLojasDisponivel.size > 0 && (
-                          <div className="text-[11px] text-gray-500">
-                            {estoqueLojasDisponivel.size.toLocaleString('pt-BR')} produtos com estoque disponível
-                          </div>
-                        )
-                      )}
-                    </div>
                   </div>
 
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Continuidade</label>
-                    <div className={`relative w-56 ${abrirSeletorContinuidade ? 'z-[200]' : 'z-10'}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                  <div>
+                    <div className={`relative ${abrirSeletorContinuidade ? 'z-[200]' : 'z-10'}`}>
                       <button
                         type="button"
                         onClick={() => setAbrirSeletorContinuidade((v) => !v)}
-                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs text-left bg-white hover:bg-gray-50"
+                        className="inline-flex h-8 w-[190px] items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 text-left shadow-sm hover:bg-gray-50"
                       >
-                        {filtroContinuidade.length === 0
-                          ? 'Todas'
-                          : `${filtroContinuidade.length} selecionada(s)`} {abrirSeletorContinuidade ? '▲' : '▼'}
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Contin.</span>
+                        <span className="flex-1 truncate text-xs text-gray-700">
+                          {filtroContinuidade.length === 0 ? 'Todas' : `${filtroContinuidade.length} selec.`}
+                        </span>
+                        <span className="text-[9px] text-gray-400">{abrirSeletorContinuidade ? '▲' : '▼'}</span>
                       </button>
                       {abrirSeletorContinuidade && (
                         <div className="absolute z-[200] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
@@ -1951,17 +2012,18 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Linha</label>
-                    <div className={`relative w-44 ${abrirSeletorLinha ? 'z-[200]' : 'z-10'}`}>
+                  <div>
+                    <div className={`relative ${abrirSeletorLinha ? 'z-[200]' : 'z-10'}`}>
                       <button
                         type="button"
                         onClick={() => setAbrirSeletorLinha((v) => !v)}
-                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs text-left bg-white hover:bg-gray-50"
+                        className="inline-flex h-8 w-[170px] items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 text-left shadow-sm hover:bg-gray-50"
                       >
-                        {filtroLinha.length === 0
-                          ? 'Todas'
-                          : `${filtroLinha.length} selecionada(s)`} {abrirSeletorLinha ? '▲' : '▼'}
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Linha</span>
+                        <span className="flex-1 truncate text-xs text-gray-700">
+                          {filtroLinha.length === 0 ? 'Todas' : `${filtroLinha.length} selec.`}
+                        </span>
+                        <span className="text-[9px] text-gray-400">{abrirSeletorLinha ? '▲' : '▼'}</span>
                       </button>
                       {abrirSeletorLinha && (
                         <div className="absolute z-[200] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
@@ -2007,17 +2069,18 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Familia</label>
-                    <div className={`relative w-44 ${abrirSeletorFamilia ? 'z-[200]' : 'z-10'}`}>
+                  <div>
+                    <div className={`relative ${abrirSeletorFamilia ? 'z-[200]' : 'z-10'}`}>
                       <button
                         type="button"
                         onClick={() => setAbrirSeletorFamilia((v) => !v)}
-                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs text-left bg-white hover:bg-gray-50"
+                        className="inline-flex h-8 w-[170px] items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 text-left shadow-sm hover:bg-gray-50"
                       >
-                        {filtroFamilia.length === 0
-                          ? 'Todas'
-                          : `${filtroFamilia.length} selecionada(s)`} {abrirSeletorFamilia ? '▲' : '▼'}
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Família</span>
+                        <span className="flex-1 truncate text-xs text-gray-700">
+                          {filtroFamilia.length === 0 ? 'Todas' : `${filtroFamilia.length} selec.`}
+                        </span>
+                        <span className="text-[9px] text-gray-400">{abrirSeletorFamilia ? '▲' : '▼'}</span>
                       </button>
                       {abrirSeletorFamilia && (
                         <div className="absolute z-[200] mt-1 w-full border border-gray-300 rounded p-2 bg-white shadow-xl">
@@ -2063,83 +2126,33 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Curva ABCD</label>
-                    <div className="flex items-center gap-1">
-                      {(['A', 'B', 'C', 'D'] as const).map((curva) => (
-                        <button
-                          key={curva}
-                          onClick={() => {
-                            setFiltroCurvaABC((prev) => {
-                              if (prev.includes(curva)) return prev.filter((c) => c !== curva);
-                              return [...prev, curva];
-                            });
-                          }}
-                          className={`px-3 py-1.5 text-xs font-bold rounded border transition-colors ${
-                            filtroCurvaABC.includes(curva)
-                              ? curva === 'A'
-                                ? 'bg-green-600 text-white border-green-600'
-                                : curva === 'C'
-                                  ? 'bg-red-600 text-white border-red-600'
-                                  : curva === 'D'
-                                    ? 'bg-amber-600 text-white border-amber-600'
-                                    : 'bg-gray-600 text-white border-gray-600'
-                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {curva}
-                        </button>
-                      ))}
-                      {filtroCurvaABC.length > 0 && (
-                        <button
-                          onClick={() => setFiltroCurvaABC([])}
-                          className="px-2 py-1.5 text-[10px] text-gray-500 hover:text-gray-700"
-                        >
-                          Limpar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Suspensos</label>
-                    <select
-                      value={filtroSuspensos}
-                      onChange={(e) => setFiltroSuspensos(e.target.value as 'INCLUIR' | 'EXCLUIR')}
-                      className="border border-gray-300 rounded px-2 py-1.5 text-xs w-28 focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                    >
-                      <option value="INCLUIR">Incluir</option>
-                      <option value="EXCLUIR">Excluir</option>
-                    </select>
-                  </div>
-
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Referência</label>
+                  <div className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 shadow-sm focus-within:border-brand-primary">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Ref.</span>
                     <input
                       value={filtroReferencia}
                       onChange={(e) => setFiltroReferencia(e.target.value)}
-                      placeholder="ex: 4025"
-                      className="border border-gray-300 rounded px-2 py-1.5 text-xs w-32 focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                      placeholder="4025"
+                      className="h-full w-16 border-0 bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-300"
                     />
                   </div>
 
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Cor</label>
+                  <div className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-200 bg-white pl-2 pr-1 shadow-sm focus-within:border-brand-primary">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Cor</span>
                     <select
                       value={filtroCor}
                       onChange={(e) => setFiltroCor(e.target.value)}
-                      className="border border-gray-300 rounded px-2 py-1.5 text-xs w-36 focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                      className="h-full w-[104px] border-0 bg-transparent text-xs text-gray-700 outline-none"
                     >
                       {opcoesCor.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
 
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">Cobertura</label>
+                  <div className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-200 bg-white pl-2 pr-1 shadow-sm focus-within:border-brand-primary">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">Cobertura</span>
                     <select
                       value={filtroCobertura}
                       onChange={(e) => setFiltroCobertura(e.target.value as 'TODAS' | 'NEGATIVA' | 'ZERO_UM' | 'MAIOR_UM' | 'MAIOR_2')}
-                      className="border border-gray-300 rounded px-2 py-1.5 text-xs w-32 focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                      className="h-full w-[82px] border-0 bg-transparent text-xs text-gray-700 outline-none"
                     >
                       <option value="TODAS">Todas</option>
                       <option value="NEGATIVA">{'< 0x'}</option>
@@ -2149,176 +2162,254 @@ export default function Home() {
                     </select>
                   </div>
 
-                  <div className="border-l border-gray-200 pl-4">
-                    <label className="block text-xs font-semibold text-brand-dark mb-1">{taxaFiltroLabel}</label>
+                  <div className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-200 bg-white pl-2 pr-1 shadow-sm focus-within:border-brand-primary">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 whitespace-nowrap">{taxaFiltroLabel}</span>
                     <select
                       value={filtroTaxa}
                       onChange={(e) => setFiltroTaxa(e.target.value as 'TODAS' | 'ATE_70')}
-                      className="border border-gray-300 rounded px-2 py-1.5 text-xs w-36 focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                      className="h-full w-[92px] border-0 bg-transparent text-xs text-gray-700 outline-none"
                     >
                       <option value="TODAS">Todas</option>
                       <option value="ATE_70">Ambas ≤ 70%</option>
                     </select>
                   </div>
+                  </div>
                 </div>
               </div>
+          </div>
+
+          {/* Portfólio */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-2.5">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Portfólio</span>
+                <div className="flex-1 h-px bg-gray-100" />
+                {(() => {
+                  const curvas = [
+                    { letra: 'A', cor: 'text-emerald-600', min: cfgCurvas.cobertura_min_a, max: cfgCurvas.cobertura_max_a },
+                    { letra: 'B', cor: 'text-blue-600',    min: cfgCurvas.cobertura_min_b, max: cfgCurvas.cobertura_max_b },
+                    { letra: 'C', cor: 'text-amber-600',   min: cfgCurvas.cobertura_min_c, max: cfgCurvas.cobertura_max_c },
+                    { letra: 'D', cor: 'text-red-600',     min: cfgCurvas.cobertura_min_d, max: cfgCurvas.cobertura_max_d },
+                  ];
+                  const fmtX = (n: number) => `${n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`;
+                  return (
+                    <div className="flex shrink-0 items-center gap-x-2.5 rounded-md border border-gray-200 bg-gray-50 px-3 py-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Cob. mín</span>
+                      {curvas.map((c) => (
+                        <span key={`min-${c.letra}`} className="text-xs text-gray-700">
+                          <span className={`font-bold ${c.cor}`}>{c.letra}</span> {fmtX(c.min)}
+                        </span>
+                      ))}
+                      <span className="h-3 w-px bg-gray-300" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Cob. máx</span>
+                      {curvas.map((c) => (
+                        <span key={`max-${c.letra}`} className="text-xs text-gray-700">
+                          <span className={`font-bold ${c.cor}`}>{c.letra}</span> {fmtX(c.max)}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4 xl:grid-cols-7">
+                {(() => {
+                  const usarFiltrados = filtroCoberturaMinima.trim() || filtroEmProcessoMinimo.trim();
+                  const t = usarFiltrados ? totaisFiltrados : totais;
+                  // SKUs sem corte mínimo cadastrado entram como mais dois indicadores do portfólio
+                  const semCorte = (qtd: number) => (loadingCortesMinimos ? '...' : erroCortesMinimos ? '—' : qtd.toLocaleString('pt-BR'));
+                  const corSemCorte = (qtd: number) => (qtd > 0 ? 'text-amber-600' : 'text-emerald-600');
+                  return [
+                    { label: 'Itens',         value: t.itens.toLocaleString('pt-BR'),                                    accent: 'text-brand-primary' },
+                    { label: 'Estoque atual', value: t.estoque.toLocaleString('pt-BR',    { maximumFractionDigits: 0 }), accent: 'text-blue-600' },
+                    { label: 'Em processo',   value: t.emProc.toLocaleString('pt-BR',     { maximumFractionDigits: 0 }), accent: 'text-sky-600' },
+                    { label: 'Est. mínimo',   value: t.estoqueMin.toLocaleString('pt-BR', { maximumFractionDigits: 0 }), accent: 'text-gray-700' },
+                    { label: 'Pedidos pend.', value: t.pedidos.toLocaleString('pt-BR',    { maximumFractionDigits: 0 }), accent: 'text-amber-600' },
+                    { label: 'Perm. sem corte mín.',     value: semCorte(skusSemCorteMinimo.permanente),        accent: corSemCorte(skusSemCorteMinimo.permanente) },
+                    { label: 'Cor nova sem corte mín.',  value: semCorte(skusSemCorteMinimo.permanenteCorNova), accent: corSemCorte(skusSemCorteMinimo.permanenteCorNova) },
+                  ].map((c) => (
+                    <div key={c.label}>
+                      <div className="text-[10px] text-gray-400 leading-tight">{c.label}</div>
+                      <div className={`text-lg font-bold font-mono leading-tight ${c.accent}`}>{c.value}</div>
+                    </div>
+                  ));
+                })()}
+              </div>
+
+
             </div>
 
-            {/* Divisor */}
-            <div className="w-px bg-gray-100 my-3" />
+          {/* Totais do plano por continuidade — espelha a linha de totalizador da matriz */}
+          {!loading && !error && totaisContinuidade.length > 0 && (() => {
+            const meses = [
+              { label: nomeMesCurto(periodos.MA), bg: 'bg-indigo-50', head: 'bg-indigo-100 text-indigo-900', periodo: 'MA',
+                proj: 'projMA', plano: 'planoMA', disp: 'dispFutMar', neg: 'negFutMar' },
+              { label: nomeMesCurto(periodos.PX), bg: 'bg-emerald-50', head: 'bg-emerald-100 text-emerald-900', periodo: 'PX',
+                proj: 'projPX', plano: 'planoPX', disp: 'dispFutAbr', neg: 'negFutAbr' },
+              { label: nomeMesCurto(periodos.UL), bg: 'bg-amber-50', head: 'bg-amber-100 text-amber-900', periodo: 'UL',
+                proj: 'projUL', plano: 'planoUL', disp: 'dispFutMai', neg: 'negFutMai' },
+              { label: nomeMesCurto((periodos.UL || 0) + 1), bg: 'bg-cyan-50', head: 'bg-cyan-100 text-cyan-900', periodo: 'QT',
+                proj: 'projQT', plano: 'planoQT', disp: 'dispFutJun', neg: 'negFutJun' },
+              { label: nomeMesCurto((periodos.UL || 0) + 2), bg: 'bg-rose-50', head: 'bg-rose-100 text-rose-900', periodo: 'QU',
+                proj: 'projQU', plano: 'planoQU', disp: 'dispFutJul', neg: 'negFutJul' },
+              { label: nomeMesCurto((periodos.UL || 0) + 3), bg: 'bg-purple-50', head: 'bg-purple-100 text-purple-900', periodo: 'SX',
+                proj: 'projSX', plano: 'planoSX', disp: 'dispFutNov', neg: 'negFutNov' },
+            ] as const;
+            const num = (t: GrupoTotais, campo: string) => Number((t as unknown as Record<string, number>)[campo] || 0);
+            const fmtN = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+            // soma as continuidades que a matriz devolveu já filtradas
+            const soma = (campo: string) => totaisContinuidade.reduce((acc, t) => acc + num(t.totais, campo), 0);
+            const minTotal = totaisContinuidade.reduce((acc, t) => acc + (t.totais.estoqueMin || 0), 0);
 
-            {/* Grupo: Déficits */}
-            <div className="bg-gradient-to-br from-red-50 via-white to-red-50/70 px-5 py-4 shrink-0">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Negativos por mes</span>
-                <div className="flex-1 h-px bg-red-100" />
-              </div>
-                <div className="space-y-2">
-                  {/* Cabeçalho com meses */}
-                  <div className="grid grid-cols-[140px_repeat(8,1fr)] gap-2 text-[11px] text-red-400 border-b border-red-100 pb-1">
-                  <div></div>
-                  <div>Atual</div>
-                  <div>Pos Proc.</div>
-                  <div className="flex items-center gap-1">
-                    <span>{nomeMesCurto(periodos.MA)}</span>
-                    {execucaoPlanoResumo?.geral?.MA?.percentual != null && (
-                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.MA.percentual)}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>{nomeMesCurto(periodos.PX)}</span>
-                    {execucaoPlanoResumo?.geral?.PX?.percentual != null && (
-                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.PX.percentual)}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>{nomeMesCurto(periodos.UL)}</span>
-                    {execucaoPlanoResumo?.geral?.UL?.percentual != null && (
-                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.UL.percentual)}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>{nomeMesCurto((periodos.UL || 0) + 1)}</span>
-                    {execucaoPlanoResumo?.geral?.QT?.percentual != null && (
-                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.QT.percentual)}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>{nomeMesCurto((periodos.UL || 0) + 2)}</span>
-                    {execucaoPlanoResumo?.geral?.QU?.percentual != null && (
-                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.QU.percentual)}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>{nomeMesCurto((periodos.UL || 0) + 3)}</span>
-                    {execucaoPlanoResumo?.geral?.SX?.percentual != null && (
-                      <span className="text-red-500 font-semibold">Plano {formatPct(execucaoPlanoResumo.geral.SX.percentual)}</span>
-                    )}
-                  </div>
+            return (
+              <div className="rounded-xl shadow-sm border border-gray-200 bg-gradient-to-br from-slate-50 via-white to-slate-50/70 px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-primary shrink-0" />
+                  <span className="text-[10px] font-bold text-brand-primary uppercase tracking-widest">Cobertura do Plano</span>
+                  <div className="flex-1 h-px bg-gray-100" />
+                  <span className="text-[10px] text-gray-400">negativo aberto por continuidade em cada mês</span>
                 </div>
-                {/* Linha TOTAL */}
-                <div className="grid grid-cols-[140px_repeat(8,1fr)] gap-2 items-center">
-                  <div className="text-xs font-bold text-red-600 uppercase">Total</div>
-                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.atual.toLocaleString('pt-BR')}</div>
-                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.atualPosProcesso.toLocaleString('pt-BR')}</div>
-                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.ma.toLocaleString('pt-BR')}</div>
-                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.px.toLocaleString('pt-BR')}</div>
-                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.ul.toLocaleString('pt-BR')}</div>
-                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.qt.toLocaleString('pt-BR')}</div>
-                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.qu.toLocaleString('pt-BR')}</div>
-                  <div className="text-xl font-bold font-mono text-red-600">{resumoNegativos.sx.toLocaleString('pt-BR')}</div>
-                </div>
-                <div className="grid grid-cols-[140px_repeat(8,1fr)] gap-2 items-center border-t border-red-100 pt-2">
-                  <div className="text-[11px] font-bold text-amber-700 uppercase">MP (% plano)</div>
-                  <div className="text-sm font-bold font-mono text-gray-400">-</div>
-                  <div className="text-sm font-bold font-mono text-gray-400">-</div>
-                  <div className="text-sm font-bold font-mono text-amber-700">
-                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctMA.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                  </div>
-                  <div className="text-sm font-bold font-mono text-amber-700">
-                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctPX.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                  </div>
-                  <div className="text-sm font-bold font-mono text-amber-700">
-                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctUL.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                  </div>
-                  <div className="text-sm font-bold font-mono text-amber-700">
-                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctQT.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                  </div>
-                  <div className="text-sm font-bold font-mono text-amber-700">
-                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctQU.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                  </div>
-                  <div className="text-sm font-bold font-mono text-amber-700">
-                    {loadingRiscoMp ? '...' : `${resumoRiscoMpPlano.pctSX.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                  </div>
-                </div>
-                {/* Linhas por continuidade */}
-                <div className="space-y-1 pt-1 border-t border-red-100">
-                  {resumoNegativos.continuidade
-                    .filter((c) => ['PERMANENTE', 'PERMANENTE COR NOVA', 'EDICAO LIMITADA', 'EDIÇÃO LIMITADA'].includes((c.nome || '').toUpperCase()))
-                    .map((c) => (
-                      <div key={c.nome} className="grid grid-cols-[140px_repeat(8,1fr)] gap-2 items-center">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-red-500">{c.nome}</div>
-                        <div className="text-sm font-bold font-mono text-red-700">{c.atual.toLocaleString('pt-BR')}</div>
-                        <div className="text-sm font-bold font-mono text-red-700">{c.atualPosProcesso.toLocaleString('pt-BR')}</div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-bold font-mono text-red-700">{c.ma.toLocaleString('pt-BR')}</span>
-                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.MA?.percentual != null && (
-                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.MA?.percentual)}</span>
-                          )}
+
+                <div className="grid grid-cols-2 items-start gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                  {meses.map((m) => {
+                    const plano = soma(m.plano);
+                    const proj = soma(m.proj);
+                    const disp = soma(m.disp);
+                    const neg = soma(m.neg);
+                    const cob = minTotal > 0 ? disp / minTotal : null;
+                    const exec = execucaoPlanoResumo?.geral?.[m.periodo]?.percentual ?? null;
+                    const gapMes = m.periodo in gapPorPeriodo ? gapPorPeriodo[m.periodo] : null;
+                    // bateria de 10 células: qualquer execução acima de zero já acende a primeira
+                    const celulas = exec === null ? 0 : Math.max(0, Math.min(10, Math.ceil((exec / 100) * 10)));
+
+                    const linhas = totaisContinuidade
+                      .map((t) => ({ nome: t.continuidade, valor: num(t.totais, m.neg) }))
+                      .sort((a, b) => b.valor - a.valor);
+                    const maiorNeg = Math.max(1, ...linhas.map((l) => l.valor));
+
+                    return (
+                      <div
+                        key={m.label}
+                        className="overflow-hidden rounded-lg border border-gray-200 bg-white transition-shadow duration-200 hover:shadow-md"
+                      >
+                        <div className={`flex items-baseline justify-between px-3 py-1 ${m.head}`}>
+                          <span className="text-sm font-bold uppercase tracking-wide">{m.label}</span>
+                          <span className={`font-mono text-sm font-bold ${cob !== null && cob < 0 ? 'text-red-600' : ''}`}>
+                            {cob === null ? '—' : `${cob.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-bold font-mono text-red-700">{c.px.toLocaleString('pt-BR')}</span>
-                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.PX?.percentual != null && (
-                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.PX?.percentual)}</span>
-                          )}
+
+                        <div className="px-3 pb-2 pt-1.5">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Plano</div>
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="font-mono text-3xl font-bold leading-tight text-brand-dark tabular-nums">{fmtN(plano)}</span>
+                            {gapMes !== null && (
+                              <span
+                                title="Gap de dias acumulado até este mês: dias necessários − dias produtivos"
+                                className={`shrink-0 font-mono text-[13px] font-bold tabular-nums ${gapMes > 0 ? 'text-red-600' : 'text-emerald-600'}`}
+                              >
+                                {gapMes > 0 ? '+' : ''}{gapMes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}d
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-1.5 space-y-0.5 border-t border-gray-200 pt-1.5 text-[13px]">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="font-medium text-gray-600">Projeção</span>
+                              <span className="font-mono font-semibold tabular-nums text-gray-900">{fmtN(proj)}</span>
+                            </div>
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="font-medium text-gray-600">Disponível</span>
+                              <span className={`font-mono font-semibold tabular-nums ${disp < 0 ? 'font-bold text-red-600' : 'text-gray-900'}`}>{fmtN(disp)}</span>
+                            </div>
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="font-medium text-gray-600">Negativo</span>
+                              <span className={`font-mono font-semibold tabular-nums ${neg > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                                {neg > 0 ? fmtN(neg) : '—'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mt-2 border-t border-gray-200 pt-1.5">
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Execução</span>
+                              <span className="font-mono text-[13px] font-bold tabular-nums text-brand-dark">
+                                {exec === null ? '—' : formatPct(exec)}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex items-center gap-[3px]">
+                              <div className="flex h-4 flex-1 items-center gap-[2px] rounded-[4px] border border-gray-300 bg-white px-[2px]">
+                                {Array.from({ length: 10 }).map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`h-[10px] flex-1 rounded-[1px] transition-colors duration-500 ${i < celulas ? 'bg-emerald-500' : 'bg-gray-100'}`}
+                                    style={{ transitionDelay: `${i * 45}ms` }}
+                                  />
+                                ))}
+                              </div>
+                              <span className="h-2 w-[3px] rounded-r-sm bg-gray-300" />
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-bold font-mono text-red-700">{c.ul.toLocaleString('pt-BR')}</span>
-                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.UL?.percentual != null && (
-                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.UL?.percentual)}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-bold font-mono text-red-700">{c.qt.toLocaleString('pt-BR')}</span>
-                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.QT?.percentual != null && (
-                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.QT?.percentual)}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-bold font-mono text-red-700">{c.qu.toLocaleString('pt-BR')}</span>
-                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.QU?.percentual != null && (
-                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.QU?.percentual)}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-bold font-mono text-red-700">{c.sx.toLocaleString('pt-BR')}</span>
-                          {execucaoPlanoResumo?.continuidade?.[c.nome]?.SX?.percentual != null && (
-                            <span className="text-[10px] text-red-500">Plano {formatPct(execucaoPlanoResumo?.continuidade?.[c.nome]?.SX?.percentual)}</span>
-                          )}
+
+                        <div className="space-y-1.5 border-t border-gray-100 bg-gray-50/60 px-3 py-2">
+                          {linhas.map((l) => (
+                            <div key={l.nome} className="space-y-0.5">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <span className="truncate text-[11px] font-semibold uppercase text-brand-dark">{l.nome}</span>
+                                <span className={`shrink-0 font-mono text-[12px] font-bold tabular-nums ${l.valor > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                                  {l.valor > 0 ? fmtN(l.valor) : '—'}
+                                </span>
+                              </div>
+                              <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+                                <div
+                                  className={`h-full rounded-full transition-[width] duration-700 ease-out ${l.valor > 0 ? 'bg-red-500' : 'bg-gray-200'}`}
+                                  style={{ width: `${(l.valor / maiorNeg) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
                 </div>
-                {/* Indicadores de Tempo de OP */}
-                {(indicadoresLocais.oficinas.length > 0 || indicadoresLocais.outrosLocais.length > 0) && (
-                  <div className="flex items-center gap-6 pt-2 border-t border-red-100 text-[11px]">
-                    <span className="text-red-400 font-medium">Tempo OP:</span>
+
+              </div>
+            );
+          })()}
+
+          {/* Tempo de OP por local — a execução do plano agora vive na bateria de cada mês */}
+          {!loading && !error && (indicadoresLocais.oficinas.length > 0 || indicadoresLocais.outrosLocais.length > 0) && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3">
+
+              {/* Tempo de OP */}
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tempo de OP por local</span>
+                  <div className="flex-1 h-px bg-gray-100" />
+                  <span className="text-[10px] text-gray-400">dias do início ao encerramento</span>
+                </div>
+                {indicadoresLocais.oficinas.length === 0 && indicadoresLocais.outrosLocais.length === 0 ? (
+                  <div className="text-xs text-gray-400">Sem OP encerrada no período.</div>
+                ) : (
+                  <div className="space-y-0.5">
                     {[...indicadoresLocais.oficinas, ...indicadoresLocais.outrosLocais].map((local) => (
-                      <span key={local.nome} className="flex items-center gap-1.5">
-                        <span className="font-semibold text-red-500 uppercase">{local.nome}</span>
-                        <span className="text-red-300">Pior</span>
-                        <span className="font-bold text-red-700">{local.pior_dias}d</span>
-                        <span className="text-red-300">Média</span>
-                        <span className="font-bold text-red-700">{local.media_dias}d</span>
-                      </span>
+                      <div key={local.nome} className="flex items-center justify-between gap-3 border-b border-gray-100 py-1 last:border-b-0">
+                        <span className="text-[12px] font-semibold text-brand-dark uppercase truncate">{local.nome}</span>
+                        <span className="flex shrink-0 items-center gap-3">
+                          <span className="text-[10px] text-gray-400">Pior <span className="text-sm font-bold font-mono text-amber-600">{local.pior_dias}d</span></span>
+                          <span className="text-[10px] text-gray-400">Média <span className="text-sm font-bold font-mono text-brand-dark">{local.media_dias}d</span></span>
+                        </span>
+                      </div>
                     ))}
                   </div>
                 )}
+                <div className="mt-1 text-[10px] text-gray-400 leading-snug">
+                  OPs encerradas desde o dia 1º · duração total da OP, não da etapa · pior = 2º maior, média exclui extremos.
+                </div>
               </div>
-            </div>
 
-          </div>
+            </div>
+          )}
 
           {/* Loading */}
           {loading && (
@@ -2411,93 +2502,10 @@ export default function Home() {
               curvaABC={curvaABC}
               riscoMpPorSku={riscoMpPorSku}
               detalheRiscoMpPorSku={detalheRiscoMpPorSku}
+              onTotaisContinuidade={setTotaisContinuidade}
             />
           )}
 
-          {!loading && !error && dadosPagina.length > 0 && (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-              <VerticalCoverageChart title="Cobertura por SKUs (% com cobertura > 0.2x)" series={graficosCobertura.sku} />
-              <VerticalCoverageChart title="Cobertura por Referências (% com cobertura > 0.2x)" series={graficosCobertura.ref} />
-            </div>
-          )}
-
-          {/* Análise de cobertura */}
-          {!loading && !error && analiseCobertura.countCobertura > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-brand-dark">Análise de cobertura: Atual x Último mês do plano</h2>
-                <span className="text-xs text-gray-500">
-                  Base: {analiseCobertura.countCobertura.toLocaleString('pt-BR')} SKUs com estoque mínimo
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <Metric
-                  label="Cobertura média atual"
-                  value={`${analiseCobertura.mediaAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x`}
-                />
-                <Metric
-                  label={`Cobertura média ${nomeMesCurto((periodos.UL || 0) + 1)}`}
-                  value={`${analiseCobertura.mediaUltimo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x`}
-                />
-                <Metric
-                  label="Críticos atuais (<1x)"
-                  value={analiseCobertura.criticoAtual.toLocaleString('pt-BR')}
-                  tone="danger"
-                />
-                <Metric
-                  label={`Críticos ${nomeMesCurto((periodos.UL || 0) + 1)} (<1x)`}
-                  value={analiseCobertura.criticoUltimo.toLocaleString('pt-BR')}
-                  tone="danger"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                <Metric
-                  label="Em linha (>= 0.5x)"
-                  value={`${analiseCobertura.linhaAtualPct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                  subtitle={`Último: ${analiseCobertura.linhaUltimoPct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                />
-                <Metric
-                  label="Risco ruptura (0 a <0.5x)"
-                  value={`${analiseCobertura.riscoAtualPct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                  subtitle={`Último: ${analiseCobertura.riscoUltimoPct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                  tone="warning"
-                />
-                <Metric
-                  label="SKUs negativos (<0x)"
-                  value={`${analiseCobertura.negativoAtualPct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                  subtitle={`Último: ${analiseCobertura.negativoUltimoPct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                  tone="danger"
-                />
-              </div>
-
-              <div className="space-y-2">
-                {analiseCobertura.buckets.map((bucket) => {
-                  const max = Math.max(analiseCobertura.totalBuckets, 1);
-                  const atualPct = (bucket.atual / max) * 100;
-                  const ultimoPct = (bucket.ultimo / max) * 100;
-                  return (
-                    <div key={bucket.key} className="grid grid-cols-[110px_1fr_1fr] gap-2 items-center">
-                      <div className="text-xs font-semibold text-gray-600">{bucket.label}</div>
-                      <div className="h-5 bg-gray-100 rounded relative overflow-hidden">
-                        <div className="h-full bg-rose-500/75 rounded" style={{ width: `${atualPct}%` }} />
-                        <span className="absolute inset-0 px-2 flex items-center text-[11px] font-semibold text-gray-700">
-                          Atual: {bucket.atual}
-                        </span>
-                      </div>
-                      <div className="h-5 bg-gray-100 rounded relative overflow-hidden">
-                        <div className="h-full bg-indigo-500/75 rounded" style={{ width: `${ultimoPct}%` }} />
-                        <span className="absolute inset-0 px-2 flex items-center text-[11px] font-semibold text-gray-700">
-                          Último: {bucket.ultimo}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </main>
       </div>
     </div>

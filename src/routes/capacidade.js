@@ -1151,4 +1151,215 @@ router.get("/dias-resumo", async (req, res) => {
   }
 });
 
+// ── GET /api/capacidade/gap-mensal ─────────────────────────────────────────────
+// Gap de dias ACUMULADO por mês, na mesma regra da tela de Capacidade:
+//   dias necessários = (processo + cargas até o mês) / capacidade diária total
+//   gap              = dias necessários − dias produtivos acumulados
+// Rota própria de propósito: não altera /matriz, que outras telas consomem.
+const gapMensalCache = { chave: '', data: null, timestamp: 0 };
+const GAP_CACHE_TTL = 5 * 60 * 1000;
+
+function lerAprovadasDoArquivo() {
+  const parsed = readJson(path.join(DATA_DIR, 'analises_plano.json'), { data: [] });
+  const lista = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.data) ? parsed.data : []);
+  return lista.filter((a) => a?.parametros?.statusAprovacao === 'APROVADA' && Array.isArray(a?.parametros?.planos));
+}
+
+// mesma chave usada pela tela ao casar simulação com a linha da matriz
+function chaveDaLinha(item) {
+  const id = Number(item?.produto?.idproduto);
+  if (Number.isFinite(id)) return `ID-${id}`;
+  return `REF-${item?.produto?.referencia || ''}-${item?.produto?.cor || ''}-${item?.produto?.tamanho || ''}`;
+}
+
+router.get('/gap-mensal', auth, async (req, res) => {
+  try {
+    const hoje = new Date();
+    // últimos 3 meses FECHADOS: do 1º dia de 3 meses atrás até o 1º dia do mês corrente
+    const dePadrao = new Date(hoje.getFullYear(), hoje.getMonth() - 3, 1).toISOString().slice(0, 10);
+    const atePadrao = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+    const de = String(req.query.de || dePadrao).slice(0, 10);
+    const ate = String(req.query.ate || atePadrao).slice(0, 10);
+    // padrão false: é assim que a tela de Capacidade calcula o gap que serve de referência
+    const aplicarAprovadas = String(req.query.aplicar_aprovadas ?? 'false') === 'true';
+    const chaveCache = `${de}|${ate}|${aplicarAprovadas}`;
+
+    if (gapMensalCache.data && gapMensalCache.chave === chaveCache && (Date.now() - gapMensalCache.timestamp) < GAP_CACHE_TTL) {
+      return res.json({ ...gapMensalCache.data, fromCache: true });
+    }
+
+    const pool = req.app.get('pool');
+    const { readCache } = require('../cache/matrizCache');
+
+    const grupos = readGrupos();
+    const grupoRefs = readGrupoRefs();
+    const dias = readDias();
+    const nomesGrupos = new Set(grupos.map((g) => g.grupo));
+
+    // capacidade diária real por grupo no período (minutos ÷ dias com movimento)
+    const real = await pool.query(`
+      WITH grupos_filtro (cd_local) AS (SELECT unnest($3::text[])),
+      cache_base AS (
+        SELECT e.cd_grupo::text AS cd_grupo,
+               SUM(COALESCE(e.tempo_produzido_min, 0))::float AS minutos,
+               COUNT(DISTINCT e.dt_ref) FILTER (WHERE COALESCE(e.tempo_produzido_min, 0) > 0)::int AS dias_com_movimento
+          FROM pcp_cache_eficiencia_dia e
+          JOIN grupos_filtro gf ON gf.cd_local = e.cd_grupo::text
+         WHERE e.dt_ref >= $1::date AND e.dt_ref < $2::date
+           AND e.dt_ref < DATE_TRUNC('month', CURRENT_DATE)::date
+         GROUP BY e.cd_grupo
+      )
+      SELECT COALESCE(l.ds_local, b.cd_grupo)::text AS grupo,
+             SUM(b.minutos)::float AS minutos,
+             SUM(b.dias_com_movimento)::int AS dias_com_movimento
+        FROM cache_base b
+        LEFT JOIN pcp_cache_locais l ON l.cd_local::text = b.cd_grupo
+       GROUP BY l.ds_local, b.cd_grupo
+    `, [de, ate, DEFAULT_REAL_GROUP_IDS.map(String)]);
+
+    const capacidadeRealPorGrupo = new Map();
+    for (const row of real.rows || []) {
+      const nome = String(row.grupo || '').trim().toUpperCase();
+      const d = Number(row.dias_com_movimento || 0);
+      const media = d > 0 ? Number(row.minutos || 0) / d : 0;
+      if (nome && media > 0) capacidadeRealPorGrupo.set(nome, media);
+    }
+
+    // tempos de costura por referência
+    const temposResult = await queryTempoBaseRows(pool, {});
+    const tempoPorRef = new Map();
+    for (const row of temposResult.rows || []) {
+      const idreferencia = String(row.idreferencia || '').trim().toUpperCase();
+      if (!idreferencia) continue;
+      const base = resolveTempoLikePowerBi(row.hr_tempo, row.hr_tempopadrao);
+      tempoPorRef.set(idreferencia, (tempoPorRef.get(idreferencia) || 0) + (Number.isFinite(base) ? base : 0));
+    }
+
+    // plano da matriz, com a simulação aprovada por cima quando pedido
+    const planosAprovados = new Map();
+    if (aplicarAprovadas) {
+      for (const a of lerAprovadasDoArquivo().sort((x, y) => Number(x.createdAt || 0) - Number(y.createdAt || 0))) {
+        for (const p of a.parametros.planos) {
+          const k = String(p?.chave || '').trim();
+          if (k) planosAprovados.set(k, p);
+        }
+      }
+    }
+
+    const matrizCache = await readCache();
+    const matrizRows = Array.isArray(matrizCache?.data?.rows) ? matrizCache.data.rows : [];
+    const planoPorRef = new Map();
+    const processoPorRef = new Map();
+    const seqgrupoPorRef = new Map();
+
+    for (const item of matrizRows) {
+      const marca = String(item?.produto?.marca || '').trim().toUpperCase();
+      const status = String(item?.produto?.status || '').trim().toUpperCase();
+      const descricao = String(item?.produto?.produto || '').trim().toUpperCase();
+      if (marca !== 'LIEBE') continue;
+      if (!['EM LINHA', 'NOVA COLECAO'].includes(status)) continue;
+      if (descricao.includes('MEIA DE SEDA')) continue;
+
+      const aprovado = planosAprovados.get(chaveDaLinha(item));
+      const plano = aprovado
+        ? { ma: Number(aprovado.ma || 0), px: Number(aprovado.px || 0), ul: Number(aprovado.ul || 0), qt: Number(aprovado.qt || 0), qu: Number(aprovado.qu || 0), sx: Number(aprovado.sx || 0) }
+        : { ma: Number(item?.plano?.ma || 0), px: Number(item?.plano?.px || 0), ul: Number(item?.plano?.ul || 0), qt: Number(item?.plano?.qt || 0), qu: Number(item?.plano?.qu || 0), sx: Number(item?.plano?.sx || 0) };
+
+      const refPadrao = String(item?.produto?.referencia || '').trim().toUpperCase();
+      const refSistema = String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase();
+      const emProcesso = Number(item?.estoques?.em_processo || 0);
+
+      for (const chave of [refPadrao, refSistema]) {
+        if (!chave) continue;
+        const atual = planoPorRef.get(chave) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
+        atual.ma += plano.ma; atual.px += plano.px; atual.ul += plano.ul;
+        atual.qt += plano.qt; atual.qu += plano.qu; atual.sx += plano.sx;
+        planoPorRef.set(chave, atual);
+        processoPorRef.set(chave, (processoPorRef.get(chave) || 0) + emProcesso);
+      }
+      if (refPadrao && refSistema && !seqgrupoPorRef.has(refPadrao)) seqgrupoPorRef.set(refPadrao, refSistema);
+    }
+
+    const capacidadeConfigPorGrupo = new Map(grupos.map((g) => [g.grupo, Number(g.capacidade_diaria || 0)]));
+    const gruposPorRef = new Map();
+    for (const row of grupoRefs) {
+      if (!nomesGrupos.has(row.grupo)) continue;
+      const atual = gruposPorRef.get(row.referencia) || [];
+      if (!atual.includes(row.grupo)) atual.push(row.grupo);
+      gruposPorRef.set(row.referencia, atual);
+    }
+
+    // carga por mês, com rateio quando a referência pertence a mais de um grupo
+    const carga = { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
+    let processoCarga = 0;
+    for (const row of grupoRefs) {
+      if (!nomesGrupos.has(row.grupo)) continue;
+      const idreferencia = seqgrupoPorRef.get(row.referencia) || '';
+      const tempo = Number(tempoPorRef.get(idreferencia) || 0);
+      if (!tempo) continue;
+      const base = planoPorRef.get(row.referencia) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
+      const gruposDaRef = gruposPorRef.get(row.referencia) || [];
+      const totalRateio = gruposDaRef.reduce((acc, g) => acc + (capacidadeConfigPorGrupo.get(g) || 0), 0);
+      const rateio = gruposDaRef.length <= 1
+        ? 1
+        : (totalRateio > 0 ? ((capacidadeConfigPorGrupo.get(row.grupo) || 0) / totalRateio) : (1 / gruposDaRef.length));
+
+      carga.ma += tempo * base.ma * rateio;
+      carga.px += tempo * base.px * rateio;
+      carga.ul += tempo * base.ul * rateio;
+      carga.qt += tempo * base.qt * rateio;
+      carga.qu += tempo * base.qu * rateio;
+      carga.sx += tempo * base.sx * rateio;
+      processoCarga += tempo * Number(processoPorRef.get(row.referencia) || 0) * rateio;
+    }
+
+    // Igual à tela: havendo medição real, grupo sem medição vale zero (não cai na planilha)
+    const capacidadeDiariaTotal = grupos.reduce((total, g) => total + (capacidadeRealPorGrupo.size > 0
+      ? (capacidadeRealPorGrupo.get(g.grupo) || 0)
+      : Number(g.capacidade_diaria || 0)), 0);
+
+    const mesAtualJs = hoje.getMonth();
+    const ultimoDia = new Date(hoje.getFullYear(), mesAtualJs + 1, 0).getDate();
+    let ma = hoje.getDate() === ultimoDia ? mesAtualJs + 2 : mesAtualJs + 1;
+    if (ma > 12) ma -= 12;
+    const proximo = (m, n) => ((m + n - 1) % 12) + 1;
+    const periodos = { MA: ma, PX: proximo(ma, 1), UL: proximo(ma, 2), QT: proximo(ma, 3), QU: proximo(ma, 4), SX: proximo(ma, 5) };
+
+    let tempoAcumulado = processoCarga;
+    let diasAcumulados = 0;
+    const meses = [];
+    for (const chave of ['MA', 'PX', 'UL', 'QT', 'QU', 'SX']) {
+      tempoAcumulado += carga[chave.toLowerCase()];
+      diasAcumulados += Number(dias[String(periodos[chave])] || 0);
+      const diasNecessarios = capacidadeDiariaTotal > 0 ? tempoAcumulado / capacidadeDiariaTotal : 0;
+      meses.push({
+        periodo: chave,
+        mes: periodos[chave],
+        tempoAcumulado: Number(tempoAcumulado.toFixed(1)),
+        diasNecessarios: Number(diasNecessarios.toFixed(2)),
+        diasDisponiveis: diasAcumulados,
+        gap: Number((diasNecessarios - diasAcumulados).toFixed(2)),
+      });
+    }
+
+    const payload = {
+      success: true,
+      de,
+      ate,
+      aplicarAprovadas,
+      capacidadeDiariaTotal: Number(capacidadeDiariaTotal.toFixed(2)),
+      processoCarga: Number(processoCarga.toFixed(1)),
+      periodos,
+      meses,
+    };
+    gapMensalCache.chave = chaveCache;
+    gapMensalCache.data = payload;
+    gapMensalCache.timestamp = Date.now();
+    return res.json(payload);
+  } catch (error) {
+    console.error('[capacidade/gap-mensal] Erro:', error);
+    return res.status(500).json({ success: false, error: 'Erro ao calcular gap mensal', details: error.message });
+  }
+});
+
 module.exports = router;

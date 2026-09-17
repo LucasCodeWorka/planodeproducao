@@ -5,6 +5,7 @@ const { aplicarReprojecaoMes, REPROJECAO_REGRAS_FIXAS } = require('../services/r
 const { isExcludedReference, isExcludedPlanningItem } = require('../services/planningExclusions');
 const { readCache } = require('../cache/matrizCache');
 const projecoesService = require('../services/projecoesService');
+const cenariosProjecaoService = require('../services/cenariosProjecaoService');
 
 // Flag para usar banco de dados (true) ou JSON (false)
 const USAR_BANCO = true;
@@ -675,7 +676,18 @@ router.get('/de-para', auth, async (req, res) => {
   }
 });
 
+// ── GET /api/projecoes/cenarios ───────────────────────────────────────────────
+// Lista os cenários disponíveis para simular no plano (nada é gravado).
+router.get('/cenarios', auth, async (req, res) => {
+  try {
+    return res.json({ success: true, cenarios: cenariosProjecaoService.listarCenarios() });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Erro ao listar cenários', details: error.message });
+  }
+});
+
 // ── GET /api/projecoes ────────────────────────────────────────────────────────
+// ?cenario=cairo|envelope substitui os meses do cenário, só na resposta.
 router.get('/', auth, async (req, res) => {
   try {
     const pool = req.app.get('pool');
@@ -684,13 +696,38 @@ router.get('/', auth, async (req, res) => {
     // Informa os meses atuais do plano (MA/PX/UL/QT) para o frontend
     const periodos = calcularPeriodos();
 
+    const cenarioId = String(req.query.cenario || '').trim().toLowerCase();
+    let dados = data;
+    let cenario = null;
+
+    if (cenarioId && cenarioId !== 'sistema') {
+      const modo = String(req.query.modo || 'reducao').trim().toLowerCase();
+      const gerado = await cenariosProjecaoService.gerarCenario(pool, cenarioId);
+      const aplicado = cenariosProjecaoService.aplicarCenario(data, gerado, modo);
+      dados = aplicado.data;
+      cenario = {
+        id: gerado.id,
+        nome: gerado.nome,
+        detalhe: gerado.detalhe,
+        ano: gerado.ano,
+        meses: gerado.meses,
+        totalizadores: gerado.totalizadores,
+        skusProjetaveis: gerado.skusProjetaveis,
+        skusCobertos: gerado.skusCobertos,
+        modo: aplicado.resumo.modo,
+        resumo: aplicado.resumo,
+      };
+      console.log(`[projecoes] Cenário ${cenarioId} (${aplicado.resumo.modo}): ${aplicado.resumo.skusAlterados} SKUs alterados, -${aplicado.resumo.pecasReduzidas} +${aplicado.resumo.pecasAumentadas} peças`);
+    }
+
     return res.json({
       success:   true,
       timestamp: timestamp ? new Date(timestamp).toLocaleString('pt-BR') : null,
-      count:     Object.keys(data).length,
+      count:     Object.keys(dados).length,
       periodos,
       deParaAplicado,
-      data
+      cenario,
+      data: dados
     });
   } catch (error) {
     return res.status(500).json({

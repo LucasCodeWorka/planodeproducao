@@ -32,7 +32,7 @@ function situacao(estoque: number, pedidos: number, estoqueMin: number): Situaca
 
 // â”€â”€â”€ GrupoTotais â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-interface GrupoTotais {
+export interface GrupoTotais {
   estoque: number; emProcesso: number; estoqueMin: number;
   pedidos: number; disponivel: number; disponivelPosProcesso: number; deficit: number; deficitPosProcesso: number; abaixo: number;
   planoMA: number; planoPX: number; planoUL: number; planoQT: number; planoQU: number; planoSX: number;
@@ -207,8 +207,8 @@ const MK = 'text-gray-500';  // muted dark-bg
 const dash = (dark: boolean) => <span className={dark ? MK : MT}>—</span>;
 
 function BadgeSit({ t }: { t: GrupoTotais }) {
-  if (t.deficit < 0) return <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300">déficit</span>;
-  if (t.abaixo > 0)  return <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-400/20 text-amber-300">{t.abaixo} abaixo</span>;
+  if (t.deficit < 0) return <span className="ml-1.5 px-1.5 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-700">déficit</span>;
+  if (t.abaixo > 0)  return <span className="ml-1.5 px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-700">{t.abaixo} abaixo</span>;
   return null;
 }
 
@@ -255,7 +255,6 @@ function CellPlano({ v, dark = false, onClick, title }: { v: number; dark?: bool
 function CellDispFut({ v, min, dark = false }: { v: number | null; min: number; dark?: boolean }) {
   if (v === null) return dash(dark);
   if (v < 0)     return <span className={`font-bold     ${dark ? 'text-red-400'   : 'text-red-600'}`}>{fmt(v)}</span>;
-  if (v < min)   return <span className={`font-semibold ${dark ? 'text-amber-300' : 'text-amber-600'}`}>{fmt(v)}</span>;
   return <span className={`font-semibold ${dark ? DK : D}`}>{fmt(v)}</span>;
 }
 
@@ -264,8 +263,6 @@ function CellCobFut({ v, min, dark = false }: { v: number | null; min: number; d
   const c = v / min;
   const s = c.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'x';
   if (c < 0)   return <span className={`font-bold     ${dark ? 'text-red-400'   : 'text-red-600'}`}>{s}</span>;
-  if (c < 1)   return <span className={`font-semibold ${dark ? 'text-red-400'   : 'text-red-500'}`}>{s}</span>;
-  if (c < 1.5) return <span className={`font-semibold ${dark ? 'text-amber-300' : 'text-amber-600'}`}>{s}</span>;
   return <span className={dark ? DK : D}>{s}</span>;
 }
 
@@ -310,6 +307,8 @@ interface Props {
     qu: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
     sx: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
   }>;
+  /** Devolve os totais por continuidade já filtrados, para a página mostrar o quadro no topo. */
+  onTotaisContinuidade?: (totais: { continuidade: string; totais: GrupoTotais }[]) => void;
 }
 
 // â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -335,6 +334,7 @@ export default function MatrizPlanejamentoTable({
   taxaMeses = taxaMesesDefault(),
   riscoMpPorSku = {},
   detalheRiscoMpPorSku = {},
+  onTotaisContinuidade,
 }: Props) {
   type SortKey =
     | 'estoque' | 'emProcesso' | 'estoqueMin' | 'pedidos' | 'disponivel' | 'negativo' | 'negativoPosProcesso' | 'cobertura'
@@ -348,8 +348,34 @@ export default function MatrizPlanejamentoTable({
 
   const [expandedConts, setExpandedConts] = useState<Set<string>>(new Set());
   const [expandedRefs,  setExpandedRefs ] = useState<Set<string>>(new Set());
-  const [sortKey, setSortKey] = useState<SortKey>('disponivel');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  // padrão: disponível do mês corrente do plano, do maior para o menor
+  const [sortKey, setSortKey] = useState<SortKey>('dispMA');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [mostrarDetalhes, setMostrarDetalhes] = useState(true);
+  const [fonteConfortavel, setFonteConfortavel] = useState(false);
+
+  useEffect(() => {
+    const salvo = localStorage.getItem('pp_matriz_colunas_detalhe');
+    if (salvo !== null) setMostrarDetalhes(salvo === '1');
+    const fonte = localStorage.getItem('pp_matriz_fonte');
+    if (fonte !== null) setFonteConfortavel(fonte === 'confortavel');
+  }, []);
+
+  function alternarDetalhes() {
+    setMostrarDetalhes((atual) => {
+      const novo = !atual;
+      localStorage.setItem('pp_matriz_colunas_detalhe', novo ? '1' : '0');
+      return novo;
+    });
+  }
+
+  function alternarFonte() {
+    setFonteConfortavel((atual) => {
+      const novo = !atual;
+      localStorage.setItem('pp_matriz_fonte', novo ? 'confortavel' : 'compacta');
+      return novo;
+    });
+  }
   const taxaLabels = taxaMeses.map((m) => m.label.charAt(0).toUpperCase() + m.label.slice(1)) as [string, string, string];
 
   // Modal de Em Processo por Local
@@ -737,6 +763,13 @@ export default function MatrizPlanejamentoTable({
     }));
   }, [dados, filtroTexto, projecoes, vendasReais, periodos, apenasNegativos, filtroNegativoPeriodo, filtroContinuidade, filtroReferencia, filtroCor, filtroCobertura, filtroCoberturaBase, filtroTaxa, filtroCoberturaMinima, filtroEmProcessoMinimo, sortKey, sortDir, mesQT, mesQU, taxaMeses, excedentesLojas]);
 
+  // Depende só de `grupos` de propósito: se dependesse do callback (recriado a cada render
+  // do pai), o efeito re-dispararia em loop com o setState do pai.
+  useEffect(() => {
+    onTotaisContinuidade?.(grupos.map((g) => ({ continuidade: g.continuidade, totais: g.totais })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grupos]);
+
   useEffect(() => {
     if (grupos.length === 0) return;
     setExpandedConts(new Set(grupos.map(g => g.continuidade)));
@@ -798,7 +831,7 @@ export default function MatrizPlanejamentoTable({
   ];
 
   // th style helpers
-  const thBase = 'px-3 py-3.5 text-right font-semibold text-[10px] uppercase tracking-wide';
+  const thBase = 'px-3 py-3.5 text-right font-semibold text-[11px] uppercase tracking-wide';
   const fmtTaxaCsv = (venda: number, proj: number) => (proj > 0 ? Number(((venda / proj) * 100).toFixed(1)) : null);
 
   function exportarCsvMatriz() {
@@ -897,9 +930,15 @@ export default function MatrizPlanejamentoTable({
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full min-w-0">
 
       {/* top bar */}
-      <div className="flex items-center justify-between px-3 py-3.5 border-b border-gray-100 bg-gray-50/80 text-xs text-gray-500">
+      <div className="flex items-center justify-between px-3 py-3.5 border-b border-gray-100 bg-gray-50/80 text-[13px] text-gray-500">
         <span className="font-medium">{totalItens.toLocaleString('pt-BR')} itens · {grupos.length} continuidades</span>
         <div className="flex gap-4">
+          <button onClick={alternarFonte} className="text-gray-500 hover:text-gray-700 font-medium">
+            {fonteConfortavel ? 'Fonte compacta' : 'Fonte maior'}
+          </button>
+          <button onClick={alternarDetalhes} className="text-gray-500 hover:text-gray-700 font-medium">
+            {mostrarDetalhes ? 'Ocultar colunas de estoque' : 'Mostrar colunas de estoque'}
+          </button>
           <button onClick={exportarCsvMatriz} className="text-emerald-700 hover:text-emerald-900 font-medium">Exportar CSV</button>
           <button onClick={() => {
             setExpandedConts(new Set(grupos.map(g => g.continuidade)));
@@ -911,88 +950,93 @@ export default function MatrizPlanejamentoTable({
       </div>
 
       {/* scrollable table with sticky header */}
-      <div className="w-full min-w-0 overflow-x-auto overflow-y-auto max-h-[calc(100vh-13rem)]">
-        <table className="min-w-[2780px] border-collapse text-xs">
+      <div className={`w-full min-w-0 overflow-x-auto overflow-y-auto max-h-[calc(100vh-13rem)] ${fonteConfortavel ? 'matriz-fonte-confortavel' : ''}`}>
+        <table className={`${mostrarDetalhes
+            ? (fonteConfortavel ? 'min-w-[3300px]' : 'min-w-[3040px]')
+            : (fonteConfortavel ? 'min-w-[2060px]' : 'min-w-[1900px]')} border-collapse text-[13px]`}>
 
           <thead className="sticky top-0 z-30">
             {temProjecoes ? (
               <>
                 {/* Row 1 â€” group labels */}
-                <tr className="bg-brand-dark text-gray-200 text-[11px] font-semibold uppercase tracking-wide">
-                  <th rowSpan={2} className="sticky left-0 z-40 px-2 py-2.5 text-left w-[240px] min-w-[240px] max-w-[240px] border-b border-gray-600 bg-brand-dark shadow-[1px_0_0_0_rgba(55,65,81,0.5)]">Referência / Produto</th>
-                  <th rowSpan={2} className="px-2 py-2.5 text-center border-b border-gray-600 bg-brand-dark w-[50px]">Curva</th>
-                  <th rowSpan={2} onClick={() => onSortClick('estoqueMin')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Est. Mín.{sortBadge('estoqueMin')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('estoque')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Estoque{sortBadge('estoque')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('pedidos')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Pedidos{sortBadge('pedidos')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('disponivel')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Disponível{sortBadge('disponivel')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('emProcesso')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Em Proc.{sortBadge('emProcesso')}</th>
+                <tr className="bg-gray-100 text-gray-600 text-[12px] font-semibold uppercase tracking-wide">
+                  <th rowSpan={2} className="sticky left-0 z-40 px-2 py-2.5 text-left w-[240px] min-w-[240px] max-w-[240px] border-b border-gray-200 bg-gray-100 shadow-[1px_0_0_0_rgba(55,65,81,0.5)]">Referência / Produto</th>
+                  {mostrarDetalhes && (<>
+                  <th rowSpan={2} className="px-2 py-2.5 text-center border-b border-gray-200 bg-gray-100 w-[50px]">Curva</th>
+                  <th rowSpan={2} onClick={() => onSortClick('estoqueMin')} className="px-3 py-3.5 text-right border-b border-gray-200 bg-gray-100 cursor-pointer">Est. Mín.{sortBadge('estoqueMin')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('estoque')} className="px-3 py-3.5 text-right border-b border-gray-200 bg-gray-100 cursor-pointer">Estoque{sortBadge('estoque')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('pedidos')} className="px-3 py-3.5 text-right border-b border-gray-200 bg-gray-100 cursor-pointer">Pedidos{sortBadge('pedidos')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('disponivel')} className="px-3 py-3.5 text-right border-b border-gray-200 bg-gray-100 cursor-pointer">Disponível{sortBadge('disponivel')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('emProcesso')} className="px-3 py-3.5 text-right border-b border-gray-200 bg-gray-100 cursor-pointer">Em Proc.{sortBadge('emProcesso')}</th>
                   {excedentesLojas && excedentesLojas.size > 0 && (
-                    <th rowSpan={2} className="px-3 py-3.5 text-right border-b border-gray-600 bg-purple-900 text-purple-200">Estq. Lojas</th>
+                    <th rowSpan={2} className="px-3 py-3.5 text-right border-b border-gray-200 bg-purple-50 text-purple-800">Estq. Lojas</th>
                   )}
-                  <th rowSpan={2} onClick={() => onSortClick('negativo')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Negativo{sortBadge('negativo')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('negativoPosProcesso')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Neg. Pós Proc.{sortBadge('negativoPosProcesso')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('cobertura')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">Cobertura{sortBadge('cobertura')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('taxaJan')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">{taxaLabels[0]}{sortBadge('taxaJan')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('taxaFev')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">{taxaLabels[1]}{sortBadge('taxaFev')}</th>
-                  <th rowSpan={2} onClick={() => onSortClick('taxaMar')} className="px-3 py-3.5 text-right border-b border-gray-600 bg-brand-dark cursor-pointer">{taxaLabels[2]}{sortBadge('taxaMar')}</th>
-                  <th colSpan={5} className="px-3 py-3.5 text-center bg-indigo-900 border-b border-indigo-700 font-bold">{mNomes[0]}</th>
-                  <th colSpan={5} className="px-3 py-3.5 text-center bg-emerald-800 border-b border-emerald-700 font-bold">{mNomes[1]}</th>
-                  <th colSpan={5} className="px-3 py-3.5 text-center bg-amber-700 border-b border-amber-600 font-bold">{mNomes[2]}</th>
-                  <th colSpan={5} className="px-3 py-3.5 text-center bg-cyan-800 border-b border-cyan-700 font-bold">{mNomes[3]}</th>
-                  <th colSpan={5} className="px-3 py-3.5 text-center bg-rose-800 border-b border-rose-700 font-bold">{mNomes[4]}</th>
-                  <th colSpan={5} className="px-3 py-3.5 text-center bg-purple-800 border-b border-purple-700 font-bold">{mNomes[5]}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('negativo')} className="px-3 py-3.5 text-right border-b border-gray-200 bg-gray-100 cursor-pointer">Negativo{sortBadge('negativo')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('negativoPosProcesso')} className="px-3 py-3.5 text-right border-b border-gray-200 bg-gray-100 cursor-pointer">Neg. Pós Proc.{sortBadge('negativoPosProcesso')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('cobertura')} className="px-3 py-3.5 text-right border-b border-gray-200 bg-gray-100 cursor-pointer">Cobertura{sortBadge('cobertura')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('taxaJan')} className="px-3 py-3.5 text-right border-b border-gray-200 bg-gray-100 cursor-pointer">{taxaLabels[0]}{sortBadge('taxaJan')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('taxaFev')} className="px-3 py-3.5 text-right border-b border-gray-200 bg-gray-100 cursor-pointer">{taxaLabels[1]}{sortBadge('taxaFev')}</th>
+                  <th rowSpan={2} onClick={() => onSortClick('taxaMar')} className="px-3 py-3.5 text-right border-b border-gray-200 bg-gray-100 cursor-pointer">{taxaLabels[2]}{sortBadge('taxaMar')}</th>
+                  </>)}
+                  <th colSpan={5} className="px-3 py-3.5 text-center bg-indigo-100 text-indigo-900 border-b border-indigo-200 font-bold">{mNomes[0]}</th>
+                  <th colSpan={5} className="px-3 py-3.5 text-center bg-emerald-100 text-emerald-900 border-b border-emerald-200 font-bold">{mNomes[1]}</th>
+                  <th colSpan={5} className="px-3 py-3.5 text-center bg-amber-100 text-amber-900 border-b border-amber-200 font-bold">{mNomes[2]}</th>
+                  <th colSpan={5} className="px-3 py-3.5 text-center bg-cyan-100 text-cyan-900 border-b border-cyan-200 font-bold">{mNomes[3]}</th>
+                  <th colSpan={5} className="px-3 py-3.5 text-center bg-rose-100 text-rose-900 border-b border-rose-200 font-bold">{mNomes[4]}</th>
+                  <th colSpan={5} className="px-3 py-3.5 text-center bg-purple-100 text-purple-900 border-b border-purple-200 font-bold">{mNomes[5]}</th>
                 </tr>
                 {/* Row 2 â€” sub-headers */}
-                <tr className="text-gray-300">
+                <tr className="text-gray-600">
                   {([
-                    { bg: 'bg-indigo-900', label: 'Proj.', key: 'projMA' as const },
-                    { bg: 'bg-indigo-900', label: 'Plano', key: 'planoMA' as const },
-                    { bg: 'bg-indigo-900', label: 'Disp.', key: 'dispMA' as const },
-                    { bg: 'bg-indigo-900', label: 'Neg.', key: 'dispMA' as const },
-                    { bg: 'bg-indigo-900', label: 'Cob.', key: 'cobMA' as const },
-                    { bg: 'bg-emerald-800', label: 'Proj.', key: 'projPX' as const },
-                    { bg: 'bg-emerald-800', label: 'Plano', key: 'planoPX' as const },
-                    { bg: 'bg-emerald-800', label: 'Disp.', key: 'dispPX' as const },
-                    { bg: 'bg-emerald-800', label: 'Neg.', key: 'dispPX' as const },
-                    { bg: 'bg-emerald-800', label: 'Cob.', key: 'cobPX' as const },
-                    { bg: 'bg-amber-700', label: 'Proj.', key: 'projUL' as const },
-                    { bg: 'bg-amber-700', label: 'Plano', key: 'planoUL' as const },
-                    { bg: 'bg-amber-700', label: 'Disp.', key: 'dispUL' as const },
-                    { bg: 'bg-amber-700', label: 'Neg.', key: 'dispUL' as const },
-                    { bg: 'bg-amber-700', label: 'Cob.', key: 'cobUL' as const },
-                    { bg: 'bg-cyan-800', label: 'Proj.', key: 'projQT' as const },
-                    { bg: 'bg-cyan-800', label: 'Plano', key: 'planoQT' as const },
-                    { bg: 'bg-cyan-800', label: 'Disp.', key: 'dispQT' as const },
-                    { bg: 'bg-cyan-800', label: 'Neg.', key: 'dispQT' as const },
-                    { bg: 'bg-cyan-800', label: 'Cob.', key: 'cobQT' as const },
-                    { bg: 'bg-rose-800', label: 'Proj.', key: 'projQU' as const },
-                    { bg: 'bg-rose-800', label: 'Plano', key: 'planoQU' as const },
-                    { bg: 'bg-rose-800', label: 'Disp.', key: 'dispQU' as const },
-                    { bg: 'bg-rose-800', label: 'Neg.', key: 'dispQU' as const },
-                    { bg: 'bg-rose-800', label: 'Cob.', key: 'cobQU' as const },
-                    { bg: 'bg-purple-800', label: 'Proj.', key: 'projSX' as const },
-                    { bg: 'bg-purple-800', label: 'Plano', key: 'planoSX' as const },
-                    { bg: 'bg-purple-800', label: 'Disp.', key: 'dispSX' as const },
-                    { bg: 'bg-purple-800', label: 'Neg.', key: 'dispSX' as const },
-                    { bg: 'bg-purple-800', label: 'Cob.', key: 'cobSX' as const },
+                    { bg: 'bg-indigo-50 text-indigo-800', label: 'Proj.', key: 'projMA' as const },
+                    { bg: 'bg-indigo-50 text-indigo-800', label: 'Plano', key: 'planoMA' as const },
+                    { bg: 'bg-indigo-50 text-indigo-800', label: 'Disp.', key: 'dispMA' as const },
+                    { bg: 'bg-indigo-50 text-indigo-800', label: 'Neg.', key: 'dispMA' as const },
+                    { bg: 'bg-indigo-50 text-indigo-800', label: 'Cob.', key: 'cobMA' as const },
+                    { bg: 'bg-emerald-50 text-emerald-800', label: 'Proj.', key: 'projPX' as const },
+                    { bg: 'bg-emerald-50 text-emerald-800', label: 'Plano', key: 'planoPX' as const },
+                    { bg: 'bg-emerald-50 text-emerald-800', label: 'Disp.', key: 'dispPX' as const },
+                    { bg: 'bg-emerald-50 text-emerald-800', label: 'Neg.', key: 'dispPX' as const },
+                    { bg: 'bg-emerald-50 text-emerald-800', label: 'Cob.', key: 'cobPX' as const },
+                    { bg: 'bg-amber-50 text-amber-800', label: 'Proj.', key: 'projUL' as const },
+                    { bg: 'bg-amber-50 text-amber-800', label: 'Plano', key: 'planoUL' as const },
+                    { bg: 'bg-amber-50 text-amber-800', label: 'Disp.', key: 'dispUL' as const },
+                    { bg: 'bg-amber-50 text-amber-800', label: 'Neg.', key: 'dispUL' as const },
+                    { bg: 'bg-amber-50 text-amber-800', label: 'Cob.', key: 'cobUL' as const },
+                    { bg: 'bg-cyan-50 text-cyan-800', label: 'Proj.', key: 'projQT' as const },
+                    { bg: 'bg-cyan-50 text-cyan-800', label: 'Plano', key: 'planoQT' as const },
+                    { bg: 'bg-cyan-50 text-cyan-800', label: 'Disp.', key: 'dispQT' as const },
+                    { bg: 'bg-cyan-50 text-cyan-800', label: 'Neg.', key: 'dispQT' as const },
+                    { bg: 'bg-cyan-50 text-cyan-800', label: 'Cob.', key: 'cobQT' as const },
+                    { bg: 'bg-rose-50 text-rose-800', label: 'Proj.', key: 'projQU' as const },
+                    { bg: 'bg-rose-50 text-rose-800', label: 'Plano', key: 'planoQU' as const },
+                    { bg: 'bg-rose-50 text-rose-800', label: 'Disp.', key: 'dispQU' as const },
+                    { bg: 'bg-rose-50 text-rose-800', label: 'Neg.', key: 'dispQU' as const },
+                    { bg: 'bg-rose-50 text-rose-800', label: 'Cob.', key: 'cobQU' as const },
+                    { bg: 'bg-purple-50 text-purple-800', label: 'Proj.', key: 'projSX' as const },
+                    { bg: 'bg-purple-50 text-purple-800', label: 'Plano', key: 'planoSX' as const },
+                    { bg: 'bg-purple-50 text-purple-800', label: 'Disp.', key: 'dispSX' as const },
+                    { bg: 'bg-purple-50 text-purple-800', label: 'Neg.', key: 'dispSX' as const },
+                    { bg: 'bg-purple-50 text-purple-800', label: 'Cob.', key: 'cobSX' as const },
                   ]).map((h, i) => (
-                    <th key={i} onClick={() => onSortClick(h.key)} className={`${thBase} ${h.bg} border-b border-gray-600 cursor-pointer`}>
+                    <th key={i} onClick={() => onSortClick(h.key)} className={`${thBase} ${h.bg} border-b border-gray-200 cursor-pointer`}>
                       {h.label}{sortBadge(h.key)}
                     </th>
                   ))}
                 </tr>
               </>
             ) : (
-              <tr className="bg-brand-dark text-gray-200 text-[11px] font-semibold uppercase tracking-wide">
-                <th className="sticky left-0 z-40 px-2 py-2.5 text-left w-[240px] min-w-[240px] max-w-[240px] bg-brand-dark shadow-[1px_0_0_0_rgba(55,65,81,0.5)]">Referência / Produto</th>
-                <th className="px-2 py-2.5 text-center bg-brand-dark w-[50px]">Curva</th>
+              <tr className="bg-gray-100 text-gray-600 text-[12px] font-semibold uppercase tracking-wide">
+                <th className="sticky left-0 z-40 px-2 py-2.5 text-left w-[240px] min-w-[240px] max-w-[240px] bg-gray-100 shadow-[1px_0_0_0_rgba(55,65,81,0.5)]">Referência / Produto</th>
+                {mostrarDetalhes && (<>
+                <th className="px-2 py-2.5 text-center bg-gray-100 w-[50px]">Curva</th>
                 <th onClick={() => onSortClick('estoqueMin')} className="px-3 py-3 text-right cursor-pointer">Est. Mín.{sortBadge('estoqueMin')}</th>
                 <th onClick={() => onSortClick('estoque')} className="px-3 py-3 text-right cursor-pointer">Estoque{sortBadge('estoque')}</th>
                 <th onClick={() => onSortClick('pedidos')} className="px-3 py-3 text-right cursor-pointer">Pedidos{sortBadge('pedidos')}</th>
                 <th onClick={() => onSortClick('disponivel')} className="px-3 py-3 text-right cursor-pointer">Disponível{sortBadge('disponivel')}</th>
                 <th onClick={() => onSortClick('emProcesso')} className="px-3 py-3 text-right cursor-pointer">Em Proc.{sortBadge('emProcesso')}</th>
                 {excedentesLojas && excedentesLojas.size > 0 && (
-                  <th className="px-3 py-3 text-right bg-purple-900 text-purple-200">Estq. Lojas</th>
+                  <th className="px-3 py-3 text-right bg-purple-50 text-purple-800">Estq. Lojas</th>
                 )}
                 <th onClick={() => onSortClick('negativo')} className="px-3 py-3 text-right cursor-pointer">Negativo{sortBadge('negativo')}</th>
                 <th onClick={() => onSortClick('negativoPosProcesso')} className="px-3 py-3 text-right cursor-pointer">Neg. Pós Proc.{sortBadge('negativoPosProcesso')}</th>
@@ -1000,12 +1044,13 @@ export default function MatrizPlanejamentoTable({
                 <th onClick={() => onSortClick('taxaJan')} className="px-3 py-3 text-right cursor-pointer">{taxaLabels[0]}{sortBadge('taxaJan')}</th>
                 <th onClick={() => onSortClick('taxaFev')} className="px-3 py-3 text-right cursor-pointer">{taxaLabels[1]}{sortBadge('taxaFev')}</th>
                 <th onClick={() => onSortClick('taxaMar')} className="px-3 py-3 text-right cursor-pointer">{taxaLabels[2]}{sortBadge('taxaMar')}</th>
-                <th onClick={() => onSortClick('planoMA')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[0]}{sortBadge('planoMA')}</th>
-                <th onClick={() => onSortClick('planoPX')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[1]}{sortBadge('planoPX')}</th>
-                <th onClick={() => onSortClick('planoUL')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[2]}{sortBadge('planoUL')}</th>
-                <th onClick={() => onSortClick('planoQT')} className="px-3 py-3 text-right bg-teal-800 cursor-pointer">{mNomes[3]}{sortBadge('planoQT')}</th>
-                <th onClick={() => onSortClick('planoQU')} className="px-3 py-3 text-right bg-rose-800 cursor-pointer">{mNomes[4]}{sortBadge('planoQU')}</th>
-                <th onClick={() => onSortClick('planoSX')} className="px-3 py-3 text-right bg-purple-800 cursor-pointer">{mNomes[5]}{sortBadge('planoSX')}</th>
+                </>)}
+                <th onClick={() => onSortClick('planoMA')} className="px-3 py-3 text-right bg-teal-50 text-teal-800 cursor-pointer">{mNomes[0]}{sortBadge('planoMA')}</th>
+                <th onClick={() => onSortClick('planoPX')} className="px-3 py-3 text-right bg-teal-50 text-teal-800 cursor-pointer">{mNomes[1]}{sortBadge('planoPX')}</th>
+                <th onClick={() => onSortClick('planoUL')} className="px-3 py-3 text-right bg-teal-50 text-teal-800 cursor-pointer">{mNomes[2]}{sortBadge('planoUL')}</th>
+                <th onClick={() => onSortClick('planoQT')} className="px-3 py-3 text-right bg-teal-50 text-teal-800 cursor-pointer">{mNomes[3]}{sortBadge('planoQT')}</th>
+                <th onClick={() => onSortClick('planoQU')} className="px-3 py-3 text-right bg-rose-50 text-rose-800 cursor-pointer">{mNomes[4]}{sortBadge('planoQU')}</th>
+                <th onClick={() => onSortClick('planoSX')} className="px-3 py-3 text-right bg-purple-50 text-purple-800 cursor-pointer">{mNomes[5]}{sortBadge('planoSX')}</th>
               </tr>
             )}
           </thead>
@@ -1021,145 +1066,146 @@ export default function MatrizPlanejamentoTable({
                   {/* â”€â”€ continuidade â”€â”€ */}
                   <tr
                     onClick={() => toggleCont(grupo.continuidade)}
-                    className="group cursor-pointer select-none transition-colors bg-[#585858] hover:bg-[#4a4a4a]"
+                    className="group cursor-pointer select-none transition-colors bg-gray-100 hover:bg-gray-200"
                   >
-                    <td className="sticky left-0 z-20 bg-[#585858] group-hover:bg-[#4a4a4a] px-2 py-2.5 text-white font-bold text-[11px] w-[240px] min-w-[240px] max-w-[240px] shadow-[1px_0_0_0_rgba(55,65,81,0.25)]">
-                      <span className="text-brand-secondary mr-2 text-[10px]">{contOpen ? '▼' : '▶'}</span>
+                    <td className="sticky left-0 z-20 bg-gray-100 group-hover:bg-gray-200 px-2 py-2.5 text-brand-dark font-bold text-[12px] w-[240px] min-w-[240px] max-w-[240px] shadow-[1px_0_0_0_rgba(148,163,184,0.3)]">
+                      <span className="text-brand-secondary mr-2 text-[11px]">{contOpen ? '▼' : '▶'}</span>
                       {grupo.continuidade}
-                      <BadgeSit t={gt} />
                     </td>
-                    <td className="px-2 py-2.5 text-center text-gray-500 text-[10px]">—</td>
-                    <td className="px-2 py-2.5 text-right text-gray-400 font-mono text-[11px] tabular-nums">{fmt(gt.estoqueMin)}</td>
-                    <td className="px-2 py-2.5 text-right text-gray-200 font-mono text-[11px] tabular-nums font-semibold">{fmt(gt.estoque)}</td>
-                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
-                      {gt.pedidos > 0 ? <span className="text-brand-secondary font-semibold">{fmt(gt.pedidos)}</span> : <span className="text-gray-600">—</span>}
+                    {mostrarDetalhes && (<>
+                    <td className="px-2 py-2.5 text-center text-gray-500 text-[11px]">—</td>
+                    <td className="px-2 py-2.5 text-right text-gray-500 font-mono text-[12px] tabular-nums">{fmt(gt.estoqueMin)}</td>
+                    <td className="px-2 py-2.5 text-right text-gray-800 font-mono text-[12px] tabular-nums font-semibold">{fmt(gt.estoque)}</td>
+                    <td className="px-2 py-2.5 text-right font-mono text-[12px] tabular-nums">
+                      {gt.pedidos > 0 ? <span className="text-brand-secondary font-semibold">{fmt(gt.pedidos)}</span> : <span className="text-gray-400">—</span>}
                     </td>
-                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums font-bold">
-                      <CellDisp v={gt.disponivel} min={gt.estoqueMin} dark />
+                    <td className="px-2 py-2.5 text-right font-mono text-[12px] tabular-nums font-bold">
+                      <CellDisp v={gt.disponivel} min={gt.estoqueMin} />
                     </td>
-                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
-                      {gt.emProcesso > 0 ? <span className="text-gray-200 font-semibold">{fmt(gt.emProcesso)}</span> : <span className="text-gray-600">—</span>}
+                    <td className="px-2 py-2.5 text-right font-mono text-[12px] tabular-nums">
+                      {gt.emProcesso > 0 ? <span className="text-gray-800 font-semibold">{fmt(gt.emProcesso)}</span> : <span className="text-gray-400">—</span>}
                     </td>
                     {excedentesLojas && excedentesLojas.size > 0 && (
-                      <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums bg-purple-900/50">
-                        {gt.excedenteLojas > 0 ? <span className="text-purple-300 font-semibold">{fmt(gt.excedenteLojas)}</span> : <span className="text-gray-600">—</span>}
+                      <td className="px-2 py-2.5 text-right font-mono text-[12px] tabular-nums bg-purple-100">
+                        {gt.excedenteLojas > 0 ? <span className="text-purple-700 font-semibold">{fmt(gt.excedenteLojas)}</span> : <span className="text-gray-400">—</span>}
                       </td>
                     )}
-                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
-                      <CellNegativo v={gt.deficit} dark />
+                    <td className="px-2 py-2.5 text-right font-mono text-[12px] tabular-nums">
+                      <CellNegativo v={gt.deficit} />
                     </td>
-                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums">
-                      <CellNegativo v={gt.deficitPosProcesso} dark />
+                    <td className="px-2 py-2.5 text-right font-mono text-[12px] tabular-nums">
+                      <CellNegativo v={gt.deficitPosProcesso} />
                     </td>
-                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums font-semibold">
-                      <CellCob disp={gt.disponivel} min={gt.estoqueMin} dark />
+                    <td className="px-2 py-2.5 text-right font-mono text-[12px] tabular-nums font-semibold">
+                      <CellCob disp={gt.disponivel} min={gt.estoqueMin} />
                     </td>
-                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums"><CellTaxa venda={gt.vendaJan} proj={gt.projJan} dark /></td>
-                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums"><CellTaxa venda={gt.vendaFev} proj={gt.projFev} dark /></td>
-                    <td className="px-2 py-2.5 text-right font-mono text-[11px] tabular-nums"><CellTaxa venda={gt.vendaMar} proj={gt.projMarProp} dark /></td>
+                    <td className="px-2 py-2.5 text-right font-mono text-[12px] tabular-nums"><CellTaxa venda={gt.vendaJan} proj={gt.projJan} /></td>
+                    <td className="px-2 py-2.5 text-right font-mono text-[12px] tabular-nums"><CellTaxa venda={gt.vendaFev} proj={gt.projFev} /></td>
+                    <td className="px-2 py-2.5 text-right font-mono text-[12px] tabular-nums"><CellTaxa venda={gt.vendaMar} proj={gt.projMarProp} /></td>
+                    </>)}
                     {temProjecoes ? (
                       <>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-violet-950">
-                          {gt.projCount > 0 ? <CellProj v={gt.projMA} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-violet-100">
+                          {gt.projCount > 0 ? <CellProj v={gt.projMA} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-indigo-950">
-                          <CellPlano v={gt.planoMA} dark />
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-indigo-100">
+                          <CellPlano v={gt.planoMA} />
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-indigo-950">
-                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutMar} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-indigo-100">
+                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutMar} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-indigo-950">
-                          {gt.projCount > 0 ? <span className="text-red-300 font-semibold">{fmt(gt.negFutMar)}</span> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-indigo-100">
+                          {gt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(gt.negFutMar)}</span> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-indigo-950">
-                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutMar} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-indigo-100">
+                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutMar} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-emerald-900">
-                          {gt.projCount > 0 ? <CellProj v={gt.projPX} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-emerald-100">
+                          {gt.projCount > 0 ? <CellProj v={gt.projPX} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-emerald-900">
-                          <CellPlano v={gt.planoPX} dark />
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-emerald-100">
+                          <CellPlano v={gt.planoPX} />
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-emerald-900">
-                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutAbr} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-emerald-100">
+                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutAbr} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-emerald-900">
-                          {gt.projCount > 0 ? <span className="text-red-300 font-semibold">{fmt(gt.negFutAbr)}</span> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-emerald-100">
+                          {gt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(gt.negFutAbr)}</span> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-emerald-900">
-                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutAbr} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-emerald-100">
+                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutAbr} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-amber-900">
-                          {gt.projCount > 0 ? <CellProj v={gt.projUL} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-amber-100">
+                          {gt.projCount > 0 ? <CellProj v={gt.projUL} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-amber-900">
-                          <CellPlano v={gt.planoUL} dark />
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-amber-100">
+                          <CellPlano v={gt.planoUL} />
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-amber-900">
-                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutMai} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-amber-100">
+                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutMai} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-amber-900">
-                          {gt.projCount > 0 ? <span className="text-red-300 font-semibold">{fmt(gt.negFutMai)}</span> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-amber-100">
+                          {gt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(gt.negFutMai)}</span> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-amber-900">
-                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutMai} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-amber-100">
+                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutMai} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-cyan-900">
-                          {gt.projCount > 0 ? <CellProj v={gt.projQT} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-cyan-100">
+                          {gt.projCount > 0 ? <CellProj v={gt.projQT} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-cyan-900">
-                          <CellPlano v={gt.planoQT} dark />
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-cyan-100">
+                          <CellPlano v={gt.planoQT} />
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-cyan-900">
-                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutJun} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-cyan-100">
+                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutJun} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-cyan-900">
-                          {gt.projCount > 0 ? <span className="text-red-300 font-semibold">{fmt(gt.negFutJun)}</span> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-cyan-100">
+                          {gt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(gt.negFutJun)}</span> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-cyan-900">
-                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutJun} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-cyan-100">
+                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutJun} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
                         {/* QU - Outubro */}
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900">
-                          {gt.projCount > 0 ? <CellProj v={gt.projQU} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-rose-100">
+                          {gt.projCount > 0 ? <CellProj v={gt.projQU} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900">
-                          <CellPlano v={gt.planoQU} dark />
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-rose-100">
+                          <CellPlano v={gt.planoQU} />
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900">
-                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutJul} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-rose-100">
+                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutJul} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900">
-                          {gt.projCount > 0 ? <span className="text-red-300 font-semibold">{fmt(gt.negFutJul)}</span> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-rose-100">
+                          {gt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(gt.negFutJul)}</span> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900">
-                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutJul} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-rose-100">
+                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutJul} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
                         {/* SX - Novembro */}
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-purple-900">
-                          {gt.projCount > 0 ? <CellProj v={gt.projSX} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-purple-100">
+                          {gt.projCount > 0 ? <CellProj v={gt.projSX} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-purple-900">
-                          <CellPlano v={gt.planoSX} dark />
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-purple-100">
+                          <CellPlano v={gt.planoSX} />
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-purple-900">
-                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutNov} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-purple-100">
+                          {gt.projCount > 0 ? <CellDispFut v={gt.dispFutNov} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-purple-900">
-                          {gt.projCount > 0 ? <span className="text-red-300 font-semibold">{fmt(gt.negFutNov)}</span> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-purple-100">
+                          {gt.projCount > 0 ? <span className="text-red-700 font-semibold">{fmt(gt.negFutNov)}</span> : <span className="text-gray-400">—</span>}
                         </td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-purple-900">
-                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutNov} min={gt.estoqueMin} dark /> : <span className="text-gray-700">—</span>}
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-purple-100">
+                          {gt.projCount > 0 ? <CellCobFut v={gt.dispFutNov} min={gt.estoqueMin} /> : <span className="text-gray-400">—</span>}
                         </td>
                       </>
                     ) : (
                       <>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-teal-900"><CellPlano v={gt.planoMA} dark /></td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-teal-900"><CellPlano v={gt.planoPX} dark /></td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-teal-900"><CellPlano v={gt.planoUL} dark /></td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-teal-900"><CellPlano v={gt.planoQT} dark /></td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-rose-900"><CellPlano v={gt.planoQU} dark /></td>
-                        <td className="px-3 py-3.5 text-right font-mono text-xs tabular-nums bg-purple-900"><CellPlano v={gt.planoSX} dark /></td>
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-teal-100"><CellPlano v={gt.planoMA} /></td>
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-teal-100"><CellPlano v={gt.planoPX} /></td>
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-teal-100"><CellPlano v={gt.planoUL} /></td>
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-teal-100"><CellPlano v={gt.planoQT} /></td>
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-rose-100"><CellPlano v={gt.planoQU} /></td>
+                        <td className="px-3 py-3.5 text-right font-mono text-[13px] tabular-nums bg-purple-100"><CellPlano v={gt.planoSX} /></td>
                       </>
                     )}
                   </tr>
@@ -1181,18 +1227,16 @@ export default function MatrizPlanejamentoTable({
                         {/* â”€â”€ referÃªncia â”€â”€ */}
                         <tr
                           onClick={() => toggleRef(refKey)}
-                          className={`group cursor-pointer select-none transition-colors text-xs
+                          className={`group cursor-pointer select-none transition-colors text-[13px]
                             ${rtSit === 'deficit' ? 'bg-red-50 hover:bg-red-100 border-l-2 border-l-red-400'
-                            : rtSit === 'abaixo'  ? 'bg-amber-50 hover:bg-amber-100 border-l-2 border-l-amber-400'
                             : 'bg-slate-50 hover:bg-slate-100 border-l-2 border-l-slate-200'}`}
                         >
                           <td className={`sticky left-0 z-10 px-3 py-3.5 pl-8 font-semibold text-slate-800 w-[280px] min-w-[280px] max-w-[280px] shadow-[1px_0_0_0_rgba(148,163,184,0.25)]
                             ${rtSit === 'deficit' ? 'bg-red-50 group-hover:bg-red-100'
-                            : rtSit === 'abaixo' ? 'bg-amber-50 group-hover:bg-amber-100'
                             : 'bg-slate-50 group-hover:bg-slate-100'}`}
                           >
-                            <span className="text-slate-400 mr-2 text-[10px]">{refOpen ? '▼' : '▶'}</span>
-                            <span className="font-mono text-slate-500 mr-2 text-[11px]">{ref.referencia}</span>
+                            <span className="text-slate-400 mr-2 text-[11px]">{refOpen ? '▼' : '▶'}</span>
+                            <span className="font-mono text-slate-500 mr-2 text-[12px]">{ref.referencia}</span>
                             <span
                               className="inline-block max-w-[140px] truncate align-bottom text-slate-700"
                               title={ref.nomeRef}
@@ -1200,12 +1244,13 @@ export default function MatrizPlanejamentoTable({
                               {ref.nomeRef}
                             </span>
                           </td>
+                          {mostrarDetalhes && (<>
                           <td className="px-2 py-3.5 text-center">
                             {(() => {
                               const refNorm = (ref.referencia || '').trim().toUpperCase();
                               const curva = curvaABC[refNorm] || 'B';
                               const curvaClass = curva === 'A' ? 'bg-green-100 text-green-800' : curva === 'C' ? 'bg-red-100 text-red-800' : curva === 'D' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600';
-                              return <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${curvaClass}`}>{curva}</span>;
+                              return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${curvaClass}`}>{curva}</span>;
                             })()}
                           </td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums text-slate-500">{fmt(rt.estoqueMin)}</td>
@@ -1236,6 +1281,7 @@ export default function MatrizPlanejamentoTable({
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums"><CellTaxa venda={rt.vendaJan} proj={rt.projJan} /></td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums"><CellTaxa venda={rt.vendaFev} proj={rt.projFev} /></td>
                           <td className="px-3 py-3.5 text-right font-mono tabular-nums"><CellTaxa venda={rt.vendaMar} proj={rt.projMarProp} /></td>
+                          </>)}
                           {temProjecoes ? (
                             <>
                               <td className="px-3 py-3.5 text-right font-mono tabular-nums bg-violet-50">
@@ -1374,29 +1420,28 @@ export default function MatrizPlanejamentoTable({
                           return (
                             <tr
                               key={item.produto.idproduto}
-                              className={`group text-xs transition-colors
+                              className={`group text-[13px] transition-colors
                                 ${sit === 'deficit' ? 'bg-red-50 hover:bg-red-100'
-                                : sit === 'abaixo'  ? 'bg-amber-50 hover:bg-amber-100'
                                 : 'bg-white hover:bg-gray-50'}`}
                             >
                               <td className={`sticky left-0 z-10 px-3 py-3 pl-12 text-gray-600 w-[280px] min-w-[280px] max-w-[280px] shadow-[1px_0_0_0_rgba(148,163,184,0.2)]
                                 ${sit === 'deficit' ? 'bg-red-50 group-hover:bg-red-100'
-                                : sit === 'abaixo' ? 'bg-amber-50 group-hover:bg-amber-100'
                                 : 'bg-white group-hover:bg-gray-50'}`}
                               >
                                 <span className={`inline-block w-1.5 h-1.5 rounded-full mr-2 align-middle
-                                  ${sit === 'deficit' ? 'bg-red-400' : sit === 'abaixo' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-                                <span className="text-gray-400 font-mono text-[10px] mr-2">{item.produto.idproduto}</span>
+                                  ${sit === 'deficit' ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                                <span className="text-gray-400 font-mono text-[11px] mr-2">{item.produto.idproduto}</span>
                                 <span className="font-medium text-gray-700">{(item.produto.cor || '—').trim()}</span>
                                 <span className="text-gray-400 mx-1.5">/</span>
                                 <span className="text-gray-500">{(item.produto.tamanho || '—').trim()}</span>
                               </td>
+                              {mostrarDetalhes && (<>
                               <td className="px-2 py-3 text-center">
                                 {(() => {
                                   const refNorm = (item.produto.referencia || '').trim().toUpperCase();
                                   const curva = curvaABC[refNorm] || 'B';
                                   const curvaClass = curva === 'A' ? 'bg-green-100 text-green-800' : curva === 'C' ? 'bg-red-100 text-red-800' : curva === 'D' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600';
-                                  return <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${curvaClass}`}>{curva}</span>;
+                                  return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${curvaClass}`}>{curva}</span>;
                                 })()}
                               </td>
                               <td className="px-3 py-3 text-right font-mono tabular-nums text-gray-400">{fmt(eMin)}</td>
@@ -1455,6 +1500,7 @@ export default function MatrizPlanejamentoTable({
                                   proj={(projecoes[item.produto.idproduto]?.[String(taxaMeses[2].mes)] ?? 0)}
                                 />
                               </td>
+                              </>)}
                               {temProjecoes ? (
                                 <>
                                   <td className="px-3 py-3 text-right font-mono tabular-nums bg-violet-50/60">
@@ -1634,9 +1680,8 @@ export default function MatrizPlanejamentoTable({
       </div>
 
       {/* legenda */}
-      <div className="flex items-center gap-6 px-3 py-3 border-t border-gray-100 bg-gray-50/60 text-[11px] text-gray-500 flex-wrap">
+      <div className="flex items-center gap-6 px-3 py-3 border-t border-gray-100 bg-gray-50/60 text-[12px] text-gray-500 flex-wrap">
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400 inline-block"/>Déficit</span>
-        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/>Abaixo do mínimo</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block"/>OK</span>
         {temProjecoes && (
           <span className="flex items-center gap-1.5 text-violet-600">
@@ -1654,7 +1699,7 @@ export default function MatrizPlanejamentoTable({
             <div className="px-4 py-3 border-b border-gray-200 bg-sky-50 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-sky-800">Em Processo por Local</h3>
-                <p className="text-xs text-sky-600">
+                <p className="text-[13px] text-sky-600">
                   {modalEmProcesso.referencia} · {modalEmProcesso.cor} / {modalEmProcesso.tamanho}
                   <span className="ml-2 text-gray-400">ID: {modalEmProcesso.cdProduto}</span>
                 </p>
@@ -1672,7 +1717,7 @@ export default function MatrizPlanejamentoTable({
                 <div className="text-center py-8 text-gray-500 text-sm">Nenhum registro em processo encontrado.</div>
               )}
               {!modalEmProcesso.loading && !modalEmProcesso.error && modalEmProcesso.data.length > 0 && (
-                <table className="min-w-full text-xs">
+                <table className="min-w-full text-[13px]">
                   <thead className="bg-gray-100 sticky top-0">
                     <tr>
                       <th className="text-left px-3 py-2 font-semibold text-gray-700">Cód. Local</th>
@@ -1705,7 +1750,7 @@ export default function MatrizPlanejamentoTable({
               )}
             </div>
             <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 text-right">
-              <button onClick={fecharModalEmProcesso} className="px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+              <button onClick={fecharModalEmProcesso} className="px-4 py-2 text-[13px] font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
                 Fechar
               </button>
             </div>
@@ -1720,11 +1765,11 @@ export default function MatrizPlanejamentoTable({
             <div className="px-4 py-3 border-b border-gray-200 bg-teal-50 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-teal-800">Verificação de Matéria-Prima</h3>
-                <p className="text-xs text-teal-600">
+                <p className="text-[13px] text-teal-600">
                   {modalCheckMp.referencia} · {modalCheckMp.cor} / {modalCheckMp.tamanho}
                   <span className="ml-2 text-gray-400">ID: {modalCheckMp.idproduto}</span>
                 </p>
-                <p className="text-xs text-teal-700 mt-0.5">
+                <p className="text-[13px] text-teal-700 mt-0.5">
                   Plano <span className="font-semibold uppercase">{modalCheckMp.mesNome}</span>: {fmt(modalCheckMp.planoQtd)} unidades
                 </p>
               </div>
@@ -1733,7 +1778,7 @@ export default function MatrizPlanejamentoTable({
 
             {/* Resumo */}
             {!modalCheckMp.loading && !modalCheckMp.error && modalCheckMp.resumo.total > 0 && (
-              <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-4 text-xs">
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-4 text-[13px]">
                 <span className="text-gray-600">
                   <span className="font-semibold">{modalCheckMp.resumo.total}</span> MPs na ficha técnica
                 </span>
@@ -1770,7 +1815,7 @@ export default function MatrizPlanejamentoTable({
                 </div>
               )}
               {!modalCheckMp.loading && !modalCheckMp.error && modalCheckMpProblemas.length > 0 && (
-                <table className="min-w-full text-xs">
+                <table className="min-w-full text-[13px]">
                   <thead className="bg-gray-100 sticky top-0">
                     <tr>
                       <th className="text-left px-2 py-2 font-semibold text-gray-700">Código</th>
@@ -1785,10 +1830,10 @@ export default function MatrizPlanejamentoTable({
                   <tbody>
                     {modalCheckMpProblemas.map((mp, idx) => (
                       <tr key={mp.idmateriaprima} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${mp.status === 'FALTA' ? 'bg-red-50' : ''}`}>
-                        <td className="px-2 py-2 text-gray-500 font-mono text-[10px]">{mp.idmateriaprima}</td>
+                        <td className="px-2 py-2 text-gray-500 font-mono text-[11px]">{mp.idmateriaprima}</td>
                         <td className="px-2 py-2 text-gray-700">
                           <div className="font-medium truncate max-w-[180px]" title={mp.nome}>{mp.nome || '—'}</div>
-                          {mp.artigo && <div className="text-[10px] text-gray-400">{mp.artigo}</div>}
+                          {mp.artigo && <div className="text-[11px] text-gray-400">{mp.artigo}</div>}
                         </td>
                         <td className="px-2 py-2 text-right font-mono text-gray-600">{fmt(mp.estoque)}</td>
                         <td className="px-2 py-2 text-right font-mono text-gray-600">{fmt(mp.entrada_periodo)}</td>
@@ -1798,9 +1843,9 @@ export default function MatrizPlanejamentoTable({
                         </td>
                         <td className="px-2 py-2 text-center">
                           {mp.status === 'OK' ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700">OK</span>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-green-100 text-green-700">OK</span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-red-100 text-red-700">
                               FALTA {fmt(mp.deficit)}
                             </span>
                           )}
@@ -1813,10 +1858,10 @@ export default function MatrizPlanejamentoTable({
             </div>
 
             <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-              <p className="text-[10px] text-gray-400">
+              <p className="text-[11px] text-gray-400">
                 Consumo consolidado considera todos os produtos do plano, não apenas este item.
               </p>
-              <button onClick={fecharModalCheckMp} className="px-4 py-2 text-xs font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+              <button onClick={fecharModalCheckMp} className="px-4 py-2 text-[13px] font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
                 Fechar
               </button>
             </div>

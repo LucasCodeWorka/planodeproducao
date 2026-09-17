@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Boxes, RefreshCw, TriangleAlert, TrendingUp } from 'lucide-react';
+import { Boxes, LayoutGrid, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import { authHeaders, getToken } from '../lib/auth';
@@ -18,6 +18,8 @@ type RefGroup = { grupo: string; referencia: string };
 type RealCapacity = { grupo: string; minutosTrabalhados: number; diasComMovimento: number };
 type MonthRow = { mes: Month; demanda: number; producao: number; estoque: number; cobertura: number; carga: number; capacidade: number; diasDisponiveis: number; diasNecessarios: number; utilizacao: number };
 type GroupRow = { grupo: string; demanda: number; producao: number; capacidade: number; carga: number; utilizacao: number; meses: Record<Month, number> };
+type VendasCanal = { fabrica: Record<string, number>; lojas: Record<string, number> };
+type Totalizador = { fabrica: number; fabricaAjustada: number; lojas: number; total: number };
 
 const fmt = (n: number) => Math.round(n || 0).toLocaleString('pt-BR');
 const fmtPct = (n: number) => `${Math.round(n || 0)}%`;
@@ -28,7 +30,7 @@ export default function ProjecaoMacroPage() {
   const [collapsed, setCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; meses: MonthRow[]; grupos: GroupRow[] } | null>(null);
+  const [data, setData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; meses: MonthRow[]; grupos: GroupRow[]; vendas: VendasCanal; totalizadores: Record<string, Totalizador> } | null>(null);
 
   async function carregar() {
     setLoading(true); setError(null);
@@ -114,7 +116,9 @@ export default function ProjecaoMacroPage() {
         const carga = MONTHS.reduce((sum, mes) => sum + meses[mes], 0);
         return { grupo, demanda, producao, capacidade, carga, utilizacao: capacidade > 0 ? (carga / capacidade) * 100 : 0, meses };
       }).filter((g) => g.demanda > 0 || g.carga > 0).sort((a, b) => b.utilizacao - a.utilizacao);
-      setData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, meses: months, grupos: groupRows });
+      const vendas: VendasCanal = { fabrica: preview.vendas?.fabrica || {}, lojas: preview.vendas?.lojas || {} };
+      const totalizadores: Record<string, Totalizador> = preview.totalizadores || {};
+      setData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, meses: months, grupos: groupRows, vendas, totalizadores });
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao carregar visão macro'); }
     finally { setLoading(false); }
   }
@@ -124,6 +128,27 @@ export default function ProjecaoMacroPage() {
   const totalProducao = useMemo(() => data?.meses.reduce((s, m) => s + m.producao, 0) || 0, [data]);
   const ultimo = data?.meses[data.meses.length - 1];
   const primeiroNegativo = data?.meses.find((m) => m.estoque < 0);
+  type VisaoGeralRow = { label: string; values: (number | null)[]; decimals?: number; suffix?: string; bold?: boolean; rowClass?: string; dangerBelow?: number };
+  const visaoGeralRows = useMemo<VisaoGeralRow[]>(() => {
+    if (!data) return [];
+    const val = (i: number, rec: Record<string, number>) => Number(rec[String(i + 1)] || 0);
+    return [
+      { label: 'Dias Trabalhados', values: data.meses.map((m) => m.diasDisponiveis), decimals: 1, rowClass: 'bg-slate-50' },
+      { label: 'Estoque Físico Em Linha', values: data.meses.map((m) => m.estoque), rowClass: 'bg-amber-50' },
+      { label: 'Cobertura', values: data.meses.map((m) => (m.demanda > 0 ? m.cobertura : null)), decimals: 1, suffix: 'x', dangerBelow: 1, rowClass: 'bg-cyan-50' },
+      { label: 'Vendas Fábrica (c/ ajuste)', values: data.meses.map((_, i) => Number(data.totalizadores[String(i + 1)]?.fabricaAjustada || 0)), rowClass: 'bg-sky-50' },
+      { label: 'Vendas Lojas', values: data.meses.map((_, i) => val(i, data.vendas.lojas)), rowClass: 'bg-violet-50' },
+      { label: 'Estimativa Vendas (PERMANENTES)', values: data.meses.map((m) => m.demanda), bold: true, rowClass: 'bg-yellow-100' },
+      { label: 'Produção Total', values: data.meses.map((m) => m.producao), bold: true, rowClass: 'bg-emerald-100' },
+      { label: 'Média Dia Fábrica', values: data.meses.map((m) => (m.diasDisponiveis > 0 ? m.producao / m.diasDisponiveis : null)), decimals: 1, bold: true, rowClass: 'bg-gray-100' },
+    ];
+  }, [data]);
+  const Trend = ({ curr, prev }: { curr: number | null; prev: number | null }) => {
+    if (curr === null || prev === null || curr === prev) return null;
+    return curr > prev
+      ? <span className="text-emerald-600 ml-1 text-[10px] align-middle">▲</span>
+      : <span className="text-red-600 ml-1 text-[10px] align-middle">▼</span>;
+  };
 
   return <div className="min-h-screen bg-gray-100"><Sidebar onCollapse={setCollapsed} /><main className={`${collapsed ? 'ml-20' : 'ml-64'} p-6 transition-all`}>
     <div className="flex items-start justify-between mb-6"><div><p className="text-xs uppercase tracking-widest text-gray-500">Planejamento agregado</p><h1 className="text-2xl font-bold text-gray-900">Visão Macro de Estoque e Capacidade</h1><p className="text-sm text-gray-500 mt-1">Projeção {data?.anoDestino || new Date().getFullYear() + 1}.1 usando permanentes com venda em 6m ou 3m.</p></div><button onClick={carregar} className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button></div>
@@ -132,7 +157,42 @@ export default function ProjecaoMacroPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         {[['Estoque em dezembro', fmt(data.estoqueFimDezembro), data.estoqueFimDezembro < 0 ? 'text-red-700' : 'text-blue-700'], ['Demanda 2027.1', fmt(totalDemanda), 'text-emerald-700'], ['Produção macro 2027.1', fmt(totalProducao), 'text-indigo-700'], ['Capacidade diária média 3M', fmt(data.capacidadeDiaria), 'text-slate-800']].map(([label, value, color]) => <div key={label} className="bg-white border border-gray-200 rounded-lg px-4 py-3"><div className="text-xs uppercase tracking-wide text-gray-500 truncate" title={label}>{label}</div><div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div></div>)}
       </div>
-      <div className="bg-white border border-gray-200 rounded-lg mb-6 overflow-hidden"><div className="px-5 py-4 border-b flex items-center gap-2"><TrendingUp size={18} className="text-emerald-600" /><div><h2 className="font-semibold text-gray-900">Evolução mensal consolidada</h2><p className="text-xs text-gray-500">Plano virtual pela cobertura: produz somente o necessário para recompor o estoque mínimo configurado.</p></div></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr>{['Mês','Demanda','Produção macro','Estoque final','Cobertura','Carga do plano','Dias necessários','Dias disponíveis','Capacidade','Utilização'].map((h) => <th key={h} className="px-4 py-3 text-right first:text-left">{h}</th>)}</tr></thead><tbody>{data.meses.map((m) => <tr key={m.mes} className="border-t"><td className="px-4 py-3 font-semibold uppercase">{m.mes}</td><td className="px-4 py-3 text-right font-mono">{fmt(m.demanda)}</td><td className="px-4 py-3 text-right font-mono font-semibold text-blue-700">{fmt(m.producao)}</td><td className={`px-4 py-3 text-right font-mono font-semibold ${m.estoque < 0 ? 'text-red-700' : 'text-gray-800'}`}>{fmt(m.estoque)}</td><td className={`px-4 py-3 text-right font-mono ${m.cobertura < 1 ? 'text-red-700' : 'text-gray-700'}`}>{m.demanda ? `${m.cobertura.toFixed(1)}x` : '-'}</td><td className="px-4 py-3 text-right font-mono">{fmt(m.carga)}</td><td className="px-4 py-3 text-right font-mono">{m.diasNecessarios.toFixed(1)}</td><td className="px-4 py-3 text-right font-mono">{m.diasDisponiveis.toFixed(1)}</td><td className="px-4 py-3 text-right font-mono">{fmt(m.capacidade)}</td><td className={`px-4 py-3 text-right font-mono font-semibold ${m.utilizacao > 100 ? 'text-red-700' : 'text-emerald-700'}`}>{fmtPct(m.utilizacao)}</td></tr>)}</tbody></table></div></div>
+      <div className="bg-white border border-gray-200 rounded-lg mb-6 overflow-hidden">
+        <div className="px-5 py-4 border-b flex items-center gap-2">
+          <LayoutGrid size={18} className="text-slate-600" />
+          <div>
+            <h2 className="font-semibold text-gray-900">Visão Geral</h2>
+            <p className="text-xs text-gray-500">Dias trabalhados (cadastrados em Capacidade), estoque projetado, vendas por canal e produção, mês a mês.</p>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+              <tr>
+                <th className="px-4 py-3 text-left">Indicador</th>
+                {MONTHS.map((m) => <th key={m} className="px-4 py-3 text-right">{m}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {visaoGeralRows.map((row) => (
+                <tr key={row.label} className={`border-t ${row.rowClass || ''}`}>
+                  <td className={`px-4 py-3 ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{row.label}</td>
+                  {row.values.map((v, i) => {
+                    const perigo = row.dangerBelow !== undefined && v !== null && v < row.dangerBelow;
+                    const texto = v === null ? '—' : row.decimals !== undefined ? `${v.toFixed(row.decimals)}${row.suffix || ''}` : fmt(v);
+                    return (
+                      <td key={i} className={`px-4 py-3 text-right font-mono ${perigo ? 'text-red-600 font-semibold' : row.bold ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                        {texto}
+                        {i > 0 && <Trend curr={v} prev={row.values[i - 1]} />}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden"><div className="px-5 py-4 border-b flex items-center gap-2"><Boxes size={18} className="text-blue-600" /><div><h2 className="font-semibold text-gray-900">Pressão por grupo de capacidade</h2><p className="text-xs text-gray-500">Carga da produção macro comparada à capacidade diária total cadastrada na aba Capacidade.</p></div></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500"><tr><th className="px-4 py-3 text-left">Grupo</th><th className="px-4 py-3 text-right">Demanda</th><th className="px-4 py-3 text-right">Produção</th><th className="px-4 py-3 text-right">Carga</th><th className="px-4 py-3 text-right">Capacidade</th><th className="px-4 py-3 text-right">Utilização</th>{MONTHS.map((m) => <th key={m} className="px-4 py-3 text-right">{m}</th>)}</tr></thead><tbody>{data.grupos.map((g) => <tr key={g.grupo} className="border-t"><td className="px-4 py-3 font-medium">{g.grupo}</td><td className="px-4 py-3 text-right font-mono">{fmt(g.demanda)}</td><td className="px-4 py-3 text-right font-mono text-blue-700">{fmt(g.producao)}</td><td className="px-4 py-3 text-right font-mono">{fmt(g.carga)}</td><td className="px-4 py-3 text-right font-mono">{fmt(g.capacidade)}</td><td className={`px-4 py-3 text-right font-mono font-semibold ${g.utilizacao > 100 ? 'text-red-700' : 'text-emerald-700'}`}>{fmtPct(g.utilizacao)}</td>{MONTHS.map((m) => <td key={m} className="px-4 py-3 text-right font-mono text-gray-600">{fmt(g.meses[m])}</td>)}</tr>)}</tbody></table></div></div>
       {(primeiroNegativo || (data.meses.some((m) => m.utilizacao > 100))) && <div className="mt-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><TriangleAlert size={17} />{primeiroNegativo ? `O estoque projetado fica negativo em ${primeiroNegativo.mes}.` : 'Há meses ou grupos acima de 100% da capacidade cadastrada.'} Essa tela é uma visão de decisão; o detalhamento continua no plano.</div>}
     </>}
