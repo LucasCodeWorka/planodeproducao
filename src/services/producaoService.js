@@ -13,6 +13,14 @@ const {
   escolherDestinosParaOrigem,
 } = require('./deParaReferencias');
 
+// Um mes so conta como mes de vida comercial se tiver ao menos esta fracao do pico da
+// janela. Abaixo disso e venda residual de mostruario, que fingia um mes cheio e mantinha
+// o divisor em 3 (ex.: 5 pecas em junho contra 1.684 em agosto).
+const MES_VIVO_LIMIAR = 0.10;
+// Teto da correcao. No agregado quase nao muda nada (~190 pecas), mas impede que um SKU
+// isolado triplique a media de uma vez.
+const MES_VIVO_TETO = 1.5;
+
 function isPt99Size(value) {
   return String(value || '').trim().toUpperCase() === 'PT 99';
 }
@@ -757,16 +765,26 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   const tFim3m     = fim3m.getTime();
   const tInicio12m = inicio12m.getTime();
 
+  // Limites de cada um dos 3 meses fechados. Guardar o total POR MES, e nao so o total da
+  // janela, e o que permite descartar mes em que o produto nem existia.
+  const tMes3mIni = [0, 1, 2].map(i => new Date(anoAtual, mesAtual - 3 + i, 1).getTime());
+  const tMes3mFim = [1, 2, 3].map(i => new Date(anoAtual, mesAtual - 3 + i, 1).getTime());
+
   const salesMap = new Map();
   for (const row of rVendas.rows) {
     const id  = Number(row.idproduto);
     const dia = new Date(row.dia).getTime();
     const qtd = parseFloat(row.qtd) || 0;
     let s = salesMap.get(id);
-    if (!s) { s = { total12m: 0, sumSem: 0, cntSem: 0, sum3m: 0, cnt3m: 0 }; salesMap.set(id, s); }
+    if (!s) { s = { total12m: 0, sumSem: 0, cntSem: 0, sum3m: 0, cnt3m: 0, m3: [0, 0, 0] }; salesMap.set(id, s); }
     if (dia >= tInicio12m)                          s.total12m++;
     if (dia >= tInicioSem && dia < tFimSem)  { s.sumSem += qtd; s.cntSem++; }
-    if (dia >= tInicio3m  && dia < tFim3m)   { s.sum3m  += qtd; s.cnt3m++;  }
+    if (dia >= tInicio3m  && dia < tFim3m)   {
+      s.sum3m  += qtd; s.cnt3m++;
+      for (let k = 0; k < 3; k++) {
+        if (dia >= tMes3mIni[k] && dia < tMes3mFim[k]) { s.m3[k] += qtd; break; }
+      }
+    }
   }
 
   // ── Montar resultado ──────────────────────────────────────────────────────
@@ -884,6 +902,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     let diasVenda12m = 0;
     let sumSem = 0;
     let sum3m = 0;
+    const vendas3mPorMes = [0, 0, 0];
     let estoqueAtual = 0;
     let emProcesso = 0;
     let qtPendente = 0;
@@ -907,6 +926,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
       diasVenda12m += s ? s.total12m * peso : 0;
       sumSem += s ? s.sumSem * peso : 0;
       sum3m += s ? s.sum3m * peso : 0;
+      if (s) for (let k = 0; k < 3; k++) vendas3mPorMes[k] += (s.m3[k] || 0) * peso;
       estoqueAtual += (estMap.get(idFonte) || 0) * peso;
       emProcesso += (emprocMap.get(idFonte) || 0) * peso;
       qtPendente += (pedMap.get(idFonte) || 0) * peso;
@@ -924,7 +944,24 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     }
 
     const mediaSemestral = sumSem / 6;  // média mensal do semestre (total ÷ 6 meses)
-    const media3m        = sum3m  / 3;  // média mensal dos 3 meses fechados (total ÷ 3 meses)
+    const media3mBruta   = sum3m  / 3;  // média mensal dos 3 meses fechados (total ÷ 3 meses)
+
+    // Produto mais novo que a janela era diluido por meses em que nem existia: o divisor
+    // ficava em 3 mesmo com 1 ou 2 meses de vida. Vale so para quem nao tem historico
+    // semestral — que e justamente quem nasceu depois do semestre de referencia. Com 3
+    // meses cheios os dois calculos coincidem, entao a regra sai de cena sozinha assim que
+    // o produto amadurece, sem ninguem precisar lembrar de reverter.
+    let media3m = media3mBruta;
+    let mesesBase3m = 3;
+    if (!mediaSemestral) {
+      const pico = Math.max(...vendas3mPorMes);
+      const mesesVivos = vendas3mPorMes.filter(v => v > 0 && v >= pico * MES_VIVO_LIMIAR);
+      if (mesesVivos.length) {
+        mesesBase3m = mesesVivos.length;
+        const mediaVida = mesesVivos.reduce((a, b) => a + b, 0) / mesesVivos.length;
+        media3m = Math.min(mediaVida, media3mBruta * MES_VIVO_TETO);
+      }
+    }
 
     // Filtro: precisa ter vendas nos últimos 12m OU estar em linha/nova coleção
     if (!diasVenda12m && !emLinha) continue;
@@ -964,7 +1001,9 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
       demanda: {
         pedidos_pendentes:   pedidosPendentes,
         media_vendas_6m:     mediaSemestral,   // semestre fixo do ano anterior
-        media_vendas_3m:     media3m           // últimos 3 meses fechados
+        media_vendas_3m:     media3m,          // últimos 3 meses fechados
+        media_vendas_3m_bruta: media3mBruta,   // sempre dividido por 3, para auditoria
+        meses_base_3m:       mesesBase3m       // quantos meses de vida entraram na média
       },
       plano: {
         ma: planoMA,   // mês atual
