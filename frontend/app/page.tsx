@@ -290,6 +290,7 @@ export default function Home() {
   const [curvaABC, setCurvaABC] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
   const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
   const [referenciasDeParaSet, setReferenciasDeParaSet] = useState<Set<string>>(new Set());
+  const [idsDeParaSet, setIdsDeParaSet] = useState<Set<string>>(new Set());
   const [execucaoPlanoResumo, setExecucaoPlanoResumo] = useState<ExecucaoPlanoResumo | null>(null);
   const [riscoMpPorSku, setRiscoMpPorSku] = useState<Record<string, { ma: boolean; px: boolean; ul: boolean; qt: boolean; qu: boolean; sx: boolean }>>({});
   const [detalheRiscoMpPorSku, setDetalheRiscoMpPorSku] = useState<RiscoMpDetalhePorSku>({});
@@ -551,6 +552,9 @@ export default function Home() {
       const data = await res.json();
       if (data.success && Array.isArray(data.referencias)) {
         setReferenciasDeParaSet(new Set(data.referencias.map((r: string) => String(r).trim().toUpperCase())));
+      }
+      if (data.success && Array.isArray(data.idprodutos_ocultar)) {
+        setIdsDeParaSet(new Set(data.idprodutos_ocultar.map((id: string | number) => String(id).trim())));
       }
     } catch { /* silencioso */ }
   }
@@ -953,6 +957,12 @@ export default function Home() {
       });
     }
 
+    // De-para de cor: a referência antiga e a nova são a mesma, então só dá para esconder
+    // a cor que sai pelo idproduto — filtrar por referência apagaria as duas cores.
+    if (idsDeParaSet.size > 0) {
+      base = base.filter((i) => !idsDeParaSet.has(String(i.produto.idproduto || '').trim()));
+    }
+
     // Filtro para excluir SKUs sem plano em nenhum período (só tem estoque+processo para vender)
     if (filtroSomenteComPlano) {
       base = base.filter((i) => {
@@ -967,7 +977,7 @@ export default function Home() {
     }
 
     return base;
-  }, [dadosAtivosComEstoqueLojas, filtroContinuidade, filtroSuspensos, filtroLinha, filtroFamilia, filtroCurvaABC, curvaABC, referenciasDeParaSet, filtroSomenteComPlano]);
+  }, [dadosAtivosComEstoqueLojas, filtroContinuidade, filtroSuspensos, filtroLinha, filtroFamilia, filtroCurvaABC, curvaABC, referenciasDeParaSet, idsDeParaSet, filtroSomenteComPlano]);
 
   const projecoesAtivas = useMemo<ProjecoesMap>(() => {
     // Se não tem preview de reprojeção, retorna projeções originais

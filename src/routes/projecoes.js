@@ -2,10 +2,18 @@ const express = require('express');
 const fs      = require('fs');
 const path    = require('path');
 const { aplicarReprojecaoMes, REPROJECAO_REGRAS_FIXAS } = require('../services/reprojecaoFechada');
-const { isExcludedReference, isExcludedPlanningItem } = require('../services/planningExclusions');
+const { isExcludedPlanningItem } = require('../services/planningExclusions');
 const { readCache } = require('../cache/matrizCache');
 const projecoesService = require('../services/projecoesService');
 const cenariosProjecaoService = require('../services/cenariosProjecaoService');
+const {
+  carregarPares,
+  carregarParesAtivos,
+  referenciasParaBuscar,
+  selecionarOrigens,
+  selecionarDestinos,
+  escolherDestinosParaOrigem,
+} = require('../services/deParaReferencias');
 
 // Flag para usar banco de dados (true) ou JSON (false)
 const USAR_BANCO = true;
@@ -15,7 +23,6 @@ const router = express.Router();
 const DATA_DIR  = path.join(__dirname, '../../data');
 const PROJ_FILE = path.join(DATA_DIR, 'projecoes.json');
 const MATRIZ_FILE = path.join(DATA_DIR, 'matriz_cache.json');
-const DE_PARA_FILE = path.join(DATA_DIR, 'de_para_referencias.json');
 const MESES_TRANSICAO_NOVA_COLECAO = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
 // ── Calcula períodos automaticamente ────────────────────────────────────────
@@ -172,30 +179,6 @@ async function lerMatrizCacheCompleta(pool) {
   return [];
 }
 
-function lerDeParaReferencias() {
-  try {
-    const raw = fs.readFileSync(DE_PARA_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed?.data)
-      ? parsed.data.filter((item) => {
-          const refAntiga = String(item?.ref_antiga || '').trim();
-          const refNova = String(item?.ref_nova || '').trim();
-          return !isExcludedReference(refAntiga) && !isExcludedReference(refNova);
-        })
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function normalizarTextoComparacao(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toUpperCase();
-}
-
 function cloneMeses(meses) {
   return Object.fromEntries(
     Object.entries(meses || {}).map(([mes, qtd]) => [String(mes), Number(qtd) || 0])
@@ -232,79 +215,55 @@ async function buscarProdutosPorReferencias(pool, referencias) {
   }));
 }
 
-function escolherOrigemPorSku(produtosAntigos, produtoNovo, indiceNovo) {
-  if (!Array.isArray(produtosAntigos) || !produtosAntigos.length) return null;
-
-  const cor = normalizarTextoComparacao(produtoNovo?.cor);
-  const tamanho = normalizarTextoComparacao(produtoNovo?.tamanho);
-
-  const matchExato = produtosAntigos.find((item) =>
-    normalizarTextoComparacao(item.cor) === cor &&
-    normalizarTextoComparacao(item.tamanho) === tamanho
-  );
-  if (matchExato) return matchExato;
-
-  const matchTamanho = produtosAntigos.find((item) =>
-    normalizarTextoComparacao(item.tamanho) === tamanho
-  );
-  if (matchTamanho) return matchTamanho;
-
-  const matchCor = produtosAntigos.find((item) =>
-    normalizarTextoComparacao(item.cor) === cor
-  );
-  if (matchCor) return matchCor;
-
-  return produtosAntigos[indiceNovo] || produtosAntigos[0] || null;
-}
-
-function transferirProjecaoNovaColecao(projecaoAntiga, projecaoNova) {
-  const origem = cloneMeses(projecaoAntiga);
-  const destino = cloneMeses(projecaoNova);
+/**
+ * Projecao do destino = soma ponderada das origens que caem nele. Mes sem nenhuma origem
+ * fica como esta: zerar apagaria a projecao propria da referencia nova, que e PERMANENTE
+ * e recebe projecao do Permanentes.
+ */
+function acumularProjecaoDestino(projecaoDestino, contribuicoes) {
+  const destino = cloneMeses(projecaoDestino);
 
   let mesesTransferidos = 0;
   let conflitosDestino = 0;
-  let houveTransferencia = false;
 
   for (const mes of MESES_TRANSICAO_NOVA_COLECAO) {
-    const valorOrigem = Number(origem[mes] || 0);
-    const valorDestinoAnterior = Number(destino[mes] || 0);
+    let soma = 0;
+    let temOrigem = false;
 
-    if (valorDestinoAnterior !== 0 && valorOrigem !== 0 && valorDestinoAnterior !== valorOrigem) {
-      conflitosDestino += 1;
+    for (const { projecao, peso } of contribuicoes) {
+      const valor = Number(projecao?.[mes] || 0);
+      if (valor !== 0) temOrigem = true;
+      soma += valor * peso;
     }
 
-    if (valorOrigem !== 0 || valorDestinoAnterior !== 0) {
-      destino[mes] = valorOrigem;
-      origem[mes] = 0;
-      mesesTransferidos += 1;
-      houveTransferencia = true;
-    }
+    if (!temOrigem) continue;
+
+    const anterior = Number(destino[mes] || 0);
+    const novo = Math.round(soma);
+    if (anterior !== 0 && anterior !== novo) conflitosDestino += 1;
+
+    destino[mes] = novo;
+    mesesTransferidos += 1;
   }
 
-  return {
-    origem,
-    destino,
-    mesesTransferidos,
-    conflitosDestino,
-    houveTransferencia,
-  };
+  return { destino, mesesTransferidos, conflitosDestino };
+}
+
+function zerarProjecaoOrigem(projecaoOrigem) {
+  const origem = cloneMeses(projecaoOrigem);
+  for (const mes of MESES_TRANSICAO_NOVA_COLECAO) origem[mes] = 0;
+  return origem;
 }
 
 async function montarProjecoesEfetivas(pool) {
   const { data: projecoesOriginais, timestamp } = await lerProjecoes(pool);
-  const dePara = lerDeParaReferencias();
+  const dePara = carregarParesAtivos();
 
   if (!pool) {
     return { data: projecoesOriginais, timestamp, deParaAplicado: [] };
   }
 
-  const referencias = [];
-  for (const item of dePara) {
-    const antiga = String(item?.ref_antiga || '').trim();
-    const nova = String(item?.ref_nova || '').trim();
-    if (antiga) referencias.push(antiga);
-    if (nova) referencias.push(nova);
-  }
+  const referencias = referenciasParaBuscar(dePara);
 
   const produtos = referencias.length ? await buscarProdutosPorReferencias(pool, referencias) : [];
   const produtosPorReferencia = new Map();
@@ -320,86 +279,90 @@ async function montarProjecoesEfetivas(pool) {
   );
   const deParaAplicado = [];
 
-  for (const item of dePara) {
-    const refAntiga = String(item?.ref_antiga || '').trim();
-    const refNova = String(item?.ref_nova || '').trim();
-    if (!refAntiga || !refNova) continue;
+  for (const par of dePara) {
+    const origens = selecionarOrigens(produtosPorReferencia.get(par.refAntiga) || [], par);
+    const destinos = selecionarDestinos(produtosPorReferencia.get(par.refNova) || [], par);
 
-    const produtosAntigos = produtosPorReferencia.get(refAntiga) || [];
-    const produtosNovos = produtosPorReferencia.get(refNova) || [];
     const diagnostico = {
-      ref_antiga: refAntiga,
-      ref_nova: refNova,
-      descricao_arquivo: String(item?.descricao || '').trim(),
-      produtos_antigos: produtosAntigos.length,
-      produtos_novos: produtosNovos.length,
+      ref_antiga: par.refAntiga,
+      ref_nova: par.refNova,
+      modo: par.modo,
+      cor_antiga: par.corAntiga,
+      cor_nova: par.corNova,
+      vigencia_inicio: par.vigenciaInicio,
+      descricao_arquivo: par.descricao,
+      produtos_antigos: origens.length,
+      produtos_novos: destinos.length,
       produtos_transferidos: 0,
-      produtos_sem_origem: 0,
-      antigos_sem_destino: 0,
+      produtos_sem_destino: 0,
       conflitos_destino: 0,
       meses_transferidos: 0,
       observacoes: [],
     };
 
-    if (!produtosAntigos.length) {
-      diagnostico.observacoes.push('Referencia antiga sem SKU encontrado no cadastro');
+    if (!origens.length) {
+      diagnostico.observacoes.push(par.modo === 'COR'
+        ? `Cor ${par.corAntiga} sem SKU na referencia ${par.refAntiga}`
+        : 'Referencia antiga sem SKU encontrado no cadastro');
       deParaAplicado.push(diagnostico);
       continue;
     }
 
-    if (!produtosNovos.length) {
-      diagnostico.observacoes.push('Referencia nova sem SKU encontrado no cadastro');
+    if (!destinos.length) {
+      diagnostico.observacoes.push(par.modo === 'COR'
+        ? `Cor ${par.corNova} ainda nao cadastrada na referencia ${par.refNova}`
+        : 'Referencia nova sem SKU encontrado no cadastro');
       deParaAplicado.push(diagnostico);
       continue;
     }
 
-    if (produtosAntigos.length !== produtosNovos.length) {
-      diagnostico.observacoes.push(`Quantidade de SKUs divergente: antiga=${produtosAntigos.length}, nova=${produtosNovos.length}`);
-    }
+    // Agrupa as origens por destino antes de aplicar: varias cores que saem podem cair no
+    // mesmo SKU novo, e a projecao dele e a soma ponderada de todas elas.
+    const contribuicoesPorDestino = new Map();
+    const origensTransferidas = new Set();
 
-    const origensUsadas = new Set();
-    for (let i = 0; i < produtosNovos.length; i += 1) {
-      const produtoNovo = produtosNovos[i];
-      const idNovo = String(produtoNovo.idproduto || '').trim();
-      if (!idNovo) continue;
-
-      const candidatos = produtosAntigos.filter((produto) => !origensUsadas.has(String(produto.idproduto || '').trim()));
-      const origem = escolherOrigemPorSku(candidatos, produtoNovo, i);
+    for (const origem of origens) {
       const idAntigo = String(origem?.idproduto || '').trim();
-      if (!idAntigo) {
-        diagnostico.produtos_sem_origem += 1;
+      if (!idAntigo) continue;
+
+      const alvos = escolherDestinosParaOrigem(destinos, origem, par);
+      if (!alvos.length) {
+        diagnostico.produtos_sem_destino += 1;
         continue;
       }
 
-      origensUsadas.add(idAntigo);
+      const projecaoOrigem = efetivas[idAntigo] || projecoesOriginais[idAntigo];
+      origensTransferidas.add(idAntigo);
 
-      const projecaoAntiga = efetivas[idAntigo] || projecoesOriginais[idAntigo];
-      const projecaoNova = efetivas[idNovo] || projecoesOriginais[idNovo];
-      if (!projecaoAntiga && !projecaoNova) continue;
+      for (const { destino, peso } of alvos) {
+        const idNovo = String(destino?.idproduto || '').trim();
+        if (!idNovo || idNovo === idAntigo) continue;
+        if (!contribuicoesPorDestino.has(idNovo)) contribuicoesPorDestino.set(idNovo, []);
+        contribuicoesPorDestino.get(idNovo).push({ projecao: projecaoOrigem, peso });
+      }
+    }
 
-      const transferencia = transferirProjecaoNovaColecao(projecaoAntiga, projecaoNova);
-      efetivas[idAntigo] = transferencia.origem;
-      efetivas[idNovo] = transferencia.destino;
-
-      if (!transferencia.houveTransferencia) continue;
-
+    for (const [idNovo, contribuicoes] of contribuicoesPorDestino.entries()) {
+      const resultado = acumularProjecaoDestino(efetivas[idNovo] || projecoesOriginais[idNovo], contribuicoes);
+      efetivas[idNovo] = resultado.destino;
+      if (!resultado.mesesTransferidos) continue;
       diagnostico.produtos_transferidos += 1;
-      diagnostico.meses_transferidos += transferencia.mesesTransferidos;
-      diagnostico.conflitos_destino += transferencia.conflitosDestino;
+      diagnostico.meses_transferidos += resultado.mesesTransferidos;
+      diagnostico.conflitos_destino += resultado.conflitosDestino;
     }
 
-    diagnostico.antigos_sem_destino = produtosAntigos.filter((produto) => !origensUsadas.has(String(produto.idproduto || '').trim())).length;
-
-    if (diagnostico.antigos_sem_destino > 0) {
-      diagnostico.observacoes.push(`${diagnostico.antigos_sem_destino} SKU(s) da referencia antiga ficaram sem destino 1:1`);
+    // Zera as origens so depois de somar todos os destinos, senao a segunda cor que
+    // aponta para o mesmo SKU novo leria uma projecao ja zerada.
+    for (const idAntigo of origensTransferidas) {
+      efetivas[idAntigo] = zerarProjecaoOrigem(efetivas[idAntigo] || projecoesOriginais[idAntigo]);
     }
 
-    if (diagnostico.produtos_sem_origem > 0) {
-      diagnostico.observacoes.push(`${diagnostico.produtos_sem_origem} SKU(s) novos ficaram sem origem correspondente`);
+    if (diagnostico.produtos_sem_destino > 0) {
+      diagnostico.observacoes.push(`${diagnostico.produtos_sem_destino} SKU(s) da referencia antiga ficaram sem tamanho equivalente e seguem no plano`);
     }
 
     if (diagnostico.conflitos_destino > 0) {
-      diagnostico.observacoes.push(`${diagnostico.conflitos_destino} mes(es) do destino foram sobrescritos na transicao`);
+      diagnostico.observacoes.push(`${diagnostico.conflitos_destino} mes(es) do destino foram substituidos pela projecao de origem`);
     }
 
     deParaAplicado.push(diagnostico);
@@ -652,22 +615,49 @@ function parsearCSV(texto) {
 // Retorna as referências do de-para (apenas antigas para exclusão da tabela)
 router.get('/de-para', auth, async (req, res) => {
   try {
-    const dePara = lerDeParaReferencias();
-    const referenciasAntigas = new Set();
+    const pool = req.app.get('pool');
+    const pares = carregarPares();
+    const ativos = pares.filter((par) => par.ativo);
 
-    for (const item of dePara) {
-      const refAntiga = String(item?.ref_antiga || '').trim();
-      if (refAntiga) referenciasAntigas.add(refAntiga);
+    // So referencias que realmente trocam de codigo: no de-para de cor a referencia antiga
+    // e a mesma da nova, e esconder por referencia apagaria as duas cores da matriz.
+    const referenciasAntigas = new Set(
+      ativos.filter((par) => par.refAntiga !== par.refNova).map((par) => par.refAntiga)
+    );
+
+    // Para o de-para de cor o frontend precisa esconder SKU a SKU, so a cor que sai.
+    const paresCor = ativos.filter((par) => par.modo === 'COR');
+    const idprodutosOcultar = new Set();
+
+    if (pool && paresCor.length) {
+      const produtos = await buscarProdutosPorReferencias(pool, paresCor.map((par) => par.refAntiga));
+      const porReferencia = new Map();
+      for (const produto of produtos) {
+        if (!porReferencia.has(produto.referencia)) porReferencia.set(produto.referencia, []);
+        porReferencia.get(produto.referencia).push(produto);
+      }
+      for (const par of paresCor) {
+        for (const origem of selecionarOrigens(porReferencia.get(par.refAntiga) || [], par)) {
+          if (origem?.idproduto) idprodutosOcultar.add(String(origem.idproduto).trim());
+        }
+      }
     }
 
     return res.json({
       success: true,
       count: referenciasAntigas.size,
       referencias: Array.from(referenciasAntigas).sort(),
-      detalhes: dePara.map(item => ({
-        ref_antiga: String(item?.ref_antiga || '').trim(),
-        ref_nova: String(item?.ref_nova || '').trim(),
-        descricao: item?.descricao || ''
+      idprodutos_ocultar: Array.from(idprodutosOcultar),
+      detalhes: pares.map((par) => ({
+        ref_antiga: par.refAntiga,
+        ref_nova: par.refNova,
+        modo: par.modo,
+        cor_antiga: par.corAntiga,
+        cor_nova: par.corNova,
+        vigencia_inicio: par.vigenciaInicio,
+        ativo: par.ativo,
+        grupo: par.grupo,
+        descricao: par.descricao
       }))
     });
   } catch (err) {

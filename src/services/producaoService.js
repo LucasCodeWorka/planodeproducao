@@ -2,14 +2,16 @@
  * Serviço para consultas relacionadas ao planejamento de produção
  */
 
-const fs = require('fs');
-const path = require('path');
 const { buscarProdutoComMedias } = require('./vendasService');
 const { calcularEstoqueMinimo } = require('./estoqueMinimo');
 const { isExcludedPlanningItem } = require('./planningExclusions');
-
-const DATA_DIR = path.join(__dirname, '..', '..', 'data');
-const DE_PARA_FILE = path.join(DATA_DIR, 'de_para_referencias.json');
+const {
+  carregarParesAtivos,
+  referenciasParaBuscar,
+  selecionarOrigens,
+  selecionarDestinos,
+  escolherDestinosParaOrigem,
+} = require('./deParaReferencias');
 
 function isPt99Size(value) {
   return String(value || '').trim().toUpperCase() === 'PT 99';
@@ -29,43 +31,6 @@ function normalizeStatus(value) {
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
     .trim();
-}
-
-function lerDeParaReferencias() {
-  try {
-    if (!fs.existsSync(DE_PARA_FILE)) return [];
-    const raw = fs.readFileSync(DE_PARA_FILE, 'utf8');
-    const json = JSON.parse(raw);
-    return Array.isArray(json?.data) ? json.data : [];
-  } catch (error) {
-    console.warn('[de-para] erro ao ler arquivo de referencias:', error.message);
-    return [];
-  }
-}
-
-function escolherSkuOrigem(produtosAntigos, produtoNovo, indiceNovo) {
-  if (!Array.isArray(produtosAntigos) || !produtosAntigos.length) return null;
-
-  const cor = normalizeCompare(produtoNovo?.cor);
-  const tamanho = normalizeCompare(produtoNovo?.tamanho);
-
-  const matchExato = produtosAntigos.find((item) =>
-    normalizeCompare(item?.cor) === cor &&
-    normalizeCompare(item?.tamanho) === tamanho
-  );
-  if (matchExato) return matchExato;
-
-  const matchTamanho = produtosAntigos.find((item) =>
-    normalizeCompare(item?.tamanho) === tamanho
-  );
-  if (matchTamanho) return matchTamanho;
-
-  const matchCor = produtosAntigos.find((item) =>
-    normalizeCompare(item?.cor) === cor
-  );
-  if (matchCor) return matchCor;
-
-  return produtosAntigos[indiceNovo] || produtosAntigos[0] || null;
 }
 
 /**
@@ -595,10 +560,8 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   if (ids.length === 0) return [];
 
   // ── Incluir IDs das refs antigas do de-para (podem estar em outra marca) ──
-  const deParaPreload = lerDeParaReferencias();
-  const refsAntigasPreload = deParaPreload
-    .map(item => String(item?.ref_antiga || '').trim())
-    .filter(Boolean);
+  const deParaPreload = carregarParesAtivos();
+  const refsAntigasPreload = referenciasParaBuscar(deParaPreload);
 
   if (refsAntigasPreload.length > 0) {
     const rIdsAntigos = await pool.query(`
@@ -807,7 +770,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   }
 
   // ── Montar resultado ──────────────────────────────────────────────────────
-  const dePara = lerDeParaReferencias();
+  const dePara = carregarParesAtivos();
   const produtosPorReferencia = new Map();
   for (const row of rProdutos.rows) {
     const id = Number(row.idproduto);
@@ -822,9 +785,8 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   }
 
   // ── Buscar produtos das refs antigas do de-para (podem estar em outra marca) ──
-  const refsAntigasDePara = dePara
-    .map(item => String(item?.ref_antiga || '').trim())
-    .filter(ref => ref && !produtosPorReferencia.has(ref));
+  const refsAntigasDePara = referenciasParaBuscar(dePara)
+    .filter(ref => !produtosPorReferencia.has(ref));
 
   if (refsAntigasDePara.length > 0) {
     const rProdutosAntigos = await pool.query(`
@@ -848,33 +810,47 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     console.log(`[de-para] Buscou ${rProdutosAntigos.rows.length} produtos de ${refsAntigasDePara.length} refs antigas em outras marcas`);
   }
 
-  const antigoParaNovoId = new Map();
-  const origensUsadas = new Set();
-  for (const item of dePara) {
-    const refAntiga = String(item?.ref_antiga || '').trim();
-    const refNova = String(item?.ref_nova || '').trim();
-    if (!refAntiga || !refNova) continue;
+  // Itera sobre as ORIGENS: cada SKU que sai precisa achar para onde ir. No sentido
+  // inverso (cada destino escolhendo uma origem) todo SKU antigo que excedesse a grade
+  // nova ficava sem par e reaparecia no plano como linha propria.
+  const origensRemovidas = new Set();
+  const fontesPorNovoId = new Map();
+  const semDestino = [];
 
-    const produtosAntigos = produtosPorReferencia.get(refAntiga) || [];
-    const produtosNovos = produtosPorReferencia.get(refNova) || [];
-    if (!produtosAntigos.length || !produtosNovos.length) continue;
+  for (const par of dePara) {
+    const origens = selecionarOrigens(produtosPorReferencia.get(par.refAntiga) || [], par);
+    const destinos = selecionarDestinos(produtosPorReferencia.get(par.refNova) || [], par);
 
-    for (let i = 0; i < produtosNovos.length; i += 1) {
-      const produtoNovo = produtosNovos[i];
-      const candidatos = produtosAntigos.filter((produto) => !origensUsadas.has(produto.idproduto));
-      const origem = escolherSkuOrigem(candidatos, produtoNovo, i);
+    if (!origens.length || !destinos.length) {
+      if (origens.length) {
+        semDestino.push(`${par.refNova}${par.corNova ? '/' + par.corNova : ''}: sem SKU cadastrado`);
+      }
+      continue;
+    }
+
+    for (const origem of origens) {
       const idAntigo = Number(origem?.idproduto || 0);
-      const idNovo = Number(produtoNovo?.idproduto || 0);
-      if (!idAntigo || !idNovo) continue;
-      origensUsadas.add(idAntigo);
-      antigoParaNovoId.set(idAntigo, idNovo);
+      if (!idAntigo) continue;
+
+      const alvos = escolherDestinosParaOrigem(destinos, origem, par);
+      if (!alvos.length) {
+        // sem tamanho equivalente no destino: a linha antiga permanece visivel no plano
+        semDestino.push(`${par.refAntiga} ${origem.cor}/${origem.tamanho}`);
+        continue;
+      }
+
+      origensRemovidas.add(idAntigo);
+      for (const { destino, peso } of alvos) {
+        const idNovo = Number(destino?.idproduto || 0);
+        if (!idNovo || idNovo === idAntigo) continue;
+        if (!fontesPorNovoId.has(idNovo)) fontesPorNovoId.set(idNovo, []);
+        fontesPorNovoId.get(idNovo).push({ id: idAntigo, peso });
+      }
     }
   }
 
-  const fontesPorNovoId = new Map();
-  for (const [idAntigo, idNovo] of antigoParaNovoId.entries()) {
-    if (!fontesPorNovoId.has(idNovo)) fontesPorNovoId.set(idNovo, []);
-    fontesPorNovoId.get(idNovo).push(idAntigo);
+  if (semDestino.length) {
+    console.log(`[de-para] ${semDestino.length} origem(ns) sem destino seguem visiveis: ${semDestino.slice(0, 5).join(' | ')}${semDestino.length > 5 ? ' ...' : ''}`);
   }
 
   const resultado = [];
@@ -882,7 +858,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   for (const row of rProdutos.rows) {
     if (isPt99Size(row.tamanho)) continue;
     const id     = Number(row.idproduto);
-    if (antigoParaNovoId.has(id)) continue;
+    if (origensRemovidas.has(id)) continue;
     const referencia = refMap.get(id) || null;
     const produtoNome = prodMap.get(id) || null;
     if (isExcludedPlanningItem({
@@ -890,12 +866,21 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
       produto: produtoNome,
       apresentacao: row.apresentacao,
     })) continue;
-    // sem continuidade cadastrada o SKU nao entra no plano
-    if (!String(contMap.get(id) || '').trim()) continue;
+    // Sem continuidade cadastrada o SKU nao entra no plano. Destino de de-para herda a
+    // continuidade da origem quando o proprio cadastro ainda esta incompleto no ERP; sem
+    // isso o produto sumiria do plano junto com a linha antiga (caso da 123019).
+    let continuidadeEfetiva = String(contMap.get(id) || '').trim();
+    if (!continuidadeEfetiva) {
+      for (const fonte of fontesPorNovoId.get(id) || []) {
+        const herdada = String(contMap.get(fonte.id) || '').trim();
+        if (herdada) { continuidadeEfetiva = herdada; break; }
+      }
+    }
+    if (!continuidadeEfetiva) continue;
     const status = (statusMap.get(id) || '').trim().toUpperCase();
     const emLinha = status === 'EM LINHA' || status === 'NOVA COLECAO';
 
-    const idsFonte = [id, ...(fontesPorNovoId.get(id) || [])];
+    const fontes = [{ id, peso: 1 }, ...(fontesPorNovoId.get(id) || [])];
     let diasVenda12m = 0;
     let sumSem = 0;
     let sum3m = 0;
@@ -914,25 +899,28 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     let planoOriginalQT = 0;
     let planoOriginalQU = 0;
 
-    for (const idFonte of idsFonte) {
+    // `peso` e 1 para o proprio SKU e fracionado quando uma cor que sai e rateada entre
+    // varias cores novas do mesmo tamanho — a soma dos pesos de cada origem da 1, entao os
+    // totais da referencia sao preservados.
+    for (const { id: idFonte, peso } of fontes) {
       const s = salesMap.get(idFonte);
-      diasVenda12m += s ? s.total12m : 0;
-      sumSem += s ? s.sumSem : 0;
-      sum3m += s ? s.sum3m : 0;
-      estoqueAtual += estMap.get(idFonte) || 0;
-      emProcesso += emprocMap.get(idFonte) || 0;
-      qtPendente += pedMap.get(idFonte) || 0;
-      saldoAdicional += saldoMap.get(idFonte) || 0;
-      planoMA += planoMap.get(idFonte)?.MA || 0;
-      planoPX += planoMap.get(idFonte)?.PX || 0;
-      planoUL += planoMap.get(idFonte)?.UL || 0;
-      planoQT += planoMap.get(idFonte)?.QT || 0;
-      planoQU += planoMap.get(idFonte)?.QU || 0;
-      planoOriginalMA += planoOriginalMap.get(idFonte)?.MA || 0;
-      planoOriginalPX += planoOriginalMap.get(idFonte)?.PX || 0;
-      planoOriginalUL += planoOriginalMap.get(idFonte)?.UL || 0;
-      planoOriginalQT += planoOriginalMap.get(idFonte)?.QT || 0;
-      planoOriginalQU += planoOriginalMap.get(idFonte)?.QU || 0;
+      diasVenda12m += s ? s.total12m * peso : 0;
+      sumSem += s ? s.sumSem * peso : 0;
+      sum3m += s ? s.sum3m * peso : 0;
+      estoqueAtual += (estMap.get(idFonte) || 0) * peso;
+      emProcesso += (emprocMap.get(idFonte) || 0) * peso;
+      qtPendente += (pedMap.get(idFonte) || 0) * peso;
+      saldoAdicional += (saldoMap.get(idFonte) || 0) * peso;
+      planoMA += (planoMap.get(idFonte)?.MA || 0) * peso;
+      planoPX += (planoMap.get(idFonte)?.PX || 0) * peso;
+      planoUL += (planoMap.get(idFonte)?.UL || 0) * peso;
+      planoQT += (planoMap.get(idFonte)?.QT || 0) * peso;
+      planoQU += (planoMap.get(idFonte)?.QU || 0) * peso;
+      planoOriginalMA += (planoOriginalMap.get(idFonte)?.MA || 0) * peso;
+      planoOriginalPX += (planoOriginalMap.get(idFonte)?.PX || 0) * peso;
+      planoOriginalUL += (planoOriginalMap.get(idFonte)?.UL || 0) * peso;
+      planoOriginalQT += (planoOriginalMap.get(idFonte)?.QT || 0) * peso;
+      planoOriginalQU += (planoOriginalMap.get(idFonte)?.QU || 0) * peso;
     }
 
     const mediaSemestral = sumSem / 6;  // média mensal do semestre (total ÷ 6 meses)
@@ -960,7 +948,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
         produto:      produtoNome,
         status:       statusMap.get(id) || null,
         idfamilia:    famMap.get(id)  || null,
-        continuidade: contMap.get(id) || null,
+        continuidade: continuidadeEfetiva || null,
         linha:        linhaMap.get(id) || null,
         grupo:        grupoMap.get(id) || null,
         cod_situacao: situacaoMap.get(id) || null,

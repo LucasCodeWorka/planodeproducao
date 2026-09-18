@@ -1,6 +1,6 @@
 {
-  "timestamp": 1713294000000,
-  "descricao": "Mapeamento DE-PARA de referências para projeção de vendas. A referência nova herda a projeção da referência antiga.",
+  "timestamp": 1789689600000,
+  "descricao": "Mapeamento DE-PARA para projecao de vendas. A referencia (ou cor) nova herda historico, estoque, plano e projecao da antiga, e a antiga sai do plano. Pares com cor_antiga/cor_nova trocam so a cor dentro da mesma referencia. vigencia_inicio (YYYY-MM) liga o par a partir daquele mes; sem o campo o par vale sempre.",
   "data": [
     {
       "ref_antiga": "703001",
@@ -31,6 +31,229 @@
       "ref_antiga": "303602",
       "ref_nova": "303603",
       "descricao": "SUTIA TQC EM descontinuada - migrar para SUTIA TQC (julho/2026)"
+    },
+
+    {
+      "ref_antiga": "123405",
+      "ref_nova": "123406",
+      "vigencia_inicio": "2027-01",
+      "grupo": "IDEAL 2027",
+      "descricao": "Troca de referencia linha IDEAL - lancamento janeiro/2027"
+    },
+    {
+      "ref_antiga": "121301",
+      "ref_nova": "121302",
+      "vigencia_inicio": "2027-01",
+      "grupo": "IDEAL 2027",
+      "descricao": "Troca de referencia linha IDEAL - lancamento janeiro/2027"
+    },
+    {
+      "ref_antiga": "123009",
+      "ref_nova": "123019",
+      "vigencia_inicio": "2027-01",
+      "grupo": "IDEAL 2027",
+      "descricao": "Troca de referencia linha IDEAL - 123019 sem continuidade no ERP, herda a da 123009"
+    },
+    {
+      "ref_antiga": "121000",
+      "ref_nova": "121106",
+      "vigencia_inicio": "2027-01",
+      "grupo": "IDEAL 2027",
+      "descricao": "Troca de referencia linha IDEAL - lancamento janeiro/2027"
+    },
+    {
+      "ref_antiga": "123603",
+      "ref_nova": "123606",
+      "vigencia_inicio": "2027-01",
+      "grupo": "IDEAL 2027",
+      "descricao": "Troca de referencia linha IDEAL - lancamento janeiro/2027"
+    },
+    {
+      "ref_antiga": "123604",
+      "ref_nova": "123607",
+      "vigencia_inicio": "2027-01",
+      "grupo": "IDEAL 2027",
+      "descricao": "Troca de referencia linha IDEAL - lancamento janeiro/2027"
+    },
+    {
+      "ref_antiga": "123008",
+      "ref_nova": "123121",
+      "vigencia_inicio": "2027-01",
+      "grupo": "IDEAL 2027",
+      "descricao": "Troca de referencia linha IDEAL - lancamento janeiro/2027"
+    },
+    {
+      "ref_antiga": "123013",
+      "ref_nova": "123020",
+      "vigencia_inicio": "2027-01",
+      "grupo": "IDEAL 2027",
+      "descricao": "Troca de referencia linha IDEAL - lancamento janeiro/2027"
+    },
+    {
+      "ref_antiga": "123301",
+      "ref_nova": "123302",
+      "vigencia_inicio": "2027-01",
+      "grupo": "IDEAL 2027",
+      "descricao": "Troca de referencia linha IDEAL - lancamento janeiro/2027"
+    },
+    {
+      "ref_antiga": "123007",
+      "ref_nova": "123022",
+      "vigencia_inicio": "2027-01",
+      "grupo": "IDEAL 2027",
+      "descricao": "Troca de referencia linha IDEAL - lancamento janeiro/2027"
+    },
+    {
+      "ref_antiga": "121704",
+      "ref_nova": "121705",
+      "vigencia_inicio": "2027-01",
+      "grupo": "IDEAL 2027",
+      "descricao": "Troca de referencia linha IDEAL - lancamento janeiro/2027"
+    },
+
+    {
+      "ref_antiga": "501000",
+      "ref_nova": "501000",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "CALCINHA - troca de cor LOVE por MALAGUETA (atencao: a ref tambem tem a cor LOVELY, que nao entra)"
+    },
+    {
+      "ref_antiga": "501003",
+      "ref_nova": "501003",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "CALCINHA - troca de cor LOVE por MALAGUETA"
+    },
+    {
+      "ref_antiga": "501602",
+      "ref_nova": "501602",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "CALCINHA - troca de cor LOVE por MALAGUETA"
+    },
+    {
+      "ref_antiga": "501700",
+      "ref_nova": "501700",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "CALCINHA - troca de cor LOVE por MALAGUETA (atencao: a ref tambem tem a cor LOVELY, que nao entra)"
+    },
+    {
+      "ref_antiga": "501701",
+      "ref_nova": "501701",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "CALCINHA - troca de cor LOVE por MALAGUETA"
+    },
+    {
+      "ref_antiga": "501715",
+      "ref_nova": "501715",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "CALCINHA - troca de cor LOVE por MALAGUETA"
+    },
+    {
+      "ref_antiga": "501723",
+      "ref_nova": "501723",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "CALCINHA - troca de cor LOVE por MALAGUETA"
+    },
+    {
+      "ref_antiga": "501742",
+      "ref_nova": "501742",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "CALCINHA - troca de cor LOVE por MALAGUETA"
+    },
+    {
+      "ref_antiga": "501745",
+      "ref_nova": "501745",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "CALCINHA - troca de cor LOVE por MALAGUETA"
+    },
+    {
+      "ref_antiga": "503001",
+      "ref_nova": "503001",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "SUTIA 1/2 TACA - troca de cor LOVE por MALAGUETA"
+    },
+    {
+      "ref_antiga": "503040",
+      "ref_nova": "503040",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "SUTIA MEIA TACA - PENDENTE: cor MALAGUETA ainda nao cadastrada nesta referencia, o par fica inerte ate o cadastro sair"
+    },
+    {
+      "ref_antiga": "503303",
+      "ref_nova": "503303",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "SUTIA 1/2 TACA - troca de cor LOVE por MALAGUETA"
+    },
+    {
+      "ref_antiga": "503400",
+      "ref_nova": "503400",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "SUTIA TRIANGULO - troca de cor LOVE por MALAGUETA (atencao: a ref tambem tem a cor LOVELY, que nao entra)"
+    },
+    {
+      "ref_antiga": "503503",
+      "ref_nova": "503503",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "TOP ALCA - troca de cor LOVE por MALAGUETA"
+    },
+    {
+      "ref_antiga": "503805",
+      "ref_nova": "503805",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "TOP C/ BOJO - PENDENTE: cor MALAGUETA ainda nao cadastrada nesta referencia, o par fica inerte ate o cadastro sair"
+    },
+    {
+      "ref_antiga": "701708",
+      "ref_nova": "701708",
+      "cor_antiga": "LOVE",
+      "cor_nova": "MALAGUETA",
+      "vigencia_inicio": "2026-11",
+      "grupo": "KISS ME MALAGUETA",
+      "descricao": "CALCINHA KISS ME PLUS - troca de cor LOVE por MALAGUETA"
     }
   ]
 }
