@@ -14,8 +14,10 @@ const AJUSTES_FABRICA = {
   1: 1.10,  // Janeiro: +10%
   2: 1.10,  // Fevereiro: +10%
   3: 1.10,  // Março: +10%
-  4: 1.10,  // Abril: +10%
-  5: 1.10,  // Maio: +10%
+  // Abril e maio de 2026 ficaram baixos por problemas de estoque que não devem
+  // se repetir, então a base é corrigida com um ajuste maior que o dos demais meses.
+  4: 1.20,  // Abril: +20%
+  5: 1.20,  // Maio: +20%
   6: 1.10,  // Junho: +10%
 };
 
