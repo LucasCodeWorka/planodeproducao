@@ -1742,6 +1742,12 @@ export default function Home() {
             )}
             {fromCache && <span className="text-green-200 font-medium">⚡ cache</span>}
             <button
+              onClick={() => router.push('/projecao-macro')}
+              className="px-3 py-1.5 text-xs font-semibold text-white border border-white/50 rounded hover:bg-white/10 transition-colors"
+            >
+              Visão Macro
+            </button>
+            <button
               onClick={handleRefresh}
               disabled={refreshing}
               className="px-3 py-1.5 text-xs font-semibold text-brand-primary bg-white rounded hover:bg-gray-100 disabled:opacity-50 transition-colors"
@@ -2263,6 +2269,16 @@ export default function Home() {
               { label: nomeMesCurto((periodos.UL || 0) + 3), bg: 'bg-purple-50', head: 'bg-purple-100 text-purple-900', periodo: 'SX',
                 proj: 'projSX', plano: 'planoSX', disp: 'dispFutNov', neg: 'negFutNov' },
             ] as const;
+            // Ordem fixa das continuidades dentro do card. Nunca por valor: ordenar pelo negativo
+            // faz as linhas trocarem de lugar de um mes para o outro e impede a leitura na horizontal.
+            const ordemContinuidade: Record<string, number> = {
+              'PERMANENTE': 1,
+              'PERMANENTE COR NOVA': 2,
+              'EDICAO LIMITADA': 3,
+              'EDICCAO LIMITADA': 3,
+              'EDIÇÃO LIMITADA': 3,
+            };
+            const ordemDe = (nome: string) => ordemContinuidade[nome.trim().toUpperCase()] ?? 99;
             const num = (t: GrupoTotais, campo: string) => Number((t as unknown as Record<string, number>)[campo] || 0);
             const fmtN = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
             // soma as continuidades que a matriz devolveu já filtradas
@@ -2292,7 +2308,7 @@ export default function Home() {
 
                     const linhas = totaisContinuidade
                       .map((t) => ({ nome: t.continuidade, valor: num(t.totais, m.neg) }))
-                      .sort((a, b) => b.valor - a.valor);
+                      .sort((a, b) => ordemDe(a.nome) - ordemDe(b.nome) || b.valor - a.valor);
                     const maiorNeg = Math.max(1, ...linhas.map((l) => l.valor));
 
                     return (
@@ -2387,8 +2403,8 @@ export default function Home() {
             );
           })()}
 
-          {/* Tempo de OP por local — a execução do plano agora vive na bateria de cada mês */}
-          {!loading && !error && (indicadoresLocais.oficinas.length > 0 || indicadoresLocais.outrosLocais.length > 0) && (
+          {/* Tempo de OP por local — oculto a pedido do usuario ate o numero ser validado */}
+          {false && !loading && !error && (indicadoresLocais.oficinas.length > 0 || indicadoresLocais.outrosLocais.length > 0) && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3">
 
               {/* Tempo de OP */}

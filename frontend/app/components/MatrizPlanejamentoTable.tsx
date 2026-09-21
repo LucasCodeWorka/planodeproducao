@@ -772,8 +772,8 @@ export default function MatrizPlanejamentoTable({
 
   useEffect(() => {
     if (grupos.length === 0) return;
-    setExpandedConts(new Set(grupos.map(g => g.continuidade)));
-    // Abrir por padrão no nível de referência (sem expandir SKUs automaticamente)
+    // A matriz abre sempre fechada: quem quiser ver o detalhe usa "Expandir tudo" ou clica no grupo.
+    setExpandedConts(new Set());
     setExpandedRefs(new Set());
   }, [grupos.length > 0 ? grupos[0].continuidade : '']);
 
