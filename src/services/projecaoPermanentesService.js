@@ -6,7 +6,7 @@
  * 3. Projeção = Totalizador × Representatividade
  */
 
-const { readCache } = require('../cache/matrizCache');
+const { readCache, readCacheByKey, writeCacheByKey } = require('../cache/matrizCache');
 const { isExcludedPlanningItem, normalizePlanningText } = require('./planningExclusions');
 
 // Ajustes de fábrica por mês (1 = janeiro, ..., 6 = junho)
@@ -22,6 +22,9 @@ const AJUSTES_FABRICA = {
 };
 
 const MESES_SEMESTRE = [1, 2, 3, 4, 5, 6]; // jan a jun
+
+// Prefixo da chave de cache do catalogo de permanentes vindo do banco.
+const CACHE_SKUS_BANCO = 'skus_permanentes_banco';
 
 /**
  * Busca vendas reais por canal a partir da mv_vendas_qtd.
@@ -194,8 +197,23 @@ function calcularTotalizadores(vendas) {
  * @returns {Promise<Array>} Lista de SKUs com dados cadastrais
  */
 async function buscarSkusPermanentesBanco(pool, ano = null, somenteAtuais = false) {
-  console.log('[projecao-permanentes] Buscando SKUs permanentes do banco...');
   const t0 = Date.now();
+
+  // Esta consulta roda seis funcoes escalares por linha sobre o catalogo inteiro e leva
+  // ~67s, dominando sozinha o tempo da Visao Macro. O resultado e cadastral e muda pouco,
+  // entao vale cachear por chave. Falha de cache nunca impede a consulta de rodar.
+  const chaveCache = `${CACHE_SKUS_BANCO}_${ano ?? 'sem_ano'}_${somenteAtuais ? 'atuais' : 'todos'}`;
+  try {
+    const cache = await readCacheByKey(chaveCache);
+    if (cache?.fresh && Array.isArray(cache.data)) {
+      console.log(`[projecao-permanentes] SKUs do banco (cache): ${cache.data.length} em ${((Date.now() - t0) / 1000).toFixed(3)}s`);
+      return cache.data;
+    }
+  } catch (error) {
+    console.warn(`[projecao-permanentes] cache de catalogo indisponivel: ${error.message}`);
+  }
+
+  console.log('[projecao-permanentes] Buscando SKUs permanentes do banco...');
   const temPeriodoVenda = ano !== null && ano !== undefined && Number.isInteger(Number(ano));
   const periodoVenda = temPeriodoVenda
     ? `AND EXISTS (
@@ -258,6 +276,12 @@ async function buscarSkusPermanentesBanco(pool, ano = null, somenteAtuais = fals
       media_6m: 0,
       media_3m: 0,
     }));
+
+  try {
+    await writeCacheByKey(chaveCache, skus, { ano, somenteAtuais, geradoPor: 'projecaoPermanentesService' });
+  } catch (error) {
+    console.warn(`[projecao-permanentes] nao consegui gravar o cache de catalogo: ${error.message}`);
+  }
 
   console.log(`[projecao-permanentes] SKUs do banco: ${skus.length} em ${((Date.now()-t0)/1000).toFixed(3)}s`);
   return skus;

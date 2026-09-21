@@ -4,6 +4,24 @@ const { isExcludedPlanningItem } = require('../services/planningExclusions');
 
 let _pool = null;
 
+// O payload da matriz tem varios MB: busca-lo e fazer JSON.parse custa 11-18s, e uma unica
+// requisicao da Visao Macro lia o mesmo objeto tres vezes. O memo guarda o parse por chave e
+// e validado contra o timestamp da linha a cada leitura (consulta minuscula), entao gravacao
+// feita por outro processo invalida o memo sozinha.
+const _memo = new Map();
+
+function montarLeitura(cache, timestamp) {
+  if (cache?.data === undefined || cache?.data === null) return null;
+  const ageMs = Date.now() - Number(timestamp);
+  return {
+    data:      cache.data,
+    timestamp: Number(timestamp),
+    ageHours:  ageMs / 3_600_000,
+    fresh:     ageMs < CACHE_TTL_HOURS * 3_600_000,
+    meta:      cache.meta || {}
+  };
+}
+
 function resolveCacheCount(payload) {
   if (Array.isArray(payload)) return payload.length;
   if (Array.isArray(payload?.data)) return payload.data.length;
@@ -32,22 +50,25 @@ async function initCache(pool) {
 async function readCacheByKey(key = CACHE_KEY) {
   if (!_pool) return null;
   try {
+    // So o timestamp primeiro: e barato e ja diz se o memo continua valendo.
     const res = await _pool.query(
-      'SELECT timestamp, data FROM app_cache WHERE key = $1',
+      'SELECT timestamp FROM app_cache WHERE key = $1',
       [key]
     );
     if (res.rows.length === 0) return null;
-    const { timestamp, data } = res.rows[0];
-    const cache = JSON.parse(data);
-    if (cache.data === undefined || cache.data === null) return null;
-    const ageMs = Date.now() - Number(timestamp);
-    return {
-      data:      cache.data,
-      timestamp: Number(timestamp),
-      ageHours:  ageMs / 3_600_000,
-      fresh:     ageMs < CACHE_TTL_HOURS * 3_600_000,
-      meta:      cache.meta || {}
-    };
+    const timestamp = Number(res.rows[0].timestamp);
+
+    const memo = _memo.get(key);
+    if (memo && memo.timestamp === timestamp) return montarLeitura(memo.cache, timestamp);
+
+    const full = await _pool.query(
+      'SELECT data FROM app_cache WHERE key = $1',
+      [key]
+    );
+    if (full.rows.length === 0) return null;
+    const cache = JSON.parse(full.rows[0].data);
+    _memo.set(key, { timestamp, cache });
+    return montarLeitura(cache, timestamp);
   } catch (err) {
     console.error(`[matrizCache] readCache erro (${key}):`, err.message);
     return null;
@@ -57,7 +78,8 @@ async function readCacheByKey(key = CACHE_KEY) {
 async function writeCacheByKey(key = CACHE_KEY, data, meta = {}) {
   if (!_pool) return;
   const timestamp = Date.now();
-  const json = JSON.stringify({ timestamp, count: resolveCacheCount(data), meta, data });
+  const payload = { timestamp, count: resolveCacheCount(data), meta, data };
+  const json = JSON.stringify(payload);
   await _pool.query(
     `INSERT INTO app_cache (key, timestamp, data)
      VALUES ($1, $2, $3)
@@ -66,6 +88,8 @@ async function writeCacheByKey(key = CACHE_KEY, data, meta = {}) {
            data      = EXCLUDED.data`,
     [key, timestamp, json]
   );
+  // Mantem o memo coerente com o que acabou de ser gravado.
+  _memo.set(key, { timestamp, cache: payload });
 }
 
 async function getCacheStatusByKey(key = CACHE_KEY) {
