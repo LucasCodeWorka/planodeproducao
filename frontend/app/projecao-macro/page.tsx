@@ -12,6 +12,10 @@ const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun'] as const;
 type Month = typeof MONTHS[number];
 const CURVAS = ['A', 'B', 'C', 'D'] as const;
 type Curva = typeof CURVAS[number];
+// Capacidade diária fixada a pedido do PCP, substituindo a medição real por grupo. Vale só
+// nesta tela: o gap-mensal e a aba de Capacidade seguem com os números deles. Atenção: este
+// valor não se atualiza sozinho quando a fábrica mudar.
+const CAPACIDADE_DIARIA_FIXA = 57863;
 // Uma cor por mês. O fundo entra só nas linhas filhas: na linha-pai já existe a cor do
 // bloco, e pintar coluna por cima embolaria as duas leituras.
 const CORES_MES = [
@@ -25,7 +29,10 @@ const CORES_MES = [
 
 type ProjectionItem = { idproduto: string; referencia: string; media_3m?: number; projecoes: Record<Month, number> };
 type MatrixRow = { produto?: { idproduto?: string | number; referencia?: string; continuidade?: string }; estoques?: { estoque_atual?: number; estoque_disponivel?: number; em_processo?: number; estoque_minimo?: number }; demanda?: { media_vendas_3m?: number; pedidos_pendentes?: number }; plano?: { ma?: number; px?: number; ul?: number; qt?: number } };
-type PctContinuidade = { permanente: number; corNova: number; edicaoLimitada: number };
+// As duas primeiras sao fatias DOS PERMANENTES (somam 1). O uplift e um acrescimo por cima:
+// a projecao so cobre permanentes, entao o estoque que ela gera e todo permanente — fatiar
+// edicao limitada dele seria trocar o rotulo de estoque que nao e dela.
+type PctContinuidade = { permanente: number; corNova: number; upliftEdicaoLimitada: number };
 // Insumos por SKU guardados crus: o laço mês a mês virou memo para reagir ao seletor
 // de cobertura sem refazer as consultas.
 type BaseSku = { id: string; curva: Curva; projecoes: Record<Month, number>; estoqueInicial: number; minimo: number; lote: number; tempo: number };
@@ -125,7 +132,7 @@ export default function ProjecaoMacroPage() {
         const media3m = current && current.dias > 0 ? current.minutos / current.dias : 0;
         return { ...group, capacidade_diaria: media3m > 0 ? media3m : Number(group.capacidade_diaria || 0) };
       });
-      const capacidadeDiariaTotal = capacityGroups.reduce((sum, g) => sum + Number(g.capacidade_diaria || 0), 0);
+      const capacidadeDiariaTotal = CAPACIDADE_DIARIA_FIXA;
       const days: Record<string, number> = config.data?.dias || {};
       const timeByRef = new Map<string, number>((tempos.data || []).map((t: any) => [norm(t.referencia_padrao || t.idreferencia), Number(t.tempo_segundos || 0)]));
       const matrixById = new Map<string, MatrixRow>((matrix.data || []).map((r: MatrixRow) => [String(r.produto?.idproduto || ''), r]));
@@ -141,10 +148,16 @@ export default function ProjecaoMacroPage() {
         else if (c === 'EDICAO LIMITADA' || c === 'EDIÇÃO LIMITADA') estoqueHoje.edicaoLimitada += v;
         else estoqueHoje.outros += v;
       }
-      const totalHoje = estoqueHoje.permanente + estoqueHoje.corNova + estoqueHoje.edicaoLimitada + estoqueHoje.outros;
-      const pctContinuidade: PctContinuidade = totalHoje > 0
-        ? { permanente: estoqueHoje.permanente / totalHoje, corNova: estoqueHoje.corNova / totalHoje, edicaoLimitada: estoqueHoje.edicaoLimitada / totalHoje }
-        : { permanente: 0, corNova: 0, edicaoLimitada: 0 };
+      // Base = só os permanentes, que é o universo da projeção. O uplift usa a mesma base,
+      // por isso é 20,7% (edição limitada ÷ permanentes) e não 17,2% (fatia do total).
+      const permHoje = estoqueHoje.permanente + estoqueHoje.corNova;
+      const pctContinuidade: PctContinuidade = permHoje > 0
+        ? {
+            permanente: estoqueHoje.permanente / permHoje,
+            corNova: estoqueHoje.corNova / permHoje,
+            upliftEdicaoLimitada: estoqueHoje.edicaoLimitada / permHoje,
+          }
+        : { permanente: 0, corNova: 0, upliftEdicaoLimitada: 0 };
       const items: ProjectionItem[] = preview.itens || [];
       const initial = items.reduce((sum, item) => sum + Number(matrixById.get(String(item.idproduto))?.estoques?.estoque_disponivel || 0), 0);
       const process = items.reduce((sum, item) => sum + Number(matrixById.get(String(item.idproduto))?.estoques?.em_processo || 0), 0);
@@ -172,7 +185,9 @@ export default function ProjecaoMacroPage() {
           tempo: timeByRef.get(norm(item.referencia)) || 0,
         };
       });
-      const capacidadePorMes = MONTHS.map((_, index) => capacityGroups.reduce((sum, g) => sum + Number(g.capacidade_diaria || 0) * Number(days[String(index + 1)] || 0), 0));
+      // Mesma base fixa do divisor, senão "dias trabalhados" deixaria de bater com os dias
+      // cadastrados em Capacidade.
+      const capacidadePorMes = MONTHS.map((_, index) => CAPACIDADE_DIARIA_FIXA * Number(days[String(index + 1)] || 0));
       const vendas: VendasCanal = { fabrica: preview.vendas?.fabrica || {}, lojas: preview.vendas?.lojas || {} };
       const totalizadores: Record<string, Totalizador> = preview.totalizadores || {};
       setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, pctContinuidade, vendas, totalizadores });
@@ -295,9 +310,10 @@ export default function ProjecaoMacroPage() {
         id: 'estoque', label: 'Estoque projetado', rowClass: 'bg-amber-50',
         values: data.meses.map((m) => m.estoque),
         filhos: [
-          { label: `Permanente (${(data.pctContinuidade.permanente * 100).toFixed(1)}% hoje)`, values: data.meses.map((m) => m.estoque * data.pctContinuidade.permanente) },
-          { label: `Permanente cor nova (${(data.pctContinuidade.corNova * 100).toFixed(1)}% hoje)`, values: data.meses.map((m) => m.estoque * data.pctContinuidade.corNova) },
-          { label: `Edição limitada (${(data.pctContinuidade.edicaoLimitada * 100).toFixed(1)}% hoje)`, values: data.meses.map((m) => m.estoque * data.pctContinuidade.edicaoLimitada) },
+          { label: `Permanente (${(data.pctContinuidade.permanente * 100).toFixed(1)}% do projetado)`, values: data.meses.map((m) => m.estoque * data.pctContinuidade.permanente) },
+          { label: `Permanente cor nova (${(data.pctContinuidade.corNova * 100).toFixed(1)}%)`, values: data.meses.map((m) => m.estoque * data.pctContinuidade.corNova) },
+          { label: `Edição limitada (+${(data.pctContinuidade.upliftEdicaoLimitada * 100).toFixed(1)}%, estimada)`, values: data.meses.map((m) => m.estoque * data.pctContinuidade.upliftEdicaoLimitada) },
+          { label: 'Total com edição limitada', values: data.meses.map((m) => m.estoque * (1 + data.pctContinuidade.upliftEdicaoLimitada)) },
           { label: 'Cobertura', values: data.meses.map((m) => (m.demanda > 0 ? m.cobertura : null)), decimals: 1, suffix: 'x', dangerBelow: 1 },
         ],
       },
@@ -393,12 +409,26 @@ export default function ProjecaoMacroPage() {
           <LayoutGrid size={18} className="text-slate-600" />
           <div>
             <h2 className="font-semibold text-gray-900">Visão Geral</h2>
-            <p className="text-xs text-gray-500">Dias trabalhados (cadastrados em Capacidade), estoque projetado, vendas por canal e produção, mês a mês.</p>
+            <p className="text-xs text-gray-500">Vendas, plano previsto, estoque projetado e capacidade — mês a mês, cada bloco abrindo em detalhe.</p>
+          </div>
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <button
+              onClick={() => setAbertos(Object.fromEntries(visaoGeralBlocos.map((b) => [b.id, true])))}
+              className="rounded border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
+            >
+              Expandir todos
+            </button>
+            <button
+              onClick={() => setAbertos(Object.fromEntries(visaoGeralBlocos.map((b) => [b.id, false])))}
+              className="rounded border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
+            >
+              Recolher todos
+            </button>
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs uppercase">
+          <table className="w-full text-base">
+            <thead className="bg-gray-50 text-[13px] uppercase">
               <tr>
                 <th className="px-4 py-3 text-left text-gray-700">Indicador</th>
                 {MONTHS.map((m, i) => (
@@ -435,7 +465,7 @@ export default function ProjecaoMacroPage() {
                     </tr>
                     {aberto && bloco.filhos.map((filho) => (
                       <tr key={filho.label} className="border-t border-gray-100">
-                        <td className="px-4 py-2 pl-11 text-[13px] font-medium text-gray-900">{filho.label}</td>
+                        <td className="px-4 py-2.5 pl-11 text-[15px] font-medium text-gray-900">{filho.label}</td>
                         {celulas(filho, false)}
                       </tr>
                     ))}
