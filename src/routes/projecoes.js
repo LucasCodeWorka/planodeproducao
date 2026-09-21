@@ -666,6 +666,48 @@ router.get('/de-para', auth, async (req, res) => {
   }
 });
 
+// ── GET /api/projecoes/por-mes ────────────────────────────────────────────────
+// Projecoes cruas de app_projecoes para um ano e um conjunto de meses.
+// Existe separado de GET /api/projecoes de proposito: aquele aplica de-para, filtra
+// exclusoes e colapsa os anos na mesma chave de mes, e leva 30s+ para responder.
+// Quem so precisa saber "quanto esta gravado para tais meses de tal ano" paga tudo
+// isso a toa e ainda fica exposto ao colapso de ano.
+router.get('/por-mes', auth, async (req, res) => {
+  try {
+    const pool = req.app.get('pool');
+    const ano = Number(req.query.ano);
+    if (!Number.isInteger(ano) || ano < 2020 || ano > 2100) {
+      return res.status(400).json({ success: false, error: 'Parametro ano invalido' });
+    }
+    const meses = String(req.query.meses || '')
+      .split(',')
+      .map((m) => Number(String(m).trim()))
+      .filter((m) => Number.isInteger(m) && m >= 1 && m <= 12);
+    if (!meses.length) {
+      return res.status(400).json({ success: false, error: 'Informe os meses, ex.: meses=9,10,11,12' });
+    }
+
+    const result = await pool.query(
+      `SELECT idproduto::TEXT AS idproduto, mes, quantidade
+         FROM app_projecoes
+        WHERE ano = $1 AND mes = ANY($2::INT[])`,
+      [ano, meses]
+    );
+
+    const data = {};
+    for (const row of result.rows) {
+      const id = String(row.idproduto);
+      if (!data[id]) data[id] = {};
+      data[id][String(row.mes)] = Number(row.quantidade) || 0;
+    }
+
+    return res.json({ success: true, ano, meses, count: result.rows.length, data });
+  } catch (error) {
+    console.error('[projecoes/por-mes] Erro:', error.message);
+    return res.status(500).json({ success: false, error: 'Erro ao ler projecoes por mes', details: error.message });
+  }
+});
+
 // ── GET /api/projecoes/cenarios ───────────────────────────────────────────────
 // Lista os cenários disponíveis para simular no plano (nada é gravado).
 router.get('/cenarios', auth, async (req, res) => {

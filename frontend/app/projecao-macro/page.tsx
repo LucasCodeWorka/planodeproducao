@@ -36,9 +36,7 @@ type PctContinuidade = { permanente: number; corNova: number; upliftEdicaoLimita
 // Insumos por SKU guardados crus: o laço mês a mês virou memo para reagir ao seletor
 // de cobertura sem refazer as consultas.
 type BaseSku = { id: string; curva: Curva; projecoes: Record<Month, number>; estoqueInicial: number; minimo: number; lote: number; tempo: number };
-type Group = { grupo: string; capacidade_diaria: number };
-type RealCapacity = { grupo: string; minutosTrabalhados: number; diasComMovimento: number };
-type MonthRow = { mes: Month; demanda: number; producao: number; producaoPorCurva: Record<Curva, number>; estoque: number; cobertura: number; carga: number; capacidade: number; diasDisponiveis: number; diasNecessarios: number; utilizacao: number };
+type MonthRow = { mes: Month; demanda: number; producao: number; producaoPorCurva: Record<Curva, number>; estoque: number; cobertura: number; carga: number; capacidade: number; capacidadePecas: number; diasDisponiveis: number; diasNecessarios: number; utilizacao: number };
 type VendasCanal = { fabrica: Record<string, number>; lojas: Record<string, number> };
 type Totalizador = { fabrica: number; fabricaAjustada: number; lojas: number; total: number };
 
@@ -74,32 +72,26 @@ export default function ProjecaoMacroPage() {
     try {
       const anoBase = new Date().getFullYear();
       const anoDestino = anoBase + 1;
-      const hoje = new Date();
-      const isoMes = (offset: number) => new Date(hoje.getFullYear(), hoje.getMonth() + offset, 1).toISOString().slice(0, 10);
-      // Só o tempos-ref depende do preview (precisa da lista de referências). Config, matriz
-      // e capacidade real são independentes e estavam esperando na fila sem motivo: disparar
-      // tudo junto tira ~38s do caminho crítico.
-      const [previewResponse, configResponse, matrixResponse, realResponse, curvaResponse, corteResponse, projResponse] = await Promise.all([
+      // Só o tempos-ref depende do preview (precisa da lista de referências); o resto vai
+      // junto. A capacidade real saiu daqui: desde que o valor diário virou constante, ela
+      // alimentava apenas código morto e custava ~7s por carregamento.
+      const [previewResponse, configResponse, matrixResponse, curvaResponse, corteResponse, projResponse] = await Promise.all([
         fetchNoCache(`${API_URL}/api/projecao-permanentes/preview?anoBase=${anoBase}&anoDestino=${anoDestino}`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=LIEBE&status=EM%20LINHA%2CNOVA%20COLECAO`),
-        fetchNoCache(`${API_URL}/api/capacidade/real?de=${isoMes(-3)}&ate=${isoMes(0)}`, { headers: authHeaders() }),
         // Vão no mesmo Promise.all de propósito: se fossem fetches soltos, o cálculo poderia
         // rodar antes de chegarem, e todo SKU cairia no default de curva e de lote.
         fetchNoCache(`${API_URL}/api/analises/curva-abc-referencias`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() }),
-        // Projeção gravada de set a dez, para não estimar a demanda por média. Custa ~20s e
-        // é a chamada mais lenta da tela. Atenção: este endpoint colapsa os anos na mesma
-        // chave de mês — hoje funciona porque 2027 não tem set-dez gravado, mas se tiver,
-        // estes meses passam a refletir 2027 sem aviso.
-        fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
+        // Projeção gravada de set-dez, do endpoint enxuto: le app_projecoes direto, sem
+        // de-para e sem colapsar os anos. O /api/projecoes equivalente levava ~30s.
+        fetchNoCache(`${API_URL}/api/projecoes/por-mes?ano=${anoBase}&meses=9,10,11,12`, { headers: authHeaders() }),
       ]);
       const preview = await previewResponse.json();
       if (!previewResponse.ok || !preview.success) throw new Error(preview.error || 'Erro ao carregar projeção');
       const refs = Array.from(new Set((preview.itens || []).map((i: ProjectionItem) => norm(i.referencia)).filter(Boolean)));
       const tempoResponse = await fetchNoCache(`${API_URL}/api/capacidade/tempos-ref?referencias=${encodeURIComponent(refs.join(','))}`, { headers: authHeaders() });
       const config = await configResponse.json(); const matrix = await matrixResponse.json(); const tempos = await tempoResponse.json();
-      const real = await realResponse.json();
       const curvaJson = await curvaResponse.json();
       const curvaPorRef = new Map<string, Curva>(
         Object.entries((curvaJson?.porReferencia || {}) as Record<string, string>)
@@ -121,17 +113,6 @@ export default function ProjecaoMacroPage() {
           .map((c: { idproduto?: string; corte_min?: number }) => [String(c?.idproduto || '').trim(), Number(c?.corte_min || 0)])
       );
       if (!configResponse.ok || !config.success) throw new Error(config.error || 'Erro ao carregar capacidade');
-      const groups: Group[] = config.data?.grupos || [];
-      const realByGroup = new Map<string, { minutos: number; dias: number }>();
-      ((real.data || []) as RealCapacity[]).forEach((row) => {
-        const key = norm(row.grupo); const current = realByGroup.get(key) || { minutos: 0, dias: 0 };
-        current.minutos += Number(row.minutosTrabalhados || 0); current.dias += Number(row.diasComMovimento || 0); realByGroup.set(key, current);
-      });
-      const capacityGroups = groups.map((group) => {
-        const current = realByGroup.get(norm(group.grupo));
-        const media3m = current && current.dias > 0 ? current.minutos / current.dias : 0;
-        return { ...group, capacidade_diaria: media3m > 0 ? media3m : Number(group.capacidade_diaria || 0) };
-      });
       const capacidadeDiariaTotal = CAPACIDADE_DIARIA_FIXA;
       const days: Record<string, number> = config.data?.dias || {};
       const timeByRef = new Map<string, number>((tempos.data || []).map((t: any) => [norm(t.referencia_padrao || t.idreferencia), Number(t.tempo_segundos || 0)]));
@@ -265,7 +246,12 @@ export default function ProjecaoMacroPage() {
       const estoque = Array.from(corrente.values()).reduce((sum, v) => sum + v, 0);
       const diasDisponiveis = rawData.capacidadeDiaria > 0 ? capacidade / rawData.capacidadeDiaria : 0;
       const diasNecessarios = rawData.capacidadeDiaria > 0 ? carga / rawData.capacidadeDiaria : 0;
-      return { mes, demanda, producao, producaoPorCurva, estoque, cobertura: demanda > 0 ? estoque / demanda : 0, carga, capacidade, diasDisponiveis, diasNecessarios, utilizacao: capacidade > 0 ? (carga / capacidade) * 100 : 0 };
+      // Capacidade em pecas nao e constante: depende do mix. Uma peca vai de 2,3 a 22,7 min,
+      // entao o mesmo minuto de fabrica rende quantidades diferentes conforme o que se produz.
+      // Aqui e "quantas pecas caberiam no mes, ao mix planejado para ele".
+      const minPorPeca = producao > 0 ? carga / producao : 0;
+      const capacidadePecas = minPorPeca > 0 ? capacidade / minPorPeca : 0;
+      return { mes, demanda, producao, producaoPorCurva, estoque, cobertura: demanda > 0 ? estoque / demanda : 0, carga, capacidade, capacidadePecas, diasDisponiveis, diasNecessarios, utilizacao: capacidade > 0 ? (carga / capacidade) * 100 : 0 };
     });
   }, [rawData, modoCobertura, multiplicadorCobertura, coberturaPorCurva, coberturaMaxPorCurva]);
   // `data` continua com o mesmo formato de antes, então todos os consumidores de
@@ -318,9 +304,11 @@ export default function ProjecaoMacroPage() {
         ],
       },
       {
-        id: 'capacidade', label: 'Capacidade', rowClass: 'bg-slate-100',
-        values: data.meses.map((m) => m.capacidade),
+        id: 'capacidade', label: 'Capacidade (peças)', rowClass: 'bg-slate-100',
+        values: data.meses.map((m) => m.capacidadePecas),
         filhos: [
+          { label: 'Em minutos', values: data.meses.map((m) => m.capacidade) },
+          { label: 'Minutos por peça (mix do mês)', values: data.meses.map((m) => (m.producao > 0 ? m.carga / m.producao : null)), decimals: 2 },
           { label: 'Dias trabalhados', values: data.meses.map((m) => m.diasDisponiveis), decimals: 1 },
           { label: 'Dias necessários', values: data.meses.map((m) => m.diasNecessarios), decimals: 1 },
           { label: 'Utilização', values: data.meses.map((m) => m.utilizacao), decimals: 0, suffix: '%' },
