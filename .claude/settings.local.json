@@ -42,7 +42,29 @@
       "Bash(powershell \"Get-NetTCPConnection -LocalPort 8000 | ForEach-Object { Write-Host $_OwningProcess }\")",
       "Bash(cmd //c \"taskkill /F /PID 106244 & taskkill /F /PID 115076 & taskkill /F /PID 107860\")",
       "Bash(cmd //c \"netsh int tcp reset\")",
-      "Bash(npm start)"
+      "Bash(npm start)",
+      "Bash(git remote set-url:*)",
+      "Bash(findstr \"\\\\\"start\\\\\"\" package.json)",
+      "Bash(netstat -ano)",
+      "Bash(findstr LISTENING)",
+      "Bash(findstr \":8000\")",
+      "Bash(taskkill //F //PID 106280)",
+      "Bash(npm start *)",
+      "Bash(taskkill //F //PID 13876)",
+      "Bash(node \"C:\\\\Users\\\\ce_lu\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ce-lu-OneDrive-Documentos-Nova-pasta--4--planodeproducao\\\\6b446f95-4465-4d2e-8f17-1e34b3c2edda\\\\scratchpad\\\\diag_permanentes.js\")",
+      "Bash(taskkill //F //PID 126420)",
+      "Bash(ping -n 4 127.0.0.1)",
+      "Bash(findstr ADMIN_PASSWORD \"c:\\\\Users\\\\ce_lu\\\\OneDrive\\\\Documentos\\\\Nova pasta \\(4\\)\\\\planodeproducao\\\\.env\")",
+      "Bash(curl -s -H \"Authorization: Bearer admin123\" \"http://localhost:8000/api/projecao-permanentes/skus\" --max-time 30)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\('total:',j.total\\);}\\)\")",
+      "Bash(curl -s -H \"Authorization: Bearer admin123\" \"http://localhost:8000/api/projecao-permanentes/preview?anoBase=2026&anoDestino=2027\" --max-time 30 -o \"C:\\\\Users\\\\ce_lu\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ce-lu-OneDrive-Documentos-Nova-pasta--4--planodeproducao\\\\6b446f95-4465-4d2e-8f17-1e34b3c2edda\\\\scratchpad\\\\preview.json\" -w \"HTTP %{http_code} em %{time_total}s\")",
+      "Bash(node -e ' *)",
+      "Bash(git add *)",
+      "Bash(git push *)",
+      "Bash(npx tsc *)",
+      "Bash(taskkill //F //PID 68456)",
+      "Bash(curl -s -H \"Authorization: Bearer admin123\" \"http://localhost:8000/api/projecao-permanentes/totalizadores?anoBase=2026\" --max-time 15)",
+      "Bash(curl -s -m 20 http://localhost:8000/health)"
     ]
   }
 }

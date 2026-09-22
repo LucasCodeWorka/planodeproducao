@@ -19,9 +19,19 @@ body {
   }
 }
 
-/* Escala "confortável" da matriz do plano: mesma convenção do scorecard R1_PCP —
-   só duas medidas, corpo em text-sm (14px) e secundário em text-xs (12px),
-   com a hierarquia vindo do peso da fonte. Não mexe em cor, coluna nem espaçamento. */
-.matriz-fonte-confortavel .text-\[13px\] { font-size: 14px; }
-.matriz-fonte-confortavel .text-\[12px\] { font-size: 12px; }
-.matriz-fonte-confortavel .text-\[11px\] { font-size: 12px; }
+/* Escala "confortável" da tela principal: mesma convenção do scorecard R1_PCP.
+   A ideia não é inflar tudo, é COLAPSAR O PISO da escala — as medidas miúdas sobem
+   e se juntam, o topo sobe um degrau só. Por isso o layout não estoura: a hierarquia
+   passa a vir do peso da fonte, e não de 6 tamanhos diferentes de letra.
+
+   Escopada de propósito: text-[9px] e text-[10px] aparecem em mais de 12 outras
+   telas, que não devem mudar. Só vale dentro de .tela-fonte-confortavel.
+   Como a matriz é renderizada dentro da tela principal, o seletor descendente
+   já a alcança — ela não precisa de classe própria, só de alargar o min-w. */
+.tela-fonte-confortavel .text-\[9px\]  { font-size: 12px; }
+.tela-fonte-confortavel .text-\[10px\] { font-size: 13px; }
+.tela-fonte-confortavel .text-\[11px\] { font-size: 13px; }
+.tela-fonte-confortavel .text-\[12px\] { font-size: 14px; }
+.tela-fonte-confortavel .text-xs       { font-size: 14px; }
+.tela-fonte-confortavel .text-\[13px\] { font-size: 14px; }
+.tela-fonte-confortavel .text-sm       { font-size: 15px; }

@@ -573,9 +573,21 @@ router.post("/plano-original", async (req, res) => {
 
 /**
  * GET /api/producao/percentual-finalizado
- * Retorna qtd_lote, qtd_finalizada e qtd_gerouop por periodo
+ * Retorna qtd_lote e qtd_gerouop por periodo, com o % do lote que ja gerou OP.
  * Filtrado por marca LIEBE e status EM LINHA/NOVA COLECAO
  * OTIMIZADO: Usa CTE para pré-filtrar produtos (evita f_dic_prd_classificacao no WHERE)
+ *
+ * ATENCAO, nao reintroduza qt_finalizada aqui: a vr_pcp_lotepl2 nao tem essa coluna.
+ * Ela so traz quantidade de lote (nr_lote, cd_produto, cd_operador, dt_cadastro,
+ * qt_lote, qt_gerounec, qt_gerouop). Quem tem qt_finalizada e a vr_pcp_loteplop, que
+ * explode uma linha por OP e por isso duplicaria o SUM(qt_lote) — foi justamente por
+ * isso que o commit 1b6f1c1 (2026-08-27) trocou a view neste endpoint. A troca levou
+ * junto a coluna inexistente e o endpoint passou a responder 500 por 25 dias
+ * ("column a.qt_finalizada does not exist"), deixando "Gerou OP" e "% OP" em branco
+ * na tela de Orcamento MP — sem erro visivel, porque o front ignora resposta sem
+ * success. qtdFinalizada/percentual continuam no retorno zerados, so para preservar o
+ * contrato; nenhuma tela os consome. Para medir finalizada de verdade use
+ * /api/producao/lotes-execucao-matriz, que le a vr_pcp_loteplop.
  */
 router.get("/percentual-finalizado", async (req, res) => {
   try {
@@ -597,7 +609,6 @@ router.get("/percentual-finalizado", async (req, res) => {
       SELECT
         UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
         SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qtd_lote,
-        SUM(COALESCE(a.qt_finalizada, 0))::FLOAT AS qtd_finalizada,
         SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qtd_gerouop
       FROM vr_pcp_lotepl2 a
       INNER JOIN produtos_filtrados pf ON pf.cd_produto = a.cd_produto
@@ -612,16 +623,16 @@ router.get("/percentual-finalizado", async (req, res) => {
       const periodo = String(row.periodo || "").toUpperCase();
       if (!["MA", "PX", "UL", "QT", "QU"].includes(periodo)) continue;
       const qtdLote = Number(row.qtd_lote || 0);
-      const qtdFinalizada = Number(row.qtd_finalizada || 0);
       const qtdGerouOp = Number(row.qtd_gerouop || 0);
-      const percentual = qtdLote > 0 ? (qtdFinalizada / qtdLote) * 100 : 0;
       const percentualGerouOp = qtdLote > 0 ? (qtdGerouOp / qtdLote) * 100 : 0;
       data[periodo] = {
         qtdLote: Math.round(qtdLote),
-        qtdFinalizada: Math.round(qtdFinalizada),
         qtdGerouOp: Math.round(qtdGerouOp),
-        percentual: Math.round(percentual * 10) / 10, // 1 casa decimal
         percentualGerouOp: Math.round(percentualGerouOp * 10) / 10, // 1 casa decimal
+        // Sem fonte nesta view (ver comentario do endpoint). Zerados de proposito,
+        // apenas para manter o contrato; nenhuma tela le estes dois campos.
+        qtdFinalizada: 0,
+        percentual: 0,
       };
     }
 

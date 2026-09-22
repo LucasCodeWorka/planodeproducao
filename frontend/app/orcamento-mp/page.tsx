@@ -228,6 +228,7 @@ function compareValues(a: unknown, b: unknown, dir: SortDir) {
 export default function OrcamentoMpPage() {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [fonteGrande, setFonteGrande] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -254,6 +255,19 @@ export default function OrcamentoMpPage() {
   const [opsAntigas, setOpsAntigas] = useState<{ qtdTotal: number; opsCount: number; porFaixa: Record<string, { qtd: number; ops: number }>; data: Array<{ cdProduto: string; nrOp: string; nrCiclo: string; dtInicio: string; diasEmProcesso: number; qtdEmProcesso: number; descricao: string; referencia: string }> } | null>(null);
   const [opsAntigasModalAberto, setOpsAntigasModalAberto] = useState(false);
   const [pecasPAPorPeriodo, setPecasPAPorPeriodo] = useState<Record<Periodo, number>>({ MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
+
+  useEffect(() => {
+    const salvo = localStorage.getItem('pp_tela_fonte');
+    if (salvo !== null) setFonteGrande(salvo === 'grande');
+  }, []);
+
+  function alternarFonteTela() {
+    setFonteGrande((atual) => {
+      const novo = !atual;
+      localStorage.setItem('pp_tela_fonte', novo ? 'grande' : 'compacta');
+      return novo;
+    });
+  }
   const [pecasPAOriginalPorPeriodo, setPecasPAOriginalPorPeriodo] = useState<Record<Periodo, number>>({ MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
   // Consumo de MP baseado nos lotes reais (qt_lote)
   const [consumoMpLotes, setConsumoMpLotes] = useState<ConsumoMpLotes | null>(null);
@@ -1561,12 +1575,24 @@ export default function OrcamentoMpPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className={`flex min-h-screen bg-gray-50 ${fonteGrande ? 'tela-fonte-confortavel' : ''}`}>
       <Sidebar onCollapse={setSidebarCollapsed} />
       <div className={`flex-1 min-w-0 ${ml} transition-all duration-300 flex flex-col min-h-screen`}>
         <header className="bg-brand-primary shadow-sm px-6 py-3">
-          <h1 className="text-white font-bold font-secondary tracking-wide text-base">ORCAMENTO MP</h1>
-          <p className="text-white/70 text-xs">Necessidade em valor por regra de chegada e por compras totais ja feitas</p>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-white font-bold font-secondary tracking-wide text-base">ORCAMENTO MP</h1>
+              <p className="text-white/70 text-xs">Necessidade em valor por regra de chegada e por compras totais ja feitas</p>
+            </div>
+            <button
+              type="button"
+              onClick={alternarFonteTela}
+              title="Aumenta ou reduz a fonte da tela"
+              className="px-3 py-1.5 text-xs font-semibold text-white border border-white/50 rounded hover:bg-white/10 transition-colors"
+            >
+              {fonteGrande ? 'Fonte compacta' : 'Fonte maior'}
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 min-w-0 px-6 py-5 space-y-4">
@@ -1678,54 +1704,12 @@ export default function OrcamentoMpPage() {
             </div>
           </section>
 
-          <section className="bg-white rounded-lg border border-gray-200 p-3">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <div className="text-xs font-semibold text-brand-dark">Pecas PA por periodo</div>
-              <div className="text-[11px] text-gray-500">Total: {fmt(periodosSelecionados.reduce((acc, p) => acc + (pecasPAOriginalPorPeriodo[p] || 0), 0))} pçs</div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              {PERIODOS.map((periodo) => {
-                const ativo = periodosSelecionados.includes(periodo);
-                const qtdPlano = ativo ? pecasPAOriginalPorPeriodo[periodo] : 0;
-                const percData = percentualPorPeriodo[periodo];
-                const percentualGerouOp = percData?.percentualGerouOp ?? null;
-                const qtdGerouOp = percData?.qtdGerouOp ?? 0;
-                const diasIndiv = diasCapacidade?.porPeriodo[periodo] ?? null;
-                const diasAcum = diasCapacidade?.acumulado[periodo] ?? null;
-                const diasFalt = diasFaltantesPorPeriodo[periodo];
-                return (
-                  <div key={periodo} className={`rounded border px-3 py-2 ${ativo ? 'border-stone-300 bg-stone-50' : 'border-gray-200 bg-gray-50 opacity-55'}`}>
-                    <div className="text-[11px] font-semibold text-gray-500 mb-1">{periodo}</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <div className="text-sm font-bold text-stone-800">{qtdPlano > 0 ? fmt(qtdPlano) : '-'}</div>
-                        <div className="text-[10px] text-gray-500">Plano</div>
-                        <div className={`mt-1 text-xs font-semibold ${qtdGerouOp > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
-                          {qtdGerouOp > 0 ? fmt(qtdGerouOp) : '-'}
-                        </div>
-                        <div className="text-[10px] text-gray-500">Gerou OP</div>
-                      </div>
-                      <div>
-                        <div className={`text-sm font-bold ${percentualGerouOp !== null ? (percentualGerouOp >= 100 ? 'text-emerald-600' : percentualGerouOp >= 50 ? 'text-amber-600' : 'text-red-600') : 'text-gray-400'}`}>
-                          {percentualGerouOp !== null ? `${percentualGerouOp.toFixed(1)}%` : '-'}
-                        </div>
-                        <div className="text-[10px] text-gray-500">% OP</div>
-                        <div className="mt-1 flex gap-1.5 items-baseline">
-                          <span className={`text-xs font-semibold ${diasIndiv !== null ? 'text-blue-700' : 'text-gray-400'}`}>
-                            {diasIndiv !== null ? `${diasIndiv.toFixed(1)}d` : '-'}
-                          </span>
-                          <span className={`text-[10px] ${diasAcum !== null ? (diasFalt !== null && diasFalt > 0 ? 'text-red-600' : 'text-emerald-600') : 'text-gray-400'}`}>
-                            {diasAcum !== null ? `(${diasAcum.toFixed(1)})` : ''}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-gray-500">Dias (acum)</div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          {/* Seção removida temporariamente: 'Pecas PA por periodo'.
+              Mantida comentada para reativação futura, caso voltem a pedir.
+              <section className="bg-white rounded-lg border border-gray-200 p-3">
+                ...
+              </section>
+          */}
 
           {/* Cobertura por periodo - calculado por MP */}
           <section className="bg-white rounded-lg border border-gray-200 p-3">

@@ -307,6 +307,9 @@ interface Props {
     qu: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
     sx: { em_risco: boolean; quantidade_mps: number; principal_mp: null | { idmateriaprima: string; nome: string; artigo: string; saldo: number; falta: number } };
   }>;
+  /** Fonte maior, comandada pela tela principal. A classe CSS vem do container da página;
+   *  aqui ela só alarga a tabela, para as colunas não se espremerem com a letra maior. */
+  fonteConfortavel?: boolean;
   /** Devolve os totais por continuidade já filtrados, para a página mostrar o quadro no topo. */
   onTotaisContinuidade?: (totais: { continuidade: string; totais: GrupoTotais }[]) => void;
 }
@@ -334,6 +337,7 @@ export default function MatrizPlanejamentoTable({
   taxaMeses = taxaMesesDefault(),
   riscoMpPorSku = {},
   detalheRiscoMpPorSku = {},
+  fonteConfortavel = false,
   onTotaisContinuidade,
 }: Props) {
   type SortKey =
@@ -352,13 +356,10 @@ export default function MatrizPlanejamentoTable({
   const [sortKey, setSortKey] = useState<SortKey>('dispMA');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [mostrarDetalhes, setMostrarDetalhes] = useState(true);
-  const [fonteConfortavel, setFonteConfortavel] = useState(false);
 
   useEffect(() => {
     const salvo = localStorage.getItem('pp_matriz_colunas_detalhe');
     if (salvo !== null) setMostrarDetalhes(salvo === '1');
-    const fonte = localStorage.getItem('pp_matriz_fonte');
-    if (fonte !== null) setFonteConfortavel(fonte === 'confortavel');
   }, []);
 
   function alternarDetalhes() {
@@ -369,13 +370,6 @@ export default function MatrizPlanejamentoTable({
     });
   }
 
-  function alternarFonte() {
-    setFonteConfortavel((atual) => {
-      const novo = !atual;
-      localStorage.setItem('pp_matriz_fonte', novo ? 'confortavel' : 'compacta');
-      return novo;
-    });
-  }
   const taxaLabels = taxaMeses.map((m) => m.label.charAt(0).toUpperCase() + m.label.slice(1)) as [string, string, string];
 
   // Modal de Em Processo por Local
@@ -933,9 +927,6 @@ export default function MatrizPlanejamentoTable({
       <div className="flex items-center justify-between px-3 py-3.5 border-b border-gray-100 bg-gray-50/80 text-[13px] text-gray-500">
         <span className="font-medium">{totalItens.toLocaleString('pt-BR')} itens · {grupos.length} continuidades</span>
         <div className="flex gap-4">
-          <button onClick={alternarFonte} className="text-gray-500 hover:text-gray-700 font-medium">
-            {fonteConfortavel ? 'Fonte compacta' : 'Fonte maior'}
-          </button>
           <button onClick={alternarDetalhes} className="text-gray-500 hover:text-gray-700 font-medium">
             {mostrarDetalhes ? 'Ocultar colunas de estoque' : 'Mostrar colunas de estoque'}
           </button>
@@ -950,7 +941,7 @@ export default function MatrizPlanejamentoTable({
       </div>
 
       {/* scrollable table with sticky header */}
-      <div className={`w-full min-w-0 overflow-x-auto overflow-y-auto max-h-[calc(100vh-13rem)] ${fonteConfortavel ? 'matriz-fonte-confortavel' : ''}`}>
+      <div className="w-full min-w-0 overflow-x-auto overflow-y-auto max-h-[calc(100vh-13rem)]">
         <table className={`${mostrarDetalhes
             ? (fonteConfortavel ? 'min-w-[3300px]' : 'min-w-[3040px]')
             : (fonteConfortavel ? 'min-w-[2060px]' : 'min-w-[1900px]')} border-collapse text-[13px]`}>

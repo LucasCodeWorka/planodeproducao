@@ -238,6 +238,21 @@ export default function Home() {
   const [gapPorPeriodo, setGapPorPeriodo] = useState<Record<string, number>>({});
   // totais por continuidade que a matriz calcula, espelhados no quadro do topo
   const [totaisContinuidade, setTotaisContinuidade] = useState<{ continuidade: string; totais: GrupoTotais }[]>([]);
+
+  // Fonte maior da tela inteira (inclui a matriz). Liga por padrão: a tela nasceu densa
+  // demais e a queixa era geral. Quem preferir densidade desliga uma vez e fica salvo.
+  const [fonteGrande, setFonteGrande] = useState(true);
+  useEffect(() => {
+    const salvo = localStorage.getItem('pp_tela_fonte');
+    if (salvo !== null) setFonteGrande(salvo === 'grande');
+  }, []);
+  function alternarFonteTela() {
+    setFonteGrande((atual) => {
+      const novo = !atual;
+      localStorage.setItem('pp_tela_fonte', novo ? 'grande' : 'compacta');
+      return novo;
+    });
+  }
   // cobertura configurada por curva (mesma config que a Sugestão de Plano usa), só para consulta
   const [cfgCurvas, setCfgCurvas] = useState({
     cobertura_min_a: 0.5, cobertura_max_a: 1.0,
@@ -1630,7 +1645,7 @@ export default function Home() {
   }, [dados, historicoMinimo, fechamentosMinimo]);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className={`flex min-h-screen bg-gray-50 ${fonteGrande ? 'tela-fonte-confortavel' : ''}`}>
       <Sidebar onCollapse={setSidebarCollapsed} />
 
       {mostrarModalNegativos && (
@@ -1741,6 +1756,13 @@ export default function Home() {
               </div>
             )}
             {fromCache && <span className="text-green-200 font-medium">⚡ cache</span>}
+            <button
+              onClick={alternarFonteTela}
+              title="Aumenta ou reduz a fonte de toda a tela, matriz inclusive"
+              className="px-3 py-1.5 text-xs font-semibold text-white border border-white/50 rounded hover:bg-white/10 transition-colors"
+            >
+              {fonteGrande ? 'Fonte compacta' : 'Fonte maior'}
+            </button>
             <button
               onClick={() => router.push('/projecao-macro')}
               className="px-3 py-1.5 text-xs font-semibold text-white border border-white/50 rounded hover:bg-white/10 transition-colors"
@@ -2509,6 +2531,7 @@ export default function Home() {
           )}
           {!loading && !error && dadosPagina.length > 0 && (
             <MatrizPlanejamentoTable
+              fonteConfortavel={fonteGrande}
               dados={dadosPagina}
               projecoes={projecoesAtivas}
               vendasReais={vendasReais}
