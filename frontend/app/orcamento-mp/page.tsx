@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCw, Save, History, Trash2, GitCompare, Eye, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
@@ -124,7 +124,10 @@ type SortDir = 'asc' | 'desc';
 type ArtigoSortKey =
   | 'artigo' | 'itens' | 'estoque' | 'valorEstoque' | 'consumo' | 'valorConsumo'
   | 'comprasRegra' | 'valorComprasRegra' | 'comprasTotal' | 'valorComprasTotal'
-  | 'necessidadeRegra' | 'valorRegra' | 'necessidadeTotal' | 'valorTotal';
+  | 'necessidadeRegra' | 'valorRegra' | 'necessidadeTotal' | 'valorTotal'
+  // Colunas do extrato por periodo. Diferente das acima, estas nao sao campos de ArtigoRow:
+  // vivem em artigoDetalhePorPeriodo e so fazem sentido acompanhadas de um periodo.
+  | 'perConsumo' | 'perEstoque' | 'perComprado' | 'perNecessidade' | 'perNecAcum';
 type MpSortKey =
   | 'idmateriaprima' | 'nome_materiaprima' | 'cor' | 'artigo' | 'estoquetotal'
   | 'valorEstoque' | 'consumoAte' | 'valorUnitario' | 'valorConsumo'
@@ -206,6 +209,21 @@ function saldoAte(row: MpRow, periodo: Periodo) {
   return Number(row[key] || 0);
 }
 
+// Artigos cujo CUSTO nao entra no orcamento de MP. A alca e produzida na propria fabrica:
+// o valor dela ja aparece no elastico e nas demais materias-primas que a compoem, entao
+// contar o custo da alca de novo seria somar a mesma peca duas vezes. Sai so o dinheiro —
+// quantidades, contagem de MPs e cobertura seguem valendo normalmente.
+// Mesmo criterio de identificacao usado na cobertura por categoria de artigo.
+// Comparacao EXATA de proposito, e nao includes(). A categorizacao por artigo usa includes,
+// mas ali um falso positivo so troca a categoria; aqui ele apagaria dinheiro do orcamento
+// sem ninguem ver. Um artigo novo como "ALCANTARA" casaria com includes('ALCA'). Com
+// igualdade exata, o erro possivel e o oposto e preferivel: a alca aparece com custo, o que
+// se enxerga na hora, em vez de sumir calada.
+const ARTIGOS_SEM_CUSTO = new Set(['ALCA', 'ALÇA']);
+function artigoSemCusto(artigo: string | null | undefined) {
+  return ARTIGOS_SEM_CUSTO.has(String(artigo || '').trim().toUpperCase());
+}
+
 function ultimaCompra(row: MpRow) {
   const compras = (Array.isArray(row.finalizados_detalhe) ? row.finalizados_detalhe : [])
     .filter((item) => Number(item.quantidade || 0) > 0 && Number(item.valor || 0) > 0)
@@ -242,7 +260,24 @@ export default function OrcamentoMpPage() {
   const [artigosSelecionados, setArtigosSelecionados] = useState<string[]>([]);
   const [somenteComNecessidade, setSomenteComNecessidade] = useState(false);
   const [busca, setBusca] = useState('');
-  const [artigoSort, setArtigoSort] = useState<{ key: ArtigoSortKey; dir: SortDir }>({ key: 'valorRegra', dir: 'desc' });
+  const [artigosExpandidos, setArtigosExpandidos] = useState<Set<string>>(new Set());
+  // Artigo em foco no "Detalhe por MP", acionado ao abrir um artigo no resumo. E um filtro
+  // SEPARADO do artigosSelecionados: aquele alimenta rowsCalculadas, que e a base do proprio
+  // resumo, entao reusa-lo aqui encolheria as duas tabelas ao mesmo tempo.
+  const [artigoFocado, setArtigoFocado] = useState<string | null>(null);
+  // Barra de rolagem duplicada no topo do Resumo por artigo: sao 21 colunas, e sem ela a
+  // unica forma de rolar seria descer ate o rodape da tabela primeiro. As duas ficam
+  // sincronizadas nos dois sentidos — arrastar qualquer uma move a outra.
+  const artigoScrollTopoRef = useRef<HTMLDivElement>(null);
+  const artigoScrollCorpoRef = useRef<HTMLDivElement>(null);
+  function sincronizarScrollArtigo(origem: 'topo' | 'corpo') {
+    const topo = artigoScrollTopoRef.current;
+    const corpo = artigoScrollCorpoRef.current;
+    if (!topo || !corpo) return;
+    if (origem === 'topo') corpo.scrollLeft = topo.scrollLeft;
+    else topo.scrollLeft = corpo.scrollLeft;
+  }
+  const [artigoSort, setArtigoSort] = useState<{ key: ArtigoSortKey; dir: SortDir; periodo?: Periodo }>({ key: 'valorRegra', dir: 'desc' });
   const [mpSort, setMpSort] = useState<{ key: MpSortKey; dir: SortDir }>({ key: 'valorNecessidadeRegra', dir: 'desc' });
   const [mpModal, setMpModal] = useState<MpCalculada | null>(null);
   const [showComprasRegraModal, setShowComprasRegraModal] = useState(false);
@@ -835,7 +870,12 @@ export default function OrcamentoMpPage() {
 
   const rowsComValores = useMemo<MpCalculada[]>(() => {
     return rowsBase.map((row) => {
-        const preco = valorUnitario(row);
+        // Zerar aqui, e nao em cada soma, e o que garante que a alca desapareca do custo em
+        // TODA a tela de uma vez: totais, cards, extrato por periodo e detalhe por MP.
+        const precoBruto = valorUnitario(row);
+        const preco = artigoSemCusto(row.artigo)
+          ? { valor: 0, origem: 'Alca: custo ja contado nas MPs que a compoem' }
+          : precoBruto;
         const consumoAte = somaAte(row, 'consumo', planoAte);
         const comprasRegra = somaAte(row, 'entrada', planoAte);
         const comprasTotal = Number(row.entrada_andamento || 0);
@@ -877,11 +917,14 @@ export default function OrcamentoMpPage() {
   }, [rowsComValores, artigosSelecionados, somenteComNecessidade, busca]);
 
   const rowsOrdenadas = useMemo(() => {
-    return [...rowsCalculadas].sort((a, b) => {
+    const base = artigoFocado
+      ? rowsCalculadas.filter((r) => String(r.artigo || '-').trim() === artigoFocado)
+      : rowsCalculadas;
+    return [...base].sort((a, b) => {
       const primary = compareValues(a[mpSort.key], b[mpSort.key], mpSort.dir);
       return primary || String(a.idmateriaprima || '').localeCompare(String(b.idmateriaprima || ''), 'pt-BR', { numeric: true });
     });
-  }, [rowsCalculadas, mpSort]);
+  }, [rowsCalculadas, mpSort, artigoFocado]);
 
   const porArtigo = useMemo<ArtigoRow[]>(() => {
     const map = new Map<string, ArtigoRow>();
@@ -927,12 +970,138 @@ export default function OrcamentoMpPage() {
     return Array.from(map.values());
   }, [rowsCalculadas]);
 
+
+  const artigoDetalhePorPeriodo = useMemo(() => {
+    const map = new Map<string, {
+      inicio: Record<Periodo, number>;
+      consumo: Record<Periodo, number>;
+      compras: Record<Periodo, number>;
+      final: Record<Periodo, number>;
+      necessidadeRegra: Record<Periodo, number>;
+      valorRegra: Record<Periodo, number>;
+      necessidadeTotal: Record<Periodo, number>;
+      valorTotal: Record<Periodo, number>;
+      // Extrato de valor por periodo (visao de aprovacao da diretoria). As formulas sao as
+      // mesmas que ja alimentam os cards "Nec. total acum" e "Nec. individual total" no topo
+      // da tela — aqui elas so passam a existir tambem por artigo, e em R$.
+      valorConsumo: Record<Periodo, number>;
+      valorCompras: Record<Periodo, number>;
+      necessidadeAcum: Record<Periodo, number>;
+      valorNecessidadeAcum: Record<Periodo, number>;
+      // Cascata pedida pela diretoria. Vale a identidade, por periodo e por artigo:
+      //   consumo = estoqueUsado + compraUsada + necessidade individual
+      // Sao as parcelas do consumo, e nao numeros independentes: por isso somam exato.
+      estoqueUsado: Record<Periodo, number>;
+      valorEstoqueUsado: Record<Periodo, number>;
+      compraUsada: Record<Periodo, number>;
+      valorCompraUsada: Record<Periodo, number>;
+      itens: number;
+    }>();
+
+    const periodoDisponiveis = periodosAte(planoAte);
+
+    for (const row of rowsCalculadas) {
+      const artigo = String(row.artigo || '-').trim() || '-';
+      if (!map.has(artigo)) {
+        map.set(artigo, {
+          inicio: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          consumo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          compras: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          final: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          necessidadeRegra: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          valorRegra: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          necessidadeTotal: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          valorTotal: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          valorConsumo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          valorCompras: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          necessidadeAcum: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          valorNecessidadeAcum: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          estoqueUsado: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          valorEstoqueUsado: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          compraUsada: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          valorCompraUsada: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          itens: 0,
+        });
+      }
+      const acc = map.get(artigo)!;
+      acc.itens += 1;
+      let necessidadeTotalAnterior = 0;
+      // Alocacao da cascata: o consumo de cada periodo e coberto primeiro pelo estoque que
+      // ainda resta, depois pelas compras ja feitas; o que sobrar e necessidade de compra.
+      // A ordem importa e e a da vida real — nao se compra o que ja esta no estoque.
+      let estoqueRestante = Number(row.estoquetotal || 0);
+      let comprasRestantes = Number(row.comprasTotal || 0);
+      for (const periodo of periodoDisponiveis) {
+        const consumoPeriodo = valorPeriodo(row, 'consumo', periodo);
+        const comprasPeriodo = valorPeriodo(row, 'entrada', periodo);
+        let aCobrir = consumoPeriodo;
+        const doEstoque = Math.min(estoqueRestante, aCobrir);
+        estoqueRestante -= doEstoque;
+        aCobrir -= doEstoque;
+        const deCompra = Math.min(comprasRestantes, aCobrir);
+        comprasRestantes -= deCompra;
+        aCobrir -= deCompra;
+        acc.estoqueUsado[periodo] += doEstoque;
+        acc.valorEstoqueUsado[periodo] += doEstoque * row.valorUnitario;
+        acc.compraUsada[periodo] += deCompra;
+        acc.valorCompraUsada[periodo] += deCompra * row.valorUnitario;
+        acc.consumo[periodo] += consumoPeriodo;
+        acc.compras[periodo] += comprasPeriodo;
+        acc.valorConsumo[periodo] += consumoPeriodo * row.valorUnitario;
+        acc.valorCompras[periodo] += comprasPeriodo * row.valorUnitario;
+        const necessidadeRegra = Math.max(0, -saldoAte(row, periodo));
+        const necessidadeTotalAte = Math.max(0, somaAte(row, 'consumo', periodo) - Number(row.estoquetotal || 0) - Number(row.comprasTotal || 0));
+        const necessidadeTotalPeriodo = Math.max(0, necessidadeTotalAte - necessidadeTotalAnterior);
+        acc.necessidadeRegra[periodo] += necessidadeRegra;
+        acc.valorRegra[periodo] += necessidadeRegra * row.valorUnitario;
+        acc.necessidadeTotal[periodo] += necessidadeTotalPeriodo;
+        acc.valorTotal[periodo] += necessidadeTotalPeriodo * row.valorUnitario;
+        // Acumulada ate o periodo: e o "Nec. total acum" dos cards, a mesma conta.
+        acc.necessidadeAcum[periodo] += necessidadeTotalAte;
+        acc.valorNecessidadeAcum[periodo] += necessidadeTotalAte * row.valorUnitario;
+        necessidadeTotalAnterior = necessidadeTotalAte;
+      }
+    }
+
+    for (const [artigo, detalhe] of Array.from(map.entries())) {
+      const artigosRows = rowsCalculadas.filter((row) => String(row.artigo || '-').trim() === artigo);
+      const estoqueInicial = artigosRows.reduce((s, row) => s + Number(row.estoquetotal || 0), 0);
+
+      let estoqueAcumulado = estoqueInicial;
+      for (const periodo of periodoDisponiveis) {
+        detalhe.inicio[periodo] = estoqueAcumulado;
+        const consumo = detalhe.consumo[periodo];
+        const compras = detalhe.compras[periodo];
+        detalhe.final[periodo] = Math.max(0, estoqueAcumulado - consumo + compras);
+        estoqueAcumulado = detalhe.final[periodo];
+      }
+    }
+
+    return map;
+  }, [planoAte, rowsCalculadas]);
+
+  // Precisa vir DEPOIS de artigoDetalhePorPeriodo: as colunas do extrato sao ordenadas por
+  // valores que vivem la, e referenciar um const antes da inicializacao quebraria em runtime.
   const porArtigoOrdenado = useMemo(() => {
+    const CHAVES_PERIODO: ArtigoSortKey[] = ['perConsumo', 'perEstoque', 'perComprado', 'perNecessidade', 'perNecAcum'];
+    const ehPeriodo = CHAVES_PERIODO.includes(artigoSort.key);
+    const valorDaColuna = (artigo: string) => {
+      const d = artigoDetalhePorPeriodo.get(artigo);
+      const p = artigoSort.periodo;
+      if (!d || !p) return 0;
+      if (artigoSort.key === 'perConsumo') return d.valorConsumo[p];
+      if (artigoSort.key === 'perEstoque') return d.valorEstoqueUsado[p];
+      if (artigoSort.key === 'perComprado') return d.valorCompraUsada[p];
+      if (artigoSort.key === 'perNecAcum') return d.valorNecessidadeAcum[p];
+      return d.valorTotal[p];
+    };
     return [...porArtigo].sort((a, b) => {
-      const primary = compareValues(a[artigoSort.key], b[artigoSort.key], artigoSort.dir);
+      const primary = ehPeriodo
+        ? compareValues(valorDaColuna(a.artigo), valorDaColuna(b.artigo), artigoSort.dir)
+        : compareValues(a[artigoSort.key as keyof ArtigoRow], b[artigoSort.key as keyof ArtigoRow], artigoSort.dir);
       return primary || a.artigo.localeCompare(b.artigo, 'pt-BR', { numeric: true });
     });
-  }, [porArtigo, artigoSort]);
+  }, [porArtigo, artigoSort, artigoDetalhePorPeriodo]);
 
   const totais = useMemo(() => {
     return rowsCalculadas.reduce((acc, row) => {
@@ -1218,7 +1387,11 @@ export default function OrcamentoMpPage() {
 
   const custoPlanoOriginal = useMemo(() => {
     return rowsOriginalBase.reduce((acc, row) => {
-      const preco = valorUnitario(row).valor;
+      // A MESMA regra da alca que o plano atual aplica. Este caminho e independente do
+      // rowsComValores, entao a exclusao precisa ser repetida aqui — senao original e atual
+      // ficariam sob criterios diferentes, e a diferenca entre eles carregaria a alca junto,
+      // sendo lida como mudanca de plano.
+      const preco = artigoSemCusto(row.artigo) ? 0 : valorUnitario(row).valor;
       for (const periodo of PERIODOS) {
         const consumoPeriodo = valorPeriodo(row, 'consumo', periodo);
         acc.consumoPorPeriodo[periodo] += consumoPeriodo;
@@ -1334,6 +1507,47 @@ export default function OrcamentoMpPage() {
   const ml = sidebarCollapsed ? 'ml-20' : 'ml-64';
   const periodosLabel = periodosAte(planoAte).join('+');
   const periodosSelecionados = periodosAte(planoAte);
+  // Fonte unica da largura do Resumo por artigo: a barra de rolagem de cima e a tabela
+  // precisam medir exatamente o mesmo, senao as duas rolagens saem de sincronia no fim.
+  // Larguras do Resumo por artigo. Ficam aqui porque o <colgroup> e a largura minima da
+  // tabela TEM de usar os mesmos numeros — se divergirem, as duas barras de rolagem saem
+  // de sincronia no fim do curso. Dimensionado para fonte de 13px: esta tela aplica
+  // .tela-fonte-confortavel (ligada por padrao), entao o text-[11px] renderiza maior.
+  // Limite pratico, nao gosto pessoal: a 13px (esta tela usa .tela-fonte-confortavel), o maior
+  // valor exibido — "R$ 1.046.018,51" — ocupa ~94px. Somado ao padding de 20px da celula, a
+  // coluna nao pode descer de ~114px sem quebrar o numero em duas linhas. 118 deixa a folga
+  // minima. Se um dia os valores passarem de 10 milhoes, esta conta precisa subir junto.
+  const LARGURA_COL_ARTIGO = 186;
+  const LARGURA_COL_VALOR = 118;
+  // Quantas colunas cada periodo ocupa: Consumo, Do estoque, Comprado, Necessidade e
+  // Nec. acum. Este numero aparece no colgroup, no colSpan do cabecalho, nos colSpan de
+  // linha inteira e na largura. Espalhado, bastaria esquecer um para a tabela inteira
+  // desalinhar — numeros sob o rotulo errado. Por isso vive num lugar so.
+  const COLUNAS_POR_PERIODO = 5;
+  const larguraTabelaArtigos = LARGURA_COL_ARTIGO + periodosSelecionados.length * COLUNAS_POR_PERIODO * LARGURA_COL_VALOR;
+
+  // Totais do extrato por periodo, calculados UMA vez e usados tanto na faixa do cabecalho
+  // quanto na linha TOTAL. Se cada um fizesse a propria soma, seriam dois caminhos para o
+  // mesmo numero — e um dia divergiriam sem ninguem perceber.
+  // "Orcamento" = Comprado + Necessidade: e o dinheiro que de fato sai no periodo. O que vem
+  // do estoque ja foi pago la atras, entao nao entra no orcamento, so no consumo.
+  const totaisExtratoPorPeriodo = useMemo(() => {
+    const base: Partial<Record<Periodo, { consumo: number; estoque: number; comprado: number; necessidade: number; necAcum: number }>> = {};
+    for (const periodo of periodosSelecionados) {
+      const acc = { consumo: 0, estoque: 0, comprado: 0, necessidade: 0, necAcum: 0 };
+      for (const artigo of porArtigoOrdenado) {
+        const d = artigoDetalhePorPeriodo.get(artigo.artigo);
+        if (!d) continue;
+        acc.consumo += d.valorConsumo[periodo];
+        acc.estoque += d.valorEstoqueUsado[periodo];
+        acc.comprado += d.valorCompraUsada[periodo];
+        acc.necessidade += d.valorTotal[periodo];
+        acc.necAcum += d.valorNecessidadeAcum[periodo];
+      }
+      base[periodo] = acc;
+    }
+    return base;
+  }, [porArtigoOrdenado, artigoDetalhePorPeriodo, periodosSelecionados]);
   const pedidosModal = useMemo(() => {
     return [...(Array.isArray(mpModal?.pedidos_detalhe) ? mpModal.pedidos_detalhe : [])]
       .sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')));
@@ -1566,8 +1780,12 @@ export default function OrcamentoMpPage() {
     );
   }, [excessoModalRows]);
 
-  function toggleArtigoSort(key: ArtigoSortKey) {
-    setArtigoSort((prev) => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' });
+  // O periodo faz parte da identidade da coluna: "Consumo de PX" e "Consumo de UL" sao
+  // colunas distintas, entao clicar numa nao pode herdar a direcao da outra.
+  function toggleArtigoSort(key: ArtigoSortKey, periodo?: Periodo) {
+    setArtigoSort((prev) => (prev.key === key && prev.periodo === periodo)
+      ? { key, periodo, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, periodo, dir: 'desc' });
   }
 
   function toggleMpSort(key: MpSortKey) {
@@ -2014,76 +2232,277 @@ export default function OrcamentoMpPage() {
           <section className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
               <span className="text-xs font-semibold text-brand-dark">Resumo por artigo - {periodosLabel}</span>
-              <span className="text-[11px] text-gray-500">{porArtigoOrdenado.length} artigos</span>
+              <span className="flex items-center gap-3">
+                {/* A exclusao da alca precisa estar escrita: sem isso a linha zerada parece
+                    dado faltando, e quem aprova nao tem como saber que e regra. */}
+                <span className="text-[11px] text-slate-600">Alça não entra no custo — já contada nas MPs que a compõem</span>
+                <span className="text-[11px] text-gray-500">{porArtigoOrdenado.length} artigos</span>
+              </span>
             </div>
-            <div className="max-h-[34vh] overflow-auto">
-              <table className="min-w-full text-xs">
-                <thead className="sticky top-0 z-10 bg-gray-100">
+            {/* Rolagem horizontal: sao 1 + (periodos x 4) colunas de valor. Sem a largura
+                minima a tabela continuaria encolhendo para caber na tela em vez de rolar,
+                entao as duas coisas andam juntas. A largura acompanha os periodos escolhidos. */}
+            <div
+              ref={artigoScrollTopoRef}
+              onScroll={() => sincronizarScrollArtigo('topo')}
+              className="w-full overflow-x-auto"
+            >
+              <div style={{ width: larguraTabelaArtigos, height: 1 }} />
+            </div>
+            <div
+              ref={artigoScrollCorpoRef}
+              onScroll={() => sincronizarScrollArtigo('corpo')}
+              className="w-full overflow-x-auto sem-barra-horizontal"
+            >
+              <table
+                className="w-full table-fixed border-separate border-spacing-0 text-[11px]"
+                style={{ minWidth: larguraTabelaArtigos }}
+              >
+                {/* Com table-fixed e sem colgroup, as 21 colunas dividem a largura por igual
+                    e o nome do artigo fica tao apertado quanto um valor. Aqui cada coluna
+                    recebe a largura que o seu conteudo pede. */}
+                <colgroup>
+                  <col style={{ width: LARGURA_COL_ARTIGO }} />
+                  {periodosSelecionados.map((periodo) => (
+                    <React.Fragment key={`cols-${periodo}`}>
+                      {Array.from({ length: COLUNAS_POR_PERIODO }).map((_, i) => (
+                        <col key={`col-${periodo}-${i}`} style={{ width: LARGURA_COL_VALOR }} />
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </colgroup>
+                <thead className="bg-gray-100">
                   <tr>
                     <SortTh active={artigoSort.key === 'artigo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('artigo')}>Artigo</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'itens'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('itens')}>MPs</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'estoque'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('estoque')}>Estoque</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'valorEstoque'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorEstoque')}>R$ estoque</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'consumo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('consumo')}>Consumo plano</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'valorConsumo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorConsumo')}>R$ consumo</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'comprasRegra'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('comprasRegra')}>Compras regra</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'valorComprasRegra'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorComprasRegra')}>R$ compras regra</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'comprasTotal'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('comprasTotal')}>Compras total</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'valorComprasTotal'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorComprasTotal')}>R$ compras total</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'necessidadeRegra'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('necessidadeRegra')}>Nec. regra</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'valorRegra'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorRegra')}>R$ regra</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'necessidadeTotal'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('necessidadeTotal')}>Nec. total</SortTh>
-                    <SortTh align="right" active={artigoSort.key === 'valorTotal'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('valorTotal')}>R$ total</SortTh>
+                    {periodosSelecionados.map((periodo) => (
+                      <th key={periodo} colSpan={COLUNAS_POR_PERIODO} className="border-l border-gray-200 px-2.5 py-2 text-left font-semibold text-gray-700">
+                        <span className="flex items-baseline gap-4 whitespace-nowrap">
+                          <span className="text-[12px] font-bold">{periodo}</span>
+                          <span className="font-normal text-gray-500">
+                            Plano orig. <strong className="font-semibold text-gray-600">{money(custoPlanoOriginal?.valorConsumoPorPeriodo?.[periodo] || 0)}</strong>
+                          </span>
+                          <span className="font-normal text-gray-500">
+                            Plano atual <strong className="font-semibold text-stone-800">{money(totaisExtratoPorPeriodo[periodo]?.consumo || 0)}</strong>
+                          </span>
+                          <span className="font-normal text-gray-500">
+                            Orçamento <strong className="font-semibold text-red-700">{money((totaisExtratoPorPeriodo[periodo]?.comprado || 0) + (totaisExtratoPorPeriodo[periodo]?.necessidade || 0))}</strong>
+                          </span>
+                        </span>
+                      </th>
+                    ))}
                   </tr>
+                  <tr className="border-t border-gray-200 text-[10px] text-gray-600">
+                    <th colSpan={1} className="px-2 py-1 text-left font-medium">Extrato de valor (R$)</th>
+                    {periodosSelecionados.map((periodo) => (
+                      <React.Fragment key={`${periodo}-labels`}>
+                        {/* A ordem aqui TEM de espelhar a das celulas do corpo e do TOTAL.
+                            Se divergir, os numeros aparecem sob o rotulo errado. */}
+                        {([
+                          ['perConsumo', 'Plano'],
+                          ['perEstoque', 'Do estoque'],
+                          ['perComprado', 'Comprado'],
+                          ['perNecessidade', 'Necessidade'],
+                          ['perNecAcum', 'Nec. acum.'],
+                        ] as const).map(([chave, rotulo], i) => {
+                          const ativo = artigoSort.key === chave && artigoSort.periodo === periodo;
+                          return (
+                            <th
+                              key={`${periodo}-${chave}`}
+                              className={`${i === 0 ? 'border-l border-gray-200 ' : ''}px-2.5 py-1.5 text-right font-medium whitespace-nowrap`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => toggleArtigoSort(chave, periodo)}
+                                title={`Ordenar por ${rotulo} de ${periodo}`}
+                                className="inline-flex w-full items-center justify-end gap-1 hover:underline underline-offset-2"
+                              >
+                                <span>{rotulo}</span>
+                                <span className="text-[10px] text-gray-500">{ativo ? (artigoSort.dir === 'asc' ? '↑' : '↓') : '↕'}</span>
+                              </button>
+                            </th>
+                          );
+                        })}
+                      </React.Fragment>
+                    ))}
+                  </tr>
+                  {/* TOTAL no topo, a pedido da diretoria: e o numero que se olha primeiro.
+                      Fica no thead de proposito — um <tfoot> renderia sempre no rodape,
+                      independente de onde estivesse no JSX. */}
+                  {porArtigoOrdenado.length > 0 && (
+                    <tr className="border-t border-gray-300 bg-gray-200 font-semibold text-gray-900">
+                      <Td strong>TOTAL</Td>
+                      {periodosSelecionados.map((periodo) => {
+                        // Mesmo objeto que alimenta a faixa do cabecalho — uma conta so.
+                        const t = totaisExtratoPorPeriodo[periodo];
+                        const totalPeriodo = {
+                          valorConsumo: t?.consumo || 0,
+                          valorEstoqueUsado: t?.estoque || 0,
+                          valorCompraUsada: t?.comprado || 0,
+                          valorTotal: t?.necessidade || 0,
+                          valorNecessidadeAcum: t?.necAcum || 0,
+                        };
+                        return (
+                          <React.Fragment key={`total-${periodo}`}>
+                            <Td align="right" strong>{totalPeriodo.valorConsumo > 0 ? money(totalPeriodo.valorConsumo) : '-'}</Td>
+                            <Td align="right" tone={totalPeriodo.valorEstoqueUsado > 0 ? 'sky' : undefined} strong>{totalPeriodo.valorEstoqueUsado > 0 ? money(totalPeriodo.valorEstoqueUsado) : '-'}</Td>
+                            <Td align="right" tone={totalPeriodo.valorCompraUsada > 0 ? 'emerald' : undefined} strong>{totalPeriodo.valorCompraUsada > 0 ? money(totalPeriodo.valorCompraUsada) : '-'}</Td>
+                            <Td align="right" tone={totalPeriodo.valorTotal > 0 ? 'red' : undefined} strong>{totalPeriodo.valorTotal > 0 ? money(totalPeriodo.valorTotal) : '-'}</Td>
+                            <Td align="right" tone={totalPeriodo.valorNecessidadeAcum > 0 ? 'orange' : undefined} strong>{totalPeriodo.valorNecessidadeAcum > 0 ? money(totalPeriodo.valorNecessidadeAcum) : '-'}</Td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
-                  {porArtigoOrdenado.map((row, idx) => (
-                    <tr key={row.artigo} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200`}>
-                      <Td strong>{row.artigo}</Td>
-                      <Td align="right">{fmt(row.itens)}</Td>
-                      <Td align="right">{fmt(row.estoque)}</Td>
-                      <Td align="right" strong>{row.valorEstoque > 0 ? money(row.valorEstoque) : '-'}</Td>
-                      <Td align="right">{fmt(row.consumo)}</Td>
-                      <Td align="right" strong>{row.valorConsumo > 0 ? money(row.valorConsumo) : '-'}</Td>
-                      <Td align="right" tone="sky">{fmt(row.comprasRegra)}</Td>
-                      <Td align="right" tone="sky" strong>{row.valorComprasRegra > 0 ? money(row.valorComprasRegra) : '-'}</Td>
-                      <Td align="right" tone="emerald">{fmt(row.comprasTotal)}</Td>
-                      <Td align="right" tone="emerald" strong>{row.valorComprasTotal > 0 ? money(row.valorComprasTotal) : '-'}</Td>
-                      <Td align="right" tone={row.necessidadeRegra > 0 ? 'red' : undefined}>{fmt(row.necessidadeRegra)}</Td>
-                      <Td align="right" tone={row.valorRegra > 0 ? 'red' : undefined} strong>{row.valorRegra > 0 ? money(row.valorRegra) : '-'}</Td>
-                      <Td align="right" tone={row.necessidadeTotal > 0 ? 'orange' : undefined}>{fmt(row.necessidadeTotal)}</Td>
-                      <Td align="right" tone={row.valorTotal > 0 ? 'orange' : undefined} strong>{row.valorTotal > 0 ? money(row.valorTotal) : '-'}</Td>
-                    </tr>
-                  ))}
-                  {porArtigoOrdenado.length === 0 && <tr><td colSpan={14} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
+                  {porArtigoOrdenado.map((row, idx) => {
+                    const isExpanded = artigosExpandidos.has(row.artigo);
+                    const detalhe = artigoDetalhePorPeriodo.get(row.artigo) || {
+                      inicio: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      consumo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      compras: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      final: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      necessidadeRegra: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      valorRegra: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      necessidadeTotal: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      valorTotal: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      valorConsumo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      valorCompras: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      necessidadeAcum: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      valorNecessidadeAcum: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      estoqueUsado: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      valorEstoqueUsado: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      compraUsada: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      valorCompraUsada: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      itens: 0,
+                    };
+                    return (
+                      <React.Fragment key={row.artigo}>
+                        <tr className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200`}>
+                          <Td strong>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = new Set(artigosExpandidos);
+                                const abrindo = !next.has(row.artigo);
+                                if (abrindo) next.add(row.artigo);
+                                else next.delete(row.artigo);
+                                setArtigosExpandidos(next);
+                                // Abrir foca o Detalhe por MP neste artigo. Ao fechar, so
+                                // libera o foco se era ESTE o artigo focado — fechar um outro
+                                // que estava aberto nao deve mexer no foco alheio.
+                                setArtigoFocado(abrindo ? row.artigo : (artigoFocado === row.artigo ? null : artigoFocado));
+                              }}
+                              className="inline-flex items-center gap-2 text-left font-semibold text-gray-800 hover:text-brand-dark"
+                            >
+                              <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-gray-300 bg-white text-[10px] text-gray-600">
+                                {isExpanded ? '−' : '+'}
+                              </span>
+                              {row.artigo}
+                              {artigoSemCusto(row.artigo) && (
+                                <span
+                                  title="Produzida na fábrica: o custo já está nas matérias-primas que a compõem"
+                                  className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-medium text-slate-600"
+                                >
+                                  sem custo
+                                </span>
+                              )}
+                            </button>
+                          </Td>
+                          {periodosSelecionados.map((periodo) => (
+                            <React.Fragment key={`${row.artigo}-resumo-${periodo}`}>
+                              <Td align="right">{detalhe.valorConsumo[periodo] > 0 ? money(detalhe.valorConsumo[periodo]) : '-'}</Td>
+                              <Td align="right" tone={detalhe.valorEstoqueUsado[periodo] > 0 ? 'sky' : undefined}>{detalhe.valorEstoqueUsado[periodo] > 0 ? money(detalhe.valorEstoqueUsado[periodo]) : '-'}</Td>
+                              <Td align="right" tone={detalhe.valorCompraUsada[periodo] > 0 ? 'emerald' : undefined}>{detalhe.valorCompraUsada[periodo] > 0 ? money(detalhe.valorCompraUsada[periodo]) : '-'}</Td>
+                              <Td align="right" tone={detalhe.valorTotal[periodo] > 0 ? 'red' : undefined} strong>{detalhe.valorTotal[periodo] > 0 ? money(detalhe.valorTotal[periodo]) : '-'}</Td>
+                              <Td align="right" tone={detalhe.valorNecessidadeAcum[periodo] > 0 ? 'orange' : undefined}>{detalhe.valorNecessidadeAcum[periodo] > 0 ? money(detalhe.valorNecessidadeAcum[periodo]) : '-'}</Td>
+                            </React.Fragment>
+                          ))}
+                        </tr>
+                        {isExpanded && (
+                          <tr className="bg-slate-50">
+                            <td colSpan={1 + periodosSelecionados.length * COLUNAS_POR_PERIODO} className="px-2 py-2">
+                              <div className="overflow-visible rounded border border-slate-200 bg-white">
+                                {/* A contagem de MPs saiu da tabela principal (que agora e o extrato
+                                    de valor) e vive aqui, junto do detalhe a que ela pertence. */}
+                                <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-2 py-1.5">
+                                  <span className="text-[11px] font-semibold text-slate-700">{row.artigo}</span>
+                                  <span className="text-[10px] text-slate-500">{fmt(detalhe.itens)} MPs neste artigo · quantidades em peças</span>
+                                </div>
+                                <table className="w-full table-fixed text-[11px]">
+                                  <thead className="bg-slate-100 text-slate-700">
+                                    <tr>
+                                      <th className="w-[170px] px-2 py-1.5 text-left font-semibold">Nível</th>
+                                      {periodosSelecionados.map((periodo) => (
+                                        <th key={periodo} className="px-2 py-1.5 text-right font-semibold whitespace-nowrap">{periodo}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr className="border-t border-slate-200">
+                                      <td className="px-2 py-1.5 font-medium text-slate-700">Estoque inicial</td>
+                                      {periodosSelecionados.map((periodo) => (
+                                        <td key={`${row.artigo}-inicio-${periodo}`} className="px-2 py-1.5 text-right font-mono text-slate-700 whitespace-nowrap">
+                                          {fmt(detalhe.inicio[periodo])}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                    <tr className="border-t border-slate-200 bg-slate-50/60">
+                                      <td className="px-2 py-1.5 font-medium text-slate-700">Consumo</td>
+                                      {periodosSelecionados.map((periodo) => (
+                                        <td key={`${row.artigo}-consumo-${periodo}`} className="px-2 py-1.5 text-right font-mono text-blue-700 whitespace-nowrap">
+                                          {fmt(detalhe.consumo[periodo])}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                    <tr className="border-t border-slate-200">
+                                      <td className="px-2 py-1.5 font-medium text-slate-700">Compras</td>
+                                      {periodosSelecionados.map((periodo) => (
+                                        <td key={`${row.artigo}-compras-${periodo}`} className="px-2 py-1.5 text-right font-mono text-emerald-700 whitespace-nowrap">
+                                          {fmt(detalhe.compras[periodo])}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                    <tr className="border-t border-slate-200 bg-slate-50/60">
+                                      <td className="px-2 py-1.5 font-medium text-slate-700">Estoque final</td>
+                                      {periodosSelecionados.map((periodo) => (
+                                        <td key={`${row.artigo}-final-${periodo}`} className="px-2 py-1.5 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
+                                          {fmt(detalhe.final[periodo])}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                  {porArtigoOrdenado.length === 0 && <tr><td colSpan={1 + periodosSelecionados.length * COLUNAS_POR_PERIODO} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
                 </tbody>
-                {porArtigoOrdenado.length > 0 && (
-                  <tfoot className="sticky bottom-0 z-10 bg-gray-200 font-semibold text-gray-900">
-                    <tr>
-                      <Td strong>TOTAL</Td>
-                      <Td align="right" strong>{fmt(porArtigoOrdenado.reduce((acc, row) => acc + row.itens, 0))}</Td>
-                      <Td align="right" strong>{fmt(totais.estoque)}</Td>
-                      <Td align="right" strong>{money(totais.valorEstoque)}</Td>
-                      <Td align="right" strong>{fmt(totais.consumo)}</Td>
-                      <Td align="right" strong>{money(totais.valorConsumo)}</Td>
-                      <Td align="right" tone="sky" strong>{fmt(totais.comprasRegra)}</Td>
-                      <Td align="right" tone="sky" strong>{money(totais.valorComprasRegra)}</Td>
-                      <Td align="right" tone="emerald" strong>{fmt(totais.comprasTotal)}</Td>
-                      <Td align="right" tone="emerald" strong>{money(totais.valorComprasTotal)}</Td>
-                      <Td align="right" tone={totais.necessidadeRegra > 0 ? 'red' : undefined} strong>{fmt(totais.necessidadeRegra)}</Td>
-                      <Td align="right" tone={totais.valorRegra > 0 ? 'red' : undefined} strong>{money(totais.valorRegra)}</Td>
-                      <Td align="right" tone={totais.necessidadeTotal > 0 ? 'orange' : undefined} strong>{fmt(totais.necessidadeTotal)}</Td>
-                      <Td align="right" tone={totais.valorTotal > 0 ? 'orange' : undefined} strong>{money(totais.valorTotal)}</Td>
-                    </tr>
-                  </tfoot>
-                )}
               </table>
             </div>
           </section>
 
           <section className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
-              <span className="text-xs font-semibold text-brand-dark">Detalhe por MP</span>
+              <span className="flex items-center gap-2 text-xs font-semibold text-brand-dark">
+                Detalhe por MP
+                {/* O filtro precisa ser visivel e reversivel aqui: quem rolou ate esta tabela
+                    pode nao lembrar que abriu um artigo la em cima e estranhar a lista curta. */}
+                {artigoFocado && (
+                  <button
+                    type="button"
+                    onClick={() => setArtigoFocado(null)}
+                    title="Remover o filtro e mostrar todas as MPs"
+                    className="inline-flex items-center gap-1 rounded bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-800 hover:bg-sky-200"
+                  >
+                    {artigoFocado}<span className="text-sky-600">×</span>
+                  </button>
+                )}
+              </span>
               <span className="text-[11px] text-gray-500">{rowsOrdenadas.length} MPs</span>
             </div>
             <div className="max-h-[52vh] overflow-auto">

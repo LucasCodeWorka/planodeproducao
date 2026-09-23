@@ -35,6 +35,15 @@ function logTempoSugestao(label: string, startedAt: number, extra?: string) {
 
 type PeriodoAlvo = 'MA' | 'PX' | 'UL' | 'QT' | 'QU' | 'SX';
 type MAModo = 'EMERGENCIA' | 'COBERTURA';
+// Forma de emitir o plano. NECESSIDADE e o comportamento historico da tela: soma o que cada
+// SKU precisa para atingir a cobertura (bottom-up). CAPACIDADE parte de um teto de fabrica e
+// distribui (top-down), a pedido da gestao. As duas convivem — o modo fica gravado na
+// simulacao, entao plano antigo continua identificavel.
+type ModoEmissao = 'NECESSIDADE' | 'CAPACIDADE';
+// Base de capacidade escolhida pelo PCP: a mesma da Visao Macro, e nao a soma do cadastro por
+// grupo (61.134 min/dia). Como o motor orca POR GRUPO, cada grupo e escalado pelo fator
+// 57.863/61.134 para preservar a proporcao entre eles e o total bater nesta base.
+const CAPACIDADE_DIARIA_ALVO = 57863;
 type SugestaoCfg = {
   cobertura_min_a: number;
   cobertura_max_a: number;
@@ -433,9 +442,27 @@ export default function SugestaoPlanoPage() {
   });
   const [periodoAlvo, setPeriodoAlvo] = useState<PeriodoAlvo>('MA');
   const [maModo, setMaModo] = useState<MAModo>('EMERGENCIA');
+  // Desligado por padrao: sem selecionar, a tela se comporta exatamente como antes.
+  const [modoEmissao, setModoEmissao] = useState<ModoEmissao>('NECESSIDADE');
+  const [pctCapacidade, setPctCapacidade] = useState(90);
   const [somenteDeltaNegativo, setSomenteDeltaNegativo] = useState(false);
   const [somenteNegativoMA, setSomenteNegativoMA] = useState(false);
   const [considerarCapacidade, setConsiderarCapacidade] = useState(false);
+
+  const aplicarModoEmissao = (novoModo: ModoEmissao) => {
+    setModoEmissao(novoModo);
+    setConsiderarCapacidade(novoModo === 'CAPACIDADE' && periodoAlvo !== 'MA');
+  };
+
+  useEffect(() => {
+    if (periodoAlvo === 'MA') {
+      setConsiderarCapacidade(false);
+      setModoEmissao('NECESSIDADE');
+      return;
+    }
+    setConsiderarCapacidade(modoEmissao === 'CAPACIDADE');
+  }, [periodoAlvo, modoEmissao]);
+
   const [usarEstoqueLojas, setUsarEstoqueLojas] = useState(false);
   const [estoqueLojasDisponivel, setEstoqueLojasDisponivel] = useState<Map<number, EstoqueLojaDisponivelAggregado>>(new Map());
   const [carregandoEstoqueLojas, setCarregandoEstoqueLojas] = useState(false);
@@ -1240,9 +1267,54 @@ export default function SugestaoPlanoPage() {
     const diasQT = Number(capacidadeDias[String(mesQT)] || 0);
     const extraCargaPorGrupo = new Map<string, number>();
 
+    // ── Modo CAPACIDADE: orcamento top-down ───────────────────────────────────────
+    // Dias do proprio mes alvo. O caminho historico abaixo so calcula janelas ate QT e faz
+    // QU/SX reaproveitarem a de QT; aqui o mes alvo entra direto, entao janeiro e janeiro.
+    const mesAlvoCap = periodoAlvo === 'QT' ? mesQT : (periodoAlvo === 'QU' ? mesQU : (periodoAlvo === 'SX' ? mesSX : periodos[periodoAlvo]));
+    const diasAlvoCap = Number(capacidadeDias[String(mesAlvoCap)] || 0);
+    const somaCapCadastro = capacidadeGrupos.reduce((acc, g) => acc + Math.max(0, Number(g.capacidade_diaria || 0)), 0);
+    const fatorBaseCap = somaCapCadastro > 0 ? CAPACIDADE_DIARIA_ALVO / somaCapCadastro : 1;
+
+    // Reserva de edicao limitada. Essas linhas sao excluidas do universo da tela (ver o filtro
+    // de continuidade em baseRows), entao a carga delas NUNCA entra no calculo de capacidade —
+    // mas o lote existe e ocupa a fabrica de verdade. Por isso vira reserva, descontada do
+    // orcamento. Calculada em minutos a partir do tempo de cada referencia, e nao convertendo
+    // pecas por uma media: a reserva varia muito por periodo (35.700 pcs em QU, 82.953 em MA).
+    // MA nao chega aqui: o fluxo de MA sai antes do bloco de capacidade, e o proprio
+    // compilador confirma isso (periodoAlvo ja vem estreitado sem 'MA'). Por consequencia o
+    // modo CAPACIDADE vale de PX em diante — o que atende o alvo pedido (QU/janeiro), mas
+    // precisa de trabalho proprio no dia em que quiserem usa-lo no mes corrente.
+    const planoCampoReserva = periodoAlvo === 'PX' ? 'px'
+      : periodoAlvo === 'UL' ? 'ul' : periodoAlvo === 'QT' ? 'qt' : periodoAlvo === 'QU' ? 'qu' : 'sx';
+    const reservaPorGrupo = new Map<string, number>();
+    if (modoEmissao === 'CAPACIDADE') {
+      for (const item of dadosBase) {
+        const cont = String(item.produto?.continuidade || '').trim().toUpperCase();
+        if (cont !== 'EDICAO LIMITADA' && cont !== 'EDIÇÃO LIMITADA') continue;
+        const qtd = Number((item.plano as unknown as Record<string, number> | undefined)?.[planoCampoReserva] || 0);
+        if (!(qtd > 0)) continue;
+        const tempo = Number(tempoByIdRef.get(String(item.produto?.cd_seqgrupo || '')) || 0);
+        if (!(tempo > 0)) continue;
+        const gruposRes = gruposByReferencia.get(normRef(item.produto?.referencia || '')) || [];
+        const somaRes = gruposRes.reduce((acc, g) => acc + Math.max(0, Number(capacidadeDiariaByGrupo.get(g) || 0)), 0);
+        if (!(somaRes > 0)) continue;
+        for (const g of gruposRes) {
+          const rateio = Math.max(0, Number(capacidadeDiariaByGrupo.get(g) || 0)) / somaRes;
+          reservaPorGrupo.set(g, Number(reservaPorGrupo.get(g) || 0) + qtd * tempo * rateio);
+        }
+      }
+    }
+
     capacidadeGrupos.forEach((grupo) => {
       const grupoKey = normRef(grupo.grupo);
       const capDiaria = Number(grupo.capacidade_diaria || 0);
+
+      if (modoEmissao === 'CAPACIDADE') {
+        const orcamento = capDiaria * fatorBaseCap * diasAlvoCap * (pctCapacidade / 100);
+        extraCargaPorGrupo.set(grupoKey, Math.max(0, orcamento - Number(reservaPorGrupo.get(grupoKey) || 0)));
+        return;
+      }
+
       const capMA = capDiaria * diasMA;
       const capPX = capDiaria * diasPX;
       const capUL = capDiaria * diasUL;
@@ -1446,7 +1518,7 @@ export default function SugestaoPlanoPage() {
 
     logTempoSugestao('calculo rows', tRows, `periodo=${periodoAlvo} fase=capacidade items=${rowsCap.length}`);
     return rowsCap;
-  }, [dadosBase, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, considerarCapacidade, filtroSuspensos]);
+  }, [dadosBase, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, considerarCapacidade, filtroSuspensos, modoEmissao, pctCapacidade]);
 
   const rowsVisiveis = useMemo(() => {
     return rows.filter((r) => {
@@ -1556,12 +1628,23 @@ export default function SugestaoPlanoPage() {
     let sugerido = 0;
     let delta = 0;
     rowsVisiveisTela.forEach((r) => {
-      atual += r.planoAtual;
-      sugerido += r.planoSugerido;
-      delta += r.deltaPlano;
+      const planoBaseAtual = Math.max(0, Number(r.planoAtual || 0));
+      const planoEmissao = Math.max(0, Number(r.planoSugerido || 0));
+      atual += planoBaseAtual;
+      sugerido += planoEmissao;
+      delta += planoEmissao - planoBaseAtual;
     });
-    return { atual, sugerido, delta };
-  }, [rowsVisiveisTela]);
+
+    if (modoEmissao === 'CAPACIDADE' && periodoAlvo !== 'MA') {
+      return {
+        atual: Math.round(atual),
+        sugerido: Math.round(sugerido),
+        delta: Math.round(delta),
+      };
+    }
+
+    return { atual: Math.round(atual), sugerido: Math.round(sugerido), delta: Math.round(delta) };
+  }, [rowsVisiveisTela, modoEmissao, periodoAlvo]);
 
   function exportarAlteracoesCSV() {
     const planoAtualPeriodo = (r: Row) => {
@@ -2319,10 +2402,16 @@ export default function SugestaoPlanoPage() {
         return acc + (planoNovo - planoAtual);
       }, 0);
       const payload = {
-        nome: `Sugestão Plano ${periodoAlvo}${periodoAlvo === 'MA' ? ` · ${maModo === 'EMERGENCIA' ? 'Emergência' : 'Cobertura'}` : ''}${atenderNegativos && negativosAtendidos.length > 0 ? ' + Negativos' : ''} · ${new Date().toLocaleDateString('pt-BR')}`,
+        // O modo entra no nome, e nao so no subtipo: e o nome que aparece na lista de
+        // simulacoes, e os dois tipos de plano precisam ser distinguiveis por quem escolhe.
+        nome: `Sugestão Plano ${periodoAlvo}${periodoAlvo === 'MA' ? ` · ${maModo === 'EMERGENCIA' ? 'Emergência' : 'Cobertura'}` : ''}${modoEmissao === 'CAPACIDADE' ? ` · Capacidade ${pctCapacidade}%` : ''}${atenderNegativos && negativosAtendidos.length > 0 ? ' + Negativos' : ''} · ${new Date().toLocaleDateString('pt-BR')}`,
         parametros: {
           tipo: 'SUGESTAO_PLANO',
-          subtipo: periodoAlvo === 'MA' ? (maModo === 'EMERGENCIA' ? 'MA_EMERGENCIA' : 'MA_COBERTURA') : `MES_${periodoAlvo}`,
+          subtipo: modoEmissao === 'CAPACIDADE'
+            ? `CAPACIDADE_${pctCapacidade}_${periodoAlvo}`
+            : (periodoAlvo === 'MA' ? (maModo === 'EMERGENCIA' ? 'MA_EMERGENCIA' : 'MA_COBERTURA') : `MES_${periodoAlvo}`),
+          modoEmissao,
+          pctCapacidade: modoEmissao === 'CAPACIDADE' ? pctCapacidade : null,
           statusAprovacao: 'PENDENTE',
           origem: 'SUGESTAO_PLANO',
           periodoAlvo,
@@ -2355,7 +2444,7 @@ export default function SugestaoPlanoPage() {
           negativosAtendidos: negativosAtendidos.length,
           deltaNegativosAtendidos,
         },
-        observacoes: `Gerado na Sugestão de Plano. Filtros: cont=${filtroCont}, suspensos=${filtroSuspensos}, curvas=${filtroCurvaABC.length ? filtroCurvaABC.join('/') : 'TODAS'}, aplicarVisiveis=${salvarSomenteVisiveis ? 'SIM' : 'NAO'}, somenteReducao=${salvarSomenteReducao ? 'SIM' : 'NAO'}, atenderNegativos=${atenderNegativos ? 'SIM' : 'NAO'}, planoCompleto=SIM, viab=${filtroViabilidade}, estoqueLojas=${usarEstoqueLojas ? 'SIM' : 'NAO'}.`,
+        observacoes: `Gerado na Sugestão de Plano. Emissão=${modoEmissao === 'CAPACIDADE' ? `CAPACIDADE ${pctCapacidade}% de ${CAPACIDADE_DIARIA_ALVO.toLocaleString('pt-BR')} min/dia, menos a reserva de edição limitada do período` : 'NECESSIDADE'}. Filtros: cont=${filtroCont}, suspensos=${filtroSuspensos}, curvas=${filtroCurvaABC.length ? filtroCurvaABC.join('/') : 'TODAS'}, aplicarVisiveis=${salvarSomenteVisiveis ? 'SIM' : 'NAO'}, somenteReducao=${salvarSomenteReducao ? 'SIM' : 'NAO'}, atenderNegativos=${atenderNegativos ? 'SIM' : 'NAO'}, planoCompleto=SIM, viab=${filtroViabilidade}, estoqueLojas=${usarEstoqueLojas ? 'SIM' : 'NAO'}.`,
       };
 
       const res = await fetchNoCache(`${API_URL}/api/simulacoes`, {
@@ -2468,6 +2557,36 @@ export default function SugestaoPlanoPage() {
                     >
                       <option value="EMERGENCIA">Emergência</option>
                       <option value="COBERTURA">Cobertura</option>
+                    </select>
+                  </label>
+                )}
+                {/* Só de PX em diante: o fluxo de MA retorna antes do bloco de capacidade,
+                    então em MA este seletor não teria efeito nenhum. */}
+                {periodoAlvo !== 'MA' && (
+                  <label className="flex flex-col">
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Emissão</span>
+                    <select
+                      value={modoEmissao}
+                      onChange={(e) => aplicarModoEmissao(e.target.value as ModoEmissao)}
+                      title="Necessidade: soma o que cada SKU precisa. Capacidade: parte de um teto de fábrica e distribui."
+                      className="border border-gray-300 rounded px-2 py-1.5 text-sm font-medium bg-gray-50 hover:bg-white focus:ring-2 focus:ring-brand-primary/20"
+                    >
+                      <option value="NECESSIDADE">Por necessidade</option>
+                      <option value="CAPACIDADE">Por capacidade</option>
+                    </select>
+                  </label>
+                )}
+                {periodoAlvo !== 'MA' && modoEmissao === 'CAPACIDADE' && (
+                  <label className="flex flex-col">
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">% da capacidade</span>
+                    <select
+                      value={pctCapacidade}
+                      onChange={(e) => setPctCapacidade(Number(e.target.value))}
+                      className="border border-gray-300 rounded px-2 py-1.5 text-sm font-medium bg-gray-50 hover:bg-white focus:ring-2 focus:ring-brand-primary/20"
+                    >
+                      {[70, 80, 85, 90, 95, 100].map((p) => (
+                        <option key={p} value={p}>{p}%</option>
+                      ))}
                     </select>
                   </label>
                 )}
@@ -2710,7 +2829,7 @@ export default function SugestaoPlanoPage() {
                     type="checkbox"
                     className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20"
                     checked={considerarCapacidade}
-                    onChange={(e) => setConsiderarCapacidade(e.target.checked)}
+                    onChange={(e) => aplicarModoEmissao(e.target.checked ? 'CAPACIDADE' : 'NECESSIDADE')}
                   />
                   <span>Capacidade</span>
                 </label>

@@ -35,3 +35,14 @@ body {
 .tela-fonte-confortavel .text-xs       { font-size: 14px; }
 .tela-fonte-confortavel .text-\[13px\] { font-size: 14px; }
 .tela-fonte-confortavel .text-sm       { font-size: 15px; }
+
+/* Esconde só a barra de rolagem horizontal nativa, mantendo a rolagem funcionando.
+   Usada no "Resumo por artigo": lá existe uma barra espelhada no topo da tabela, e
+   duas barras para o mesmo conteúdo confundem mais do que ajudam. */
+.sem-barra-horizontal {
+  scrollbar-width: none;         /* Firefox */
+  -ms-overflow-style: none;      /* Edge legado */
+}
+.sem-barra-horizontal::-webkit-scrollbar {
+  display: none;                 /* Chrome, Safari */
+}
