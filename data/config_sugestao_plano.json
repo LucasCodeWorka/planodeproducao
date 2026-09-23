@@ -1,11 +1,11 @@
 {
-  "timestamp": 1788184510689,
+  "timestamp": 1790102161539,
   "data": {
-    "cobertura_min_a": 0.2,
-    "cobertura_max_a": 0.5,
-    "cobertura_min_b": 0.5,
+    "cobertura_min_a": 1,
+    "cobertura_max_a": 1.5,
+    "cobertura_min_b": 0.8,
     "cobertura_max_b": 2,
-    "cobertura_min_c": 0.5,
+    "cobertura_min_c": 0.6,
     "cobertura_max_c": 2.5,
     "cobertura_min_d": 0.5,
     "cobertura_max_d": 3,
