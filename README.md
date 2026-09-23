@@ -1,5 +1,7 @@
 # API de Estoque Mínimo - Sistema Completo
 
+Este projeto é o **plano de produção da fábrica**: reúne o cálculo de estoque mínimo, o acompanhamento do estoque atual, dos pedidos pendentes e do histórico de vendas para apoiar as decisões de planejamento e produção.
+
 Sistema de cálculo de estoque mínimo baseado em análise de vendas históricas, com cálculo automático de médias a partir dos dados da view `vr_vendas_qtd`.
 
 ## 📋 Visão Geral
