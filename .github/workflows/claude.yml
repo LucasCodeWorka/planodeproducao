@@ -1,0 +1,43 @@
+# Responde a mencoes de @claude em issues e pull requests.
+#
+# Conteudo oficial da documentacao do Claude Code (github-actions), com os pinos
+# atuais: actions/checkout@v6 e anthropics/claude-code-action@v1.
+#
+# FALTAM DOIS PASSOS, e os dois sao feitos no site do GitHub, nao aqui. Ambos
+# exigem acesso de ADMIN no repositorio:
+#
+#   1. Instalar o app do Claude: https://github.com/apps/claude
+#
+#   2. Cadastrar o segredo CLAUDE_CODE_OAUTH_TOKEN no repositorio, em
+#      Settings > Secrets and variables > Actions. Gere o valor rodando
+#      localmente:  claude setup-token
+#      Esse token autentica pela assinatura, entao os runs NAO geram cobranca
+#      separada de API. Para usar chave de API no lugar, troque a linha
+#      claude_code_oauth_token abaixo por:
+#        anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  claude:
+    # Evita ligar um runner em cada comentario que nao menciona o Claude.
+    if: contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write   # exigido pela autenticacao padrao via GitHub App
+      actions: read     # deixa o Claude ler resultado de CI nos PRs
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
