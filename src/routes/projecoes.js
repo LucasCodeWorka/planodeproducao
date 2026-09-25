@@ -194,6 +194,34 @@ async function buscarProdutosPorReferencias(pool, referencias) {
 
   if (!refs.length) return [];
 
+  // A matriz ja carrega referencia, cor e tamanho dos SKUs. Reutilizar esse
+  // cache evita repetir f_dic_prd_nivel em toda abertura da tela online.
+  // O banco continua como fallback quando a matriz ainda nao foi carregada.
+  try {
+    const cached = await readCache();
+    const cacheData = cached?.data;
+    const cacheRows = Array.isArray(cacheData)
+      ? cacheData
+      : (Array.isArray(cacheData?.rows) ? cacheData.rows : cacheData?.data);
+    if (Array.isArray(cacheRows) && cacheRows.length) {
+      const refSet = new Set(refs);
+      const produtos = cacheRows
+        .map((row) => row?.produto || row)
+        .filter((produto) => refSet.has(String(produto?.referencia || '').trim()))
+        .map((produto) => ({
+          idproduto: String(produto.idproduto || '').trim(),
+          referencia: String(produto.referencia || '').trim(),
+          produto: String(produto.produto || produto.apresentacao || '').trim(),
+          cor: String(produto.cor || '').trim(),
+          tamanho: String(produto.tamanho || '').trim(),
+        }))
+        .filter((produto) => produto.idproduto && produto.referencia);
+      if (produtos.length) return produtos;
+    }
+  } catch (error) {
+    console.warn('[projecoes] Cache da matriz indisponivel para referencias:', error.message);
+  }
+
   const result = await pool.query(`
     SELECT
       a.cd_produto::TEXT AS idproduto,
