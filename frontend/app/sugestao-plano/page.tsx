@@ -1520,6 +1520,24 @@ export default function SugestaoPlanoPage() {
     return rowsCap;
   }, [dadosBase, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, considerarCapacidade, filtroSuspensos, modoEmissao, pctCapacidade]);
 
+  // No modo CAPACIDADE, linha sem grupo de capacidade cadastrado (grupoRateios vazio) nunca
+  // passa pelas fases de corte/incremento — nenhuma das tres a enxerga (todas filtram
+  // grupoRateios.length > 0). O efeito NAO e zerar: como rowsCap agora parte da necessidade
+  // ja calculada (nao mais do plano historico), essas linhas ficam com a necessidade CHEIA,
+  // sem nenhum teto. Ou seja: o "X% da capacidade" combinado na tela nao vale para elas —
+  // ficam de fora do rateio, silenciosamente, e isso precisa aparecer, senao o teto parece
+  // valer para 100% do plano quando na pratica nao vale.
+  const referenciasSemGrupoCapacidade = useMemo(() => {
+    if (modoEmissao !== 'CAPACIDADE' || periodoAlvo === 'MA') return [];
+    const set = new Set<string>();
+    for (const r of rows) {
+      if (r.grupoRateios.length === 0 && Number(r.planoSugerido || 0) > 0) {
+        set.add(String(r.referencia || '').trim() || '-');
+      }
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+  }, [rows, modoEmissao, periodoAlvo]);
+
   const rowsVisiveis = useMemo(() => {
     return rows.filter((r) => {
       if (somenteDeltaNegativo && !(r.deltaPlano < 0)) return false;
@@ -2595,6 +2613,21 @@ export default function SugestaoPlanoPage() {
                   </label>
                 )}
               </div>
+
+              {/* Referencias sem grupo de capacidade: ficam de fora do teto de X%, recebendo
+                  a necessidade cheia. Nao e mais um bug de plano zerado (rowsCap parte da
+                  necessidade, nao do historico) — mas o teto combinado na tela nao vale para
+                  estas, e isso tem que ficar visivel, ou o "X% da capacidade" parece valer
+                  para 100% do plano quando na pratica nao vale. */}
+              {modoEmissao === 'CAPACIDADE' && periodoAlvo !== 'MA' && referenciasSemGrupoCapacidade.length > 0 && (
+                <div className="w-full bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                  <strong>{referenciasSemGrupoCapacidade.length} referência{referenciasSemGrupoCapacidade.length > 1 ? 's' : ''} sem grupo de capacidade cadastrado</strong>
+                  {' '}— ficam fora do teto de {pctCapacidade}% e recebem a necessidade cheia, sem rateio de fábrica. Atualize <code className="bg-amber-100 px-1 rounded">data/capacidade_grupo_refs.json</code> para essas referências entrarem no cálculo:
+                  <div className="mt-1 font-mono text-xs text-amber-900">
+                    {referenciasSemGrupoCapacidade.join(', ')}
+                  </div>
+                </div>
+              )}
 
               {/* Grupo: Coberturas Config por Curva ABC */}
               <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
