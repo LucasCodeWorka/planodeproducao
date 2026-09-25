@@ -1346,19 +1346,17 @@ export default function SugestaoPlanoPage() {
       extraCargaPorGrupo.set(grupoKey, cargaAlvoTotalDisponivel);
     });
 
-    const planoCampoAlvo: 'planoMA' | 'planoPX' | 'planoUL' | 'planoQT' | 'planoQU' =
-      periodoAlvo === 'PX' ? 'planoPX' :
-      periodoAlvo === 'UL' ? 'planoUL' :
-      periodoAlvo === 'QT' ? 'planoQT' : 'planoQU';
     const rowsCap = ajustadas.map((r) => ({
       ...r,
-      planoSugerido: Number(r[planoCampoAlvo] || 0),
+      // A capacidade limita a necessidade calculada; nao deve voltar ao
+      // plano historico do periodo, que costuma estar zerado para referencias novas.
+      planoSugerido: Number(r.planoSugerido || 0),
       planoBaseSemOpMin: Number(r.planoBaseSemOpMin || 0),
       planoAntesCapacidade: Number(r.planoSugerido || 0),
-      deltaPlano: Number(r[planoCampoAlvo] || 0) - Number(r.planoAtual || 0),
-      dispPos: Number(r.dispAnterior || 0) + Number(r[planoCampoAlvo] || 0) - Number(r.projMes || 0),
+      deltaPlano: Number(r.planoSugerido || 0) - Number(r.planoAtual || 0),
+      dispPos: Number(r.dispAnterior || 0) + Number(r.planoSugerido || 0) - Number(r.projMes || 0),
       coberturaPos: Number(r.estoqueMin || 0) > 0
-        ? (Number(r.dispAnterior || 0) + Number(r[planoCampoAlvo] || 0) - Number(r.projMes || 0)) / Number(r.estoqueMin || 0)
+        ? (Number(r.dispAnterior || 0) + Number(r.planoSugerido || 0) - Number(r.projMes || 0)) / Number(r.estoqueMin || 0)
         : 0,
     }));
 
