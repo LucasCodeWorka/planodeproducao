@@ -1500,7 +1500,16 @@ async function ensureOrcamentoSnapshotsTable(pool) {
   `);
 
   if (check.rows[0].exists) {
-    return; // Tabela ja existe, nao precisa criar
+    // Tabela ja existe, mas pode ser de antes da coluna `payload`. Ela guarda a FOTO
+    // COMPLETA da tela (linhas de MP cruas com todos os campos de periodo, dados vindos
+    // do backend que nao derivam dessas linhas, configuracoes em vigor e os totais ja
+    // calculados). As colunas antigas continuam alimentando a listagem e a comparacao.
+    // ADD COLUMN IF NOT EXISTS e idempotente, entao rodar a cada chamada e barato.
+    await pool.query(`
+      ALTER TABLE public.app_orcamento_mp_snapshots
+      ADD COLUMN IF NOT EXISTS payload JSONB NOT NULL DEFAULT '{}'::jsonb
+    `);
+    return;
   }
 
   await pool.query(`
@@ -1525,6 +1534,9 @@ async function ensureOrcamentoSnapshotsTable(pool) {
 
       -- Detalhes por MP (array de objetos com idmp, artigo, valores)
       detalhes_mps JSONB NOT NULL DEFAULT '[]',
+
+      -- Foto completa da tela, para reabrir exatamente como estava
+      payload JSONB NOT NULL DEFAULT '{}',
 
       -- Metadata
       qtd_mps INTEGER NOT NULL DEFAULT 0,
@@ -1554,6 +1566,10 @@ router.post("/orcamento-mp-snapshot", async (req, res) => {
       detalhesMps = [],
       qtdMps = 0,
       qtdSkus = 0,
+      // Foto completa da tela. Os campos acima continuam sendo gravados porque a
+      // listagem e a comparacao de snapshots leem deles; o payload e o que permite
+      // reabrir a tela inteira exatamente como estava.
+      payload = {},
     } = req.body;
 
     if (!descricao || !descricao.trim()) {
@@ -1570,8 +1586,8 @@ router.post("/orcamento-mp-snapshot", async (req, res) => {
         descricao, marca, total_plano_original, total_plano_atual, total_diferenca,
         plano_original_por_periodo, plano_atual_por_periodo,
         pecas_pa_original_por_periodo, pecas_pa_atual_por_periodo,
-        detalhes_mps, qtd_mps, qtd_skus
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        detalhes_mps, qtd_mps, qtd_skus, payload
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id, created_at
     `, [
       descricao.trim(),
@@ -1585,7 +1601,8 @@ router.post("/orcamento-mp-snapshot", async (req, res) => {
       JSON.stringify(pecasPaAtualPorPeriodo),
       JSON.stringify(detalhesMps),
       qtdMps,
-      qtdSkus
+      qtdSkus,
+      JSON.stringify(payload)
     ]);
 
     return res.status(201).json({
@@ -1692,6 +1709,10 @@ router.get("/orcamento-mp-snapshot/:id", async (req, res) => {
         detalhesMps: row.detalhes_mps || [],
         qtdMps: Number(row.qtd_mps || 0),
         qtdSkus: Number(row.qtd_skus || 0),
+        // Foto completa. Vem vazia em snapshots gravados antes desta coluna existir —
+        // o frontend precisa tratar isso e avisar que a foto e antiga e incompleta,
+        // em vez de montar uma tela pela metade fingindo estar certa.
+        payload: row.payload || {},
       }
     });
   } catch (error) {

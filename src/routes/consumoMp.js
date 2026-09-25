@@ -495,6 +495,9 @@ router.post("/analise", async (req, res) => {
           MAX(COALESCE(a.nm_produto, ''))::TEXT AS nome_materiaprima,
           MAX(COALESCE(a.ds_cor, ''))::TEXT AS cor,
           MAX(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), ''))::TEXT AS materia_prima_ds,
+          -- Codigo da referencia da MP. O 'DS' acima e a descricao; o 'CD' e o codigo,
+          -- e e ele que agrupa as cores de uma mesma materia-prima na tela.
+          MAX(COALESCE(f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar), ''))::TEXT AS referencia,
           MAX(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 111::bigint), ''))::TEXT AS artigo,
           MAX(COALESCE(f_dic_sld_prd_produto('1', '1'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquefisico,
           MAX(COALESCE(f_dic_sld_prd_produto('1', '2'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoqueinsp,
@@ -755,6 +758,7 @@ router.post("/analise", async (req, res) => {
       const nome_materiaprima = String(e.materia_prima_ds || e.nome_materiaprima || "").trim();
       const artigo = String(e.artigo || "").trim();
       const cor = String(e.cor || "").trim();
+      const referencia = String(e.referencia || "").trim();
       const estoquetotal = fis + insp + corte;
       const entrada_ma = Number(compras.entrada_ma || 0);
       const entrada_px = Number(compras.entrada_px || 0);
@@ -801,6 +805,7 @@ router.post("/analise", async (req, res) => {
         idmateriaprima,
         nome_materiaprima,
         cor,
+        referencia,
         artigo,
         cd_fornecedor: fornecedorPrincipal.cd_fornecedor || "",
         nm_fornecedor: fornecedorPrincipal.nm_fornecedor || "",

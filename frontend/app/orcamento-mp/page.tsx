@@ -21,6 +21,8 @@ const MARCA_FIXA = 'LIEBE';
 const STATUS_FIXO = 'EM LINHA,NOVA COLECAO';
 const PERIODOS = ['MA', 'PX', 'UL', 'QT', 'QU'] as const;
 const CACHE_VERSION = 3;
+const FOLGA_ORCAMENTO_PERCENTUAL = 0.05;
+const FOLGA_ORCAMENTO_MINIMA = 250;
 
 type Periodo = typeof PERIODOS[number];
 
@@ -42,6 +44,10 @@ type MpRow = {
   idmateriaprima: string;
   nome_materiaprima?: string;
   cor?: string;
+  // Codigo da referencia da MP, vindo de f_dic_prd_nivel(cd_produto, 'CD'). Agrupa as
+  // varias cores de uma mesma materia-prima. Opcional porque fotos salvas antes desta
+  // mudanca nao o tem — nesses casos as linhas caem no grupo "sem referencia".
+  referencia?: string;
   artigo?: string;
   estoquetotal: number;
   entrada_ma?: number;
@@ -85,6 +91,9 @@ type MpCalculada = MpRow & {
   necessidadeTotal: number;
   valorNecessidadeRegra: number;
   valorNecessidadeTotal: number;
+  valorFolgaOrcamentoTotal: number;
+  valorOrcamentoTotal: number;
+  folgaOrcamentoPorPiso: boolean;
 };
 
 type PercentualPeriodo = { qtdLote: number; qtdFinalizada: number; qtdGerouOp: number; percentual: number; percentualGerouOp: number };
@@ -132,7 +141,8 @@ type MpSortKey =
   | 'idmateriaprima' | 'nome_materiaprima' | 'cor' | 'artigo' | 'estoquetotal'
   | 'valorEstoque' | 'consumoAte' | 'valorUnitario' | 'valorConsumo'
   | 'comprasRegra' | 'valorComprasRegra' | 'comprasTotal' | 'valorComprasTotal'
-  | 'necessidadeRegra' | 'valorNecessidadeRegra' | 'necessidadeTotal' | 'valorNecessidadeTotal';
+  | 'necessidadeRegra' | 'valorNecessidadeRegra' | 'necessidadeTotal' | 'valorNecessidadeTotal'
+  | 'valorFolgaOrcamentoTotal' | 'valorOrcamentoTotal';
 
 type CoberturaPedidoDetalhe = {
   periodo: Periodo;
@@ -164,6 +174,10 @@ type ArtigoRow = {
   necessidadeTotal: number;
   valorRegra: number;
   valorTotal: number;
+  valorFolgaOrcamentoTotal: number;
+  valorOrcamentoTotal: number;
+  itensFolgaMinima: number;
+  itensFolgaPercentual: number;
   itensSemValor: number;
 };
 
@@ -181,6 +195,17 @@ function money(v: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function calcularFolgaOrcamento(valorNecessidade: number) {
+  const valor = Number(valorNecessidade || 0);
+  if (valor <= 0) return { folga: 0, porPiso: false };
+  const folgaPercentual = valor * FOLGA_ORCAMENTO_PERCENTUAL;
+  const porPiso = FOLGA_ORCAMENTO_MINIMA >= folgaPercentual;
+  return {
+    folga: Math.max(folgaPercentual, FOLGA_ORCAMENTO_MINIMA),
+    porPiso,
+  };
 }
 
 function dateBR(value?: string) {
@@ -317,6 +342,7 @@ export default function OrcamentoMpPage() {
       estoque: number; valorUnitario: number; consumoQtd: number; valorConsumo: number;
       necessidadeRegra: number; valorNecessidadeRegra: number;
       necessidadeTotal: number; valorNecessidadeTotal: number;
+      valorFolgaOrcamentoTotal?: number; valorOrcamentoTotal?: number; folgaOrcamentoPorPiso?: boolean;
       comprasRegra: number; valorComprasRegra: number;
       comprasTotal: number; valorComprasTotal: number;
     }>;
@@ -329,6 +355,14 @@ export default function OrcamentoMpPage() {
   const [snapshotComparando, setSnapshotComparando] = useState<{ idA: number; idB: number } | null>(null);
   const [comparacaoSnapshot, setComparacaoSnapshot] = useState<ComparacaoSnapshotType | null>(null);
   const [snapshotDetalheAberto, setSnapshotDetalheAberto] = useState<SnapshotDetalhe | null>(null);
+  // Versao que esta sendo olhada no lugar do "ao vivo". null = dados atuais.
+  const [snapshotVisualizado, setSnapshotVisualizado] = useState<{
+    id: number; descricao: string; createdAt: string;
+    // Totais como estavam na tela quando a foto foi tirada. Servem de testemunha:
+    // ao reabrir, comparamos com o recalculo para detectar mudanca de formula.
+    totaisNaEpoca: Record<string, { consumo: number; estoque: number; comprado: number; necessidade: number; necAcum: number; folga?: number; orcamentoNecessidade?: number }> | null;
+  } | null>(null);
+  const [abrindoSnapshot, setAbrindoSnapshot] = useState(false);
   const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
 
   useEffect(() => {
@@ -654,6 +688,58 @@ export default function OrcamentoMpPage() {
     }
   }
 
+  // ── Ver uma versao salva ──────────────────────────────────────────────────────
+  // Em vez de trocar as dezenas de leituras espalhadas pela tela, carregamos os dados
+  // da foto DENTRO do proprio estado. A tela entao renderiza pelo codigo de sempre, so
+  // que com dados antigos — e a forma mais fiel de reproduzir o que voce via, e a que
+  // menos arrisca divergir conforme a tela evolui.
+  async function verSnapshot(id: number) {
+    setAbrindoSnapshot(true);
+    setError(null);
+    try {
+      const r = await fetchNoCache(`${API_URL}/api/producao/orcamento-mp-snapshot/${id}`, { headers: authHeaders() }, 60000);
+      const p = await r.json();
+      if (!r.ok || !p?.success) throw new Error(p?.error || 'Falha ao abrir a versao salva.');
+      const foto = p?.data?.payload;
+      // Versoes salvas antes da foto completa existir nao tem como ser reabertas. Dizer
+      // isso e melhor do que montar meia tela com os totais e parecer que funcionou.
+      if (!foto || !Array.isArray(foto.rowsBase) || foto.rowsBase.length === 0) {
+        throw new Error('Esta versao foi salva antes da foto completa existir, entao nao pode ser reaberta. Ela so guarda totais, que continuam disponiveis na comparacao.');
+      }
+      setRowsBase(foto.rowsBase);
+      if (Array.isArray(foto.rowsOriginalBase)) setRowsOriginalBase(foto.rowsOriginalBase);
+      if (foto.priceOptionsByMp) setPriceOptionsByMp(foto.priceOptionsByMp);
+      if (foto.consumoMpLotes !== undefined) setConsumoMpLotes(foto.consumoMpLotes);
+      if (foto.diasCapacidade !== undefined) setDiasCapacidade(foto.diasCapacidade);
+      if (foto.diasFaltantesPorPeriodo) setDiasFaltantesPorPeriodo(foto.diasFaltantesPorPeriodo);
+      if (foto.percentualPorPeriodo) setPercentualPorPeriodo(foto.percentualPorPeriodo);
+      if (foto.pecasPAPorPeriodo) setPecasPAPorPeriodo(foto.pecasPAPorPeriodo);
+      if (foto.pecasPAOriginalPorPeriodo) setPecasPAOriginalPorPeriodo(foto.pecasPAOriginalPorPeriodo);
+      if (foto.opsAntigas !== undefined) setOpsAntigas(foto.opsAntigas);
+      // A configuracao tambem entra: reabrir com outro horizonte mostraria numeros
+      // diferentes dos que estavam na tela quando a foto foi tirada.
+      if (foto.configuracao?.planoAte) setPlanoAte(foto.configuracao.planoAte);
+      setSnapshotVisualizado({
+        id,
+        descricao: String(p.data.descricao || ''),
+        createdAt: String(p.data.createdAt || ''),
+        totaisNaEpoca: foto.totaisNaEpoca || null,
+      });
+      setSnapshotsModalAberto(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Falha ao abrir a versao salva.');
+    } finally {
+      setAbrindoSnapshot(false);
+    }
+  }
+
+  // Volta ao presente recarregando tudo da fonte, e nao restaurando algo em memoria:
+  // os dados podem ter mudado enquanto voce olhava o passado.
+  async function voltarAoVivo() {
+    setSnapshotVisualizado(null);
+    await carregar(false);
+  }
+
   async function salvarSnapshot() {
     if (!snapshotDescricao.trim()) return;
     setSalvandoSnapshot(true);
@@ -687,6 +773,9 @@ export default function OrcamentoMpPage() {
           valorNecessidadeRegra: row.valorNecessidadeRegra || 0,
           necessidadeTotal: row.necessidadeTotal || 0,
           valorNecessidadeTotal: row.valorNecessidadeTotal || 0,
+          valorFolgaOrcamentoTotal: row.valorFolgaOrcamentoTotal || 0,
+          valorOrcamentoTotal: row.valorOrcamentoTotal || 0,
+          folgaOrcamentoPorPiso: !!row.folgaOrcamentoPorPiso,
           comprasRegra: row.comprasRegra || 0,
           valorComprasRegra: row.valorComprasRegra || 0,
           comprasTotal: row.comprasTotal || 0,
@@ -710,6 +799,37 @@ export default function OrcamentoMpPage() {
           detalhesMps,
           qtdMps: rowsCalculadas.length,
           qtdSkus: rowsBase.length,
+          // ── FOTO COMPLETA DA TELA ──────────────────────────────────────────────
+          // Os campos acima continuam porque a listagem e a comparacao leem deles, mas
+          // eles sao agregados e filtrados: nao reconstroem a tela. O payload abaixo si.
+          //
+          // Guardamos as linhas CRUAS (rowsBase), nao as calculadas: tudo que a tela
+          // mostra — tabela por artigo, cascata, cards, totais — e derivado delas. Com
+          // as linhas cruas, uma coluna criada no futuro tambem aparece nas fotos antigas.
+          // O que NAO deriva das linhas (card de lotes, dias, percentuais) vai junto.
+          payload: {
+            versao: 1,
+            tiradaEm: new Date().toISOString(),
+            // Insumos crus
+            rowsBase,
+            rowsOriginalBase,
+            priceOptionsByMp,
+            // Dados que vem prontos do backend e nao derivam das linhas de MP
+            consumoMpLotes,
+            diasCapacidade,
+            diasFaltantesPorPeriodo,
+            percentualPorPeriodo,
+            pecasPAPorPeriodo,
+            pecasPAOriginalPorPeriodo,
+            opsAntigas,
+            // Configuracao em vigor no momento da foto: sem ela, reabrir com outro
+            // horizonte ou outro filtro mostraria numeros diferentes dos vistos.
+            configuracao: { planoAte, artigosSelecionados, busca, somenteComNecessidade },
+            // Testemunha: os totais como estavam na tela. Ao reabrir, o sistema
+            // recalcula e compara. Se divergir, o CALCULO mudou desde a foto — e isso
+            // precisa ser dito, nao escondido.
+            totaisNaEpoca: totaisExtratoPorPeriodo,
+          },
         }),
       }, 60000);
 
@@ -881,6 +1001,8 @@ export default function OrcamentoMpPage() {
         const comprasTotal = Number(row.entrada_andamento || 0);
         const necessidadeRegra = Math.max(0, -saldoAte(row, planoAte));
         const necessidadeTotal = Math.max(0, consumoAte - Number(row.estoquetotal || 0) - comprasTotal);
+        const valorNecessidadeTotal = necessidadeTotal * preco.valor;
+        const folgaOrcamento = calcularFolgaOrcamento(valorNecessidadeTotal);
         return {
           ...row,
           valorUnitario: preco.valor,
@@ -895,7 +1017,10 @@ export default function OrcamentoMpPage() {
           necessidadeRegra,
           necessidadeTotal,
           valorNecessidadeRegra: necessidadeRegra * preco.valor,
-          valorNecessidadeTotal: necessidadeTotal * preco.valor,
+          valorNecessidadeTotal,
+          valorFolgaOrcamentoTotal: folgaOrcamento.folga,
+          valorOrcamentoTotal: valorNecessidadeTotal + folgaOrcamento.folga,
+          folgaOrcamentoPorPiso: folgaOrcamento.porPiso,
         };
       });
   }, [rowsBase, priceOptionsByMp, planoAte]);
@@ -947,6 +1072,10 @@ export default function OrcamentoMpPage() {
           necessidadeTotal: 0,
           valorRegra: 0,
           valorTotal: 0,
+          valorFolgaOrcamentoTotal: 0,
+          valorOrcamentoTotal: 0,
+          itensFolgaMinima: 0,
+          itensFolgaPercentual: 0,
           itensSemValor: 0,
         });
       }
@@ -964,6 +1093,12 @@ export default function OrcamentoMpPage() {
       acc.necessidadeTotal += row.necessidadeTotal;
       acc.valorRegra += row.valorNecessidadeRegra;
       acc.valorTotal += row.valorNecessidadeTotal;
+      acc.valorFolgaOrcamentoTotal += row.valorFolgaOrcamentoTotal;
+      acc.valorOrcamentoTotal += row.valorOrcamentoTotal;
+      if (row.valorFolgaOrcamentoTotal > 0) {
+        if (row.folgaOrcamentoPorPiso) acc.itensFolgaMinima += 1;
+        else acc.itensFolgaPercentual += 1;
+      }
       if ((row.necessidadeRegra > 0 || row.necessidadeTotal > 0) && row.valorUnitario <= 0) acc.itensSemValor += 1;
     }
 
@@ -981,6 +1116,8 @@ export default function OrcamentoMpPage() {
       valorRegra: Record<Periodo, number>;
       necessidadeTotal: Record<Periodo, number>;
       valorTotal: Record<Periodo, number>;
+      valorFolgaOrcamento: Record<Periodo, number>;
+      valorOrcamentoTotal: Record<Periodo, number>;
       // Extrato de valor por periodo (visao de aprovacao da diretoria). As formulas sao as
       // mesmas que ja alimentam os cards "Nec. total acum" e "Nec. individual total" no topo
       // da tela — aqui elas so passam a existir tambem por artigo, e em R$.
@@ -1012,6 +1149,8 @@ export default function OrcamentoMpPage() {
           valorRegra: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
           necessidadeTotal: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
           valorTotal: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          valorFolgaOrcamento: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+          valorOrcamentoTotal: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
           valorConsumo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
           valorCompras: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
           necessidadeAcum: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
@@ -1052,10 +1191,16 @@ export default function OrcamentoMpPage() {
         const necessidadeRegra = Math.max(0, -saldoAte(row, periodo));
         const necessidadeTotalAte = Math.max(0, somaAte(row, 'consumo', periodo) - Number(row.estoquetotal || 0) - Number(row.comprasTotal || 0));
         const necessidadeTotalPeriodo = Math.max(0, necessidadeTotalAte - necessidadeTotalAnterior);
+        const valorNecessidadeTotalPeriodo = necessidadeTotalPeriodo * row.valorUnitario;
+        const valorFolgaPeriodo = row.valorNecessidadeTotal > 0
+          ? (valorNecessidadeTotalPeriodo / row.valorNecessidadeTotal) * row.valorFolgaOrcamentoTotal
+          : 0;
         acc.necessidadeRegra[periodo] += necessidadeRegra;
         acc.valorRegra[periodo] += necessidadeRegra * row.valorUnitario;
         acc.necessidadeTotal[periodo] += necessidadeTotalPeriodo;
-        acc.valorTotal[periodo] += necessidadeTotalPeriodo * row.valorUnitario;
+        acc.valorTotal[periodo] += valorNecessidadeTotalPeriodo;
+        acc.valorFolgaOrcamento[periodo] += valorFolgaPeriodo;
+        acc.valorOrcamentoTotal[periodo] += valorNecessidadeTotalPeriodo + valorFolgaPeriodo;
         // Acumulada ate o periodo: e o "Nec. total acum" dos cards, a mesma conta.
         acc.necessidadeAcum[periodo] += necessidadeTotalAte;
         acc.valorNecessidadeAcum[periodo] += necessidadeTotalAte * row.valorUnitario;
@@ -1128,8 +1273,14 @@ export default function OrcamentoMpPage() {
         // Necessidade individual baseada sempre na necessidade total:
         // mostra quanto do total foi gerado especificamente neste periodo.
         const necessidadeIndividualTotal = Math.max(0, necessidadeCumulativa - necessidadeTotalAnterior);
+        const valorNecessidadeIndividualTotal = necessidadeIndividualTotal * row.valorUnitario;
+        const valorFolgaOrcamentoPeriodo = row.valorNecessidadeTotal > 0
+          ? (valorNecessidadeIndividualTotal / row.valorNecessidadeTotal) * row.valorFolgaOrcamentoTotal
+          : 0;
         acc.necessidadeIndividualPorPeriodo[periodo] += necessidadeIndividualTotal;
-        acc.valorNecessidadeIndividualPorPeriodo[periodo] += necessidadeIndividualTotal * row.valorUnitario;
+        acc.valorNecessidadeIndividualPorPeriodo[periodo] += valorNecessidadeIndividualTotal;
+        acc.valorFolgaOrcamentoPorPeriodo[periodo] += valorFolgaOrcamentoPeriodo;
+        acc.valorOrcamentoNecessidadePorPeriodo[periodo] += valorNecessidadeIndividualTotal + valorFolgaOrcamentoPeriodo;
         necessidadeTotalAnterior = necessidadeCumulativa;
         // Compras cumulativas ate o periodo
         const comprasAtePeriodo = somaAte(row, 'entrada', periodo);
@@ -1148,6 +1299,12 @@ export default function OrcamentoMpPage() {
       acc.necessidadeTotal += row.necessidadeTotal;
       acc.valorRegra += row.valorNecessidadeRegra;
       acc.valorTotal += row.valorNecessidadeTotal;
+      acc.valorFolgaOrcamentoTotal += row.valorFolgaOrcamentoTotal;
+      acc.valorOrcamentoTotal += row.valorOrcamentoTotal;
+      if (row.valorFolgaOrcamentoTotal > 0) {
+        if (row.folgaOrcamentoPorPiso) acc.itensFolgaMinima += 1;
+        else acc.itensFolgaPercentual += 1;
+      }
 
       // Calcular compras que cobrem a diferenca entre nec.regra e nec.total
       // Diferenca = compras que chegam APOS o periodo filtrado e cobrem necessidade
@@ -1184,6 +1341,8 @@ export default function OrcamentoMpPage() {
       valorNecessidadeCumulativaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       necessidadeIndividualPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       valorNecessidadeIndividualPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      valorFolgaOrcamentoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      valorOrcamentoNecessidadePorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       comprasPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       valorComprasPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
       comprasCumulativaPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
@@ -1200,6 +1359,10 @@ export default function OrcamentoMpPage() {
       necessidadeTotal: 0,
       valorRegra: 0,
       valorTotal: 0,
+      valorFolgaOrcamentoTotal: 0,
+      valorOrcamentoTotal: 0,
+      itensFolgaMinima: 0,
+      itensFolgaPercentual: 0,
       itensSemValor: 0,
     });
   }, [rowsCalculadas]);
@@ -1529,12 +1692,12 @@ export default function OrcamentoMpPage() {
   // Totais do extrato por periodo, calculados UMA vez e usados tanto na faixa do cabecalho
   // quanto na linha TOTAL. Se cada um fizesse a propria soma, seriam dois caminhos para o
   // mesmo numero — e um dia divergiriam sem ninguem perceber.
-  // "Orcamento" = Comprado + Necessidade: e o dinheiro que de fato sai no periodo. O que vem
-  // do estoque ja foi pago la atras, entao nao entra no orcamento, so no consumo.
+  // "Orcamento" = Comprado + Necessidade com folga: e o dinheiro aprovado para nao travar
+  // compra. O que vem do estoque ja foi pago la atras, entao nao entra no orcamento.
   const totaisExtratoPorPeriodo = useMemo(() => {
-    const base: Partial<Record<Periodo, { consumo: number; estoque: number; comprado: number; necessidade: number; necAcum: number }>> = {};
+    const base: Partial<Record<Periodo, { consumo: number; estoque: number; comprado: number; necessidade: number; necAcum: number; folga: number; orcamentoNecessidade: number }>> = {};
     for (const periodo of periodosSelecionados) {
-      const acc = { consumo: 0, estoque: 0, comprado: 0, necessidade: 0, necAcum: 0 };
+      const acc = { consumo: 0, estoque: 0, comprado: 0, necessidade: 0, necAcum: 0, folga: 0, orcamentoNecessidade: 0 };
       for (const artigo of porArtigoOrdenado) {
         const d = artigoDetalhePorPeriodo.get(artigo.artigo);
         if (!d) continue;
@@ -1542,12 +1705,34 @@ export default function OrcamentoMpPage() {
         acc.estoque += d.valorEstoqueUsado[periodo];
         acc.comprado += d.valorCompraUsada[periodo];
         acc.necessidade += d.valorTotal[periodo];
+        acc.folga += d.valorFolgaOrcamento[periodo];
+        acc.orcamentoNecessidade += d.valorOrcamentoTotal[periodo];
         acc.necAcum += d.valorNecessidadeAcum[periodo];
       }
       base[periodo] = acc;
     }
     return base;
   }, [porArtigoOrdenado, artigoDetalhePorPeriodo, periodosSelecionados]);
+
+  // Testemunha: a foto guardou os totais como estavam na tela. Aqui recalculamos com o
+  // codigo de HOJE sobre os dados de ENTAO. Se der diferente, a formula mudou desde a
+  // foto — e quem olha um orcamento travado precisa saber disso, senao acredita estar
+  // vendo o numero aprovado quando esta vendo outro.
+  const divergenciaSnapshot = useMemo(() => {
+    const antes = snapshotVisualizado?.totaisNaEpoca;
+    if (!antes) return null;
+    const difs: string[] = [];
+    for (const periodo of periodosSelecionados) {
+      const a = antes[periodo];
+      const b = totaisExtratoPorPeriodo[periodo];
+      if (!a || !b) continue;
+      // Tolerancia de 1 centavo: diferenca menor que isso e arredondamento, nao mudanca.
+      if (Math.abs((a.consumo || 0) - (b.consumo || 0)) > 0.01) {
+        difs.push(`${periodo}: gravado ${money(a.consumo || 0)}, recalculado ${money(b.consumo || 0)}`);
+      }
+    }
+    return difs.length ? difs : null;
+  }, [snapshotVisualizado, totaisExtratoPorPeriodo, periodosSelecionados]);
   const pedidosModal = useMemo(() => {
     return [...(Array.isArray(mpModal?.pedidos_detalhe) ? mpModal.pedidos_detalhe : [])]
       .sort((a, b) => String(a.data || '').localeCompare(String(b.data || '')));
@@ -1814,6 +1999,46 @@ export default function OrcamentoMpPage() {
         </header>
 
         <main className="flex-1 min-w-0 px-6 py-5 space-y-4">
+          {/* Tarja de versao antiga. Fica no topo, colorida e com a data por extenso,
+              porque o erro caro aqui e decidir compra achando que o dado e de hoje. */}
+          {snapshotVisualizado && (
+            <div className="rounded-lg border-2 border-amber-400 bg-amber-50 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="rounded bg-amber-500 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
+                    Versao salva
+                  </span>
+                  <span className="text-sm text-amber-900">
+                    Voce esta vendo a versao de{' '}
+                    <strong>
+                      {snapshotVisualizado.createdAt
+                        ? new Date(snapshotVisualizado.createdAt).toLocaleString('pt-BR')
+                        : '-'}
+                    </strong>
+                    {snapshotVisualizado.descricao ? ` — ${snapshotVisualizado.descricao}` : ''}
+                    . Estes numeros nao mudam mais.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={voltarAoVivo}
+                  className="shrink-0 rounded bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+                >
+                  Voltar aos dados de hoje
+                </button>
+              </div>
+              {divergenciaSnapshot && (
+                <div className="mt-2 border-t border-amber-300 pt-2 text-[12px] text-amber-900">
+                  <strong>Atencao:</strong> o calculo da tela mudou desde que esta versao foi
+                  salva. Os valores abaixo foram recalculados e nao batem com os que estavam
+                  gravados:
+                  <ul className="mt-1 list-disc pl-5">
+                    {divergenciaSnapshot.map((d) => <li key={d}>{d}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
           {(loading || loadingPrices) && (
             <div className="bg-white rounded-lg border p-4">
               <div className="flex items-center justify-between text-sm text-gray-600">
@@ -1834,6 +2059,8 @@ export default function OrcamentoMpPage() {
             <Card label="Estoque em casa" value={money(totais.valorEstoque)} detail={`Qtd ${fmt(totais.estoque)}`} tone="slate" />
             <Card label="Necessidade regra" value={money(totais.valorRegra)} detail={`Qtd ${fmt(totais.necessidadeRegra)}`} tone="red" />
             <Card label="Necessidade total" value={money(totais.valorTotal)} detail={`Qtd ${fmt(totais.necessidadeTotal)}`} tone="orange" />
+            <Card label="Folga orcamento" value={money(totais.valorFolgaOrcamentoTotal)} detail={`${fmt(totais.itensFolgaMinima)} MPs no piso | ${fmt(totais.itensFolgaPercentual)} MPs em 5%`} tone="orange" />
+            <Card label="Orcamento MP" value={money(totais.valorComprasTotal + totais.valorOrcamentoTotal)} detail={`Comprado + necessidade c/ folga`} tone="red" />
             <Card label="Compras regra" value={money(totais.valorComprasRegra)} detail={`Qtd ${fmt(totais.comprasRegra)}`} tone="sky" onClick={() => setShowComprasRegraModal(true)} />
             <Card label="Compras fora do plano" value={money(totalForaRegra.valor)} detail={`Qtd ${fmt(totalForaRegra.qtd)} | Apos ${planoAte}`} tone="orange" onClick={totalForaRegra.valor > 0 ? () => setShowComprasForaModal(true) : undefined} />
             <Card label="Compras andamento" value={money(comprasAndamentoGeral.valor)} detail={`Qtd ${fmt(comprasAndamentoGeral.qtd)} | ${comprasAndamentoGeral.itensSemValor} MPs sem valor`} tone="emerald" />
@@ -2164,7 +2391,11 @@ export default function OrcamentoMpPage() {
               <button
                 type="button"
                 onClick={() => carregar(true)}
-                disabled={loading || loadingPrices}
+                // Bloqueado enquanto se olha uma versao salva: atualizar carregaria dados
+                // de hoje com a tarja ainda dizendo "versao salva" — a tela mentiria.
+                // Para voltar ao presente existe o botao proprio na tarja.
+                disabled={loading || loadingPrices || !!snapshotVisualizado}
+                title={snapshotVisualizado ? 'Voce esta vendo uma versao salva. Use "Voltar aos dados de hoje" na tarja acima.' : 'Recarrega os dados atuais'}
                 className="mt-5 inline-flex items-center gap-2 rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >
                 <RefreshCw size={14} />
@@ -2190,6 +2421,10 @@ export default function OrcamentoMpPage() {
                 })()}
                 <button
                   type="button"
+                  // Salvar enquanto se olha uma foto criaria uma foto da foto, com data de
+                  // hoje e dados de outro dia — o pior tipo de registro em orcamento.
+                  disabled={!!snapshotVisualizado}
+                  title={snapshotVisualizado ? 'Volte aos dados de hoje para salvar uma nova versao.' : 'Salva uma versao do orcamento como esta agora'}
                   onClick={() => setSnapshotModalAberto(true)}
                   className="inline-flex items-center gap-1.5 rounded border border-emerald-500 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
                 >
@@ -2275,17 +2510,26 @@ export default function OrcamentoMpPage() {
                   <tr>
                     <SortTh active={artigoSort.key === 'artigo'} dir={artigoSort.dir} onClick={() => toggleArtigoSort('artigo')}>Artigo</SortTh>
                     {periodosSelecionados.map((periodo) => (
-                      <th key={periodo} colSpan={COLUNAS_POR_PERIODO} className="border-l border-gray-200 px-2.5 py-2 text-left font-semibold text-gray-700">
-                        <span className="flex items-baseline gap-4 whitespace-nowrap">
-                          <span className="text-[12px] font-bold">{periodo}</span>
-                          <span className="font-normal text-gray-500">
-                            Plano orig. <strong className="font-semibold text-gray-600">{money(custoPlanoOriginal?.valorConsumoPorPeriodo?.[periodo] || 0)}</strong>
-                          </span>
-                          <span className="font-normal text-gray-500">
-                            Plano atual <strong className="font-semibold text-stone-800">{money(totaisExtratoPorPeriodo[periodo]?.consumo || 0)}</strong>
-                          </span>
-                          <span className="font-normal text-gray-500">
-                            Orçamento <strong className="font-semibold text-red-700">{money((totaisExtratoPorPeriodo[periodo]?.comprado || 0) + (totaisExtratoPorPeriodo[periodo]?.necessidade || 0))}</strong>
+                      <th key={periodo} colSpan={COLUNAS_POR_PERIODO} className="border-l border-gray-200 px-2.5 py-2 text-left font-semibold text-gray-700 align-top">
+                        {/* Grade de 2 colunas em vez de flex-wrap: o wrap quebrava onde
+                            coubesse (3 em cima, 1 embaixo) e variava de periodo para
+                            periodo. A grade fixa 2 e 2, entao as faixas ficam alinhadas
+                            entre si e o olho compara na vertical. */}
+                        <span className="flex min-w-0 items-baseline gap-3 leading-tight">
+                          <span className="text-[12px] font-bold whitespace-nowrap">{periodo}</span>
+                          <span className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-0.5">
+                            <span className="font-normal text-gray-500 whitespace-nowrap">
+                              Plano orig. <strong className="font-semibold text-gray-600">{money(custoPlanoOriginal?.valorConsumoPorPeriodo?.[periodo] || 0)}</strong>
+                            </span>
+                            <span className="font-normal text-gray-500 whitespace-nowrap">
+                              Plano atual <strong className="font-semibold text-stone-800">{money(totaisExtratoPorPeriodo[periodo]?.consumo || 0)}</strong>
+                            </span>
+                            <span className="font-normal text-gray-500 whitespace-nowrap">
+                              Orcamento <strong className="font-semibold text-red-700">{money((totaisExtratoPorPeriodo[periodo]?.comprado || 0) + (totaisExtratoPorPeriodo[periodo]?.orcamentoNecessidade || 0))}</strong>
+                            </span>
+                            <span className="font-normal text-gray-500 whitespace-nowrap">
+                              Folga <strong className="font-semibold text-amber-700">{money(totaisExtratoPorPeriodo[periodo]?.folga || 0)}</strong>
+                            </span>
                           </span>
                         </span>
                       </th>
@@ -2366,6 +2610,8 @@ export default function OrcamentoMpPage() {
                       valorRegra: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
                       necessidadeTotal: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
                       valorTotal: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      valorFolgaOrcamento: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+                      valorOrcamentoTotal: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
                       valorConsumo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
                       valorCompras: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
                       necessidadeAcum: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
@@ -2526,6 +2772,8 @@ export default function OrcamentoMpPage() {
                     <SortTh align="right" active={mpSort.key === 'valorNecessidadeRegra'} dir={mpSort.dir} onClick={() => toggleMpSort('valorNecessidadeRegra')}>R$ regra</SortTh>
                     <SortTh align="right" active={mpSort.key === 'necessidadeTotal'} dir={mpSort.dir} onClick={() => toggleMpSort('necessidadeTotal')}>Nec. total</SortTh>
                     <SortTh align="right" active={mpSort.key === 'valorNecessidadeTotal'} dir={mpSort.dir} onClick={() => toggleMpSort('valorNecessidadeTotal')}>R$ total</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorFolgaOrcamentoTotal'} dir={mpSort.dir} onClick={() => toggleMpSort('valorFolgaOrcamentoTotal')}>Folga</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'valorOrcamentoTotal'} dir={mpSort.dir} onClick={() => toggleMpSort('valorOrcamentoTotal')}>Orcamento</SortTh>
                   </tr>
                 </thead>
                 <tbody>
@@ -2551,9 +2799,18 @@ export default function OrcamentoMpPage() {
                       <Td align="right" tone={row.valorNecessidadeRegra > 0 ? 'red' : undefined} strong>{row.valorNecessidadeRegra > 0 ? money(row.valorNecessidadeRegra) : '-'}</Td>
                       <Td align="right" tone={row.necessidadeTotal > 0 ? 'orange' : undefined}>{fmt(row.necessidadeTotal)}</Td>
                       <Td align="right" tone={row.valorNecessidadeTotal > 0 ? 'orange' : undefined} strong>{row.valorNecessidadeTotal > 0 ? money(row.valorNecessidadeTotal) : '-'}</Td>
+                      <Td align="right" tone={row.valorFolgaOrcamentoTotal > 0 ? 'orange' : undefined}>
+                        {row.valorFolgaOrcamentoTotal > 0 ? (
+                          <div>
+                            <div className="font-semibold">{money(row.valorFolgaOrcamentoTotal)}</div>
+                            <div className="text-[10px] text-gray-400">{row.folgaOrcamentoPorPiso ? 'piso 250' : '5%'}</div>
+                          </div>
+                        ) : '-'}
+                      </Td>
+                      <Td align="right" tone={row.valorOrcamentoTotal > 0 ? 'red' : undefined} strong>{row.valorOrcamentoTotal > 0 ? money(row.valorOrcamentoTotal) : '-'}</Td>
                     </tr>
                   ))}
-                  {rowsOrdenadas.length === 0 && <tr><td colSpan={17} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
+                  {rowsOrdenadas.length === 0 && <tr><td colSpan={19} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
                 </tbody>
                 {rowsOrdenadas.length > 0 && (
                   <tfoot className="sticky bottom-0 z-10 bg-gray-200 font-semibold text-gray-900">
@@ -2575,6 +2832,8 @@ export default function OrcamentoMpPage() {
                       <Td align="right" tone={totais.valorRegra > 0 ? 'red' : undefined} strong>{money(totais.valorRegra)}</Td>
                       <Td align="right" tone={totais.necessidadeTotal > 0 ? 'orange' : undefined} strong>{fmt(totais.necessidadeTotal)}</Td>
                       <Td align="right" tone={totais.valorTotal > 0 ? 'orange' : undefined} strong>{money(totais.valorTotal)}</Td>
+                      <Td align="right" tone={totais.valorFolgaOrcamentoTotal > 0 ? 'orange' : undefined} strong>{money(totais.valorFolgaOrcamentoTotal)}</Td>
+                      <Td align="right" tone={totais.valorOrcamentoTotal > 0 ? 'red' : undefined} strong>{money(totais.valorOrcamentoTotal)}</Td>
                     </tr>
                   </tfoot>
                 )}
@@ -2601,11 +2860,13 @@ export default function OrcamentoMpPage() {
                 </div>
 
                 <div className="overflow-auto p-5 space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
                     <InfoCard label="Consumo plano" value={fmt(mpModal.consumoAte)} detail={money(mpModal.valorConsumo)} />
                     <InfoCard label="Estoque em casa" value={fmt(Number(mpModal.estoquetotal || 0))} detail={money(mpModal.valorEstoque)} />
                     <InfoCard label="Compras andamento" value={fmt(mpModal.comprasTotal)} detail={money(mpModal.valorComprasTotal)} />
                     <InfoCard label="Nec. total" value={fmt(mpModal.necessidadeTotal)} detail={money(mpModal.valorNecessidadeTotal)} tone="orange" />
+                    <InfoCard label="Folga orc." value={money(mpModal.valorFolgaOrcamentoTotal)} detail={mpModal.valorFolgaOrcamentoTotal > 0 ? (mpModal.folgaOrcamentoPorPiso ? 'piso R$ 250' : '5%') : '-'} tone="orange" />
+                    <InfoCard label="Orcamento" value={money(mpModal.valorOrcamentoTotal)} detail="necessidade + folga" tone="red" />
                     <InfoCard label="Valor unit." value={mpModal.valorUnitario > 0 ? money(mpModal.valorUnitario) : '-'} detail={mpModal.origemValor} />
                   </div>
 
@@ -2634,6 +2895,18 @@ export default function OrcamentoMpPage() {
                           <td className="px-3 py-2 font-bold text-orange-800">Necessidade total</td>
                           <td className="px-3 py-2 text-right font-bold text-orange-800">{fmt(mpModal.necessidadeTotal)}</td>
                           <td className="px-3 py-2 text-right font-bold text-orange-800">{money(mpModal.valorNecessidadeTotal)}</td>
+                        </tr>
+                        <tr className="border-t border-gray-100">
+                          <td className="px-3 py-2 font-semibold text-gray-700">
+                            (+) Folga de orcamento ({mpModal.folgaOrcamentoPorPiso ? 'piso R$ 250' : '5%'})
+                          </td>
+                          <td className="px-3 py-2 text-right">-</td>
+                          <td className="px-3 py-2 text-right font-semibold">{money(mpModal.valorFolgaOrcamentoTotal)}</td>
+                        </tr>
+                        <tr className="border-t border-gray-200 bg-red-50">
+                          <td className="px-3 py-2 font-bold text-red-800">Orcamento da necessidade</td>
+                          <td className="px-3 py-2 text-right font-bold text-red-800">-</td>
+                          <td className="px-3 py-2 text-right font-bold text-red-800">{money(mpModal.valorOrcamentoTotal)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -3185,6 +3458,18 @@ export default function OrcamentoMpPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
+                            {/* Acao principal desta lista: recarregar a TELA INTEIRA com os
+                                dados desta versao. Botao com texto, e nao icone, porque e a
+                                unica acao aqui que muda o que voce ve na tela toda. */}
+                            <button
+                              type="button"
+                              onClick={() => verSnapshot(snap.id)}
+                              disabled={abrindoSnapshot}
+                              className="rounded bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                              title="Reabre a tela inteira com os dados desta versao"
+                            >
+                              {abrindoSnapshot ? 'Abrindo...' : 'Abrir na tela'}
+                            </button>
                             <button
                               type="button"
                               onClick={() => verDetalhesSnapshot(snap.id)}
@@ -3284,6 +3569,8 @@ export default function OrcamentoMpPage() {
                         <th className="text-right p-2 font-semibold">R$ Consumo</th>
                         <th className="text-right p-2 font-semibold">Necessidade</th>
                         <th className="text-right p-2 font-semibold">R$ Necessidade</th>
+                        <th className="text-right p-2 font-semibold">Folga</th>
+                        <th className="text-right p-2 font-semibold">Orcamento</th>
                         <th className="text-right p-2 font-semibold">Compras</th>
                         <th className="text-right p-2 font-semibold">R$ Compras</th>
                       </tr>
@@ -3300,6 +3587,8 @@ export default function OrcamentoMpPage() {
                           <td className="p-2 text-right text-emerald-700">{money(mp.valorConsumo)}</td>
                           <td className="p-2 text-right">{fmt(mp.necessidadeRegra)}</td>
                           <td className="p-2 text-right text-amber-700">{money(mp.valorNecessidadeRegra)}</td>
+                          <td className="p-2 text-right text-orange-700">{money(mp.valorFolgaOrcamentoTotal || 0)}</td>
+                          <td className="p-2 text-right text-red-700">{money(mp.valorOrcamentoTotal || mp.valorNecessidadeRegra || 0)}</td>
                           <td className="p-2 text-right">{fmt(mp.comprasRegra)}</td>
                           <td className="p-2 text-right text-blue-700">{money(mp.valorComprasRegra)}</td>
                         </tr>
@@ -3317,6 +3606,8 @@ export default function OrcamentoMpPage() {
                   <div className="text-xs text-gray-500">
                     Totais: Consumo {money(snapshotDetalheAberto.detalhesMps?.reduce((s, m) => s + (m.valorConsumo || 0), 0) || 0)} |
                     Necessidade {money(snapshotDetalheAberto.detalhesMps?.reduce((s, m) => s + (m.valorNecessidadeRegra || 0), 0) || 0)} |
+                    Folga {money(snapshotDetalheAberto.detalhesMps?.reduce((s, m) => s + (m.valorFolgaOrcamentoTotal || 0), 0) || 0)} |
+                    Orcamento {money(snapshotDetalheAberto.detalhesMps?.reduce((s, m) => s + (m.valorOrcamentoTotal || m.valorNecessidadeRegra || 0), 0) || 0)} |
                     Compras {money(snapshotDetalheAberto.detalhesMps?.reduce((s, m) => s + (m.valorComprasRegra || 0), 0) || 0)}
                   </div>
                   <button
@@ -3373,9 +3664,9 @@ function SortTh({ children, align = 'left', active, dir, onClick }: { children: 
   );
 }
 
-function InfoCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: 'orange' | 'sky' | 'slate' }) {
-  const bgClass = tone === 'orange' ? 'border-orange-200 bg-orange-50' : tone === 'sky' ? 'border-sky-200 bg-sky-50' : tone === 'slate' ? 'border-slate-200 bg-slate-50' : 'border-gray-200 bg-gray-50';
-  const textClass = tone === 'orange' ? 'text-orange-700' : tone === 'sky' ? 'text-sky-700' : tone === 'slate' ? 'text-slate-700' : 'text-gray-900';
+function InfoCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: 'red' | 'orange' | 'sky' | 'slate' }) {
+  const bgClass = tone === 'red' ? 'border-red-200 bg-red-50' : tone === 'orange' ? 'border-orange-200 bg-orange-50' : tone === 'sky' ? 'border-sky-200 bg-sky-50' : tone === 'slate' ? 'border-slate-200 bg-slate-50' : 'border-gray-200 bg-gray-50';
+  const textClass = tone === 'red' ? 'text-red-700' : tone === 'orange' ? 'text-orange-700' : tone === 'sky' ? 'text-sky-700' : tone === 'slate' ? 'text-slate-700' : 'text-gray-900';
   return (
     <div className={`rounded border px-3 py-2 ${bgClass}`}>
       <div className="text-[11px] text-gray-500">{label}</div>
