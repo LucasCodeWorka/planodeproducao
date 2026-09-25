@@ -8,6 +8,13 @@
 
 const { readCache, readCacheByKey, writeCacheByKey } = require('../cache/matrizCache');
 const { isExcludedPlanningItem, normalizePlanningText } = require('./planningExclusions');
+const {
+  carregarPares,
+  referenciasParaBuscar,
+  selecionarOrigens,
+  selecionarDestinos,
+  escolherDestinosParaOrigem,
+} = require('./deParaReferencias');
 
 // Ajustes de fábrica por mês (1 = janeiro, ..., 6 = junho)
 const AJUSTES_FABRICA = {
@@ -25,6 +32,50 @@ const MESES_SEMESTRE = [1, 2, 3, 4, 5, 6]; // jan a jun
 
 // Prefixo da chave de cache do catalogo de permanentes vindo do banco.
 const CACHE_SKUS_BANCO = 'skus_permanentes_banco';
+const CACHE_PRODUTOS_DE_PARA = 'produtos_de_para_referencias';
+
+function criarMediaZerada() {
+  return {
+    media_6m: 0,
+    total_6m: 0,
+    media_3m: 0,
+    total_3m: 0,
+  };
+}
+
+function clonarMedia(media) {
+  return {
+    media_6m: Number(media?.media_6m) || 0,
+    total_6m: Number(media?.total_6m) || 0,
+    media_3m: Number(media?.media_3m) || 0,
+    total_3m: Number(media?.total_3m) || 0,
+  };
+}
+
+function mesAnoReferencia(ano, mes) {
+  return `${Number(ano)}-${String(mes).padStart(2, '0')}`;
+}
+
+function parAtivoNoSemestre(par, anoDestino) {
+  if (!par?.vigenciaInicio) return true;
+  const ultimoMesSemestre = mesAnoReferencia(anoDestino, Math.max(...MESES_SEMESTRE));
+  return par.vigenciaInicio <= ultimoMesSemestre;
+}
+
+function agruparPorReferencia(produtos) {
+  const porReferencia = new Map();
+  for (const produto of produtos || []) {
+    const ref = String(produto?.referencia || '').trim();
+    const id = String(produto?.idproduto || '').trim();
+    if (!ref || !id) continue;
+    if (!porReferencia.has(ref)) porReferencia.set(ref, new Map());
+    porReferencia.get(ref).set(id, produto);
+  }
+
+  return new Map(
+    [...porReferencia.entries()].map(([ref, produtosPorId]) => [ref, [...produtosPorId.values()]])
+  );
+}
 
 /**
  * Busca vendas reais por canal a partir da mv_vendas_qtd.
@@ -287,6 +338,73 @@ async function buscarSkusPermanentesBanco(pool, ano = null, somenteAtuais = fals
   return skus;
 }
 
+async function buscarProdutosPorReferencias(pool, referencias) {
+  const refs = [...new Set((referencias || []).map((ref) => String(ref || '').trim()).filter(Boolean))].sort();
+  if (refs.length === 0) return [];
+
+  const chaveCache = `${CACHE_PRODUTOS_DE_PARA}_${refs.join('_')}`;
+  try {
+    const cache = await readCacheByKey(chaveCache);
+    if (cache?.fresh && Array.isArray(cache.data)) {
+      return cache.data;
+    }
+  } catch (error) {
+    console.warn(`[projecao-permanentes] cache de produtos do de-para indisponivel: ${error.message}`);
+  }
+
+  const result = await pool.query(`
+    SELECT *
+    FROM (
+      SELECT
+        a.cd_produto::TEXT AS idproduto,
+        a.ds_cor AS cor,
+        a.ds_tamanho AS tamanho,
+        a.nm_produto AS apresentacao,
+        f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
+        f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar) AS produto,
+        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint) AS marca,
+        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint) AS status,
+        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint) AS continuidade,
+        f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 23::bigint) AS linha
+      FROM vr_prd_prdgrade a
+      WHERE a.cd_produto < 1000000
+        AND UPPER(COALESCE(a.nm_produto, '')) NOT LIKE '%MEIA DE SEDA%'
+        AND UPPER(TRIM(COALESCE(a.ds_tamanho, ''))) <> 'PT 99'
+    ) p
+    WHERE TRIM(COALESCE(p.referencia::TEXT, '')) = ANY($1::TEXT[])
+      AND UPPER(TRIM(COALESCE(p.marca, ''))) = 'LIEBE'
+    ORDER BY p.referencia, p.idproduto
+  `, [refs]);
+
+  const produtos = result.rows
+    .filter((row) => !isExcludedPlanningItem({
+      referencia: row.referencia,
+      produto: row.produto,
+      apresentacao: row.apresentacao,
+    }))
+    .map((row) => ({
+      idproduto: String(row.idproduto || ''),
+      referencia: String(row.referencia || '').trim(),
+      produto: String(row.produto || '').trim(),
+      cor: String(row.cor || '').trim(),
+      tamanho: String(row.tamanho || '').trim(),
+      apresentacao: String(row.apresentacao || '').trim(),
+      continuidade: String(row.continuidade || 'SEM CONTINUIDADE').trim().toUpperCase(),
+      status: String(row.status || 'INDEFINIDO').trim().toUpperCase(),
+      linha: String(row.linha || '').trim(),
+      media_6m: 0,
+      media_3m: 0,
+    }));
+
+  try {
+    await writeCacheByKey(chaveCache, produtos, { referencias: refs, geradoPor: 'projecaoPermanentesService' });
+  } catch (error) {
+    console.warn(`[projecao-permanentes] nao consegui gravar o cache de produtos do de-para: ${error.message}`);
+  }
+
+  return produtos;
+}
+
 /**
  * Busca SKUs com continuidade PERMANENTE ou PERMANENTE COR NOVA
  * OTIMIZADO: usa o cache matriz_planejamento já existente em memória
@@ -353,6 +471,123 @@ async function buscarSkusPermanentes(pool, ano = null) {
       media_3m: Number(demanda.media_vendas_3m) || 0,
     };
   });
+}
+
+async function montarContextoDeParaPermanentes(pool, skus, anoDestino) {
+  const pares = carregarPares().filter((par) => parAtivoNoSemestre(par, anoDestino));
+
+  if (pares.length === 0) {
+    return {
+      skus,
+      fontesPorDestino: new Map(),
+      origensRemovidas: new Set(),
+      idsHistorico: skus.map((sku) => String(sku.idproduto)),
+      deParaAplicado: [],
+    };
+  }
+
+  const produtosDePara = await buscarProdutosPorReferencias(pool, referenciasParaBuscar(pares));
+  const produtosPorId = new Map();
+
+  for (const sku of [...skus, ...produtosDePara]) {
+    const id = String(sku?.idproduto || '').trim();
+    if (id) produtosPorId.set(id, sku);
+  }
+
+  const porReferencia = agruparPorReferencia([...produtosPorId.values()]);
+  const skusPorId = new Map(skus.map((sku) => [String(sku.idproduto), sku]));
+  const fontesPorDestino = new Map();
+  const origensRemovidas = new Set();
+  const idsHistorico = new Set(skus.map((sku) => String(sku.idproduto)));
+  const deParaAplicado = [];
+
+  for (const par of pares) {
+    const origens = selecionarOrigens(porReferencia.get(par.refAntiga) || [], par);
+    const destinos = selecionarDestinos(porReferencia.get(par.refNova) || [], par);
+    let transferencias = 0;
+    let origensSemDestino = 0;
+
+    for (const origem of origens) {
+      const idOrigem = String(origem?.idproduto || '').trim();
+      if (!idOrigem) continue;
+      if (destinos.length > 0) origensRemovidas.add(idOrigem);
+
+      const escolhas = escolherDestinosParaOrigem(destinos, origem, par)
+        .filter(({ destino }) => String(destino?.idproduto || '').trim() !== idOrigem);
+
+      if (escolhas.length === 0) {
+        origensSemDestino += 1;
+        continue;
+      }
+
+      idsHistorico.add(idOrigem);
+      transferencias += escolhas.length;
+
+      for (const { destino, peso } of escolhas) {
+        const idDestino = String(destino?.idproduto || '').trim();
+        if (!idDestino) continue;
+
+        idsHistorico.add(idDestino);
+        if (!skusPorId.has(idDestino)) skusPorId.set(idDestino, destino);
+        if (!fontesPorDestino.has(idDestino)) fontesPorDestino.set(idDestino, []);
+
+        fontesPorDestino.get(idDestino).push({
+          idOrigem,
+          peso: Number(peso) || 0,
+          referenciaOrigem: par.refAntiga,
+          referenciaDestino: par.refNova,
+          grupo: par.grupo,
+          modo: par.modo,
+        });
+      }
+    }
+
+    if (transferencias > 0 || origensSemDestino > 0) {
+      deParaAplicado.push({
+        ref_antiga: par.refAntiga,
+        ref_nova: par.refNova,
+        grupo: par.grupo || null,
+        vigencia_inicio: par.vigenciaInicio || null,
+        origens: origens.length,
+        destinos: destinos.length,
+        transferencias,
+        origens_sem_destino: origensSemDestino,
+      });
+    }
+  }
+
+  return {
+    skus: [...skusPorId.values()],
+    fontesPorDestino,
+    origensRemovidas,
+    idsHistorico: [...idsHistorico],
+    deParaAplicado,
+  };
+}
+
+function aplicarDeParaNasMedias(mediasBrutas, fontesPorDestino) {
+  const medias = {};
+
+  for (const [id, media] of Object.entries(mediasBrutas || {})) {
+    medias[String(id)] = clonarMedia(media);
+  }
+
+  for (const [idDestino, fontes] of fontesPorDestino.entries()) {
+    const destino = medias[idDestino] || criarMediaZerada();
+
+    for (const fonte of fontes || []) {
+      const origem = mediasBrutas[String(fonte.idOrigem)] || criarMediaZerada();
+      const peso = Number(fonte.peso) || 0;
+      destino.total_6m += (Number(origem.total_6m) || 0) * peso;
+      destino.total_3m += (Number(origem.total_3m) || 0) * peso;
+    }
+
+    destino.media_6m = destino.total_6m / 6;
+    destino.media_3m = destino.total_3m / 3;
+    medias[idDestino] = destino;
+  }
+
+  return medias;
 }
 
 /**
@@ -675,7 +910,7 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
   const totalizadores = calcularTotalizadores(vendas);
 
   // 3. Busca SKUs permanentes
-  const skus = await buscarSkusPermanentes(pool, anoBase);
+  let skus = await buscarSkusPermanentes(pool, anoBase);
 
   if (skus.length === 0) {
     return {
@@ -693,17 +928,26 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
       },
       itens: [],
       itensSemVenda: [],
+      deParaAplicado: [],
     };
   }
 
+  const contextoDePara = await montarContextoDeParaPermanentes(pool, skus, anoDestino);
+  skus = contextoDePara.skus;
+
   // 4. Calcula médias usando venda real do semestre base
-  const mediasBrutas = await calcularMediasVendas(pool, skus.map((sku) => sku.idproduto), anoBase);
+  const mediasBrutas = await calcularMediasVendas(pool, contextoDePara.idsHistorico, anoBase);
+  const mediasComDePara = aplicarDeParaNasMedias(mediasBrutas, contextoDePara.fontesPorDestino);
   const skusSemVenda = skus.filter((sku) => {
-    const media = mediasBrutas[String(sku.idproduto)] || {};
+    const id = String(sku.idproduto);
+    if (contextoDePara.origensRemovidas.has(id)) return false;
+    const media = mediasComDePara[id] || {};
     return (Number(media.total_6m) || 0) <= 0 && (Number(media.total_3m) || 0) <= 0;
   });
   const skusProjetaveis = skus.filter((sku) => {
-    const media = mediasBrutas[String(sku.idproduto)] || {};
+    const id = String(sku.idproduto);
+    if (contextoDePara.origensRemovidas.has(id)) return false;
+    const media = mediasComDePara[id] || {};
     const camposPt = [sku.tamanho, sku.referencia, sku.produto, sku.apresentacao]
       .map((valor) => normalizePlanningText(valor));
     const temVenda = (Number(media.total_6m) || 0) > 0 || (Number(media.total_3m) || 0) > 0;
@@ -711,7 +955,7 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
     return temVenda && !ehItemPt;
   });
   const medias = Object.fromEntries(
-    skusProjetaveis.map((sku) => [String(sku.idproduto), mediasBrutas[String(sku.idproduto)]])
+    skusProjetaveis.map((sku) => [String(sku.idproduto), mediasComDePara[String(sku.idproduto)]])
   );
 
   // 5. Calcula representatividades
@@ -727,6 +971,7 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
     const id = String(sku.idproduto);
     const rep = representatividades[id] || {};
     const proj = projecoes[id] || {};
+    const fontesDePara = contextoDePara.fontesPorDestino.get(id) || [];
 
     return {
       idproduto: id,
@@ -753,6 +998,9 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
         jun: proj[6] || 0,
       },
       totalProjecao: MESES_SEMESTRE.reduce((acc, m) => acc + (proj[m] || 0), 0),
+      deParaOrigem: fontesDePara.length > 0
+        ? [...new Set(fontesDePara.map((fonte) => fonte.referenciaOrigem).filter(Boolean))].join(', ')
+        : null,
     };
   });
 
@@ -773,6 +1021,7 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
     skusPermanenteCorNova: itens.filter((i) => i.continuidade === 'PERMANENTE COR NOVA').length,
     skusComTendencia: itens.filter((i) => i.usaTendencia).length,
     skusComMedia: itens.filter((i) => !i.usaTendencia).length,
+    skusComDePara: itens.filter((i) => i.deParaOrigem).length,
     totalProjecao: itens.reduce((acc, i) => acc + i.totalProjecao, 0),
     totalPorMes: {
       jan: itens.reduce((acc, i) => acc + i.projecoes.jan, 0),
@@ -793,6 +1042,7 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
     resumo,
     itens,
     itensSemVenda,
+    deParaAplicado: contextoDePara.deParaAplicado,
   };
 }
 
