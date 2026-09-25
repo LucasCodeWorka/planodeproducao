@@ -868,6 +868,22 @@ export default function SugestaoPlanoPage() {
       if (key) tempoByIdRef.set(key, Number(t.tempo_segundos || 0));
     });
 
+    // ── DIAGNOSTICO TEMPORARIO ──────────────────────────────────────────────────
+    // Varias referencias novas (destino de de-para, zero historico de venda) somem
+    // silenciosamente do array salvo em Sugestao de Plano, sem erro no console e sem
+    // corresponder a nenhum filtro conhecido (status/marca/continuidade/OP-minima/
+    // capacidade ja foram descartados por analise estatica). Isto rastreia, em cada
+    // etapa do pipeline, se um SKU de amostra de cada referencia afetada sobrevive.
+    // Remover depois de identificar o ponto exato do sumico.
+    // Um SKU de cada uma das 8 referencias que estao sumindo, mais um de controle (4023,
+    // referencia antiga/normal, deve aparecer em todas as etapas para servir de comparacao).
+    const idsDiagnostico = ['40147', '40053', '40006', '40220', '40188', '39993', '40047', '40065', '4023'];
+    const logDiagnostico = (etapa: string, lista: { produto?: { idproduto?: string | number } }[]) => {
+      const presentes = new Set(lista.map((i) => String(i.produto?.idproduto || '')));
+      console.log(`[diagnostico-sumico] ${etapa}: total=${lista.length}`, Object.fromEntries(idsDiagnostico.map((id) => [id, presentes.has(id)])));
+    };
+    logDiagnostico('0-dadosBase', dadosBase);
+
     // Debug: verificar produto suspenso específico (29148)
     const baseRows = dadosBase
       .filter((item) => {
@@ -892,6 +908,7 @@ export default function SugestaoPlanoPage() {
 
         return marca === MARCA_FIXA && STATUS_PLANEJAVEIS.has(status) && continuidadeOk;
       });
+    logDiagnostico('1-baseRows (pos marca/status/continuidade)', baseRows);
 
     // Debug: contar produtos após filtro
     const baseRowsMapped = baseRows.map((item) => {
@@ -1129,6 +1146,12 @@ export default function SugestaoPlanoPage() {
       };
     });
 
+    const logDiagnosticoChave = (etapa: string, lista: { chave: string }[]) => {
+      const presentes = new Set(lista.map((r) => r.chave));
+      console.log(`[diagnostico-sumico] ${etapa}: total=${lista.length}`, Object.fromEntries(idsDiagnostico.map((id) => [id, presentes.has(`ID-${id}`)])));
+    };
+    logDiagnosticoChave('2-baseRowsMapped', baseRowsMapped);
+
     if (!alvoComOpMinECapacidade) return baseRowsMapped;
 
     const byRef = new Map<string, Row[]>();
@@ -1257,6 +1280,8 @@ export default function SugestaoPlanoPage() {
 
       ajustadas.push(...ordenadas);
     }
+
+    logDiagnosticoChave('3-ajustadas (fim op-minima)', ajustadas);
 
     if (!considerarCapacidade) {
       logTempoSugestao('calculo rows', tRows, `periodo=${periodoAlvo} fase=op-min items=${ajustadas.length}`);
@@ -1516,6 +1541,7 @@ export default function SugestaoPlanoPage() {
       });
     }
 
+    logDiagnosticoChave('4-rowsCap (fim capacidade)', rowsCap);
     logTempoSugestao('calculo rows', tRows, `periodo=${periodoAlvo} fase=capacidade items=${rowsCap.length}`);
     return rowsCap;
   }, [dadosBase, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, considerarCapacidade, filtroSuspensos, modoEmissao, pctCapacidade]);

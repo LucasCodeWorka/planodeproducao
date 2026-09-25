@@ -64,7 +64,10 @@
       "Bash(npx tsc *)",
       "Bash(taskkill //F //PID 68456)",
       "Bash(curl -s -H \"Authorization: Bearer admin123\" \"http://localhost:8000/api/projecao-permanentes/totalizadores?anoBase=2026\" --max-time 15)",
-      "Bash(curl -s -m 20 http://localhost:8000/health)"
+      "Bash(curl -s -m 20 http://localhost:8000/health)",
+      "Bash(node -e 'require\\(\"dotenv\"\\).config\\(\\); const {Pool}=require\\(\"pg\"\\); const p=new Pool\\({host:process.env.DB_HOST,port:+process.env.DB_PORT,database:process.env.DB_NAME,user:process.env.DB_USER,password:process.env.DB_PASSWORD,connectionTimeoutMillis:30000}\\); const q=` *)",
+      "Bash(node -e 'require\\(\"dotenv\"\\).config\\(\\); const {Pool}=require\\(\"pg\"\\); const p=new Pool\\({host:process.env.DB_HOST,port:+process.env.DB_PORT,database:process.env.DB_NAME,user:process.env.DB_USER,password:process.env.DB_PASSWORD,connectionTimeoutMillis:60000}\\); p.query\\(\"SELECT MIN\\(data\\)::date AS mais_antigo, MAX\\(data\\)::date AS mais_recente, COUNT\\(*\\)::bigint AS linhas FROM vr_vendas_qtd\"\\).then\\(r=>{const x=r.rows[0]; console.log\\(\"mais antigo :\", x.mais_antigo\\); console.log\\(\"mais recente:\", x.mais_recente\\); console.log\\(\"linhas      :\", Number\\(x.linhas\\).toLocaleString\\(\"pt-BR\"\\)\\); return p.end\\(\\);}\\).catch\\(e=>{console.error\\(\"ERRO:\",e.message\\);process.exit\\(1\\);}\\);')",
+      "Bash(node -e 'const fs=require\\(\"fs\"\\); try{const c=JSON.parse\\(fs.readFileSync\\(\"data/capacidade_config.json\",\"utf8\"\\)\\); const g=c.grupos||[]; let t=0; for\\(const x of g\\){ t+=Number\\(x.capacidade_diaria||0\\); console.log\\(`  ${String\\(x.grupo\\).padEnd\\(28\\)} ${String\\(x.tipo||\"\"\\).padEnd\\(10\\)} ${Number\\(x.capacidade_diaria||0\\).toLocaleString\\(\"pt-BR\"\\)}`\\);} console.log\\(\"  TOTAL cadastrado:\", t.toLocaleString\\(\"pt-BR\"\\), \"min/dia\"\\); }catch\\(e\\){ console.log\\(\"  \\(capacidade_config.json nao lido:\", e.message, \"\\)\"\\); }')"
     ]
   }
 }
