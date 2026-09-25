@@ -37,6 +37,23 @@ function mesReferencia(dataRef) {
   return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function mesProjetadoReferencia(mes, dataRef) {
+  const mesNum = Number(mes);
+  if (!Number.isFinite(mesNum) || mesNum < 1 || mesNum > 12) return null;
+
+  const ref = mesReferencia(dataRef);
+  const anoBase = Number(ref.slice(0, 4));
+  const mesBase = Number(ref.slice(5, 7));
+  const anoProjetado = mesNum >= mesBase ? anoBase : anoBase + 1;
+  return `${anoProjetado}-${String(mesNum).padStart(2, '0')}`;
+}
+
+function parAtivoNoMes(par, mes, options = {}) {
+  if (!par?.vigenciaInicio) return true;
+  const mesProjetado = mesProjetadoReferencia(mes, options.dataRef);
+  return Boolean(mesProjetado && par.vigenciaInicio <= mesProjetado);
+}
+
 function lerArquivo() {
   try {
     if (!fs.existsSync(DE_PARA_FILE)) return [];
@@ -168,6 +185,8 @@ module.exports = {
   DE_PARA_FILE,
   normalizeCompare,
   mesReferencia,
+  mesProjetadoReferencia,
+  parAtivoNoMes,
   carregarPares,
   carregarParesAtivos,
   referenciasParaBuscar,

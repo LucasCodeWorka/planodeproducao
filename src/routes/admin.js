@@ -4,6 +4,7 @@ const { writeCache, writeCacheByKey, getCacheStatus }     = require('../cache/ma
 const { calcularCurvaAbcReferencias } = require('../services/curvaAbcService');
 
 const CURVA_ABC_CACHE_KEY = 'curva_abc_referencias';
+const MATRIZ_CACHE_SCHEMA = 'de_para_horizonte_v2';
 
 const router = express.Router();
 
@@ -91,7 +92,7 @@ router.post('/refresh', auth, (req, res) => {
       await writeCache({
         rows: data,
         execucaoPlanoResumo,
-      }, { marca, status, geradoPor: 'admin/refresh' });
+      }, { marca, status, schema: MATRIZ_CACHE_SCHEMA, geradoPor: 'admin/refresh' });
       const curvaAbc = await calcularCurvaAbcReferencias(pool);
       await writeCacheByKey(CURVA_ABC_CACHE_KEY, curvaAbc, {
         marca: 'LIEBE',

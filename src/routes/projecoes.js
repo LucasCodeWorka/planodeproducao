@@ -8,7 +8,7 @@ const projecoesService = require('../services/projecoesService');
 const cenariosProjecaoService = require('../services/cenariosProjecaoService');
 const {
   carregarPares,
-  carregarParesAtivos,
+  parAtivoNoMes,
   referenciasParaBuscar,
   selecionarOrigens,
   selecionarDestinos,
@@ -220,13 +220,17 @@ async function buscarProdutosPorReferencias(pool, referencias) {
  * fica como esta: zerar apagaria a projecao propria da referencia nova, que e PERMANENTE
  * e recebe projecao do Permanentes.
  */
-function acumularProjecaoDestino(projecaoDestino, contribuicoes) {
+function mesesAtivosParaPar(par) {
+  return MESES_TRANSICAO_NOVA_COLECAO.filter((mes) => parAtivoNoMes(par, mes));
+}
+
+function acumularProjecaoDestino(projecaoDestino, contribuicoes, mesesAtivos = MESES_TRANSICAO_NOVA_COLECAO) {
   const destino = cloneMeses(projecaoDestino);
 
   let mesesTransferidos = 0;
   let conflitosDestino = 0;
 
-  for (const mes of MESES_TRANSICAO_NOVA_COLECAO) {
+  for (const mes of mesesAtivos) {
     let soma = 0;
     let temOrigem = false;
 
@@ -249,15 +253,15 @@ function acumularProjecaoDestino(projecaoDestino, contribuicoes) {
   return { destino, mesesTransferidos, conflitosDestino };
 }
 
-function zerarProjecaoOrigem(projecaoOrigem) {
+function zerarProjecaoOrigem(projecaoOrigem, mesesAtivos = MESES_TRANSICAO_NOVA_COLECAO) {
   const origem = cloneMeses(projecaoOrigem);
-  for (const mes of MESES_TRANSICAO_NOVA_COLECAO) origem[mes] = 0;
+  for (const mes of mesesAtivos) origem[mes] = 0;
   return origem;
 }
 
 async function montarProjecoesEfetivas(pool) {
   const { data: projecoesOriginais, timestamp } = await lerProjecoes(pool);
-  const dePara = carregarParesAtivos();
+  const dePara = carregarPares().filter((par) => mesesAtivosParaPar(par).length > 0);
 
   if (!pool) {
     return { data: projecoesOriginais, timestamp, deParaAplicado: [] };
@@ -280,6 +284,7 @@ async function montarProjecoesEfetivas(pool) {
   const deParaAplicado = [];
 
   for (const par of dePara) {
+    const mesesAtivos = mesesAtivosParaPar(par);
     const origens = selecionarOrigens(produtosPorReferencia.get(par.refAntiga) || [], par);
     const destinos = selecionarDestinos(produtosPorReferencia.get(par.refNova) || [], par);
 
@@ -297,6 +302,7 @@ async function montarProjecoesEfetivas(pool) {
       produtos_sem_destino: 0,
       conflitos_destino: 0,
       meses_transferidos: 0,
+      meses_ativos: mesesAtivos,
       observacoes: [],
     };
 
@@ -343,7 +349,7 @@ async function montarProjecoesEfetivas(pool) {
     }
 
     for (const [idNovo, contribuicoes] of contribuicoesPorDestino.entries()) {
-      const resultado = acumularProjecaoDestino(efetivas[idNovo] || projecoesOriginais[idNovo], contribuicoes);
+      const resultado = acumularProjecaoDestino(efetivas[idNovo] || projecoesOriginais[idNovo], contribuicoes, mesesAtivos);
       efetivas[idNovo] = resultado.destino;
       if (!resultado.mesesTransferidos) continue;
       diagnostico.produtos_transferidos += 1;
@@ -354,7 +360,7 @@ async function montarProjecoesEfetivas(pool) {
     // Zera as origens so depois de somar todos os destinos, senao a segunda cor que
     // aponta para o mesmo SKU novo leria uma projecao ja zerada.
     for (const idAntigo of origensTransferidas) {
-      efetivas[idAntigo] = zerarProjecaoOrigem(efetivas[idAntigo] || projecoesOriginais[idAntigo]);
+      efetivas[idAntigo] = zerarProjecaoOrigem(efetivas[idAntigo] || projecoesOriginais[idAntigo], mesesAtivos);
     }
 
     if (diagnostico.produtos_sem_destino > 0) {
@@ -402,38 +408,15 @@ async function montarMetaPorId(pool, ids) {
   )];
 
   const metaPorId = new Map();
-  for (const item of lerMatrizCache()) {
+
+  const rowsCache = await lerMatrizCacheCompleta(pool);
+  for (const item of rowsCache) {
     const id = String(item?.produto?.idproduto || '').trim();
     if (!id) continue;
     metaPorId.set(id, {
       referencia: item?.produto?.referencia || '',
       produto: item?.produto?.produto || item?.produto?.apresentacao || '',
       continuidade: item?.produto?.continuidade || 'SEM CONTINUIDADE',
-    });
-  }
-
-  if (!pool || !idsValidos.length) return metaPorId;
-
-  const idsFaltantes = idsValidos.filter((id) => !metaPorId.has(id));
-  if (!idsFaltantes.length) return metaPorId;
-
-  const result = await pool.query(`
-    SELECT
-      a.cd_produto::TEXT AS idproduto,
-      COALESCE(f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar), '')::TEXT AS referencia,
-      COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), a.nm_produto, '')::TEXT AS produto,
-      COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 802::bigint), 'SEM CONTINUIDADE')::TEXT AS continuidade
-    FROM vr_prd_prdgrade a
-    WHERE a.cd_produto::TEXT = ANY($1::TEXT[])
-  `, [idsFaltantes]);
-
-  for (const row of result.rows) {
-    const id = String(row.idproduto || '').trim();
-    if (!id) continue;
-    metaPorId.set(id, {
-      referencia: String(row.referencia || '').trim(),
-      produto: String(row.produto || '').trim(),
-      continuidade: String(row.continuidade || 'SEM CONTINUIDADE').trim(),
     });
   }
 

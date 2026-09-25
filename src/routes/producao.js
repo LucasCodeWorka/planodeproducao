@@ -13,11 +13,18 @@ const {
 } = require("../services/producaoService");
 
 const { readCache, filterCache } = require("../cache/matrizCache");
+const {
+  carregarPares,
+  parAtivoNoMes,
+  selecionarOrigens,
+  selecionarDestinos,
+} = require("../services/deParaReferencias");
 
 const router = express.Router();
 const catalogoCache = new Map();
 const CATALOGO_CACHE_TTL_MS = (Number(process.env.CATALOGO_CACHE_TTL_SECONDS) || 600) * 1000;
 const ORCAMENTO_MP_CACHE_KEY = "orcamento_mp_liebe";
+const PLANO_PERIODOS_DE_PARA = ["MA", "PX", "UL", "QT", "QU"];
 
 async function ensureOrcamentoMpCacheTable(pool) {
   await pool.query(`
@@ -34,6 +41,49 @@ function buildCatalogoCacheKey(query) {
     .map(([k, v]) => [k, String(v)])
     .sort(([a], [b]) => a.localeCompare(b));
   return entries.map(([k, v]) => `${k}=${v}`).join("&");
+}
+
+function calcularPeriodosPlanoDePara(hoje = new Date()) {
+  const ma = hoje.getMonth() + 1;
+  const addMes = (offset) => ((ma + offset - 1) % 12) + 1;
+  return { MA: addMes(0), PX: addMes(1), UL: addMes(2), QT: addMes(3), QU: addMes(4) };
+}
+
+function parAtivoNoHorizontePlano(par) {
+  const periodos = calcularPeriodosPlanoDePara();
+  return PLANO_PERIODOS_DE_PARA.some((periodo) => parAtivoNoMes(par, periodos[periodo]));
+}
+
+function ocultarOrigensDeParaNoCache(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return rows;
+  const dePara = carregarPares().filter(parAtivoNoHorizontePlano);
+  if (!dePara.length) return rows;
+
+  const produtosPorReferencia = new Map();
+  for (const row of rows) {
+    const produto = row?.produto || {};
+    const referencia = String(produto.referencia || "").trim();
+    if (!referencia) continue;
+    if (!produtosPorReferencia.has(referencia)) produtosPorReferencia.set(referencia, []);
+    produtosPorReferencia.get(referencia).push({
+      idproduto: String(produto.idproduto || "").trim(),
+      cor: produto.cor,
+      tamanho: produto.tamanho,
+    });
+  }
+
+  const origensParaOcultar = new Set();
+  for (const par of dePara) {
+    const origens = selecionarOrigens(produtosPorReferencia.get(par.refAntiga) || [], par);
+    const destinos = selecionarDestinos(produtosPorReferencia.get(par.refNova) || [], par);
+    if (!origens.length || !destinos.length) continue;
+    for (const origem of origens) {
+      if (origem?.idproduto) origensParaOcultar.add(String(origem.idproduto));
+    }
+  }
+
+  if (!origensParaOcultar.size) return rows;
+  return rows.filter((row) => !origensParaOcultar.has(String(row?.produto?.idproduto || "").trim()));
 }
 
 /**
@@ -447,7 +497,8 @@ router.get("/matriz", async (req, res) => {
       : null;
 
     if (!noCache && cached && (cached.fresh || preferCache) && cacheAtendeMarca && cacheAtendeStatus) {
-      const filtrado = filterCache(cacheRows, { referencias, marca, status });
+      const cacheRowsEfetivos = ocultarOrigensDeParaNoCache(cacheRows);
+      const filtrado = filterCache(cacheRowsEfetivos, { referencias, marca, status });
       const pagina   = filtrado.slice(offset, offset + limit);
 
       res.set('X-Cache', cached.fresh ? 'HIT' : 'STALE');

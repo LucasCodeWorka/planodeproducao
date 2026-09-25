@@ -12,6 +12,8 @@ import { projecaoMesPlanejamento } from '../lib/projecao';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MARCA_FIXA = 'LIEBE';
 const STATUS_FIXO = 'EM LINHA';
+const STATUS_CONSULTA = 'EM LINHA,NOVA COLECAO';
+const STATUS_PLANEJAVEIS = new Set(['EM LINHA', 'NOVA COLECAO']);
 const COB_ALVO_MA_NEGATIVO = 0.7;
 const MARGEM_COB_MA_NEGATIVO_PADRAO = 0.05;
 // Cobertura saudável padrão por curva (usado em fallback)
@@ -585,7 +587,7 @@ export default function SugestaoPlanoPage() {
     setError(null);
     const tCarregar = nowMs();
     try {
-      const params = new URLSearchParams({ limit: '5000', marca: MARCA_FIXA, status: STATUS_FIXO, prefer_cache: 'true' });
+      const params = new URLSearchParams({ limit: '5000', marca: MARCA_FIXA, status: STATUS_CONSULTA, prefer_cache: 'true' });
       const medirFetch = async (label: string, url: string, init?: RequestInit) => {
         const t = nowMs();
         const response = await fetchNoCache(url, init);
@@ -888,7 +890,7 @@ export default function SugestaoPlanoPage() {
           continuidade === 'PERMANENTE COR NOVA' ||
           (isSuspenso && filtroSuspensos === 'INCLUIR');
 
-        return marca === MARCA_FIXA && status.startsWith(STATUS_FIXO) && continuidadeOk;
+        return marca === MARCA_FIXA && STATUS_PLANEJAVEIS.has(status) && continuidadeOk;
       });
 
     // Debug: contar produtos após filtro

@@ -6,7 +6,8 @@ const { buscarProdutoComMedias } = require('./vendasService');
 const { calcularEstoqueMinimo } = require('./estoqueMinimo');
 const { isExcludedPlanningItem } = require('./planningExclusions');
 const {
-  carregarParesAtivos,
+  carregarPares,
+  parAtivoNoMes,
   referenciasParaBuscar,
   selecionarOrigens,
   selecionarDestinos,
@@ -20,6 +21,7 @@ const MES_VIVO_LIMIAR = 0.10;
 // Teto da correcao. No agregado quase nao muda nada (~190 pecas), mas impede que um SKU
 // isolado triplique a media de uma vez.
 const MES_VIVO_TETO = 1.5;
+const PLANO_PERIODOS_DE_PARA = ['MA', 'PX', 'UL', 'QT', 'QU'];
 
 function isPt99Size(value) {
   return String(value || '').trim().toUpperCase() === 'PT 99';
@@ -39,6 +41,30 @@ function normalizeStatus(value) {
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
     .trim();
+}
+
+function calcularPeriodosPlanoDePara(hoje = new Date()) {
+  const ma = hoje.getMonth() + 1;
+  const addMes = (offset) => {
+    const mes = ma + offset;
+    return ((mes - 1) % 12) + 1;
+  };
+  return {
+    MA: addMes(0),
+    PX: addMes(1),
+    UL: addMes(2),
+    QT: addMes(3),
+    QU: addMes(4),
+  };
+}
+
+function periodosAtivosParaPar(par, periodos = calcularPeriodosPlanoDePara()) {
+  return PLANO_PERIODOS_DE_PARA.filter((periodo) => parAtivoNoMes(par, periodos[periodo]));
+}
+
+function carregarParesAtivosNoHorizontePlano() {
+  const periodos = calcularPeriodosPlanoDePara();
+  return carregarPares().filter((par) => periodosAtivosParaPar(par, periodos).length > 0);
 }
 
 /**
@@ -568,7 +594,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   if (ids.length === 0) return [];
 
   // ── Incluir IDs das refs antigas do de-para (podem estar em outra marca) ──
-  const deParaPreload = carregarParesAtivos();
+  const deParaPreload = carregarParesAtivosNoHorizontePlano();
   const refsAntigasPreload = referenciasParaBuscar(deParaPreload);
 
   if (refsAntigasPreload.length > 0) {
@@ -788,7 +814,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   }
 
   // ── Montar resultado ──────────────────────────────────────────────────────
-  const dePara = carregarParesAtivos();
+  const dePara = carregarParesAtivosNoHorizontePlano();
   const produtosPorReferencia = new Map();
   for (const row of rProdutos.rows) {
     const id = Number(row.idproduto);
