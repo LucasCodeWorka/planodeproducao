@@ -1794,14 +1794,17 @@ export default function SugestaoPlanoPage() {
     if (atenderNegativos) {
       rows.forEach((r) => {
         const chave = String(r.chave || '').trim();
-        if (!chave || alteradosKeys.has(chave)) return;
+        if (!chave) return;
         if (Number(r.dispMesAlvo || 0) >= 0) return;
 
         const dispAnterior = Number(r.dispAnterior || 0);
         const projMes = Number(r.projMes || 0);
         const planoAtual = Number(r.planoAtual || 0);
+        const planoBaseSalvar = alteradosKeys.has(chave)
+          ? Math.round(Number(r.planoSugerido || 0))
+          : planoAtual;
         const planoNecessario = planoNecessarioComCorte(projMes - dispAnterior, r.corteMin);
-        const aumento = Math.max(0, planoNecessario - planoAtual);
+        const aumento = Math.max(0, planoNecessario - planoBaseSalvar);
         if (aumento > 0) {
           negativosItens += 1;
           aumentoNegativos += aumento;
@@ -2324,7 +2327,6 @@ export default function SugestaoPlanoPage() {
           const chave = String(r.chave || '').trim();
           if (!chave) return;
           // Se já está em alterados, pular
-          if (alterados.some((a) => String(a.chave || '').trim() === chave)) return;
           // Se dispMesAlvo < 0, calcular plano necessário
           const dispMesAlvo = Number(r.dispMesAlvo || 0);
           if (dispMesAlvo < 0) {
@@ -2332,14 +2334,16 @@ export default function SugestaoPlanoPage() {
             const dispAnterior = Number(r.dispAnterior || 0);
             const projMes = Number(r.projMes || 0);
             const planoAtual = Number(r.planoAtual || 0);
+            const planoSugerido = Math.round(Number(r.planoSugerido || 0));
             // planoNecessario = o suficiente para dispPos >= 0
             // dispPos = dispAnterior + planoNovo - projMes >= 0
             // planoNovo >= projMes - dispAnterior, respeitando o corte minimo do SKU
             const planoNecessario = planoNecessarioComCorte(projMes - dispAnterior, r.corteMin);
+            const planoFinalNegativo = Math.max(planoSugerido, planoNecessario);
             // Só adiciona se o plano necessário for diferente do atual
-            if (planoNecessario !== planoAtual) {
+            if (planoFinalNegativo !== planoAtual || planoFinalNegativo !== planoSugerido) {
               negativosAtendidos.push(r);
-              planoParaNegativo.set(chave, planoNecessario);
+              planoParaNegativo.set(chave, planoFinalNegativo);
             }
           }
         });

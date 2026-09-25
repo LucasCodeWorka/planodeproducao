@@ -162,10 +162,14 @@ export default function SugestoesAprovacoesPage() {
         const bPX = Math.round(b.plano?.px || 0);
         const bUL = Math.round(b.plano?.ul || 0);
         const bQT = Math.round(b.plano?.qt || 0);
+        const bQU = Math.round(b.plano?.qu || 0);
+        const bSX = Math.round(b.plano?.sx || 0);
         const cMA = Math.round(p.ma || 0);
         const cPX = Math.round(p.px || 0);
         const cUL = Math.round(p.ul || 0);
         const cQT = Math.round(p.qt || 0);
+        const cQU = Math.round(p.qu || 0);
+        const cSX = Math.round(p.sx || 0);
         return {
           chave: p.chave,
           referencia: b.produto.referencia || '-',
@@ -173,13 +177,15 @@ export default function SugestoesAprovacoesPage() {
           cor: b.produto.cor || '-',
           tamanho: b.produto.tamanho || '-',
           continuidade: b.produto.continuidade || 'SEM CONTINUIDADE',
-          baseMA: bMA, basePX: bPX, baseUL: bUL, baseQT: bQT,
-          cenarioMA: cMA, cenarioPX: cPX, cenarioUL: cUL, cenarioQT: cQT,
+          baseMA: bMA, basePX: bPX, baseUL: bUL, baseQT: bQT, baseQU: bQU, baseSX: bSX,
+          cenarioMA: cMA, cenarioPX: cPX, cenarioUL: cUL, cenarioQT: cQT, cenarioQU: cQU, cenarioSX: cSX,
           deltaMA: cMA - bMA,
           deltaPX: cPX - bPX,
           deltaUL: cUL - bUL,
           deltaQT: cQT - bQT,
-          deltaTotal: (cMA + cPX + cUL + cQT) - (bMA + bPX + bUL + bQT),
+          deltaQU: cQU - bQU,
+          deltaSX: cSX - bSX,
+          deltaTotal: (cMA + cPX + cUL + cQT + cQU + cSX) - (bMA + bPX + bUL + bQT + bQU + bSX),
           baseCalc: calculaDispECobPorPlano(b, projecoes, periodos, { ma: bMA, px: bPX, ul: bUL, qt: bQT }),
           cenarioCalc: calculaDispECobPorPlano(b, projecoes, periodos, { ma: cMA, px: cPX, ul: cUL, qt: cQT }),
         };
@@ -245,14 +251,15 @@ export default function SugestoesAprovacoesPage() {
     if (!linhasAlteradas.length) return;
     const header = [
       'referencia', 'produto', 'cor', 'tamanho', 'continuidade',
-      'base_ma', 'base_px', 'base_ul', 'base_qt',
-      'cenario_ma', 'cenario_px', 'cenario_ul', 'cenario_qt',
-      'delta_ma', 'delta_px', 'delta_ul', 'delta_qt', 'delta_total'
+      'base_ma', 'base_px', 'base_ul', 'base_qt', 'base_qu', 'base_sx',
+      'cenario_ma', 'cenario_px', 'cenario_ul', 'cenario_qt', 'cenario_qu', 'cenario_sx',
+      'delta_ma', 'delta_px', 'delta_ul', 'delta_qt', 'delta_qu', 'delta_sx', 'delta_total'
     ];
     const rows = linhasAlteradas.map((r) => [
       r.referencia, r.produto, r.cor, r.tamanho, r.continuidade,
-      r.baseMA, r.basePX, r.baseUL, r.baseQT, r.cenarioMA, r.cenarioPX, r.cenarioUL, r.cenarioQT,
-      r.deltaMA, r.deltaPX, r.deltaUL, r.deltaQT, r.deltaTotal,
+      r.baseMA, r.basePX, r.baseUL, r.baseQT, r.baseQU, r.baseSX,
+      r.cenarioMA, r.cenarioPX, r.cenarioUL, r.cenarioQT, r.cenarioQU, r.cenarioSX,
+      r.deltaMA, r.deltaPX, r.deltaUL, r.deltaQT, r.deltaQU, r.deltaSX, r.deltaTotal,
     ]);
     const csv = [header, ...rows]
       .map((arr) => arr.map((v) => `"${String(v ?? '').replaceAll('"', '""')}"`).join(','))
@@ -350,7 +357,7 @@ export default function SugestoesAprovacoesPage() {
                           <th className="text-left px-2 py-2">Ref</th>
                           <th className="text-left px-2 py-2">Cor</th>
                           <th className="text-left px-2 py-2">Tam</th>
-                          <th className="text-left px-2 py-2">Plano (MA/PX/UL/QT)</th>
+                          <th className="text-left px-2 py-2">Plano (MA/PX/UL/QT/QU/SX)</th>
                           <th className="text-left px-2 py-2">Disp. (MA/PX/UL/QT)</th>
                           <th className="text-left px-2 py-2">Cob. (MA/PX/UL/QT)</th>
                           <th className="text-right px-2 py-2">Δ Total</th>
@@ -363,9 +370,9 @@ export default function SugestoesAprovacoesPage() {
                             <td className="px-2 py-1.5">{r.cor}</td>
                             <td className="px-2 py-1.5">{r.tamanho}</td>
                             <td className="px-2 py-1.5 whitespace-nowrap">
-                              <span className="text-gray-700">{fmtPeca(r.baseMA)} / {fmtPeca(r.basePX)} / {fmtPeca(r.baseUL)} / {fmtPeca(r.baseQT)}</span>
+                              <span className="text-gray-700">{fmtPeca(r.baseMA)} / {fmtPeca(r.basePX)} / {fmtPeca(r.baseUL)} / {fmtPeca(r.baseQT)} / {fmtPeca(r.baseQU)} / {fmtPeca(r.baseSX)}</span>
                               <span className="mx-1 text-gray-400">→</span>
-                              <span className="font-semibold text-brand-dark">{fmtPeca(r.cenarioMA)} / {fmtPeca(r.cenarioPX)} / {fmtPeca(r.cenarioUL)} / {fmtPeca(r.cenarioQT)}</span>
+                              <span className="font-semibold text-brand-dark">{fmtPeca(r.cenarioMA)} / {fmtPeca(r.cenarioPX)} / {fmtPeca(r.cenarioUL)} / {fmtPeca(r.cenarioQT)} / {fmtPeca(r.cenarioQU)} / {fmtPeca(r.cenarioSX)}</span>
                             </td>
                             <td className="px-2 py-1.5 whitespace-nowrap">
                               <span className="text-gray-700">{fmtPeca(r.baseCalc.dispMA)} / {fmtPeca(r.baseCalc.dispPX)} / {fmtPeca(r.baseCalc.dispUL)} / {fmtPeca(r.baseCalc.dispQT)}</span>
