@@ -77,7 +77,7 @@ export default function ProjecaoMacroPage() {
       // Só o tempos-ref depende do preview (precisa da lista de referências). Config, matriz
       // e capacidade real são independentes e estavam esperando na fila sem motivo: disparar
       // tudo junto tira ~38s do caminho crítico.
-      const [previewResponse, configResponse, matrixResponse, realResponse, curvaResponse, corteResponse, projResponse, planoResponse] = await Promise.all([
+      const [previewResponse, configResponse, matrixResponse, realResponse, curvaResponse, corteResponse, projBaseResponse, projDestinoResponse, planoResponse] = await Promise.all([
         fetchNoCache(`${API_URL}/api/projecao-permanentes/preview?anoBase=${anoBase}&anoDestino=${anoDestino}`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=LIEBE&status=EM%20LINHA%2CNOVA%20COLECAO`),
@@ -90,7 +90,8 @@ export default function ProjecaoMacroPage() {
         // é a chamada mais lenta da tela. Atenção: este endpoint colapsa os anos na mesma
         // chave de mês — hoje funciona porque 2027 não tem set-dez gravado, mas se tiver,
         // estes meses passam a refletir 2027 sem aviso.
-        fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/projecoes/por-mes?ano=${anoBase}&meses=9,10,11,12`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/projecoes/por-mes?ano=${anoDestino}&meses=1,2,3,4,5,6,7,8,9,10,11,12`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/producao/percentual-finalizado?marca=LIEBE&status=EM%20LINHA,NOVA%20COLECAO`),
       ]);
       const preview = await previewResponse.json();
@@ -105,7 +106,8 @@ export default function ProjecaoMacroPage() {
         Object.entries((curvaJson?.porReferencia || {}) as Record<string, string>)
           .map(([ref, cv]) => [norm(ref), norm(cv) as Curva])
       );
-      const projJson = await projResponse.json();
+      const projBaseJson = await projBaseResponse.json();
+      const projDestinoJson = await projDestinoResponse.json();
       const planoJson = await planoResponse.json();
       const execucaoJson = { data: planoJson?.detalhes || [] };
       const planoPeriodos = (planoJson?.data || {}) as Record<string, PlanoPeriodo>;
@@ -123,7 +125,9 @@ export default function ProjecaoMacroPage() {
         planoPorCurva[periodo][curva].lote += Number(row.qtdLote || 0);
         planoPorCurva[periodo][curva].op += Number(row.qtdGerouOp || 0);
       }
-      const projPorSku = (projJson?.data || {}) as Record<string, Record<string, number>>;
+      const projPorSku: Record<string, Record<string, number>> = {};
+      for (const [id, meses] of Object.entries((projBaseJson?.data || {}) as Record<string, Record<string, number>>)) projPorSku[id] = { ...(projPorSku[id] || {}), ...meses };
+      for (const [id, meses] of Object.entries((projDestinoJson?.data || {}) as Record<string, Record<string, number>>)) projPorSku[id] = { ...(projPorSku[id] || {}), ...meses };
       // Demanda de set a dez por SKU: projeção gravada quando existe, média 3m como
       // fallback mês a mês. O cálculo anterior usava média × 3, que ignorava dezembro
       // (nem o plano nem a venda) e subestimava a demanda dos outros três meses.
