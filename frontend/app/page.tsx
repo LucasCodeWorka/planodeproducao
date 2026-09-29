@@ -996,7 +996,7 @@ export default function Home() {
 
   const projecoesAtivas = useMemo<ProjecoesMap>(() => {
     // Se não tem preview de reprojeção, retorna projeções originais
-    if (reprojecaoPreview.length === 0) return projecoes;
+    if (!considerarProjecaoNova || reprojecaoPreview.length === 0) return projecoes;
 
     const clone: ProjecoesMap = { ...projecoes };
     const mesQT = mesNormalizado((periodos.UL || 0) + 1);
@@ -1008,7 +1008,7 @@ export default function Home() {
       if (!id) continue;
       const base = clone[id] ? { ...clone[id] } : {};
 
-      // AUTO-APLICAR para UL, QT, QU, SX (novembro em diante) - SEMPRE
+      // A reprojeção só é aplicada quando o usuário ativa explicitamente a opção.
       base[String(periodos.UL)] = Number(item.recalculada?.ul || 0);
       base[String(mesQT)] = Number(item.recalculada?.qt || 0);
       base[String(mesQU)] = Number(item.recalculada?.qu || 0);
