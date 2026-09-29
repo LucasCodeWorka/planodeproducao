@@ -612,7 +612,7 @@ router.post("/plano-original", async (req, res) => {
       data[id][periodo] = Number(row.plano_original || 0);
     }
 
-    return res.status(200).json({ success: true, data });
+    return res.status(200).json({ success: true, data, detalhes });
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -659,6 +659,8 @@ router.get("/percentual-finalizado", async (req, res) => {
       )
       SELECT
         UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
+        a.cd_produto::TEXT AS idproduto,
+        f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
         SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qtd_lote,
         SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qtd_gerouop
       FROM vr_pcp_lotepl2 a
@@ -666,28 +668,25 @@ router.get("/percentual-finalizado", async (req, res) => {
       LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
       WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
         AND p.tp_situacao = 1
-      GROUP BY p.cd_auxiliar
+      GROUP BY p.cd_auxiliar, a.cd_produto
     `, [marca, statusList]);
 
-    const data = { MA: null, PX: null, UL: null, QT: null, QU: null };
+const data = { MA: null, PX: null, UL: null, QT: null, QU: null };
+    const detalhes = [];
     for (const row of result.rows) {
-      const periodo = String(row.periodo || "").toUpperCase();
-      if (!["MA", "PX", "UL", "QT", "QU"].includes(periodo)) continue;
-      const qtdLote = Number(row.qtd_lote || 0);
-      const qtdGerouOp = Number(row.qtd_gerouop || 0);
-      const percentualGerouOp = qtdLote > 0 ? (qtdGerouOp / qtdLote) * 100 : 0;
-      data[periodo] = {
-        qtdLote: Math.round(qtdLote),
-        qtdGerouOp: Math.round(qtdGerouOp),
-        percentualGerouOp: Math.round(percentualGerouOp * 10) / 10, // 1 casa decimal
-        // Sem fonte nesta view (ver comentario do endpoint). Zerados de proposito,
-        // apenas para manter o contrato; nenhuma tela le estes dois campos.
-        qtdFinalizada: 0,
-        percentual: 0,
-      };
+      const periodo = String(row.periodo || '').toUpperCase();
+      if (!['MA', 'PX', 'UL', 'QT', 'QU'].includes(periodo)) continue;
+      const qtdLote = Math.round(Number(row.qtd_lote || 0));
+      const qtdGerouOp = Math.round(Number(row.qtd_gerouop || 0));
+      if (!data[periodo]) data[periodo] = { qtdLote: 0, qtdGerouOp: 0, percentualGerouOp: 0, qtdFinalizada: 0, percentual: 0 };
+      data[periodo].qtdLote += qtdLote;
+      data[periodo].qtdGerouOp += qtdGerouOp;
+      detalhes.push({ idproduto: String(row.idproduto || ''), referencia: String(row.referencia || '').trim(), periodo, qtdLote, qtdGerouOp });
     }
-
-    return res.status(200).json({ success: true, data });
+    for (const periodo of Object.keys(data)) {
+      if (!data[periodo]) continue;
+      data[periodo].percentualGerouOp = data[periodo].qtdLote > 0 ? Math.round((data[periodo].qtdGerouOp / data[periodo].qtdLote) * 1000) / 10 : 0;
+    }    return res.status(200).json({ success: true, data, detalhes });
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -1430,7 +1429,6 @@ router.get("/plano-ops-geradas", async (req, res) => {
     const result = await pool.query(`
       SELECT
         a.cd_produto::TEXT AS idproduto,
-        f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
         f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar) AS produto,
         p.cd_auxiliar AS periodo,
         SUM(COALESCE(a.qt_lote, 0))::FLOAT AS plano_original,
@@ -1857,6 +1855,99 @@ router.delete("/orcamento-mp-snapshot/:id", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Erro ao remover snapshot",
+      details: error.message
+    });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EXPORTACAO DO ORCAMENTO MP (codigo + valores, para o sistema externo consultar)
+// ══════════════════════════════════════════════════════════════════════════════
+// Tabela enxuta, so codigo da MP + os 3 valores em R$ que o PCP leva para fora do
+// app. Diferente do snapshot (que guarda a foto completa versionada em JSONB), esta
+// tabela e um espelho unico e atual: cada exportacao substitui o conteudo anterior
+// inteiro, porque o sistema externo deve ler sempre o estado vigente, nao historico.
+
+async function ensureOrcamentoExportacaoTable(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.app_orcamento_mp_exportacao (
+      idmateriaprima TEXT PRIMARY KEY,
+      valor_necessidade_total NUMERIC(15,2) NOT NULL DEFAULT 0,
+      valor_folga NUMERIC(15,2) NOT NULL DEFAULT 0,
+      valor_orcamento NUMERIC(15,2) NOT NULL DEFAULT 0,
+      atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
+/**
+ * POST /api/producao/orcamento-mp-exportacao
+ * Substitui o conteudo da tabela de exportacao pelos itens enviados (codigo + valores).
+ */
+router.post("/orcamento-mp-exportacao", async (req, res) => {
+  const pool = req.app.get("pool");
+  const client = await pool.connect();
+  try {
+    const itens = Array.isArray(req.body?.itens) ? req.body.itens : [];
+
+    await ensureOrcamentoExportacaoTable(pool);
+
+    await client.query("BEGIN");
+    await client.query("DELETE FROM public.app_orcamento_mp_exportacao");
+
+    for (const item of itens) {
+      const idmateriaprima = String(item?.idmateriaprima || "").trim();
+      if (!idmateriaprima) continue;
+      await client.query(
+        `INSERT INTO public.app_orcamento_mp_exportacao
+          (idmateriaprima, valor_necessidade_total, valor_folga, valor_orcamento)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          idmateriaprima,
+          Number(item?.valorNecessidadeTotal) || 0,
+          Number(item?.valorFolgaOrcamentoTotal) || 0,
+          Number(item?.valorOrcamentoTotal) || 0,
+        ]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    return res.status(200).json({ success: true, qtd: itens.length });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("[orcamento-mp-exportacao] Erro ao salvar:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao salvar exportacao do orcamento",
+      details: error.message
+    });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * GET /api/producao/orcamento-mp-exportacao
+ * Lista o conteudo atual da tabela de exportacao (para conferencia ou consulta externa).
+ */
+router.get("/orcamento-mp-exportacao", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    await ensureOrcamentoExportacaoTable(pool);
+
+    const result = await pool.query(`
+      SELECT idmateriaprima, valor_necessidade_total, valor_folga, valor_orcamento, atualizado_em
+      FROM public.app_orcamento_mp_exportacao
+      ORDER BY idmateriaprima
+    `);
+
+    return res.status(200).json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error("[orcamento-mp-exportacao GET] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao consultar exportacao do orcamento",
       details: error.message
     });
   }

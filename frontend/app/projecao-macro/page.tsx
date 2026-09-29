@@ -8,16 +8,13 @@ import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun'] as const;
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'] as const;
 type Month = typeof MONTHS[number];
 const CURVAS = ['A', 'B', 'C', 'D'] as const;
 type Curva = typeof CURVAS[number];
-// Capacidade diária fixada a pedido do PCP, substituindo a medição real por grupo. Vale só
-// nesta tela: o gap-mensal e a aba de Capacidade seguem com os números deles. Atenção: este
-// valor não se atualiza sozinho quando a fábrica mudar.
-const CAPACIDADE_DIARIA_FIXA = 57863;
 // Uma cor por mês. O fundo entra só nas linhas filhas: na linha-pai já existe a cor do
 // bloco, e pintar coluna por cima embolaria as duas leituras.
+const MONTH_LABELS = ['SET', 'OUT', 'NOV', 'DEZ', 'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 const CORES_MES = [
   { th: 'text-blue-700',    td: 'bg-blue-50/60' },
   { th: 'text-violet-700',  td: 'bg-violet-50/60' },
@@ -29,16 +26,19 @@ const CORES_MES = [
 
 type ProjectionItem = { idproduto: string; referencia: string; media_3m?: number; projecoes: Record<Month, number> };
 type MatrixRow = { produto?: { idproduto?: string | number; referencia?: string; continuidade?: string }; estoques?: { estoque_atual?: number; estoque_disponivel?: number; em_processo?: number; estoque_minimo?: number }; demanda?: { media_vendas_3m?: number; pedidos_pendentes?: number }; plano?: { ma?: number; px?: number; ul?: number; qt?: number } };
-// As duas primeiras sao fatias DOS PERMANENTES (somam 1). O uplift e um acrescimo por cima:
-// a projecao so cobre permanentes, entao o estoque que ela gera e todo permanente — fatiar
-// edicao limitada dele seria trocar o rotulo de estoque que nao e dela.
-type PctContinuidade = { permanente: number; corNova: number; upliftEdicaoLimitada: number };
+type PctContinuidade = { permanente: number; corNova: number; edicaoLimitada: number };
 // Insumos por SKU guardados crus: o laço mês a mês virou memo para reagir ao seletor
 // de cobertura sem refazer as consultas.
 type BaseSku = { id: string; curva: Curva; projecoes: Record<Month, number>; estoqueInicial: number; minimo: number; lote: number; tempo: number };
+type Group = { grupo: string; capacidade_diaria: number };
+type RealCapacity = { grupo: string; minutosTrabalhados: number; diasComMovimento: number };
 type MonthRow = { mes: Month; demanda: number; producao: number; producaoPorCurva: Record<Curva, number>; estoque: number; cobertura: number; carga: number; capacidade: number; capacidadePecas: number; diasDisponiveis: number; diasNecessarios: number; utilizacao: number };
 type VendasCanal = { fabrica: Record<string, number>; lojas: Record<string, number> };
 type Totalizador = { fabrica: number; fabricaAjustada: number; lojas: number; total: number };
+
+type PlanoPeriodo = { qtdLote: number; qtdGerouOp: number };
+
+type PlanoCurva = Record<string, Record<Curva, { lote: number; op: number }>>;
 
 const fmt = (n: number) => Math.round(n || 0).toLocaleString('pt-BR');
 const fmtPct = (n: number) => `${Math.round(n || 0)}%`;
@@ -65,39 +65,64 @@ export default function ProjecaoMacroPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; totalizadores: Record<string, Totalizador> } | null>(null);
+  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; totalizadores: Record<string, Totalizador>; projecaoTotal: number[]; estoqueBaseReal: number; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva } | null>(null);
 
   async function carregar() {
     setLoading(true); setError(null);
     try {
       const anoBase = new Date().getFullYear();
       const anoDestino = anoBase + 1;
-      // Só o tempos-ref depende do preview (precisa da lista de referências); o resto vai
-      // junto. A capacidade real saiu daqui: desde que o valor diário virou constante, ela
-      // alimentava apenas código morto e custava ~7s por carregamento.
-      const [previewResponse, configResponse, matrixResponse, curvaResponse, corteResponse, projResponse] = await Promise.all([
+      const hoje = new Date();
+      const isoMes = (offset: number) => new Date(hoje.getFullYear(), hoje.getMonth() + offset, 1).toISOString().slice(0, 10);
+      // Só o tempos-ref depende do preview (precisa da lista de referências). Config, matriz
+      // e capacidade real são independentes e estavam esperando na fila sem motivo: disparar
+      // tudo junto tira ~38s do caminho crítico.
+      const [previewResponse, configResponse, matrixResponse, realResponse, curvaResponse, corteResponse, projResponse, planoResponse] = await Promise.all([
         fetchNoCache(`${API_URL}/api/projecao-permanentes/preview?anoBase=${anoBase}&anoDestino=${anoDestino}`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=LIEBE&status=EM%20LINHA%2CNOVA%20COLECAO`),
+        fetchNoCache(`${API_URL}/api/capacidade/real?de=${isoMes(-3)}&ate=${isoMes(0)}`, { headers: authHeaders() }),
         // Vão no mesmo Promise.all de propósito: se fossem fetches soltos, o cálculo poderia
         // rodar antes de chegarem, e todo SKU cairia no default de curva e de lote.
         fetchNoCache(`${API_URL}/api/analises/curva-abc-referencias`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() }),
-        // Projeção gravada de set-dez, do endpoint enxuto: le app_projecoes direto, sem
-        // de-para e sem colapsar os anos. O /api/projecoes equivalente levava ~30s.
-        fetchNoCache(`${API_URL}/api/projecoes/por-mes?ano=${anoBase}&meses=9,10,11,12`, { headers: authHeaders() }),
+        // Projeção gravada de set a dez, para não estimar a demanda por média. Custa ~20s e
+        // é a chamada mais lenta da tela. Atenção: este endpoint colapsa os anos na mesma
+        // chave de mês — hoje funciona porque 2027 não tem set-dez gravado, mas se tiver,
+        // estes meses passam a refletir 2027 sem aviso.
+        fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/producao/percentual-finalizado?marca=LIEBE&status=EM%20LINHA,NOVA%20COLECAO`),
       ]);
       const preview = await previewResponse.json();
       if (!previewResponse.ok || !preview.success) throw new Error(preview.error || 'Erro ao carregar projeção');
       const refs = Array.from(new Set((preview.itens || []).map((i: ProjectionItem) => norm(i.referencia)).filter(Boolean)));
       const tempoResponse = await fetchNoCache(`${API_URL}/api/capacidade/tempos-ref?referencias=${encodeURIComponent(refs.join(','))}`, { headers: authHeaders() });
       const config = await configResponse.json(); const matrix = await matrixResponse.json(); const tempos = await tempoResponse.json();
+      const real = await realResponse.json();
+      const referenciaPorId = new Map<string, string>((matrix.data || []).map((r: MatrixRow) => [String(r.produto?.idproduto), norm(r.produto?.referencia)]));
       const curvaJson = await curvaResponse.json();
       const curvaPorRef = new Map<string, Curva>(
         Object.entries((curvaJson?.porReferencia || {}) as Record<string, string>)
           .map(([ref, cv]) => [norm(ref), norm(cv) as Curva])
       );
       const projJson = await projResponse.json();
+      const planoJson = await planoResponse.json();
+      const execucaoJson = { data: planoJson?.detalhes || [] };
+      const planoPeriodos = (planoJson?.data || {}) as Record<string, PlanoPeriodo>;
+      const planoPorCurva: PlanoCurva = {};
+      const lotesProcessados = new Set<string>();
+      for (const row of (Array.isArray(execucaoJson?.data) ? execucaoJson.data : [])) {
+        const periodo = norm(row.periodo);
+        const chaveLote = String(row.sku || row.idproduto || '') + ':' + periodo;
+        if (lotesProcessados.has(chaveLote)) continue;
+        lotesProcessados.add(chaveLote);
+        const referencia = String(row.referencia || referenciaPorId.get(String(row.idproduto)));
+        const curva = curvaPorRef.get(norm(referencia));
+        if (!periodo || !['MA', 'PX', 'UL', 'QT', 'QU'].includes(periodo) || !curva || !['A', 'B', 'C', 'D'].includes(curva)) continue;
+        planoPorCurva[periodo] ||= { A: { lote: 0, op: 0 }, B: { lote: 0, op: 0 }, C: { lote: 0, op: 0 }, D: { lote: 0, op: 0 } };
+        planoPorCurva[periodo][curva].lote += Number(row.qtdLote || 0);
+        planoPorCurva[periodo][curva].op += Number(row.qtdGerouOp || 0);
+      }
       const projPorSku = (projJson?.data || {}) as Record<string, Record<string, number>>;
       // Demanda de set a dez por SKU: projeção gravada quando existe, média 3m como
       // fallback mês a mês. O cálculo anterior usava média × 3, que ignorava dezembro
@@ -113,10 +138,22 @@ export default function ProjecaoMacroPage() {
           .map((c: { idproduto?: string; corte_min?: number }) => [String(c?.idproduto || '').trim(), Number(c?.corte_min || 0)])
       );
       if (!configResponse.ok || !config.success) throw new Error(config.error || 'Erro ao carregar capacidade');
-      const capacidadeDiariaTotal = CAPACIDADE_DIARIA_FIXA;
+      const groups: Group[] = config.data?.grupos || [];
+      const realByGroup = new Map<string, { minutos: number; dias: number }>();
+      ((real.data || []) as RealCapacity[]).forEach((row) => {
+        const key = norm(row.grupo); const current = realByGroup.get(key) || { minutos: 0, dias: 0 };
+        current.minutos += Number(row.minutosTrabalhados || 0); current.dias += Number(row.diasComMovimento || 0); realByGroup.set(key, current);
+      });
+      const capacityGroups = groups.map((group) => {
+        const current = realByGroup.get(norm(group.grupo));
+        const media3m = current && current.dias > 0 ? current.minutos / current.dias : 0;
+        return { ...group, capacidade_diaria: media3m > 0 ? media3m : Number(group.capacidade_diaria || 0) };
+      });
+      const capacidadeDiariaTotal = capacityGroups.reduce((sum, g) => sum + Number(g.capacidade_diaria || 0), 0);
       const days: Record<string, number> = config.data?.dias || {};
       const timeByRef = new Map<string, number>((tempos.data || []).map((t: any) => [norm(t.referencia_padrao || t.idreferencia), Number(t.tempo_segundos || 0)]));
       const matrixById = new Map<string, MatrixRow>((matrix.data || []).map((r: MatrixRow) => [String(r.produto?.idproduto || ''), r]));
+
       // Proporção do estoque de HOJE por continuidade. O estoque projetado cobre só as duas
       // permanentes, então a fatia de edição limitada é extrapolação: assume que a proporção
       // atual se mantém. Serve para leitura macro, não é número projetado.
@@ -129,17 +166,12 @@ export default function ProjecaoMacroPage() {
         else if (c === 'EDICAO LIMITADA' || c === 'EDIÇÃO LIMITADA') estoqueHoje.edicaoLimitada += v;
         else estoqueHoje.outros += v;
       }
-      // Base = só os permanentes, que é o universo da projeção. O uplift usa a mesma base,
-      // por isso é 20,7% (edição limitada ÷ permanentes) e não 17,2% (fatia do total).
-      const permHoje = estoqueHoje.permanente + estoqueHoje.corNova;
-      const pctContinuidade: PctContinuidade = permHoje > 0
-        ? {
-            permanente: estoqueHoje.permanente / permHoje,
-            corNova: estoqueHoje.corNova / permHoje,
-            upliftEdicaoLimitada: estoqueHoje.edicaoLimitada / permHoje,
-          }
-        : { permanente: 0, corNova: 0, upliftEdicaoLimitada: 0 };
+      const totalHoje = estoqueHoje.permanente + estoqueHoje.corNova + estoqueHoje.edicaoLimitada + estoqueHoje.outros;
+      const pctContinuidade: PctContinuidade = totalHoje > 0
+        ? { permanente: estoqueHoje.permanente / totalHoje, corNova: estoqueHoje.corNova / totalHoje, edicaoLimitada: estoqueHoje.edicaoLimitada / totalHoje }
+        : { permanente: 0, corNova: 0, edicaoLimitada: 0 };
       const items: ProjectionItem[] = preview.itens || [];
+      const projecaoTotal = Array.from({ length: 13 }, (_, mes) => items.reduce((sum, item) => sum + Number(projPorSku[String(item.idproduto)]?.[String(mes)] || 0), 0));
       const initial = items.reduce((sum, item) => sum + Number(matrixById.get(String(item.idproduto))?.estoques?.estoque_disponivel || 0), 0);
       const process = items.reduce((sum, item) => sum + Number(matrixById.get(String(item.idproduto))?.estoques?.em_processo || 0), 0);
       const pedidosPendentes = items.reduce((sum, item) => sum + Number(matrixById.get(String(item.idproduto))?.demanda?.pedidos_pendentes || 0), 0);
@@ -166,12 +198,10 @@ export default function ProjecaoMacroPage() {
           tempo: timeByRef.get(norm(item.referencia)) || 0,
         };
       });
-      // Mesma base fixa do divisor, senão "dias trabalhados" deixaria de bater com os dias
-      // cadastrados em Capacidade.
-      const capacidadePorMes = MONTHS.map((_, index) => CAPACIDADE_DIARIA_FIXA * Number(days[String(index + 1)] || 0));
+      const capacidadePorMes = MONTHS.map((_, index) => capacityGroups.reduce((sum, g) => sum + Number(g.capacidade_diaria || 0) * Number(days[String(index + 1)] || 0), 0));
       const vendas: VendasCanal = { fabrica: preview.vendas?.fabrica || {}, lojas: preview.vendas?.lojas || {} };
       const totalizadores: Record<string, Totalizador> = preview.totalizadores || {};
-      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, pctContinuidade, vendas, totalizadores });
+      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, pctContinuidade, vendas, totalizadores, projecaoTotal, planoPeriodos, planoPorCurva });
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao carregar visão macro'); }
     finally { setLoading(false); }
   }
@@ -246,11 +276,8 @@ export default function ProjecaoMacroPage() {
       const estoque = Array.from(corrente.values()).reduce((sum, v) => sum + v, 0);
       const diasDisponiveis = rawData.capacidadeDiaria > 0 ? capacidade / rawData.capacidadeDiaria : 0;
       const diasNecessarios = rawData.capacidadeDiaria > 0 ? carga / rawData.capacidadeDiaria : 0;
-      // Capacidade em pecas nao e constante: depende do mix. Uma peca vai de 2,3 a 22,7 min,
-      // entao o mesmo minuto de fabrica rende quantidades diferentes conforme o que se produz.
-      // Aqui e "quantas pecas caberiam no mes, ao mix planejado para ele".
-      const minPorPeca = producao > 0 ? carga / producao : 0;
-      const capacidadePecas = minPorPeca > 0 ? capacidade / minPorPeca : 0;
+      const minutosPorPeca = producao > 0 ? carga / producao : 0;
+      const capacidadePecas = minutosPorPeca > 0 ? capacidade / minutosPorPeca : 0;
       return { mes, demanda, producao, producaoPorCurva, estoque, cobertura: demanda > 0 ? estoque / demanda : 0, carga, capacidade, capacidadePecas, diasDisponiveis, diasNecessarios, utilizacao: capacidade > 0 ? (carga / capacidade) * 100 : 0 };
     });
   }, [rawData, modoCobertura, multiplicadorCobertura, coberturaPorCurva, coberturaMaxPorCurva]);
@@ -265,60 +292,85 @@ export default function ProjecaoMacroPage() {
   type VisaoGeralBloco = VisaoGeralLinha & { id: string; rowClass: string; filhos: VisaoGeralLinha[] };
   const visaoGeralBlocos = useMemo<VisaoGeralBloco[]>(() => {
     if (!data) return [];
-    const val = (i: number, rec: Record<string, number>) => Number(rec[String(i + 1)] || 0);
-    const tot = (i: number) => data.totalizadores[String(i + 1)] || { fabrica: 0, fabricaAjustada: 0, lojas: 0, total: 0 };
+    const val = (mes: number, rec: Record<string, number>) => Number(rec[String(mes)] || 0);
+    const tot = (mes: number) => data.totalizadores[String(mes)] || { fabrica: 0, fabricaAjustada: 0, lojas: 0, total: 0 };
+    const expandir = (values: (number | null)[], levarParaReal = false) => [...Array(8).fill(null), ...values.flatMap((v) => [v, levarParaReal ? v : null])];
+    const atual = [9, 10, 11, 12];
+    const planoPorMes: Record<number, number> = { 9: Number(data.planoPeriodos.MA?.qtdLote || 0), 10: Number(data.planoPeriodos.PX?.qtdLote || 0), 11: Number(data.planoPeriodos.UL?.qtdLote || 0), 12: Number(data.planoPeriodos.QT?.qtdLote || 0), 1: Number(data.planoPeriodos.QU?.qtdLote || 0) };
+    let saldoReal = Number(data.estoqueBaseReal || 0);
+    const estoqueReal = [9, 10, 11, 12, 1].map((mes, index) => { if (index > 0) saldoReal += Number(planoPorMes[mes] || 0) - Number(tot(mes).total || data.projecaoTotal[mes] || 0); return saldoReal; });
+    const estoqueMatriz = [...estoqueReal.slice(0, 4).flatMap((v) => [null, v]), ... [Number(data.meses[0]?.estoque || 0), estoqueReal[4]], ...data.meses.slice(1).flatMap((m) => [Number(m.estoque || 0), null])];
+    const tempoMedioPeca = data.meses[0]?.producao > 0 ? data.meses[0].carga / data.meses[0].producao : 0;
+    const capacidadeReal = [8, 9, 10, 11, 0].map((index) => tempoMedioPeca > 0 ? Number(data.capacidadePorMes[index] || 0) / tempoMedioPeca : 0);
+    const capacidadeMatriz = [...capacidadeReal.slice(0, 4).flatMap((v) => [null, v]), ... [Number(data.meses[0]?.capacidadePecas || 0), capacidadeReal[4]], ...data.meses.slice(1).flatMap((m) => [Number(m.capacidadePecas || 0), null])];
+    const vendas = [...atual.flatMap((mes) => [Number(data.projecaoTotal[mes] || 0), Number(tot(mes).fabrica || 0) + Number(tot(mes).lojas || 0)]), ...MONTHS.map((_, i) => [Number(data.projecaoTotal[i + 1] || 0), null]).flat()];
+    const realSetembro = tot(9);
+    const totalRealSetembro = Number(realSetembro.fabrica || 0) + Number(realSetembro.lojas || 0);
+    const participacaoFabrica = totalRealSetembro > 0 ? Number(realSetembro.fabrica || 0) / totalRealSetembro : 0;
+    const fabrica = [
+      ...atual.flatMap((mes) => {
+        const real = tot(mes);
+        const totalReal = Number(real.fabrica || 0) + Number(real.lojas || 0);
+        const participacao = totalReal > 0 ? Number(real.fabrica || 0) / totalReal : participacaoFabrica;
+        const projetado = Number(data.projecaoTotal[mes] || 0);
+        return [Math.round(projetado * participacao), Number(real.fabrica || 0)];
+      }),
+      ...MONTHS.map((_, i) => [Math.round(Number(data.projecaoTotal[i + 1] || 0) * participacaoFabrica), null]).flat(),
+    ];
+    const lojas = [
+      ...atual.flatMap((mes) => {
+        const real = tot(mes);
+        const totalReal = Number(real.fabrica || 0) + Number(real.lojas || 0);
+        const participacao = totalReal > 0 ? Number(real.lojas || 0) / totalReal : 1 - participacaoFabrica;
+        const projetado = Number(data.projecaoTotal[mes] || 0);
+        return [Math.round(projetado * participacao), Number(real.lojas || 0)];
+      }),
+      ...MONTHS.map((_, i) => {
+        const projetado = Number(data.projecaoTotal[i + 1] || 0);
+        return [projetado - Math.round(projetado * participacaoFabrica), null];
+      }).flat(),
+    ];
+    const periodosPlano = ['MA', 'PX', 'UL', 'QT', 'QU'];
+    const planoPrevisto = [...periodosPlano.flatMap((periodo) => [Number(data.planoPeriodos[periodo]?.qtdLote || 0), Number(data.planoPeriodos[periodo]?.qtdGerouOp || 0)]), ...data.meses.slice(1).flatMap((m) => [Number(m.producao || 0), null])];
+    const curvaPlano = (cv: Curva) => [...periodosPlano.flatMap((periodo) => [Number(data.planoPorCurva[periodo]?.[cv]?.lote || 0), Number(data.planoPorCurva[periodo]?.[cv]?.op || 0)]), ...data.meses.slice(1).flatMap((m) => [Number(m.producaoPorCurva[cv] || 0), null])];
     return [
       {
-        id: 'vendas', label: 'Vendas', rowClass: 'bg-sky-50',
-        // Fábrica já ajustada + lojas: os filhos somam exatamente o pai.
-        values: data.meses.map((_, i) => Number(tot(i).fabricaAjustada || 0) + Number(tot(i).lojas || 0)),
+        id: 'vendas', label: 'Vendas', rowClass: 'bg-sky-50', values: vendas,
         filhos: [
-          { label: 'Fábrica (base)', values: data.meses.map((_, i) => val(i, data.vendas.fabrica)) },
-          { label: 'Ajuste de fábrica', values: data.meses.map((_, i) => Number(tot(i).fabricaAjustada || 0) - Number(tot(i).fabrica || 0)) },
-          { label: 'Lojas', values: data.meses.map((_, i) => val(i, data.vendas.lojas)) },
+          { label: 'Fabrica', values: fabrica },
+          { label: 'Lojas', values: lojas },
         ],
       },
       {
-        // Não é produção realizada: é o quanto de plano precisa entrar para o estoque não
-        // furar o mínimo depois da venda projetada, já descontado o plano que hoje existe.
-        id: 'producao', label: 'Plano previsto', rowClass: 'bg-emerald-50',
-        values: data.meses.map((m) => m.producao),
-        filhos: [
-          ...CURVAS.map((cv) => ({
-            // Mostra o alvo efetivamente aplicado, não a política base: com o multiplicador
-            // em 3x a curva A opera em 0,60x, e no modo de alvo único todas usam o mesmo.
-            label: `Curva ${cv} (${(modoCobertura === 'curva' ? coberturaPorCurva[cv] * multiplicadorCobertura : modoCobertura).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}x)`,
-            values: data.meses.map((m) => m.producaoPorCurva[cv]),
-          })),
-        ],
+        id: 'producao', label: 'Plano', rowClass: 'bg-emerald-50',
+        values: planoPrevisto,
+        filhos: CURVAS.map((cv) => ({
+          label: `Curva ${cv}`,
+          values: curvaPlano(cv),
+        })),
       },
       {
         id: 'estoque', label: 'Estoque projetado', rowClass: 'bg-amber-50',
-        values: data.meses.map((m) => m.estoque),
+        values: estoqueMatriz,
         filhos: [
-          { label: `Permanente (${(data.pctContinuidade.permanente * 100).toFixed(1)}% do projetado)`, values: data.meses.map((m) => m.estoque * data.pctContinuidade.permanente) },
-          { label: `Permanente cor nova (${(data.pctContinuidade.corNova * 100).toFixed(1)}%)`, values: data.meses.map((m) => m.estoque * data.pctContinuidade.corNova) },
-          { label: `Edição limitada (+${(data.pctContinuidade.upliftEdicaoLimitada * 100).toFixed(1)}%, estimada)`, values: data.meses.map((m) => m.estoque * data.pctContinuidade.upliftEdicaoLimitada) },
-          { label: 'Total com edição limitada', values: data.meses.map((m) => m.estoque * (1 + data.pctContinuidade.upliftEdicaoLimitada)) },
-          { label: 'Cobertura', values: data.meses.map((m) => (m.demanda > 0 ? m.cobertura : null)), decimals: 1, suffix: 'x', dangerBelow: 1 },
+          { label: `Permanente (${(data.pctContinuidade.permanente * 100).toFixed(1)}% hoje)`, values: estoqueMatriz.map((v) => v === null ? null : v * data.pctContinuidade.permanente) },
+          { label: `Permanente cor nova (${(data.pctContinuidade.corNova * 100).toFixed(1)}% hoje)`, values: estoqueMatriz.map((v) => v === null ? null : v * data.pctContinuidade.corNova) },
+          { label: `Edicao limitada (${(data.pctContinuidade.edicaoLimitada * 100).toFixed(1)}% hoje)`, values: estoqueMatriz.map((v) => v === null ? null : v * data.pctContinuidade.edicaoLimitada) },
+          { label: 'Cobertura', values: expandir(data.meses.map((m) => m.demanda > 0 ? m.cobertura : null), true), decimals: 1, suffix: 'x', dangerBelow: 1 },
         ],
       },
       {
-        id: 'capacidade', label: 'Capacidade (peças)', rowClass: 'bg-slate-100',
-        values: data.meses.map((m) => m.capacidadePecas),
+        id: 'capacidade', label: 'Capacidade (pecas)', rowClass: 'bg-slate-100', values: capacidadeMatriz,
         filhos: [
-          { label: 'Em minutos', values: data.meses.map((m) => m.capacidade) },
-          { label: 'Minutos por peça (mix do mês)', values: data.meses.map((m) => (m.producao > 0 ? m.carga / m.producao : null)), decimals: 2 },
-          { label: 'Dias trabalhados', values: data.meses.map((m) => m.diasDisponiveis), decimals: 1 },
-          { label: 'Dias necessários', values: data.meses.map((m) => m.diasNecessarios), decimals: 1 },
-          { label: 'Utilização', values: data.meses.map((m) => m.utilizacao), decimals: 0, suffix: '%' },
+          { label: 'Em minutos', values: expandir(data.meses.map((m) => m.capacidade), true) },
+          { label: 'Minutos por peca (mix do mes)', values: expandir(data.meses.map((m) => m.producao > 0 ? m.carga / m.producao : null), true), decimals: 2 },
+          { label: 'Dias trabalhados', values: expandir(data.meses.map((m) => m.diasDisponiveis), true), decimals: 1 },
+          { label: 'Dias necessarios', values: expandir(data.meses.map((m) => m.diasNecessarios), true), decimals: 1 },
+          { label: 'Utilizacao', values: expandir(data.meses.map((m) => m.utilizacao), true), decimals: 0, suffix: '%' },
         ],
       },
     ];
-    // coberturaPorCurva entra explicitamente: hoje ela chega aqui por tabela (via `meses`),
-    // mas os rótulos das curvas a leem direto e ficariam defasados se essa cadeia mudar.
-  }, [data, coberturaPorCurva, modoCobertura, multiplicadorCobertura]);
-  const Trend = ({ curr, prev }: { curr: number | null; prev: number | null }) => {
+  }, [data, coberturaPorCurva, modoCobertura, multiplicadorCobertura]);  const Trend = ({ curr, prev }: { curr: number | null; prev: number | null }) => {
     if (curr === null || prev === null || curr === prev) return null;
     return curr > prev
       ? <span className="text-emerald-600 ml-1 text-[10px] align-middle">▲</span>
@@ -397,31 +449,23 @@ export default function ProjecaoMacroPage() {
           <LayoutGrid size={18} className="text-slate-600" />
           <div>
             <h2 className="font-semibold text-gray-900">Visão Geral</h2>
-            <p className="text-xs text-gray-500">Vendas, plano previsto, estoque projetado e capacidade — mês a mês, cada bloco abrindo em detalhe.</p>
-          </div>
-          <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            <button
-              onClick={() => setAbertos(Object.fromEntries(visaoGeralBlocos.map((b) => [b.id, true])))}
-              className="rounded border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
-            >
-              Expandir todos
-            </button>
-            <button
-              onClick={() => setAbertos(Object.fromEntries(visaoGeralBlocos.map((b) => [b.id, false])))}
-              className="rounded border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
-            >
-              Recolher todos
-            </button>
+            <p className="text-xs text-gray-500">Dias trabalhados (cadastrados em Capacidade), estoque projetado, vendas por canal e produção, mês a mês.</p>
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-base">
-            <thead className="bg-gray-50 text-[13px] uppercase">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-xs uppercase">
               <tr>
-                <th className="px-4 py-3 text-left text-gray-700">Indicador</th>
-                {MONTHS.map((m, i) => (
-                  <th key={m} className={`px-4 py-3 text-right font-bold ${CORES_MES[i].th}`}>{m}</th>
+                <th rowSpan={2} className="px-4 py-3 text-left text-gray-700">Indicador</th>
+                {MONTH_LABELS.map((m, i) => (
+                  <th key={`${m}-${i}`} colSpan={2} className={`px-4 py-2 text-center font-bold ${CORES_MES[i % CORES_MES.length].th}`}>{m}</th>
                 ))}
+              </tr>
+              <tr>
+                {MONTH_LABELS.flatMap((_, i) => [
+                  <th key={`p-${i}`} className={`px-3 py-2 text-right text-[10px] font-semibold ${CORES_MES[i % CORES_MES.length].th}`}>Projetado</th>,
+                  <th key={`r-${i}`} className={`px-3 py-2 text-right text-[10px] font-semibold ${CORES_MES[i % CORES_MES.length].th}`}>Real</th>,
+                ])}
               </tr>
             </thead>
             <tbody>
@@ -431,7 +475,7 @@ export default function ProjecaoMacroPage() {
                   const perigo = linha.dangerBelow !== undefined && v !== null && v < linha.dangerBelow;
                   const texto = v === null ? '—' : linha.decimals !== undefined ? `${v.toFixed(linha.decimals)}${linha.suffix || ''}` : fmt(v);
                   return (
-                    <td key={i} className={`px-4 py-3 text-right font-mono ${destaque ? '' : CORES_MES[i].td} ${perigo ? 'text-red-600 font-semibold' : destaque ? 'font-semibold text-gray-900' : 'text-gray-900'}`}>
+                    <td key={i} className={`px-4 py-3 text-right font-mono ${destaque ? '' : CORES_MES[Math.floor(i / 2) % CORES_MES.length].td} ${perigo ? 'text-red-600 font-semibold' : destaque ? 'font-semibold text-gray-900' : 'text-gray-900'}`}>
                       {texto}
                       {i > 0 && <Trend curr={v} prev={linha.values[i - 1]} />}
                     </td>
@@ -453,7 +497,7 @@ export default function ProjecaoMacroPage() {
                     </tr>
                     {aberto && bloco.filhos.map((filho) => (
                       <tr key={filho.label} className="border-t border-gray-100">
-                        <td className="px-4 py-2.5 pl-11 text-[15px] font-medium text-gray-900">{filho.label}</td>
+                        <td className="px-4 py-2 pl-11 text-[13px] font-medium text-gray-900">{filho.label}</td>
                         {celulas(filho, false)}
                       </tr>
                     ))}

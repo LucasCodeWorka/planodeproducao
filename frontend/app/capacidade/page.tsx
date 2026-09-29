@@ -312,8 +312,10 @@ export default function CapacidadePage() {
           .map((r: GrupoRefRow) => norm(r.referencia))
           .filter(Boolean)
       ));
+      const refsMatriz = Array.from(new Set((Array.isArray(pMatriz?.data) ? pMatriz.data : []).map((item: Planejamento) => norm(item.produto?.cd_seqgrupo || '')).filter(Boolean)));
       const paramsTempos = new URLSearchParams();
-      if (refsCapacidade.length) paramsTempos.set('referencias', refsCapacidade.join(','));
+      const idsTempo = Array.from(new Set([...refsCapacidade, ...refsMatriz]));
+      if (idsTempo.length) paramsTempos.set('idreferencias', idsTempo.join(','));
       const rTempos = await fetchNoCache(`${API_URL}/api/capacidade/tempos-ref?${paramsTempos.toString()}`, { headers: authHeaders() });
       const pTempos = await rTempos.json();
       if (!rTempos.ok || !pTempos.success) throw new Error(pTempos.error || 'Erro ao carregar tempos de costura');
@@ -738,6 +740,7 @@ export default function CapacidadePage() {
       cargaPX: acc.cargaPX + r.cargaPX,
       cargaUL: acc.cargaUL + r.cargaUL,
       cargaQT: acc.cargaQT + r.cargaQT,
+      cargaQU: acc.cargaQU + r.cargaQU,
       cargaTotal: acc.cargaTotal + r.cargaTotal,
       comTempo: acc.comTempo + (r.tempoSegundos > 0 ? 1 : 0),
       semTempo: acc.semTempo + (r.tempoSegundos === 0 ? 1 : 0),
@@ -749,6 +752,7 @@ export default function CapacidadePage() {
       cargaPX: 0,
       cargaUL: 0,
       cargaQT: 0,
+      cargaQU: 0,
       cargaTotal: 0,
       comTempo: 0,
       semTempo: 0,
@@ -1099,6 +1103,19 @@ export default function CapacidadePage() {
     });
   }, [detalhesRefFiltrados]);
 
+  const auditoriaTotalResumo = useMemo(() => ({
+    refs: auditoriaDetalheResumo.refs + refNaoMapeadas.length,
+    processoPecas: auditoriaDetalheResumo.processoPecas + refNaoMapeadas.reduce((sum, row) => sum + row.emProcesso, 0),
+    processoCarga: auditoriaDetalheResumo.processoCarga + resumoNaoMapeadas.cargaProcesso,
+    cargaMA: auditoriaDetalheResumo.cargaMA + resumoNaoMapeadas.cargaMA,
+    cargaPX: auditoriaDetalheResumo.cargaPX + resumoNaoMapeadas.cargaPX,
+    cargaUL: auditoriaDetalheResumo.cargaUL + resumoNaoMapeadas.cargaUL,
+    cargaJUN: auditoriaDetalheResumo.cargaJUN + resumoNaoMapeadas.cargaQT,
+    cargaOUT: auditoriaDetalheResumo.cargaOUT + resumoNaoMapeadas.cargaQU,
+    cargaNOV: auditoriaDetalheResumo.cargaNOV,
+    cargaTotal: auditoriaDetalheResumo.cargaTotal + resumoNaoMapeadas.cargaTotal,
+  }), [auditoriaDetalheResumo, refNaoMapeadas, resumoNaoMapeadas]);
+
   const resumo = useMemo(() => {
     const base = gruposAnalise.reduce((acc, row) => ({
       grupos: acc.grupos + 1,
@@ -1175,13 +1192,13 @@ export default function CapacidadePage() {
         capacidadeDiariaTotal += capacidadePorGrupo(grupo);
       }
       const cargasPorPeriodo = {
-        processo: auditoriaDetalheResumo.processoCarga,
-        ma: Math.max(0, auditoriaDetalheResumo.cargaMA - auditoriaDetalheResumo.processoCarga),
-        px: auditoriaDetalheResumo.cargaPX,
-        ul: auditoriaDetalheResumo.cargaUL,
-        jun: auditoriaDetalheResumo.cargaJUN,
-        out: auditoriaDetalheResumo.cargaOUT,
-        nov: auditoriaDetalheResumo.cargaNOV,
+        processo: auditoriaTotalResumo.processoCarga,
+        ma: Math.max(0, auditoriaTotalResumo.cargaMA - auditoriaTotalResumo.processoCarga),
+        px: auditoriaTotalResumo.cargaPX,
+        ul: auditoriaTotalResumo.cargaUL,
+        jun: auditoriaTotalResumo.cargaJUN,
+        out: auditoriaTotalResumo.cargaOUT,
+        nov: auditoriaTotalResumo.cargaNOV,
       };
       const cargaTotal = Object.values(cargasPorPeriodo).reduce((total, carga) => total + carga, 0);
       const diasNecessarios = capacidadeDiariaTotal > 0 ? cargaTotal / capacidadeDiariaTotal : 0;
@@ -1204,7 +1221,7 @@ export default function CapacidadePage() {
       calcular('Último mês', (grupo) => capacidadeDiariaPorFonte.ultimoMes.get(norm(grupo.grupo)) || 0),
       calcular('Média real 3 meses', (grupo) => capacidadeDiariaPorFonte.media12.get(norm(grupo.grupo)) || 0),
     ];
-  }, [grupos, gruposAnalise, auditoriaDetalheResumo, dias, periodos, mesJunho, mesOutubro, mesNovembro, horizonteCapacidade, capacidadeDiariaPorFonte]);
+  }, [grupos, gruposAnalise, auditoriaTotalResumo, dias, periodos, mesJunho, mesOutubro, mesNovembro, horizonteCapacidade, capacidadeDiariaPorFonte]);
 
   const resumoAteHorizonte = useMemo(() => {
     const etapas = [
@@ -1218,14 +1235,14 @@ export default function CapacidadePage() {
     const limite = Math.max(0, etapas.findIndex((etapa) => etapa.chave === horizonteCapacidade));
     const selecionadas = etapas.slice(0, limite + 1);
     const cargas = {
-      MA: auditoriaDetalheResumo.cargaMA,
-      PX: auditoriaDetalheResumo.cargaPX,
-      UL: auditoriaDetalheResumo.cargaUL,
-      QT: auditoriaDetalheResumo.cargaJUN,
-      QU: auditoriaDetalheResumo.cargaOUT,
-      SX: auditoriaDetalheResumo.cargaNOV,
+      MA: auditoriaTotalResumo.cargaMA,
+      PX: auditoriaTotalResumo.cargaPX,
+      UL: auditoriaTotalResumo.cargaUL,
+      QT: auditoriaTotalResumo.cargaJUN,
+      QU: auditoriaTotalResumo.cargaOUT,
+      SX: auditoriaTotalResumo.cargaNOV,
     };
-    const tempo = auditoriaDetalheResumo.processoCarga + selecionadas.reduce((total, etapa) => total + cargas[etapa.chave as keyof typeof cargas], 0);
+    const tempo = auditoriaTotalResumo.processoCarga + selecionadas.reduce((total, etapa) => total + cargas[etapa.chave as keyof typeof cargas], 0);
     const capacidadeDiariaTotal = gruposAnalise.reduce((total, row) => total + row.capacidadeDiaria, 0);
     const diasNecessarios = capacidadeDiariaTotal > 0 ? tempo / capacidadeDiariaTotal : 0;
     const diasDisponiveis = selecionadas.reduce((total, etapa) => total + etapa.dias, 0);
@@ -1240,7 +1257,7 @@ export default function CapacidadePage() {
             : horizonteCapacidade === 'QT' ? nomeMes(mesJunho)
               : horizonteCapacidade === 'QU' ? nomeMes(mesOutubro) : nomeMes(mesNovembro),
     };
-  }, [gruposAnalise, auditoriaDetalheResumo, dias, periodos, mesJunho, mesOutubro, mesNovembro, horizonteCapacidade]);
+  }, [gruposAnalise, auditoriaTotalResumo, dias, periodos, mesJunho, mesOutubro, mesNovembro, horizonteCapacidade]);
 
   const gruposPorTipo = useMemo(() => {
     const map = new Map<string, {
@@ -1601,7 +1618,7 @@ export default function CapacidadePage() {
                             [`Plano ${nomeMes(periodos.UL)}`, auditoriaDetalheResumo.cargaUL, 'ul'],
                             [`Plano ${nomeMes(mesJunho)}`, auditoriaDetalheResumo.cargaJUN, 'jun'],
                             [`Plano ${nomeMes(mesOutubro)}`, auditoriaDetalheResumo.cargaOUT, 'out'],
-                            [`Plano ${nomeMes(mesNovembro)}`, auditoriaDetalheResumo.cargaNOV, 'nov'],
+                            [`Plano ${nomeMes(mesNovembro)}`, auditoriaTotalResumo.cargaNOV, 'nov'],
                           ].map(([nome, tempo, chave]) => (
                             <tr key={String(chave)} className="border-t border-stone-100">
                               <td className="px-3 py-2 font-medium text-stone-700">{nome}</td>

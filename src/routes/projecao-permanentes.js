@@ -71,7 +71,7 @@ router.post('/aplicar', auth, async (req, res) => {
     console.log(`[projecao-permanentes] Aplicando projeções: ${itens.length} SKUs para ano ${anoDestino}`);
 
     // Mapear meses
-    const mesesMap = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6 };
+    const mesesMap = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
 
     // Preparar registros para inserção em lote
     const registros = [];

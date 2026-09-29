@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw, Save, History, Trash2, GitCompare, Eye, X } from 'lucide-react';
+import { RefreshCw, Save, History, Trash2, GitCompare, Eye, X, Upload } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { Planejamento } from '../types';
 import { authHeaders, getToken } from '../lib/auth';
@@ -352,6 +352,9 @@ export default function OrcamentoMpPage() {
   const [snapshotDescricao, setSnapshotDescricao] = useState('');
   const [salvandoSnapshot, setSalvandoSnapshot] = useState(false);
   const [snapshotsModalAberto, setSnapshotsModalAberto] = useState(false);
+  // Exportacao enxuta (codigo MP + R$ total/folga/orcamento) para o sistema externo ler.
+  const [exportandoOrcamento, setExportandoOrcamento] = useState(false);
+  const [exportacaoFeedback, setExportacaoFeedback] = useState<{ tipo: 'ok' | 'erro'; msg: string } | null>(null);
   const [snapshotComparando, setSnapshotComparando] = useState<{ idA: number; idB: number } | null>(null);
   const [comparacaoSnapshot, setComparacaoSnapshot] = useState<ComparacaoSnapshotType | null>(null);
   const [snapshotDetalheAberto, setSnapshotDetalheAberto] = useState<SnapshotDetalhe | null>(null);
@@ -846,6 +849,37 @@ export default function OrcamentoMpPage() {
       alert('Erro ao salvar versão');
     } finally {
       setSalvandoSnapshot(false);
+    }
+  }
+
+  async function exportarOrcamento() {
+    setExportandoOrcamento(true);
+    setExportacaoFeedback(null);
+    try {
+      const itens = rowsCalculadas.map((row) => ({
+        idmateriaprima: row.idmateriaprima,
+        valorNecessidadeTotal: row.valorNecessidadeTotal || 0,
+        valorFolgaOrcamentoTotal: row.valorFolgaOrcamentoTotal || 0,
+        valorOrcamentoTotal: row.valorOrcamentoTotal || 0,
+      }));
+
+      const response = await fetchNoCache(`${API_URL}/api/producao/orcamento-mp-exportacao`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ itens }),
+      }, 60000);
+
+      const payload = await response.json();
+      if (response.ok && payload?.success) {
+        setExportacaoFeedback({ tipo: 'ok', msg: `${payload.qtd} MPs exportadas para o banco.` });
+      } else {
+        setExportacaoFeedback({ tipo: 'erro', msg: payload?.error || 'Erro desconhecido' });
+      }
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao exportar orçamento:', err);
+      setExportacaoFeedback({ tipo: 'erro', msg: 'Erro de conexão ao exportar' });
+    } finally {
+      setExportandoOrcamento(false);
     }
   }
 
@@ -2439,6 +2473,21 @@ export default function OrcamentoMpPage() {
                   <History size={14} />
                   Historico ({snapshots.length})
                 </button>
+                <button
+                  type="button"
+                  title="Grava no banco so o codigo da MP + R$ total, Folga e Orcamento, para o sistema externo consultar"
+                  onClick={exportarOrcamento}
+                  disabled={exportandoOrcamento}
+                  className="inline-flex items-center gap-1.5 rounded border border-sky-500 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50"
+                >
+                  <Upload size={14} />
+                  {exportandoOrcamento ? 'Exportando...' : 'Exportar p/ Sistema'}
+                </button>
+                {exportacaoFeedback && (
+                  <span className={`text-[11px] font-medium ${exportacaoFeedback.tipo === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>
+                    {exportacaoFeedback.msg}
+                  </span>
+                )}
               </div>
 
               <div className="pt-5 text-[11px] text-gray-500">

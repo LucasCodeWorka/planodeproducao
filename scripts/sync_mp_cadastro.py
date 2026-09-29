@@ -5,8 +5,8 @@ Sincronizador incremental de app_mp_cadastro.
 
 Regras:
 - Calcula a necessidade atual a partir do cache do orcamento-mp.
-- Insere em app_mp_cadastro apenas seqgrupo+cor novos.
-- Nao altera linhas ja existentes em app_mp_cadastro.
+- Mantem uma linha por seqgrupo+cor, atualizando descricao, valores e updated_at.
+- Atualiza o cadastro sem tocar no historico do robo.
 - Se uma linha existente mudar necessidade/valor, registra em
   app_mp_cadastro_alteracoes para tratamento posterior.
 
@@ -285,14 +285,18 @@ def sync_once(conn, dry_run=False):
         return {"current": len(current), "new": len(new_items), "changed": len(changed_items)}
 
     with conn.cursor() as cur:
-        if new_items:
+        if current:
             execute_values(
                 cur,
                 """
                 INSERT INTO public.app_mp_cadastro (
-                  seqgrupo, cor, descricao, necessidade_total, valor_necessidade_total, updated_at
+                  seqgrupo, cor, descricao, necessidade_total, valor_necessidade_total
                 ) VALUES %s
-                ON CONFLICT (seqgrupo, cor) DO NOTHING
+                ON CONFLICT (seqgrupo, cor) DO UPDATE SET
+                  descricao = EXCLUDED.descricao,
+                  necessidade_total = EXCLUDED.necessidade_total,
+                  valor_necessidade_total = EXCLUDED.valor_necessidade_total,
+                  updated_at = NOW()
                 """,
                 [
                     (
@@ -302,7 +306,7 @@ def sync_once(conn, dry_run=False):
                         item["necessidade_total"],
                         item["valor_necessidade_total"],
                     )
-                    for item in new_items
+                    for item in current.values()
                 ],
             )
 

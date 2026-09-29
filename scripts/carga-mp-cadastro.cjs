@@ -43,14 +43,15 @@ function necessidadeTotal(row) {
 }
 
 async function main() {
+  const client = await pool.connect();
   try {
     console.log("=== Carga de MPs para app_mp_cadastro (necessidadeTotal > 0) ===\n");
 
-    // 1. Dropar tabela antiga e criar nova estrutura
-    console.log("1. Recriando tabela app_mp_cadastro...");
-    await pool.query(`DROP TABLE IF EXISTS public.app_mp_cadastro`);
+    // 1. Garante a estrutura sem apagar o cadastro nem o historico do robo
+    console.log("1. Validando tabela app_mp_cadastro...");
+
     await pool.query(`
-      CREATE TABLE public.app_mp_cadastro (
+      CREATE TABLE IF NOT EXISTS public.app_mp_cadastro (
         seqgrupo TEXT NOT NULL,
         cor TEXT NOT NULL,
         descricao TEXT,
@@ -158,7 +159,11 @@ async function main() {
       await pool.query(`
         INSERT INTO public.app_mp_cadastro (seqgrupo, cor, descricao, necessidade_total, valor_necessidade_total, updated_at)
         VALUES ${values}
-        ON CONFLICT (seqgrupo, cor) DO NOTHING
+        ON CONFLICT (seqgrupo, cor) DO UPDATE SET
+          descricao = EXCLUDED.descricao,
+          necessidade_total = EXCLUDED.necessidade_total,
+          valor_necessidade_total = EXCLUDED.valor_necessidade_total,
+          updated_at = NOW()
       `, params);
 
       inserted += batch.length;
@@ -192,9 +197,11 @@ async function main() {
     console.log(`   Necessidade total: ${Number(totais.rows[0].necessidade_total || 0).toFixed(2)} | Valor: ${Number(totais.rows[0].valor_necessidade_total || 0).toFixed(2)}`);
 
   } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
     console.error("Erro:", err.message);
     console.error(err.stack);
   } finally {
+    client.release();
     await pool.end();
   }
 }
