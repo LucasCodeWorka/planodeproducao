@@ -116,6 +116,42 @@ async function buscarVendasPorCanal(pool, ano) {
   }
   return vendas;
 }
+
+/**
+ * Meses ainda nao fechados do ano base (o corrente e os futuros) nao tem venda real
+ * completa; usar so o realizado faria a projecao do mesmo mes do ano seguinte nascer
+ * subestimada (ex.: set-dez/2027 a partir de um 2026 que ainda nao aconteceu).
+ * Nesses meses a base passa a ser a projecao gravada do ano, dividida entre fabrica e
+ * lojas pela participacao dos meses ja fechados. Se o realizado ja superou a projecao,
+ * vale o realizado. Devolve uma copia; o realizado original nao e alterado.
+ */
+async function completarMesesAbertosComProjecao(pool, ano, vendasReais) {
+  const vendas = { fabrica: { ...vendasReais.fabrica }, lojas: { ...vendasReais.lojas } };
+  const hoje = new Date();
+  if (hoje.getFullYear() !== Number(ano)) return vendas;
+  const mesAtual = hoje.getMonth() + 1;
+  const fechados = MESES_SEMESTRE.filter((mes) => mes < mesAtual);
+  const totalFabrica = fechados.reduce((acc, mes) => acc + (Number(vendas.fabrica[mes]) || 0), 0);
+  const totalLojas = fechados.reduce((acc, mes) => acc + (Number(vendas.lojas[mes]) || 0), 0);
+  const participacaoFabrica = totalFabrica + totalLojas > 0 ? totalFabrica / (totalFabrica + totalLojas) : 0;
+  const result = await pool.query(`
+    SELECT mes::INT AS mes, SUM(quantidade)::FLOAT AS total
+    FROM public.app_projecoes
+    WHERE ano = $1 AND mes >= $2
+    GROUP BY 1
+  `, [ano, mesAtual]);
+  for (const row of result.rows) {
+    const mes = Number(row.mes);
+    if (!MESES_SEMESTRE.includes(mes)) continue;
+    const projetado = Math.round(Number(row.total) || 0);
+    const realizado = (Number(vendas.fabrica[mes]) || 0) + (Number(vendas.lojas[mes]) || 0);
+    if (projetado <= realizado) continue;
+    const fabrica = Math.round(projetado * participacaoFabrica);
+    vendas.fabrica[mes] = fabrica;
+    vendas.lojas[mes] = projetado - fabrica;
+  }
+  return vendas;
+}
 /**
  * Calcula os totalizadores por mês aplicando os ajustes
  * @param {Object} vendas - { fabrica: {...}, lojas: {...} }
@@ -805,12 +841,17 @@ function gerarProjecoesComArredondamentoSimples(totalizadores, representatividad
  * @param {number} anoDestino - Ano destino para projeções (ex: 2027)
  * @returns {Promise<Object>} Resultado completo com totalizadores, SKUs e projeções
  */
-async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
+async function gerarPreviewProjecoes(pool, anoBase, anoDestino, opcoes = {}) {
   // 1. Busca vendas por canal
   const vendas = await buscarVendasPorCanal(pool, anoBase);
 
   // 2. Calcula totalizadores
   const totalizadores = calcularTotalizadores(vendas);
+  // Opt-in: as projecoes do ano destino nascem da base completada com a projecao dos
+  // meses abertos; `totalizadores` segue mostrando so o realizado.
+  const totalizadoresBase = opcoes.completarMesesAbertos
+    ? calcularTotalizadores(await completarMesesAbertosComProjecao(pool, anoBase, vendas))
+    : totalizadores;
 
   // 3. Busca SKUs permanentes
   let skus = await buscarSkusPermanentes(pool, anoBase);
@@ -867,7 +908,7 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
   const representatividades = calcularRepresentatividade(medias);
 
   // 6. Gera projeções
-  const projecoes = gerarProjecoes(totalizadores, representatividades);
+  const projecoes = gerarProjecoes(totalizadoresBase, representatividades);
 
   // 7. Monta resultado final
   const itens = skusProjetaveis.map((sku) => {
@@ -934,6 +975,7 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino) {
     anoDestino,
     vendas,
     totalizadores,
+    totalizadoresBase,
     resumo,
     itens,
     itensSemVenda,

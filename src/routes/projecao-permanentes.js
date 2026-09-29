@@ -33,7 +33,9 @@ router.get('/preview', auth, async (req, res) => {
 
     console.log(`[projecao-permanentes] Gerando preview: anoBase=${anoBase}, anoDestino=${anoDestino}`);
 
-    const resultado = await projecaoPermanentesService.gerarPreviewProjecoes(pool, anoBase, anoDestino);
+    const resultado = await projecaoPermanentesService.gerarPreviewProjecoes(pool, anoBase, anoDestino, {
+      completarMesesAbertos: req.query.completarMesesAbertos === 'true',
+    });
 
     console.log(`[projecao-permanentes] Preview gerado: ${resultado.resumo?.totalSkus || 0} SKUs`);
 
