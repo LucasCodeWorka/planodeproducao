@@ -18,6 +18,7 @@ const GRUPOS_NAV = [
       { href: '/projecoes', label: 'Projeções', Icon: TrendingDown },
       { href: '/projecao-permanentes', label: 'Proj. Permanentes', Icon: CalendarRange },
       { href: '/projecao-macro', label: 'Visão Macro', Icon: LineChart },
+      { href: '/visao-geral-2', label: 'Visão Geral 2 (teste)', Icon: LineChart },
     ],
   },
   {
