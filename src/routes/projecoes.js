@@ -847,12 +847,16 @@ router.get('/reprojecao-fechada', auth, async (req, res) => {
         qu: Number(proj[String(mesQU)] || 0),
         sx: Number(proj[String(mesSX)] || 0),
       };
-      const ma = aplicarReprojecaoMes(originalMeses.ma, percentualAtendido);
-      const px = aplicarReprojecaoMes(originalMeses.px, percentualAtendido);
-      const ul = aplicarReprojecaoMes(originalMeses.ul, percentualAtendido);
-      const qt = aplicarReprojecaoMes(originalMeses.qt, percentualAtendido);
-      const qu = aplicarReprojecaoMes(originalMeses.qu, percentualAtendido);
-      const sx = aplicarReprojecaoMes(originalMeses.sx, percentualAtendido);
+      // A variacao do mes fechado vale somente dentro do mesmo semestre. Na virada para janeiro, dezembro pertence ao semestre anterior e nao carrega ajuste.
+      const semestreDoMes = (mes) => Number(mes) <= 6 ? 1 : 2;
+      const mesmoSemestre = (mes) => semestreDoMes(mes) === semestreDoMes(mesBase);
+      const limitarAoSemestre = (resultado, original, mes) => mesmoSemestre(mes) ? resultado : { ...resultado, valor: Number(original) || 0, valorCorrigido: Number(original) || 0 };
+      const ma = limitarAoSemestre(aplicarReprojecaoMes(originalMeses.ma, percentualAtendido), originalMeses.ma, periodos.MA);
+      const px = limitarAoSemestre(aplicarReprojecaoMes(originalMeses.px, percentualAtendido), originalMeses.px, periodos.PX);
+      const ul = limitarAoSemestre(aplicarReprojecaoMes(originalMeses.ul, percentualAtendido), originalMeses.ul, periodos.UL);
+      const qt = limitarAoSemestre(aplicarReprojecaoMes(originalMeses.qt, percentualAtendido), originalMeses.qt, periodos.QT);
+      const qu = limitarAoSemestre(aplicarReprojecaoMes(originalMeses.qu, percentualAtendido), originalMeses.qu, mesQU);
+      const sx = limitarAoSemestre(aplicarReprojecaoMes(originalMeses.sx, percentualAtendido), originalMeses.sx, mesSX);
 
       const usaPonderadaComTrava = ma.regra.acao === 'AUMENTO_CHEIO';
       const usaMediaNoMesSubsequente = ma.regra.acao === 'MEDIA_ENTRE_ORIGINAL_E_CORRIGIDA';
