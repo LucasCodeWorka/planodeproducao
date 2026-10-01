@@ -1,6 +1,7 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
+const { calcularPeriodosPlano } = require("../services/periodoPlanoService");
 
 const router = express.Router();
 
@@ -615,20 +616,7 @@ router.get("/matriz", auth, async (req, res) => {
     } catch { /* silencioso */ }
 
     // 5. Calcular períodos
-    const hoje = new Date();
-    const mesAtualJs = hoje.getMonth();
-    const ano = hoje.getFullYear();
-    const diaAtual = hoje.getDate();
-    const ultimoDia = new Date(ano, mesAtualJs + 1, 0).getDate();
-    const eUltimoDia = diaAtual === ultimoDia;
-    let ma = eUltimoDia ? mesAtualJs + 2 : mesAtualJs + 1;
-    if (ma > 12) ma -= 12;
-    const px = ma + 1 > 12 ? ma + 1 - 12 : ma + 1;
-    const ul = ma + 2 > 12 ? ma + 2 - 12 : ma + 2;
-    const qt = ma + 3 > 12 ? ma + 3 - 12 : ma + 3;
-    const qu = ma + 4 > 12 ? ma + 4 - 12 : ma + 4;
-    const sx = ma + 5 > 12 ? ma + 5 - 12 : ma + 5;
-    const periodos = { MA: ma, PX: px, UL: ul, QT: qt, QU: qu, SX: sx };
+    const periodos = calcularPeriodosPlano().meses;
 
     // 6. Criar mapa de planos por referência (agregado da matriz)
     const planoPorRefMap = new Map();
@@ -984,19 +972,7 @@ router.get("/dias-resumo", async (req, res) => {
       : (Array.isArray(matrizCache?.data?.data) ? matrizCache.data.data : []);
 
     // 4. Calcular períodos
-    const hoje = new Date();
-    const mesAtualJs = hoje.getMonth();
-    const ano = hoje.getFullYear();
-    const diaAtual = hoje.getDate();
-    const ultimoDia = new Date(ano, mesAtualJs + 1, 0).getDate();
-    const eUltimoDia = diaAtual === ultimoDia;
-    let ma = eUltimoDia ? mesAtualJs + 2 : mesAtualJs + 1;
-    if (ma > 12) ma -= 12;
-    const px = ma + 1 > 12 ? ma + 1 - 12 : ma + 1;
-    const ul = ma + 2 > 12 ? ma + 2 - 12 : ma + 2;
-    const qt = ma + 3 > 12 ? ma + 3 - 12 : ma + 3;
-    const qu = ma + 4 > 12 ? ma + 4 - 12 : ma + 4;
-    const periodos = { MA: ma, PX: px, UL: ul, QT: qt, QU: qu };
+    const periodos = calcularPeriodosPlano().meses;
 
     // 5. Criar mapa de planos por referência (agregado da matriz)
     const planoPorRefMap = new Map();
@@ -1318,12 +1294,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
       ? (capacidadeRealPorGrupo.get(g.grupo) || 0)
       : Number(g.capacidade_diaria || 0)), 0);
 
-    const mesAtualJs = hoje.getMonth();
-    const ultimoDia = new Date(hoje.getFullYear(), mesAtualJs + 1, 0).getDate();
-    let ma = hoje.getDate() === ultimoDia ? mesAtualJs + 2 : mesAtualJs + 1;
-    if (ma > 12) ma -= 12;
-    const proximo = (m, n) => ((m + n - 1) % 12) + 1;
-    const periodos = { MA: ma, PX: proximo(ma, 1), UL: proximo(ma, 2), QT: proximo(ma, 3), QU: proximo(ma, 4), SX: proximo(ma, 5) };
+    const periodos = calcularPeriodosPlano(hoje).meses;
 
     let tempoAcumulado = processoCarga;
     let diasAcumulados = 0;

@@ -3,6 +3,7 @@ const {
   buscarEstoqueFabrica,
   buscarProdutosEmProcesso,
   buscarPedidosPendentes,
+  buscarAgendaEstoque,
   buscarCatalogoProdutos,
   buscarPlanejamentoProduto,
   buscarMatrizPlanejamentoRapida,
@@ -11,6 +12,7 @@ const {
   buscarLocaisProducao,
   buscarExecucaoPlanoResumo
 } = require("../services/producaoService");
+const { calcularPeriodosPlano } = require("../services/periodoPlanoService");
 
 const { readCache, filterCache } = require("../cache/matrizCache");
 const {
@@ -23,6 +25,8 @@ const {
 const router = express.Router();
 const catalogoCache = new Map();
 const CATALOGO_CACHE_TTL_MS = (Number(process.env.CATALOGO_CACHE_TTL_SECONDS) || 600) * 1000;
+const agendaEstoqueCache = { data: null, timestamp: 0 };
+const AGENDA_ESTOQUE_TTL_MS = 10 * 60 * 1000;
 const ORCAMENTO_MP_CACHE_KEY = "orcamento_mp_liebe";
 const PLANO_PERIODOS_DE_PARA = ["MA", "PX", "UL", "QT", "QU"];
 
@@ -43,10 +47,11 @@ function buildCatalogoCacheKey(query) {
   return entries.map(([k, v]) => `${k}=${v}`).join("&");
 }
 
+// Fonte única em src/services/periodoPlanoService.js. Esta função tratava MA como o mês
+// corrente sem a regra do último dia — discordava de capacidade.js sobre qual é o MA de
+// hoje. Medido em 30/09/2026: uma dizia MA=setembro, a outra MA=outubro, no mesmo dia.
 function calcularPeriodosPlanoDePara(hoje = new Date()) {
-  const ma = hoje.getMonth() + 1;
-  const addMes = (offset) => ((ma + offset - 1) % 12) + 1;
-  return { MA: addMes(0), PX: addMes(1), UL: addMes(2), QT: addMes(3), QU: addMes(4) };
+  return calcularPeriodosPlano(hoje).meses;
 }
 
 function parAtivoNoHorizontePlano(par) {
@@ -649,27 +654,56 @@ router.get("/percentual-finalizado", async (req, res) => {
       .map((s) => s.trim().toUpperCase())
       .filter(Boolean);
 
-    // Otimizado: pré-filtrar produtos em uma CTE para evitar chamadas lentas no WHERE
-    const result = await pool.query(`
-      WITH produtos_filtrados AS (
-        SELECT cd_produto
-        FROM vr_prd_prdgrade
-        WHERE UPPER(TRIM(COALESCE(f_dic_prd_classificacao(cd_produto, 'DS'::text, 20::bigint), ''))) = $1
-          AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(cd_produto, 'DS'::text, 27::bigint), ''))) = ANY($2)
-      )
-      SELECT
-        UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
-        a.cd_produto::TEXT AS idproduto,
-        f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
-        SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qtd_lote,
-        SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qtd_gerouop
-      FROM vr_pcp_lotepl2 a
-      INNER JOIN produtos_filtrados pf ON pf.cd_produto = a.cd_produto
-      LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
-      WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
-        AND p.tp_situacao = 1
-      GROUP BY p.cd_auxiliar, a.cd_produto
-    `, [marca, statusList]);
+    // `filtrar=false` devolve todos os SKUs, sem o recorte de marca/status. Medido em
+    // 30/09/2026: o CTE abaixo leva 125,6s sozinho (a `f_dic_prd_classificacao` roda linha a
+    // linha em vr_prd_prdgrade), contra 1,4s da parte que interessa — era ele que estourava
+    // o timeout de 120s do front. Quem já tem a matriz em mãos filtra por SKU e pula isso.
+    const semFiltro = String(req.query.filtrar || '').trim().toLowerCase() === 'false';
+
+    const result = semFiltro
+      ? await pool.query(`
+        SELECT
+          UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
+          a.cd_produto::TEXT AS idproduto,
+          '' AS referencia,
+          SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qtd_lote,
+          SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qtd_gerouop
+        FROM vr_pcp_lotepl2 a
+        LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
+        WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
+          AND p.tp_situacao = 1
+        GROUP BY p.cd_auxiliar, a.cd_produto
+      `)
+      : await pool.query(`
+        WITH produtos_filtrados AS (
+          -- Mesmo recorte de antes (marca = tipoclas 20, status = tipoclas 27), lendo as
+          -- tabelas de ligação em vez de chamar f_dic_prd_classificacao linha a linha.
+          -- Medido em 30/09/2026: os mesmos 3.193 SKUs em 0,89s contra 125,6s da função.
+          SELECT DISTINCT pc.cd_produto
+          FROM vr_prd_produtoclas pc
+          JOIN vr_prd_classificacao cm
+            ON cm.cd_tipoclas = pc.cd_tipoclas AND cm.cd_classificacao = pc.cd_classificacao
+          JOIN vr_prd_produtoclas ps
+            ON ps.cd_produto = pc.cd_produto AND ps.cd_tipoclas = 27
+          JOIN vr_prd_classificacao cs
+            ON cs.cd_tipoclas = ps.cd_tipoclas AND cs.cd_classificacao = ps.cd_classificacao
+          WHERE pc.cd_tipoclas = 20
+            AND UPPER(TRIM(cm.ds_classificacao)) = $1
+            AND UPPER(TRIM(cs.ds_classificacao)) = ANY($2)
+        )
+        SELECT
+          UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
+          a.cd_produto::TEXT AS idproduto,
+          f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar) AS referencia,
+          SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qtd_lote,
+          SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qtd_gerouop
+        FROM vr_pcp_lotepl2 a
+        INNER JOIN produtos_filtrados pf ON pf.cd_produto = a.cd_produto
+        LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
+        WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
+          AND p.tp_situacao = 1
+        GROUP BY p.cd_auxiliar, a.cd_produto
+      `, [marca, statusList]);
 
 const data = { MA: null, PX: null, UL: null, QT: null, QU: null };
     const detalhes = [];
@@ -692,6 +726,38 @@ const data = { MA: null, PX: null, UL: null, QT: null, QU: null };
       success: false,
       error: "Erro ao consultar percentual finalizado",
       details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/producao/agenda-estoque
+ * Quando o estoque se mexe: OP em processo por mês de entrega prevista e pedido pendente
+ * por mês de baixa prevista, ambos por SKU. A matriz só diz QUANTO entra e sai; aqui sai
+ * o QUANDO, com a data do próprio ERP.
+ *
+ * Devolve todos os SKUs, sem filtro de marca/status — filtrar por
+ * `f_dic_prd_classificacao` aqui custa mais de um minuto por consulta. Quem chama cruza
+ * com a população que estiver usando.
+ */
+router.get("/agenda-estoque", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const forceRefresh = req.query.refresh === "true";
+    if (!forceRefresh && agendaEstoqueCache.data && (Date.now() - agendaEstoqueCache.timestamp) < AGENDA_ESTOQUE_TTL_MS) {
+      return res.json({ success: true, fromCache: true, ...agendaEstoqueCache.data });
+    }
+
+    const resultado = await buscarAgendaEstoque(pool);
+    agendaEstoqueCache.data = { data: resultado, meta: resultado.meta };
+    agendaEstoqueCache.timestamp = Date.now();
+    return res.json({ success: true, fromCache: false, data: resultado, meta: resultado.meta });
+  } catch (error) {
+    console.error("[producao/agenda-estoque] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao montar agenda de estoque",
+      details: error.message,
     });
   }
 });

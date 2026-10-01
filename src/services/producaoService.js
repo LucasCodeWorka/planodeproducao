@@ -5,6 +5,7 @@
 const { buscarProdutoComMedias } = require('./vendasService');
 const { calcularEstoqueMinimo } = require('./estoqueMinimo');
 const { isExcludedPlanningItem } = require('./planningExclusions');
+const { calcularPeriodosPlano } = require('./periodoPlanoService');
 const {
   carregarPares,
   parAtivoNoMes,
@@ -43,19 +44,10 @@ function normalizeStatus(value) {
     .trim();
 }
 
+// Fonte única em ./periodoPlanoService. Esta função tratava MA como o mês corrente sem a
+// regra do último dia — discordava de capacidade.js sobre qual é o MA de hoje.
 function calcularPeriodosPlanoDePara(hoje = new Date()) {
-  const ma = hoje.getMonth() + 1;
-  const addMes = (offset) => {
-    const mes = ma + offset;
-    return ((mes - 1) % 12) + 1;
-  };
-  return {
-    MA: addMes(0),
-    PX: addMes(1),
-    UL: addMes(2),
-    QT: addMes(3),
-    QU: addMes(4),
-  };
+  return calcularPeriodosPlano(hoje).meses;
 }
 
 function periodosAtivosParaPar(par, periodos = calcularPeriodosPlanoDePara()) {
@@ -1345,10 +1337,118 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
   return base;
 }
 
+/**
+ * Agenda de entrada e saída do estoque, por SKU e por mês.
+ *
+ * O `em_processo` e o `pedidos_pendentes` da matriz são números soltos, sem data: dizem
+ * QUANTO entra e sai, nunca QUANDO. As duas views carregam essa data e ninguém lia:
+ * `vr_pcp_opc.dt_preventrega` (entrega prevista da OP) e `vr_ped_pedidoi.dt_prevbaixa`
+ * (baixa prevista do pedido). Com elas dá para projetar estoque com data do ERP, em vez
+ * de estimar por lead time médio.
+ *
+ * Os filtros são os mesmos da Q2 e da Q3 de `buscarMatrizPlanejamentoRapida`, então os
+ * totais reconciliam com as colunas da matriz.
+ *
+ * Sem filtro de marca/status de propósito: o CTE `produtos_filtrados` chama
+ * `f_dic_prd_classificacao` por linha e levou 69s (OP) e 138s (pedido) na medição — as
+ * mesmas consultas sem ele respondem em segundos. Quem chama cruza por SKU com a
+ * população que estiver usando.
+ *
+ * Previsão vencida entra no mês corrente (está atrasada, é para sair/entrar agora) e o
+ * que não tem data nenhuma vai para um balde à parte, para a tela decidir o que fazer.
+ */
+async function buscarAgendaEstoque(pool, cdEmpresa = 1) {
+  // Sequencial, não em paralelo: o banco vive perto do teto de conexões (100 no total, com
+  // clientes externos segurando dezenas), e duas queries simultâneas aqui só aumentam a
+  // pressão. O ganho de tempo não compensa o risco de a tela inteira falhar por falta de
+  // slot.
+  const rWip = await pool.query(
+      `SELECT aa.cd_produto::BIGINT AS idproduto,
+              TO_CHAR(
+                GREATEST(
+                  DATE_TRUNC('month', bb.dt_preventrega),
+                  DATE_TRUNC('month', CURRENT_DATE)
+                ), 'YYYY-MM'
+              ) AS mes,
+              COALESCE(SUM(
+                COALESCE(aa.qt_real,0)::FLOAT - COALESCE(aa.qt_finalizada,0)::FLOAT
+              ), 0)::FLOAT AS qtd,
+              COALESCE(SUM(CASE
+                WHEN bb.dt_preventrega < DATE_TRUNC('month', CURRENT_DATE)
+                THEN COALESCE(aa.qt_real,0)::FLOAT - COALESCE(aa.qt_finalizada,0)::FLOAT
+                ELSE 0 END), 0)::FLOAT AS qtd_vencida
+       FROM vr_pcp_opi aa
+       JOIN vr_pcp_opc bb
+         ON aa.cd_empresa=bb.cd_empresa AND aa.nr_ciclo=bb.nr_ciclo AND aa.nr_op=bb.nr_op
+       WHERE aa.cd_empresa=$1
+         AND COALESCE(bb.cd_categoria,0)::BIGINT <> 15
+         AND aa.tp_situacao = ANY(ARRAY[5,10,15,20]::BIGINT[])
+         AND (COALESCE(aa.qt_real,0) - COALESCE(aa.qt_finalizada,0)) > 0
+       GROUP BY aa.cd_produto, 2`,
+    [cdEmpresa]
+  );
+  const rPendente = await pool.query(
+    `SELECT p.cd_produto::BIGINT AS idproduto,
+            TO_CHAR(
+              GREATEST(
+                DATE_TRUNC('month', COALESCE(p.dt_prevbaixa, p.dt_limbaixa)),
+                DATE_TRUNC('month', CURRENT_DATE)
+              ), 'YYYY-MM'
+            ) AS mes,
+            COALESCE(SUM(p.qt_pendente), 0)::FLOAT AS qtd
+     FROM vr_ped_pedidoi p
+     WHERE p.cd_empresa=$1
+       AND p.cd_operacao <> 44
+       AND p.tp_situacao <> 6
+       AND p.qt_pendente > 0
+     GROUP BY p.cd_produto, 2`,
+    [cdEmpresa]
+  );
+
+  const wip = {};
+  const pendente = {};
+  const wipSemPrevisao = {};
+  const pendenteSemPrevisao = {};
+  const totais = { wip: 0, pendente: 0, wipSemPrevisao: 0, pendenteSemPrevisao: 0, wipVencido: 0 };
+
+  const acumular = (destino, semData, totalKey, semDataKey, rows) => {
+    for (const row of rows) {
+      const sku = String(row.idproduto);
+      const qtd = Number(row.qtd || 0);
+      if (!qtd) continue;
+      if (!row.mes) {
+        semData[sku] = (semData[sku] || 0) + qtd;
+        totais[semDataKey] += qtd;
+        continue;
+      }
+      destino[sku] = destino[sku] || {};
+      destino[sku][row.mes] = (destino[sku][row.mes] || 0) + qtd;
+      totais[totalKey] += qtd;
+    }
+  };
+
+  acumular(wip, wipSemPrevisao, 'wip', 'wipSemPrevisao', rWip.rows);
+  acumular(pendente, pendenteSemPrevisao, 'pendente', 'pendenteSemPrevisao', rPendente.rows);
+  for (const row of rWip.rows) totais.wipVencido += Number(row.qtd_vencida || 0);
+
+  const hoje = new Date();
+  return {
+    wip,
+    pendente,
+    wipSemPrevisao,
+    pendenteSemPrevisao,
+    meta: {
+      mesBase: `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`,
+      totais,
+    },
+  };
+}
+
 module.exports = {
   buscarEstoqueFabrica,
   buscarProdutosEmProcesso,
   buscarPedidosPendentes,
+  buscarAgendaEstoque,
   buscarCatalogoProdutos,
   buscarPlanejamentoProduto,
   buscarProdutosElegiveisMatriz,

@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const { readCacheByKey, writeCacheByKey } = require("../cache/matrizCache");
 const { calcularCurvaAbcReferencias } = require("../services/curvaAbcService");
+const { calcularPeriodosPlano } = require("../services/periodoPlanoService");
 
 const router = express.Router();
 
@@ -477,11 +478,14 @@ function addMonths(date, months) {
   return new Date(date.getFullYear(), date.getMonth() + months, 1);
 }
 
+// Fonte única em src/services/periodoPlanoService.js. Esta função tratava MA como o mês
+// da própria `baseDate`, sem a regra do último dia — discordava de capacidade.js sobre
+// qual é o MA de hoje.
 function periodoParaMes(periodo, baseDate = new Date()) {
-  const idx = PERIODOS_PLANO.indexOf(String(periodo || "").toUpperCase());
-  if (idx < 0) return "";
-  const data = addMonths(startOfMonth(baseDate), idx);
-  return data.toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
+  const p = String(periodo || "").toUpperCase();
+  const { datas } = calcularPeriodosPlano(baseDate);
+  if (!datas[p]) return "";
+  return datas[p].toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
 }
 
 function impactoTipoMp(delta) {

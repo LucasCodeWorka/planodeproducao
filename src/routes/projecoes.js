@@ -14,6 +14,7 @@ const {
   selecionarDestinos,
   escolherDestinosParaOrigem,
 } = require('../services/deParaReferencias');
+const { calcularPeriodosPlano } = require('../services/periodoPlanoService');
 
 // Flag para usar banco de dados (true) ou JSON (false)
 const USAR_BANCO = true;
@@ -26,31 +27,13 @@ const MATRIZ_FILE = path.join(DATA_DIR, 'matriz_cache.json');
 const MESES_TRANSICAO_NOVA_COLECAO = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
 // ── Calcula períodos automaticamente ────────────────────────────────────────
-/**
- * Retorna os períodos do plano de produção baseado na data atual.
- * Se estamos no último dia do mês, considera o próximo mês como MA.
- * Regras:
- * - MA (mês atual): próximo mês se último dia, senão mês atual
- * - PX (próximo): MA + 1 mês
- * - UL (último): MA + 2 meses
- * - QT (quarto): MA + 3 meses
- */
+// Fonte única em src/services/periodoPlanoService.js. Esta função existia com sua
+// própria conta (dia 1, sem a regra do último dia) e discordava de capacidade.js sobre
+// qual é o MA de hoje — mantida aqui só como wrapper de compatibilidade, sem QU/SX
+// porque nada neste arquivo os usa.
 function calcularPeriodos() {
-  const hoje = new Date();
-  const mesAtualJs = hoje.getMonth(); // 0-11
-
-  // Vira o plano naturalmente apenas no dia 1, quando o mes calendario muda.
-  let ma = mesAtualJs + 1; // +1 pois getMonth() retorna 0-11
-
-  // Normaliza para 1-12
-  if (ma > 12) ma -= 12;
-
-  // Periodos sequenciais: MA, MA+1, MA+2, MA+3
-  const px = ma + 1 > 12 ? ma + 1 - 12 : ma + 1;
-  const ul = ma + 2 > 12 ? ma + 2 - 12 : ma + 2;
-  const qt = ma + 3 > 12 ? ma + 3 - 12 : ma + 3;
-
-  return { MA: ma, PX: px, UL: ul, QT: qt };
+  const { meses } = calcularPeriodosPlano();
+  return { MA: meses.MA, PX: meses.PX, UL: meses.UL, QT: meses.QT };
 }
 
 // ── autenticação (igual ao admin.js) ─────────────────────────────────────────
