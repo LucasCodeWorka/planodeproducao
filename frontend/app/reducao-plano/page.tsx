@@ -58,6 +58,12 @@ type ReducaoRow = {
   refSkusBloqueados?: number;
 };
 
+type ResumoDias = {
+  capacidadeDiaria: number;
+  diasNecessarios: Partial<Record<Periodo, number>>;
+  diasDisponiveis: Partial<Record<Periodo, number>>;
+};
+
 type RefGroup = {
   referencia: string;
   produto: string;
@@ -216,6 +222,10 @@ export default function ReducaoPlanoPage() {
   const [somenteComReducao, setSomenteComReducao] = useState(true);
   const [coberturaMinimaFutura, setCoberturaMinimaFutura] = useState(0);
   const [pctReducao, setPctReducao] = useState(100);
+  // Resumo de capacidade vem pronto do backend (/api/capacidade/dias-resumo): e a mesma
+  // conta da tela de Capacidade, sobre o plano TOTAL, sem os filtros desta tela.
+  const [resumoDias, setResumoDias] = useState<ResumoDias | null>(null);
+  const [tempoPorRef, setTempoPorRef] = useState<Record<string, number>>({});
   const [limiteExtraTolerancia, setLimiteExtraTolerancia] = useState(0);
   const [modoAnalise, setModoAnalise] = useState<ModoAnalise>('SKU');
   const [expandedRefs, setExpandedRefs] = useState<Set<string>>(new Set());
@@ -240,6 +250,40 @@ export default function ReducaoPlanoPage() {
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // O resumo de dias ja vem calculado do backend sobre o plano TOTAL (mesma conta da tela de
+  // Capacidade, sem os filtros desta tela). Aqui so precisamos somar por cima a carga que a
+  // reducao tira — e para isso vem o tempo de costura, indexado por cd_seqgrupo.
+  // Se falhar, o painel some e a reducao continua funcionando.
+  async function carregarCapacidade(matriz: Planejamento[]) {
+    try {
+      const rDias = await fetchNoCache(`${API_URL}/api/capacidade/dias-resumo`, { headers: authHeaders() });
+      const pDias = await rDias.json();
+      if (rDias.ok && pDias?.success) {
+        setResumoDias({
+          capacidadeDiaria: Number(pDias.capacidadeDiaria || 0),
+          diasNecessarios: pDias.diasNecessarios || {},
+          diasDisponiveis: pDias.diasDisponiveis || {},
+        });
+      }
+      const refs = Array.from(new Set(matriz.map((i) => norm(i.produto?.cd_seqgrupo || '')).filter(Boolean)));
+      if (!refs.length) return;
+      const rTempos = await fetchNoCache(
+        `${API_URL}/api/capacidade/tempos-ref?idreferencias=${encodeURIComponent(refs.join(','))}`,
+        { headers: authHeaders() },
+      );
+      const pTempos = await rTempos.json();
+      if (!rTempos.ok || !pTempos?.success) return;
+      const mapa: Record<string, number> = {};
+      for (const row of Array.isArray(pTempos?.data) ? pTempos.data : []) {
+        const ref = norm(row?.idreferencia || '');
+        if (ref) mapa[ref] = Number(row?.tempo_segundos || 0);
+      }
+      setTempoPorRef(mapa);
+    } catch {
+      setResumoDias(null);
+    }
+  }
 
   async function carregar() {
     setLoading(true);
@@ -267,6 +311,7 @@ export default function ReducaoPlanoPage() {
       if (pProj?.periodos) setPeriodos(pProj.periodos as PeriodosPlano);
       setCortes(mapaCortes);
       setCurvaABC((pCurva?.porReferencia || {}) as Record<string, 'A' | 'B' | 'C' | 'D'>);
+      await carregarCapacidade((pMatriz?.data || []) as Planejamento[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar');
     } finally {
@@ -658,6 +703,8 @@ export default function ReducaoPlanoPage() {
 
     // CÁLCULO SEQUENCIAL: aplica reduções em ordem MA→PX→UL→QT recalculando saldos
     const reducaoSequencial: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
+    // Carga (minutos de costura) retirada junto com as pecas: e isso que libera/ocupa fabrica.
+    const reducaoSequencialCarga: Record<Periodo, number> = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 };
     let reducaoSequencialTotal = 0;
 
     dadosFiltrados.forEach((item) => {
@@ -666,6 +713,8 @@ export default function ReducaoPlanoPage() {
       const min = Number(item.estoques.estoque_minimo || 0);
       const corteInteiro = Math.max(1, Number(cortes[id] || 0) || Math.round(min || 1));
       const lote = usarMeioCorte ? Math.max(1, Math.round(corteInteiro / 2)) : corteInteiro;
+
+      const tempoItem = Number(tempoPorRef[norm(item.produto?.cd_seqgrupo || '')] || 0);
 
       // Cria cópia do plano para modificar sequencialmente
       const planoAjustado = { ...planoOriginal };
@@ -684,6 +733,7 @@ export default function ReducaoPlanoPage() {
 
           if (reducaoComLote > 0) {
             reducaoSequencial[p] += reducaoComLote;
+            reducaoSequencialCarga[p] += tempoItem * reducaoComLote;
             reducaoSequencialTotal += reducaoComLote;
             // Atualiza plano para próxima iteração
             planoAjustado[p] = planoNoPeriodo - reducaoComLote;
@@ -712,6 +762,7 @@ export default function ReducaoPlanoPage() {
       reducaoPorPeriodo,
       reducaoTotalGeral,
       reducaoSequencial,
+      reducaoSequencialCarga,
       reducaoSequencialTotal,
       melhorPeriodo,
       melhorReducao,
@@ -736,7 +787,47 @@ export default function ReducaoPlanoPage() {
       projecaoTotalGeral: Object.values(projecaoPorPeriodo).reduce((a, b) => a + b, 0),
       coberturaMesesFinal,
     };
-  }, [dados, projecoes, periodos, periodosVisiveis, cortes, usarMeioCorte, fatorPct]);
+  }, [dados, projecoes, periodos, periodosVisiveis, cortes, usarMeioCorte, fatorPct, tempoPorRef]);
+
+  // Carga x capacidade por periodo, na mesma conta da tela de Capacidade.
+  // A carga atual soma a matriz inteira desta tela; a reducao so tira das permanentes,
+  // que e o unico plano que esta tela mexe.
+  const capacidadePeriodos = useMemo(() => {
+    const capDiaria = Number(resumoDias?.capacidadeDiaria || 0);
+    const porPeriodo = {} as Record<Periodo, {
+      diasDisponiveis: number; diasAtual: number; diasNovo: number; diasRetirados: number;
+      gapAtual: number; gapNovo: number; ocupAtual: number; ocupNova: number;
+    }>;
+    // O que nao cabe num periodo transborda para o seguinte, entao a leitura util e a
+    // acumulada: ocupacao e gap olham o somatorio do inicio do horizonte ate o periodo.
+    let necAcum = 0;
+    let novoAcum = 0;
+    let dispAcum = 0;
+    for (const p of PERIODOS) {
+      const diasDisponiveis = Number(resumoDias?.diasDisponiveis?.[p] || 0);
+      const diasAtual = Number(resumoDias?.diasNecessarios?.[p] || 0);
+      // A reducao so mexe nas permanentes, mas o valor ja esta fechado: basta descontar
+      // a carga retirada do total para achar o plano novo e os dias dele.
+      const diasRetirados = capDiaria > 0
+        ? Number(resumoGeral.reducaoSequencialCarga[p] || 0) / capDiaria
+        : 0;
+      const diasNovo = Math.max(0, diasAtual - diasRetirados);
+      necAcum += diasAtual;
+      novoAcum += diasNovo;
+      dispAcum += diasDisponiveis;
+      porPeriodo[p] = {
+        diasDisponiveis,
+        diasAtual,
+        diasNovo,
+        diasRetirados,
+        gapAtual: necAcum - dispAcum,
+        gapNovo: novoAcum - dispAcum,
+        ocupAtual: dispAcum > 0 ? necAcum / dispAcum : 0,
+        ocupNova: dispAcum > 0 ? novoAcum / dispAcum : 0,
+      };
+    }
+    return { porPeriodo, disponivel: capDiaria > 0 && Object.keys(tempoPorRef).length > 0 };
+  }, [resumoDias, tempoPorRef, resumoGeral]);
 
   async function salvar(tipo: 'REDUCAO' | 'ANTECIPACAO' | 'AMBAS') {
     setSalvando(true);
@@ -1260,6 +1351,100 @@ export default function ReducaoPlanoPage() {
                 <span className="text-red-600 ml-1">(redução de {fmt(resumoGeral.saldoPorPeriodo[ultimo] - saldoNovoporPeriodo[ultimo])} peças)</span>
               </div>
             </div>
+
+            {/* Capacidade: a reducao nao pode deixar a fabrica sem o que produzir */}
+            {capacidadePeriodos.disponivel && (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded border border-amber-300 p-2 mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-bold text-amber-800">🏭 Capacidade (carga x capacidade do período)</span>
+                <span className="text-[9px] text-amber-700">Capac. diária {fmt(resumoDias?.capacidadeDiaria || 0)} min · plano total, sem os filtros desta tela</span>
+              </div>
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="border-b border-amber-300">
+                    <th className="text-left py-0.5 px-1 text-amber-700"></th>
+                    {periodosExibidos.map((p) => (
+                      <th key={p} className="text-center py-0.5 px-1 text-amber-700 font-bold">{p}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-amber-200">
+                    <td className="py-0.5 px-1 text-gray-600">Dias disponíveis</td>
+                    {periodosExibidos.map((p) => (
+                      <td key={p} className="text-center py-0.5 px-1 font-mono text-gray-700">
+                        {capacidadePeriodos.porPeriodo[p].diasDisponiveis.toLocaleString('pt-BR')}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-amber-200">
+                    <td className="py-0.5 px-1 text-gray-600">Dias necessários (atual)</td>
+                    {periodosExibidos.map((p) => (
+                      <td key={p} className="text-center py-0.5 px-1 font-mono text-gray-700">
+                        {capacidadePeriodos.porPeriodo[p].diasAtual.toFixed(1).replace('.', ',')}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-amber-200">
+                    <td className="py-0.5 px-1 text-gray-600">Dias tirados pela redução</td>
+                    {periodosExibidos.map((p) => {
+                      const d = capacidadePeriodos.porPeriodo[p].diasRetirados;
+                      return (
+                        <td key={p} className="text-center py-0.5 px-1 font-mono text-red-600">
+                          {d > 0 ? `-${d.toFixed(1).replace('.', ',')}` : '-'}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr className="border-b border-amber-200 bg-red-50">
+                    <td className="py-0.5 px-1 text-red-700">Dias necessários (novo)</td>
+                    {periodosExibidos.map((p) => (
+                      <td key={p} className="text-center py-0.5 px-1 font-mono text-red-700 font-semibold">
+                        {capacidadePeriodos.porPeriodo[p].diasNovo.toFixed(1).replace('.', ',')}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-amber-200">
+                    <td className="py-0.5 px-1 text-gray-600 font-semibold">Gap acumulado (dias)</td>
+                    {periodosExibidos.map((p) => {
+                      const c = capacidadePeriodos.porPeriodo[p];
+                      const sinal = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1).replace('.', ',')}`;
+                      const cor = c.gapNovo > 0 ? 'text-red-700' : 'text-emerald-700';
+                      return (
+                        <td key={p} className="text-center py-0.5 px-1 font-mono whitespace-nowrap">
+                          <span className="text-gray-500">{sinal(c.gapAtual)}</span>
+                          <span className="text-gray-400 mx-1">→</span>
+                          <span className={`font-bold ${cor}`}>{sinal(c.gapNovo)}</span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 px-1 text-gray-600 font-semibold">Ocupação acumulada</td>
+                    {periodosExibidos.map((p) => {
+                      const c = capacidadePeriodos.porPeriodo[p];
+                      const pct = (v: number) => `${Math.round(v * 100)}%`;
+                      const cor = c.ocupNova > 1 ? 'text-red-700' : c.ocupNova >= 0.85 ? 'text-emerald-700' : 'text-amber-700';
+                      return (
+                        <td key={p} className="text-center py-0.5 px-1 font-mono whitespace-nowrap">
+                          <span className="text-gray-500">{pct(c.ocupAtual)}</span>
+                          <span className="text-gray-400 mx-1">→</span>
+                          <span className={`font-bold ${cor}`}>{pct(c.ocupNova)}</span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+              <div className="text-[9px] text-amber-700 mt-1">
+                ⚠️ Gap e ocupação são <strong>acumulados</strong>: o que não cabe num período transborda
+                para o seguinte. Gap positivo = estourado · ocupação verde 85-100% (fábrica cheia) ·
+                amarelo = ociosa. Dias atuais vêm do mesmo cálculo da tela de Capacidade, sobre o plano
+                total (MA inclui o em-processo); a redução é descontada por cima, ponderada pelo tempo
+                de costura.
+              </div>
+            </div>
+            )}
                 </>
               );
             })()}

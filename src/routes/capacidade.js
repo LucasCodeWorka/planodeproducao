@@ -935,6 +935,74 @@ router.get("/matriz", auth, async (req, res) => {
   }
 });
 
+// Capacidade diaria REAL por grupo, medida no ERP: minutos trabalhados / dias com movimento.
+// O `capacidade_diaria` do arquivo de config esta em outra escala (soma 8,6 milhoes contra
+// ~58 mil medidos) e so serve de fallback quando nao ha medicao no periodo. A tela de
+// Capacidade ja decide assim; este helper existe para o backend nao divergir dela.
+// fonte 'ultimo_mes' (padrao da tela) usa so o ultimo mes fechado; 'media' usa todo o periodo.
+async function consultarCapacidadeRealPorGrupo(pool, de, ate, fonte = 'ultimo_mes') {
+  const real = await pool.query(`
+    WITH grupos_filtro (cd_local) AS (SELECT unnest($3::text[])),
+    cache_base AS (
+      SELECT e.cd_grupo::text AS cd_grupo,
+             DATE_TRUNC('month', e.dt_ref)::date AS mes,
+             SUM(COALESCE(e.tempo_produzido_min, 0))::float AS minutos,
+             COUNT(DISTINCT e.dt_ref) FILTER (WHERE COALESCE(e.tempo_produzido_min, 0) > 0)::int AS dias_com_movimento
+        FROM pcp_cache_eficiencia_dia e
+        JOIN grupos_filtro gf ON gf.cd_local = e.cd_grupo::text
+       WHERE e.dt_ref >= $1::date AND e.dt_ref < $2::date
+         AND e.dt_ref < DATE_TRUNC('month', CURRENT_DATE)::date
+       GROUP BY e.cd_grupo, DATE_TRUNC('month', e.dt_ref)
+    )
+    SELECT COALESCE(l.ds_local, b.cd_grupo)::text AS grupo,
+           b.mes,
+           SUM(b.minutos)::float AS minutos,
+           SUM(b.dias_com_movimento)::int AS dias_com_movimento
+      FROM cache_base b
+      LEFT JOIN pcp_cache_locais l ON l.cd_local::text = b.cd_grupo
+     GROUP BY l.ds_local, b.cd_grupo, b.mes
+  `, [de, ate, DEFAULT_REAL_GROUP_IDS.map(String)]);
+
+  const linhas = real.rows || [];
+  const ultimoMes = linhas
+    .map((row) => String(row.mes || '').slice(0, 10))
+    .sort()
+    .pop() || '';
+  const consideradas = fonte === 'ultimo_mes'
+    ? linhas.filter((row) => String(row.mes || '').slice(0, 10) === ultimoMes)
+    : linhas;
+
+  const acumulado = new Map();
+  for (const row of consideradas) {
+    const nome = String(row.grupo || '').trim().toUpperCase();
+    if (!nome) continue;
+    const atual = acumulado.get(nome) || { minutos: 0, dias: 0 };
+    atual.minutos += Number(row.minutos || 0);
+    atual.dias += Number(row.dias_com_movimento || 0);
+    acumulado.set(nome, atual);
+  }
+
+  const mapa = new Map();
+  acumulado.forEach((valores, nome) => {
+    const media = valores.dias > 0 ? valores.minutos / valores.dias : 0;
+    if (media > 0) mapa.set(nome, media);
+  });
+  return { porGrupo: mapa, ultimoMes };
+}
+
+// Soma a capacidade diaria dos grupos configurados, preferindo a medida real.
+function somarCapacidadeDiaria(grupos, capacidadeRealPorGrupo) {
+  const temMedicao = capacidadeRealPorGrupo.size > 0;
+  let total = 0;
+  for (const g of grupos) {
+    const nome = String(g?.grupo || '').trim().toUpperCase();
+    total += temMedicao
+      ? Number(capacidadeRealPorGrupo.get(nome) || 0)
+      : Number(g?.capacidade_diaria || 0);
+  }
+  return total;
+}
+
 // ── GET /api/capacidade/dias-resumo ─────────────────────────────────────────────
 // Endpoint otimizado com cache de 5 minutos (sem autenticacao para uso no dashboard)
 router.get("/dias-resumo", async (req, res) => {
@@ -1034,11 +1102,14 @@ router.get("/dias-resumo", async (req, res) => {
 
     // 8. Calcular cargas totais
     let cargaTotal = { processo: 0, MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
-    let capacidadeDiariaTotal = 0;
 
-    for (const g of grupos) {
-      capacidadeDiariaTotal += g.capacidade_diaria;
-    }
+    // Mesma janela padrao da tela de Capacidade (2 meses atras, dia 1 -> hoje), para o
+    // "ultimo mes fechado" ser o mesmo dos dois lados.
+    const hojeCap = new Date();
+    const deCap = new Date(hojeCap.getFullYear(), hojeCap.getMonth() - 2, 1).toISOString().slice(0, 10);
+    const ateCap = hojeCap.toISOString().slice(0, 10);
+    const { porGrupo: capacidadeRealGrupos } = await consultarCapacidadeRealPorGrupo(pool, deCap, ateCap, 'ultimo_mes');
+    const capacidadeDiariaTotal = somarCapacidadeDiaria(grupos, capacidadeRealGrupos);
 
     for (const row of grupoRefs) {
       const referencia = row.referencia.toUpperCase();
@@ -1056,6 +1127,24 @@ router.get("/dias-resumo", async (req, res) => {
       if (!primeiroGrupo) continue;
 
       cargaTotal.processo += tempo * processoBase;
+      cargaTotal.MA += tempo * planoBase.ma;
+      cargaTotal.PX += tempo * planoBase.px;
+      cargaTotal.UL += tempo * planoBase.ul;
+      cargaTotal.QT += tempo * planoBase.qt;
+      cargaTotal.QU += tempo * planoBase.qu;
+    }
+
+    // Referencias sem grupo de capacidade mapeado tambem ocupam fabrica. A tela de Capacidade
+    // soma elas (bloco "nao mapeadas"); sem isso o acumulado sai ~16 dias curto.
+    const refsMapeadas = new Set(grupoRefs.map((row) => String(row.referencia || '').toUpperCase()));
+    const refsComCarga = new Set([...planoPorRefMap.keys(), ...processoPorRefMap.keys()]);
+    for (const referencia of refsComCarga) {
+      if (refsMapeadas.has(referencia)) continue;
+      const idreferencia = seqgrupoPorRefMap.get(referencia) || '';
+      const tempo = tempoPorRef.get(idreferencia) || 0;
+      if (!tempo) continue;
+      const planoBase = planoPorRefMap.get(referencia) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0 };
+      cargaTotal.processo += tempo * (processoPorRefMap.get(referencia) || 0);
       cargaTotal.MA += tempo * planoBase.ma;
       cargaTotal.PX += tempo * planoBase.px;
       cargaTotal.UL += tempo * planoBase.ul;
@@ -1173,33 +1262,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
     const nomesGrupos = new Set(grupos.map((g) => g.grupo));
 
     // capacidade diária real por grupo no período (minutos ÷ dias com movimento)
-    const real = await pool.query(`
-      WITH grupos_filtro (cd_local) AS (SELECT unnest($3::text[])),
-      cache_base AS (
-        SELECT e.cd_grupo::text AS cd_grupo,
-               SUM(COALESCE(e.tempo_produzido_min, 0))::float AS minutos,
-               COUNT(DISTINCT e.dt_ref) FILTER (WHERE COALESCE(e.tempo_produzido_min, 0) > 0)::int AS dias_com_movimento
-          FROM pcp_cache_eficiencia_dia e
-          JOIN grupos_filtro gf ON gf.cd_local = e.cd_grupo::text
-         WHERE e.dt_ref >= $1::date AND e.dt_ref < $2::date
-           AND e.dt_ref < DATE_TRUNC('month', CURRENT_DATE)::date
-         GROUP BY e.cd_grupo
-      )
-      SELECT COALESCE(l.ds_local, b.cd_grupo)::text AS grupo,
-             SUM(b.minutos)::float AS minutos,
-             SUM(b.dias_com_movimento)::int AS dias_com_movimento
-        FROM cache_base b
-        LEFT JOIN pcp_cache_locais l ON l.cd_local::text = b.cd_grupo
-       GROUP BY l.ds_local, b.cd_grupo
-    `, [de, ate, DEFAULT_REAL_GROUP_IDS.map(String)]);
-
-    const capacidadeRealPorGrupo = new Map();
-    for (const row of real.rows || []) {
-      const nome = String(row.grupo || '').trim().toUpperCase();
-      const d = Number(row.dias_com_movimento || 0);
-      const media = d > 0 ? Number(row.minutos || 0) / d : 0;
-      if (nome && media > 0) capacidadeRealPorGrupo.set(nome, media);
-    }
+    const { porGrupo: capacidadeRealPorGrupo } = await consultarCapacidadeRealPorGrupo(pool, de, ate, 'media');
 
     // tempos de costura por referência
     const temposResult = await queryTempoBaseRows(pool, {});
