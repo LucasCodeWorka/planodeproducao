@@ -72,10 +72,33 @@ type RefGroup = {
   planoAtual: number;
   planoNovo: number;
   skusBloqueados: number;
+  dispAtual: number;
+  dispNovo: number;
+  estoqueMinTotal: number;
 };
 
 function fmt(v: number) {
   return Math.round(v || 0).toLocaleString('pt-BR');
+}
+
+// Mesma definicao da Visao Geral: disponivel projetado / estoque minimo.
+function fmtCob(v: number) {
+  if (!Number.isFinite(v)) return '-';
+  return `${v.toFixed(1).replace('.', ',')}x`;
+}
+
+function CobPar({ disp, dispNovo, minimo }: { disp: number; dispNovo: number; minimo: number }) {
+  if (!(minimo > 0)) return <span className="text-gray-400">-</span>;
+  const atual = disp / minimo;
+  const nova = dispNovo / minimo;
+  const mudou = Math.abs(nova - atual) >= 0.05;
+  return (
+    <span className="font-mono whitespace-nowrap">
+      <span className="text-gray-600">{fmtCob(atual)}</span>
+      <span className="text-gray-400 mx-1">→</span>
+      <span className={mudou ? 'text-emerald-700 font-semibold' : 'text-gray-400'}>{fmtCob(nova)}</span>
+    </span>
+  );
 }
 
 function norm(value: string) {
@@ -192,7 +215,7 @@ export default function ReducaoPlanoPage() {
   const [filtroFamilia, setFiltroFamilia] = useState('TODAS');
   const [somenteComReducao, setSomenteComReducao] = useState(true);
   const [coberturaMinimaFutura, setCoberturaMinimaFutura] = useState(0);
-  const [limiteReducaoPct, setLimiteReducaoPct] = useState(100);
+  const [pctReducao, setPctReducao] = useState(100);
   const [limiteExtraTolerancia, setLimiteExtraTolerancia] = useState(0);
   const [modoAnalise, setModoAnalise] = useState<ModoAnalise>('SKU');
   const [expandedRefs, setExpandedRefs] = useState<Set<string>>(new Set());
@@ -204,6 +227,10 @@ export default function ReducaoPlanoPage() {
     const opcao = HORIZONTE_OPTIONS.find((h) => h.value === horizonteMeses);
     return (opcao?.periodos || PERIODOS) as readonly Periodo[];
   }, [horizonteMeses]);
+
+  // Fatia da reducao sugerida que o usuario escolheu aplicar. Vale para a pagina toda:
+  // tabela, cards do topo e projecao de estoque mexem junto com o slider.
+  const fatorPct = Math.min(100, Math.max(0, pctReducao)) / 100;
 
   useEffect(() => {
     if (!getToken()) {
@@ -272,20 +299,16 @@ export default function ReducaoPlanoPage() {
         const saldosFuturos = janela.map((p) => Number(disp[p] || 0));
         const menorSaldoFuturo = Math.min(...saldosFuturos);
         const saldoMinimoFuturo = Math.max(0, min * coberturaMinimaFutura);
-        const limitePorPct = Number(plano[periodoAlvo] || 0) * (Math.max(0, limiteReducaoPct) / 100);
-        // Reducao sem tolerancia (segura)
-        const maxReducaoSegura = Math.min(
-          Number(plano[periodoAlvo] || 0),
-          limitePorPct,
-          Math.max(0, menorSaldoFuturo - saldoMinimoFuturo)
-        );
-        // Reducao com tolerancia (permite até -120 por SKU)
         const TOLERANCIA_POR_SKU = 120;
-        const maxReducaoComTolerancia = Math.min(
-          Number(plano[periodoAlvo] || 0),
-          limitePorPct,
-          Math.max(0, menorSaldoFuturo - saldoMinimoFuturo + TOLERANCIA_POR_SKU)
-        );
+        // O percentual incide sobre o teto seguro, ANTES do arredondamento por lote: assim os
+        // extras de meio corte e tolerancia saem coerentes com a fatia escolhida, e o corte
+        // continua caindo num multiplo valido de lote.
+        const folgaSegura = Math.max(0, menorSaldoFuturo - saldoMinimoFuturo);
+        const folgaComTolerancia = Math.max(0, menorSaldoFuturo - saldoMinimoFuturo + TOLERANCIA_POR_SKU);
+        // Reducao sem tolerancia (segura)
+        const maxReducaoSegura = Math.min(Number(plano[periodoAlvo] || 0), folgaSegura) * fatorPct;
+        // Reducao com tolerancia (permite até -120 por SKU)
+        const maxReducaoComTolerancia = Math.min(Number(plano[periodoAlvo] || 0), folgaComTolerancia) * fatorPct;
         const reducaoCorteInteiro = roundDownByLot(maxReducaoSegura, corteInteiro);
         const reducaoComLoteSelecionado = roundDownByLot(maxReducaoSegura, lote);
         const extraMeioCorte = usarMeioCorte ? Math.max(0, reducaoComLoteSelecionado - reducaoCorteInteiro) : 0;
@@ -331,7 +354,7 @@ export default function ReducaoPlanoPage() {
           dispTargetPosTransfer: Number(disp[periodoAlvo] || 0) + transferencia,
         };
       });
-  }, [dados, projecoes, periodos, periodoAlvo, periodosVisiveis, cortes, curvaABC, usarMeioCorte, coberturaMinimaFutura, limiteReducaoPct]);
+  }, [dados, projecoes, periodos, periodoAlvo, periodosVisiveis, cortes, curvaABC, usarMeioCorte, coberturaMinimaFutura, fatorPct]);
 
   const opcoesLinha = useMemo(() => ['TODAS', ...Array.from(new Set(rows.map((r) => norm(r.linha)).filter(Boolean))).sort()], [rows]);
   const opcoesFamilia = useMemo(() => ['TODAS', ...Array.from(new Set(rows.map((r) => norm(r.familia)).filter(Boolean))).sort()], [rows]);
@@ -446,21 +469,29 @@ export default function ReducaoPlanoPage() {
     });
 
     return Array.from(map.entries())
-      .map(([referencia, itens]) => ({
-        referencia,
-        produto: itens[0]?.produto || '-',
-        continuidade: itens[0]?.continuidade || '-',
-        linha: itens[0]?.linha || '-',
-        familia: itens[0]?.familia || '-',
-        curva: itens[0]?.curva || 'B',
-        itens: [...itens].sort((a, b) => `${a.cor}-${a.tamanho}`.localeCompare(`${b.cor}-${b.tamanho}`)),
-        skus: itens.length,
-        reducaoTotal: itens.reduce((acc, r) => acc + r.reducaoSegura, 0),
-        transferenciaTotal: itens.reduce((acc, r) => acc + r.transferencia, 0),
-        planoAtual: itens.reduce((acc, r) => acc + Number(r.plano[periodoAlvo] || 0), 0),
-        planoNovo: itens.reduce((acc, r) => acc + r.planoTargetNovo, 0),
-        skusBloqueados: itens.filter((r) => Number(r.plano[periodoAlvo] || 0) > 0 && r.reducaoSegura <= 0).length,
-      }))
+      .map(([referencia, itens]) => {
+        const reducaoTotal = itens.reduce((acc, r) => acc + r.reducaoSegura, 0);
+        const transferenciaTotal = itens.reduce((acc, r) => acc + r.transferencia, 0);
+        const dispAtual = itens.reduce((acc, r) => acc + Number(r.disp[periodoAlvo] || 0), 0);
+        return {
+          referencia,
+          produto: itens[0]?.produto || '-',
+          continuidade: itens[0]?.continuidade || '-',
+          linha: itens[0]?.linha || '-',
+          familia: itens[0]?.familia || '-',
+          curva: itens[0]?.curva || 'B',
+          itens: [...itens].sort((a, b) => `${a.cor}-${a.tamanho}`.localeCompare(`${b.cor}-${b.tamanho}`)),
+          skus: itens.length,
+          reducaoTotal,
+          transferenciaTotal,
+          planoAtual: itens.reduce((acc, r) => acc + Number(r.plano[periodoAlvo] || 0), 0),
+          planoNovo: itens.reduce((acc, r) => acc + r.planoTargetNovo, 0),
+          skusBloqueados: itens.filter((r) => Number(r.plano[periodoAlvo] || 0) > 0 && r.reducaoSegura <= 0).length,
+          dispAtual,
+          dispNovo: dispAtual - reducaoTotal + transferenciaTotal,
+          estoqueMinTotal: itens.reduce((acc, r) => acc + Number(r.estoqueMin || 0), 0),
+        };
+      })
       .sort((a, b) => (b.reducaoTotal + b.transferenciaTotal) - (a.reducaoTotal + a.transferenciaTotal));
   }, [rowsVisiveis, periodoAlvo]);
 
@@ -580,7 +611,7 @@ export default function ReducaoPlanoPage() {
         if (planoNoPeriodo > 0) {
           const saldosFuturos = janelaSeguranca(p, periodosVisiveis).map((pf) => Number(disp[pf] || 0));
           const menorSaldoFuturo = Math.min(...saldosFuturos);
-          const maxReducaoSegura = Math.min(planoNoPeriodo, Math.max(0, menorSaldoFuturo));
+          const maxReducaoSegura = Math.min(planoNoPeriodo, Math.max(0, menorSaldoFuturo)) * fatorPct;
           const reducaoComLote = roundDownByLot(maxReducaoSegura, lote);
           if (reducaoComLote > 0) {
             reducaoPorPeriodo[p] += reducaoComLote;
@@ -648,7 +679,7 @@ export default function ReducaoPlanoPage() {
         if (planoNoPeriodo > 0) {
           const saldosFuturos = janelaSeguranca(p, periodosVisiveis).map((pf) => Number(dispAtual[pf] || 0));
           const menorSaldoFuturo = Math.min(...saldosFuturos);
-          const maxReducao = Math.min(planoNoPeriodo, Math.max(0, menorSaldoFuturo));
+          const maxReducao = Math.min(planoNoPeriodo, Math.max(0, menorSaldoFuturo)) * fatorPct;
           const reducaoComLote = roundDownByLot(maxReducao, lote);
 
           if (reducaoComLote > 0) {
@@ -705,7 +736,7 @@ export default function ReducaoPlanoPage() {
       projecaoTotalGeral: Object.values(projecaoPorPeriodo).reduce((a, b) => a + b, 0),
       coberturaMesesFinal,
     };
-  }, [dados, projecoes, periodos, periodosVisiveis, cortes, usarMeioCorte]);
+  }, [dados, projecoes, periodos, periodosVisiveis, cortes, usarMeioCorte, fatorPct]);
 
   async function salvar(tipo: 'REDUCAO' | 'ANTECIPACAO' | 'AMBAS') {
     setSalvando(true);
@@ -867,6 +898,35 @@ export default function ReducaoPlanoPage() {
                 ))}
               </select>
             </label>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold text-gray-600">
+                Aplicar <span className="text-red-700 font-bold">{pctReducao}%</span> da reducao sugerida
+              </span>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={pctReducao}
+                  onChange={(e) => setPctReducao(Number(e.target.value))}
+                  className="w-28 accent-red-600"
+                />
+                {[25, 50, 75, 100].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setPctReducao(v)}
+                    className={`px-1.5 py-1 text-[11px] font-semibold rounded border transition-colors ${
+                      pctReducao === v
+                        ? 'bg-red-600 text-white border-red-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {v}%
+                  </button>
+                ))}
+              </div>
+            </div>
             <button onClick={carregar} disabled={loading} className="px-3 py-1.5 text-xs font-semibold border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60">
               Atualizar
             </button>
@@ -1286,6 +1346,7 @@ export default function ReducaoPlanoPage() {
                   <th className="text-right px-2 py-2">Plano {periodoAlvo}</th>
                   <th className="text-right px-2 py-2">Reduzir</th>
                   <th className="text-right px-2 py-2">Novo {periodoAlvo}</th>
+                  <th className="text-right px-2 py-2">Cob. {periodoAlvo} (atual → nova)</th>
                   <th className="text-right px-2 py-2">Trazer prox.</th>
                 </tr>
               </thead>
@@ -1304,6 +1365,9 @@ export default function ReducaoPlanoPage() {
                       <td className="px-2 py-1.5 text-right font-mono">{fmt(grupo.planoAtual)}</td>
                       <td className="px-2 py-1.5 text-right font-mono text-red-700 font-semibold">{fmt(grupo.reducaoTotal)}</td>
                       <td className="px-2 py-1.5 text-right font-mono">{fmt(grupo.planoNovo)}</td>
+                      <td className="px-2 py-1.5 text-right">
+                        <CobPar disp={grupo.dispAtual} dispNovo={grupo.dispNovo} minimo={grupo.estoqueMinTotal} />
+                      </td>
                       <td className="px-2 py-1.5 text-right font-mono text-blue-700 font-semibold">{fmt(grupo.transferenciaTotal)}</td>
                     </tr>
                     {/* Linhas dos SKUs (se expandido) */}
@@ -1316,13 +1380,20 @@ export default function ReducaoPlanoPage() {
                         <td className="px-2 py-1 text-right font-mono">{fmt(r.plano[periodoAlvo])}</td>
                         <td className="px-2 py-1 text-right font-mono text-red-600">{fmt(r.reducaoSegura)}</td>
                         <td className="px-2 py-1 text-right font-mono">{fmt(r.planoTargetNovo)}</td>
+                        <td className="px-2 py-1 text-right">
+                          <CobPar
+                            disp={Number(r.disp[periodoAlvo] || 0)}
+                            dispNovo={Number(r.disp[periodoAlvo] || 0) - r.reducaoSegura + r.transferencia}
+                            minimo={r.estoqueMin}
+                          />
+                        </td>
                         <td className="px-2 py-1 text-right font-mono text-blue-600">{r.next ? fmt(r.transferencia) : '-'}</td>
                       </tr>
                     ))}
                   </Fragment>
                 ))}
                 {gruposRef.length === 0 && (
-                  <tr><td colSpan={8} className="px-3 py-8 text-center text-gray-500">Nenhuma oportunidade encontrada.</td></tr>
+                  <tr><td colSpan={9} className="px-3 py-8 text-center text-gray-500">Nenhuma oportunidade encontrada.</td></tr>
                 )}
               </tbody>
             </table>
