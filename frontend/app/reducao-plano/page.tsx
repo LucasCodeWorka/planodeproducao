@@ -100,6 +100,16 @@ function roundUpByLot(qtd: number, lot: number) {
   return Math.ceil(q / l) * l;
 }
 
+// Periodos avaliados na trava de saldo negativo. Termina no fim do horizonte escolhido:
+// cobrar que um plano de 4 meses cubra 6 meses de demanda zera a reducao de quase todo SKU,
+// porque os meses sem plano drenam o saldo ate ficar negativo.
+// Alvo fora do horizonte mantem a janela completa, para nao afrouxar a trava sem querer.
+function janelaSeguranca(alvo: Periodo, visiveis: readonly Periodo[]): readonly Periodo[] {
+  const idx = visiveis.indexOf(alvo);
+  if (idx >= 0) return visiveis.slice(idx);
+  return PERIODOS.slice(PERIODOS.indexOf(alvo));
+}
+
 function chaveItem(item: Planejamento) {
   const id = Number(item.produto.idproduto);
   if (Number.isFinite(id)) return `ID-${id}`;
@@ -240,6 +250,7 @@ export default function ReducaoPlanoPage() {
   const rows = useMemo<ReducaoRow[]>(() => {
     const targetIndex = PERIODOS.indexOf(periodoAlvo);
     const next = PERIODOS[targetIndex + 1] || null;
+    const janela = janelaSeguranca(periodoAlvo, periodosVisiveis);
     return dados
       .filter((item) => {
         const marca = norm(item.produto?.marca || '');
@@ -258,7 +269,7 @@ export default function ReducaoPlanoPage() {
         const min = Number(item.estoques.estoque_minimo || 0);
         const corteInteiro = Math.max(1, Number(cortes[id] || 0) || Math.round(min || 1));
         const lote = usarMeioCorte ? Math.max(1, Math.round(corteInteiro / 2)) : corteInteiro;
-        const saldosFuturos = PERIODOS.slice(targetIndex).map((p) => Number(disp[p] || 0));
+        const saldosFuturos = janela.map((p) => Number(disp[p] || 0));
         const menorSaldoFuturo = Math.min(...saldosFuturos);
         const saldoMinimoFuturo = Math.max(0, min * coberturaMinimaFutura);
         const limitePorPct = Number(plano[periodoAlvo] || 0) * (Math.max(0, limiteReducaoPct) / 100);
@@ -320,7 +331,7 @@ export default function ReducaoPlanoPage() {
           dispTargetPosTransfer: Number(disp[periodoAlvo] || 0) + transferencia,
         };
       });
-  }, [dados, projecoes, periodos, periodoAlvo, cortes, curvaABC, usarMeioCorte, coberturaMinimaFutura, limiteReducaoPct]);
+  }, [dados, projecoes, periodos, periodoAlvo, periodosVisiveis, cortes, curvaABC, usarMeioCorte, coberturaMinimaFutura, limiteReducaoPct]);
 
   const opcoesLinha = useMemo(() => ['TODAS', ...Array.from(new Set(rows.map((r) => norm(r.linha)).filter(Boolean))).sort()], [rows]);
   const opcoesFamilia = useMemo(() => ['TODAS', ...Array.from(new Set(rows.map((r) => norm(r.familia)).filter(Boolean))).sort()], [rows]);
@@ -561,14 +572,13 @@ export default function ReducaoPlanoPage() {
 
       // Calcula redução e antecipação para CADA período de forma independente
       periodosComPlano.forEach((p, pIdx) => {
-        const idx = PERIODOS_ANALISE.indexOf(p);
         const planoNoPeriodo = Number(plano[p] || 0);
         const saldoPeriodo = Number(disp[p] || 0);
         const nextPeriodo = periodosComPlano[pIdx + 1] || null;
 
         // REDUÇÃO: se tem plano e saldo positivo futuro
         if (planoNoPeriodo > 0) {
-          const saldosFuturos = PERIODOS_ANALISE.slice(idx).map((pf) => Number(disp[pf] || 0));
+          const saldosFuturos = janelaSeguranca(p, periodosVisiveis).map((pf) => Number(disp[pf] || 0));
           const menorSaldoFuturo = Math.min(...saldosFuturos);
           const maxReducaoSegura = Math.min(planoNoPeriodo, Math.max(0, menorSaldoFuturo));
           const reducaoComLote = roundDownByLot(maxReducaoSegura, lote);
@@ -633,11 +643,10 @@ export default function ReducaoPlanoPage() {
       periodosComPlano.forEach((p) => {
         // Recalcula disp com o plano ajustado
         const dispAtual = calcularDisp(item, projecoes, periodos, planoAjustado);
-        const idx = PERIODOS_ANALISE.indexOf(p);
         const planoNoPeriodo = Number(planoAjustado[p] || 0);
 
         if (planoNoPeriodo > 0) {
-          const saldosFuturos = PERIODOS_ANALISE.slice(idx).map((pf) => Number(dispAtual[pf] || 0));
+          const saldosFuturos = janelaSeguranca(p, periodosVisiveis).map((pf) => Number(dispAtual[pf] || 0));
           const menorSaldoFuturo = Math.min(...saldosFuturos);
           const maxReducao = Math.min(planoNoPeriodo, Math.max(0, menorSaldoFuturo));
           const reducaoComLote = roundDownByLot(maxReducao, lote);
@@ -696,7 +705,7 @@ export default function ReducaoPlanoPage() {
       projecaoTotalGeral: Object.values(projecaoPorPeriodo).reduce((a, b) => a + b, 0),
       coberturaMesesFinal,
     };
-  }, [dados, projecoes, periodos, cortes, usarMeioCorte]);
+  }, [dados, projecoes, periodos, periodosVisiveis, cortes, usarMeioCorte]);
 
   async function salvar(tipo: 'REDUCAO' | 'ANTECIPACAO' | 'AMBAS') {
     setSalvando(true);
