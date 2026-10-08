@@ -495,8 +495,6 @@ export default function VisaoGeral2Page() {
     return { capacidadeDiaria: capDiaria, diasNecessarios, diasDisponiveis, chaves };
   }, [resumoDias, data]);
 
-  const totalDemanda = useMemo(() => data?.meses.reduce((s, m) => s + m.demanda, 0) || 0, [data]);
-  const totalProducao = useMemo(() => data?.meses.reduce((s, m) => s + m.producao, 0) || 0, [data]);
   const ultimo = data?.meses[data.meses.length - 1];
   const primeiroNegativo = data?.meses.find((m) => m.estoque < 0);
   // Agrupamento visual por semestre (pedido do usuário): 4 meses (set-dez do ano corrente) +
@@ -572,7 +570,14 @@ export default function VisaoGeral2Page() {
       const arr: (number | null)[] = [];
       for (let c = 0; c < 16; c += 1) {
         const periodo = periodosPlano.find((p) => periodoParaColuna[p] === c);
-        if (periodo) arr.push(...doPeriodo(periodo));
+        if (periodo) {
+          // O Real de um periodo de plano e o quanto dele ja virou OP. Em mes que ainda nao
+          // chegou isso e zero por construcao, e um zero ali se disfarca de "produziu nada".
+          // Fora da faixa de meses fechados o Real fica em branco, como ja acontece nas
+          // colunas simuladas — e como o proprio cabecalho da tabela indica.
+          const [projetado, real] = doPeriodo(periodo);
+          arr.push(projetado, c < ULTIMA_COLUNA_REAL ? real : null);
+        }
         else if (c > maxColunaPeriodo) arr.push(...doSimulado(c - 4));
         else arr.push(null, null);
       }
@@ -773,27 +778,25 @@ export default function VisaoGeral2Page() {
           ['Estoque + processo', fmt(data.posicao.estoqueDisponivel), 'text-slate-800', 'Coluna estoque_disponivel da matriz: estoque físico + em processo (não abate pendente)'],
         ].map(([label, value, color, hint]) => <div key={label} title={hint} className="bg-white border border-gray-200 rounded-lg px-4 py-3"><div className="text-xs uppercase tracking-wide text-gray-500 truncate">{label}</div><div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div></div>)}
       </div>
-      {/* "Capacidade diária média 3M" saiu daqui: o valor esta numa escala ~18x maior que a
-          medida no ERP (1.066.064 contra 57.889) e conflitava com o painel de capacidade. */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {[['Disponível em dezembro', fmt(data.estoqueFimDezembro), data.estoqueFimDezembro < 0 ? 'text-red-700' : 'text-blue-700'], ['Demanda 2027.1', fmt(totalDemanda), 'text-emerald-700'], ['Plano previsto 2027.1', fmt(totalProducao), 'text-indigo-700']].map(([label, value, color]) => <div key={label} className="bg-white border border-gray-200 rounded-lg px-4 py-3"><div className="text-xs uppercase tracking-wide text-gray-500 truncate" title={label}>{label}</div><div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div></div>)}
-      </div>
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Capacidade e processo · mês atual (período MA)</div>
-      {/* "Capacidade restante (mês)" saiu daqui: subtraia um executado em escala real de um
-          total vindo de capacidadePorMes, que esta inflado. A leitura de folga do mes agora
-          vem do painel de capacidade, em dias. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        {[
-          ['Já executado no mês', fmt(data.minutosExecutadosMesAtual), 'text-blue-700', 'Minutos já produzidos no mês corrente (movimentos do ERP)'],
-          ['Carga restante do plano (MA)', fmt(data.cargaRestanteMA), 'text-amber-700', 'Minutos das peças do período MA que ainda não foram finalizadas'],
-          [
-            'Previsão de término do plano (MA)',
-            data.previsaoTermino ? new Date(`${data.previsaoTermino}T00:00:00`).toLocaleDateString('pt-BR') : 'Concluído',
-            data.previsaoTermino ? 'text-red-700' : 'text-emerald-700',
-            `${fmt(data.diasUteisRestantes)} dias úteis restantes, no ritmo real atual`,
-          ],
-          ['Lead time médio de OP', `${fmt(data.leadTimeDias)}d`, 'text-indigo-700', 'Média real de inicio a encerramento de OP (LIEBE), últimos 6 meses, sem outliers'],
-        ].map(([label, value, color, hint]) => <div key={label} title={hint} className="bg-white border border-gray-200 rounded-lg px-4 py-3"><div className="text-xs uppercase tracking-wide text-gray-500 truncate">{label}</div><div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div></div>)}
+      {/* Cards cortados por ja aparecerem em outro lugar desta tela:
+          - "Disponivel em dezembro", "Demanda 2027.1" e "Plano previsto 2027.1": a tabela
+            abaixo mostra os tres mes a mes;
+          - "Ja executado no mes" e "Carga restante do plano (MA)": o painel de capacidade
+            diz a mesma coisa em dias, que e a unidade de decisao;
+          - "Capacidade diaria media 3M" e "Capacidade restante (mes)": estavam numa escala
+            ~18x maior que a medida no ERP.
+          Sobram aqui so os dois que nao existem em nenhum outro ponto da tela. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6 text-sm">
+        <span className="text-gray-600">
+          Previsão de término do plano (MA):{' '}
+          <strong className={data.previsaoTermino ? 'text-red-700' : 'text-emerald-700'}>
+            {data.previsaoTermino ? new Date(`${data.previsaoTermino}T00:00:00`).toLocaleDateString('pt-BR') : 'Concluído'}
+          </strong>
+          <span className="text-gray-400"> · {fmt(data.diasUteisRestantes)} dias úteis no ritmo atual</span>
+        </span>
+        <span className="text-gray-600">
+          Lead time médio de OP: <strong className="text-indigo-700">{fmt(data.leadTimeDias)}d</strong>
+        </span>
       </div>
       <PainelCapacidade
         resumo={resumoContinuo}
