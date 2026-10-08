@@ -231,6 +231,9 @@ export default function ReducaoPlanoPage() {
   const [expandedRefs, setExpandedRefs] = useState<Set<string>>(new Set());
   const [filtroCurvaABC, setFiltroCurvaABC] = useState<('A' | 'B' | 'C' | 'D')[]>([]);
   const [horizonteMeses, setHorizonteMeses] = useState<2 | 3 | 4 | 6>(4);
+  // Ate onde o corte pode mexer. Independe do horizonte: da para olhar o acumulado ate QT
+  // e mesmo assim so reduzir ate UL, deixando o plano de janeiro congelado.
+  const [reduzirAte, setReduzirAte] = useState<Periodo>('QT');
 
   // Períodos filtrados pelo horizonte selecionado
   const periodosVisiveis = useMemo(() => {
@@ -241,6 +244,21 @@ export default function ReducaoPlanoPage() {
   // Fatia da reducao sugerida que o usuario escolheu aplicar. Vale para a pagina toda:
   // tabela, cards do topo e projecao de estoque mexem junto com o slider.
   const fatorPct = Math.min(100, Math.max(0, pctReducao)) / 100;
+  const limiteCorteIdx = PERIODOS.indexOf(reduzirAte);
+  const podeReduzir = (p: Periodo) => PERIODOS.indexOf(p) <= limiteCorteIdx;
+
+  // O limite de corte nunca passa do horizonte, e o periodo em foco nunca passa do limite:
+  // senao a tabela ofereceria salvar um corte num periodo que o usuario congelou.
+  useEffect(() => {
+    const ultimoDoHorizonte = periodosVisiveis[periodosVisiveis.length - 1];
+    if (ultimoDoHorizonte && PERIODOS.indexOf(reduzirAte) > PERIODOS.indexOf(ultimoDoHorizonte)) {
+      setReduzirAte(ultimoDoHorizonte);
+    }
+  }, [periodosVisiveis, reduzirAte]);
+
+  useEffect(() => {
+    if (PERIODOS.indexOf(periodoAlvo) > limiteCorteIdx) setPeriodoAlvo(reduzirAte);
+  }, [periodoAlvo, limiteCorteIdx, reduzirAte]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -652,8 +670,8 @@ export default function ReducaoPlanoPage() {
         const saldoPeriodo = Number(disp[p] || 0);
         const nextPeriodo = periodosComPlano[pIdx + 1] || null;
 
-        // REDUÇÃO: se tem plano e saldo positivo futuro
-        if (planoNoPeriodo > 0) {
+        // REDUÇÃO: se tem plano e saldo positivo futuro, e o periodo esta dentro do corte
+        if (planoNoPeriodo > 0 && podeReduzir(p)) {
           const saldosFuturos = janelaSeguranca(p, periodosVisiveis).map((pf) => Number(disp[pf] || 0));
           const menorSaldoFuturo = Math.min(...saldosFuturos);
           const maxReducaoSegura = Math.min(planoNoPeriodo, Math.max(0, menorSaldoFuturo)) * fatorPct;
@@ -725,7 +743,7 @@ export default function ReducaoPlanoPage() {
         const dispAtual = calcularDisp(item, projecoes, periodos, planoAjustado);
         const planoNoPeriodo = Number(planoAjustado[p] || 0);
 
-        if (planoNoPeriodo > 0) {
+        if (planoNoPeriodo > 0 && podeReduzir(p)) {
           const saldosFuturos = janelaSeguranca(p, periodosVisiveis).map((pf) => Number(dispAtual[pf] || 0));
           const menorSaldoFuturo = Math.min(...saldosFuturos);
           const maxReducao = Math.min(planoNoPeriodo, Math.max(0, menorSaldoFuturo)) * fatorPct;
@@ -787,7 +805,7 @@ export default function ReducaoPlanoPage() {
       projecaoTotalGeral: Object.values(projecaoPorPeriodo).reduce((a, b) => a + b, 0),
       coberturaMesesFinal,
     };
-  }, [dados, projecoes, periodos, periodosVisiveis, cortes, usarMeioCorte, fatorPct, tempoPorRef]);
+  }, [dados, projecoes, periodos, periodosVisiveis, cortes, usarMeioCorte, fatorPct, tempoPorRef, limiteCorteIdx]);
 
   // Carga x capacidade por periodo, na mesma conta da tela de Capacidade.
   // A carga atual soma a matriz inteira desta tela; a reducao so tira das permanentes,
@@ -936,14 +954,20 @@ export default function ReducaoPlanoPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-3 flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold text-gray-600">Horizonte</span>
-              <select value={horizonteMeses} onChange={(e) => setHorizonteMeses(Number(e.target.value) as 2 | 3 | 4 | 6)} className="border border-gray-300 rounded px-2 py-1.5 text-xs bg-amber-50 border-amber-300 font-semibold">
+              <select value={horizonteMeses} onChange={(e) => setHorizonteMeses(Number(e.target.value) as 2 | 3 | 4 | 6)} className="border border-amber-300 rounded px-2 py-1.5 text-xs bg-amber-50 font-semibold">
                 {HORIZONTE_OPTIONS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
               </select>
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-[11px] font-semibold text-gray-600">Periodo</span>
               <select value={periodoAlvo} onChange={(e) => setPeriodoAlvo(e.target.value as Periodo)} className="border border-gray-300 rounded px-2 py-1.5 text-xs">
-                {PERIODOS.filter((p) => resumoGeral.planoTotal[p] > 0 || rows.length === 0).map((p) => <option key={p} value={p}>{p}</option>)}
+                {PERIODOS.filter((p) => podeReduzir(p) && (resumoGeral.planoTotal[p] > 0 || rows.length === 0)).map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold text-gray-600">Reduzir ate</span>
+              <select value={reduzirAte} onChange={(e) => setReduzirAte(e.target.value as Periodo)} className="border border-red-300 rounded px-2 py-1.5 text-xs bg-red-50 font-semibold">
+                {periodosVisiveis.filter((p) => resumoGeral.planoTotal[p] > 0 || rows.length === 0).map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </label>
             <label className="flex flex-col gap-1">
@@ -1364,7 +1388,9 @@ export default function ReducaoPlanoPage() {
                   <tr className="border-b border-amber-300">
                     <th className="text-left py-0.5 px-1 text-amber-700"></th>
                     {periodosExibidos.map((p) => (
-                      <th key={p} className="text-center py-0.5 px-1 text-amber-700 font-bold">{p}</th>
+                      <th key={p} className="text-center py-0.5 px-1 text-amber-700 font-bold">
+                        {p}{podeReduzir(p) ? '' : ' 🔒'}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -1437,6 +1463,8 @@ export default function ReducaoPlanoPage() {
                 </tbody>
               </table>
               <div className="text-[9px] text-amber-700 mt-1">
+                🔒 = período fora do corte (acima de &quot;Reduzir ate&quot;): continua na conta acumulada, mas o plano
+                dele não é tocado.
                 ⚠️ Gap e ocupação são <strong>acumulados</strong>: o que não cabe num período transborda
                 para o seguinte. Gap positivo = estourado · ocupação verde 85-100% (fábrica cheia) ·
                 amarelo = ociosa. Dias atuais vêm do mesmo cálculo da tela de Capacidade, sobre o plano
