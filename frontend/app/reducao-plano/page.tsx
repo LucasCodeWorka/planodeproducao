@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
+import PainelCapacidade from '../components/PainelCapacidade';
 import { PeriodosPlano, Planejamento, ProjecoesMap } from '../types';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
@@ -807,45 +808,39 @@ export default function ReducaoPlanoPage() {
     };
   }, [dados, projecoes, periodos, periodosVisiveis, cortes, usarMeioCorte, fatorPct, tempoPorRef, limiteCorteIdx]);
 
-  // Carga x capacidade por periodo, na mesma conta da tela de Capacidade.
-  // A carga atual soma a matriz inteira desta tela; a reducao so tira das permanentes,
-  // que e o unico plano que esta tela mexe.
-  const capacidadePeriodos = useMemo(() => {
-    const capDiaria = Number(resumoDias?.capacidadeDiaria || 0);
-    const porPeriodo = {} as Record<Periodo, {
-      diasDisponiveis: number; diasAtual: number; diasNovo: number; diasRetirados: number;
-      gapAtual: number; gapNovo: number; ocupAtual: number; ocupNova: number;
-    }>;
-    // O que nao cabe num periodo transborda para o seguinte, entao a leitura util e a
-    // acumulada: ocupacao e gap olham o somatorio do inicio do horizonte ate o periodo.
-    let necAcum = 0;
-    let novoAcum = 0;
-    let dispAcum = 0;
-    for (const p of PERIODOS) {
-      const diasDisponiveis = Number(resumoDias?.diasDisponiveis?.[p] || 0);
-      const diasAtual = Number(resumoDias?.diasNecessarios?.[p] || 0);
-      // A reducao so mexe nas permanentes, mas o valor ja esta fechado: basta descontar
-      // a carga retirada do total para achar o plano novo e os dias dele.
-      const diasRetirados = capDiaria > 0
-        ? Number(resumoGeral.reducaoSequencialCarga[p] || 0) / capDiaria
-        : 0;
-      const diasNovo = Math.max(0, diasAtual - diasRetirados);
-      necAcum += diasAtual;
-      novoAcum += diasNovo;
-      dispAcum += diasDisponiveis;
-      porPeriodo[p] = {
-        diasDisponiveis,
-        diasAtual,
-        diasNovo,
-        diasRetirados,
-        gapAtual: necAcum - dispAcum,
-        gapNovo: novoAcum - dispAcum,
-        ocupAtual: dispAcum > 0 ? necAcum / dispAcum : 0,
-        ocupNova: dispAcum > 0 ? novoAcum / dispAcum : 0,
-      };
+  // Retrato de hoje, sobre a matriz inteira desta tela (sem os filtros de continuidade/
+  // linha/familia), para bater com o bloco "Posicao atual" da Visao Geral.
+  const posicaoAtual = useMemo(() => {
+    let skus = 0;
+    let estoqueAtual = 0;
+    let pendentes = 0;
+    let emProcesso = 0;
+    let minimo = 0;
+    for (const item of dados) {
+      skus += 1;
+      estoqueAtual += Number(item.estoques?.estoque_atual || 0);
+      pendentes += Number(item.demanda?.pedidos_pendentes || 0);
+      emProcesso += Number(item.estoques?.em_processo || 0);
+      minimo += Number(item.estoques?.estoque_minimo || 0);
     }
-    return { porPeriodo, disponivel: capDiaria > 0 && Object.keys(tempoPorRef).length > 0 };
-  }, [resumoDias, tempoPorRef, resumoGeral]);
+    const disponivel = estoqueAtual - pendentes;
+    const sobre = (v: number) => (estoqueAtual > 0 ? v / estoqueAtual : 0);
+    return {
+      skus,
+      estoqueAtual,
+      pendentes,
+      emProcesso,
+      minimo,
+      disponivel,
+      estoqueMaisProcesso: estoqueAtual + emProcesso,
+      pctPendentes: sobre(pendentes),
+      pctDisponivel: sobre(disponivel),
+      pctProcesso: sobre(emProcesso),
+      coberturaAtual: minimo > 0 ? disponivel / minimo : 0,
+      coberturaComProcesso: minimo > 0 ? (disponivel + emProcesso) / minimo : 0,
+    };
+  }, [dados]);
+
 
   async function salvar(tipo: 'REDUCAO' | 'ANTECIPACAO' | 'AMBAS') {
     setSalvando(true);
@@ -1067,6 +1062,45 @@ export default function ReducaoPlanoPage() {
             <button onClick={recolherTodas} disabled={expandedRefs.size === 0} className="px-3 py-1.5 text-xs font-semibold border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-60">
               Recolher
             </button>
+          </div>
+
+          {/* Situacao atual: retrato de hoje, mesmo recorte da Visao Geral */}
+          <div className="bg-white rounded-lg border border-gray-200 p-3">
+            <div className="flex items-baseline justify-between mb-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                Situação atual · {fmt(posicaoAtual.skus)} SKUs da matriz
+              </span>
+              <span className="text-[9px] text-gray-400">% sobre o estoque atual · sem os filtros desta tela</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
+              {([
+                ['Estoque atual', fmt(posicaoAtual.estoqueAtual), null, 'text-blue-700', 'Estoque fisico em casa hoje'],
+                ['Pedidos pendentes', fmt(posicaoAtual.pendentes), posicaoAtual.pctPendentes, 'text-amber-700', 'Vendido e ainda nao atendido: sai do estoque'],
+                ['Disponível', fmt(posicaoAtual.disponivel), posicaoAtual.pctDisponivel, posicaoAtual.disponivel < 0 ? 'text-red-700' : 'text-emerald-700', 'Estoque atual menos pedidos pendentes'],
+                ['Em processo', fmt(posicaoAtual.emProcesso), posicaoAtual.pctProcesso, 'text-indigo-700', 'Produzindo agora, ainda nao entrou no estoque'],
+                ['Estoque + processo', fmt(posicaoAtual.estoqueMaisProcesso), null, 'text-slate-800', 'Estoque fisico mais o que esta em producao'],
+                ['Estoque mínimo', fmt(posicaoAtual.minimo), null, 'text-gray-600', 'Soma do estoque minimo dos SKUs'],
+              ] as Array<[string, string, number | null, string, string]>).map(([label, value, pct, cor, hint]) => (
+                <div key={label} title={hint} className="border border-gray-200 rounded px-2 py-1.5">
+                  <div className="text-[10px] uppercase tracking-wide text-gray-500 truncate">{label}</div>
+                  <div className={`text-lg font-bold leading-tight ${cor}`}>{value}</div>
+                  <div className="text-[10px] text-gray-400 h-3">
+                    {pct === null ? '' : `${Math.round(pct * 100)}% do estoque`}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
+              <span className="text-gray-600">
+                Cobertura atual:{' '}
+                <strong className="font-mono text-gray-800">{fmtCob(posicaoAtual.coberturaAtual)}</strong>
+                <span className="text-gray-400"> (disponível ÷ estoque mínimo)</span>
+              </span>
+              <span className="text-gray-600">
+                Com o processo:{' '}
+                <strong className="font-mono text-gray-800">{fmtCob(posicaoAtual.coberturaComProcesso)}</strong>
+              </span>
+            </div>
           </div>
 
           {/* Resumo Geral do Plano */}
@@ -1377,102 +1411,12 @@ export default function ReducaoPlanoPage() {
             </div>
 
             {/* Capacidade: a reducao nao pode deixar a fabrica sem o que produzir */}
-            {capacidadePeriodos.disponivel && (
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded border border-amber-300 p-2 mb-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-bold text-amber-800">🏭 Capacidade (carga x capacidade do período)</span>
-                <span className="text-[9px] text-amber-700">Capac. diária {fmt(resumoDias?.capacidadeDiaria || 0)} min · plano total, sem os filtros desta tela</span>
-              </div>
-              <table className="w-full text-[11px]">
-                <thead>
-                  <tr className="border-b border-amber-300">
-                    <th className="text-left py-0.5 px-1 text-amber-700"></th>
-                    {periodosExibidos.map((p) => (
-                      <th key={p} className="text-center py-0.5 px-1 text-amber-700 font-bold">
-                        {p}{podeReduzir(p) ? '' : ' 🔒'}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-amber-200">
-                    <td className="py-0.5 px-1 text-gray-600">Dias disponíveis</td>
-                    {periodosExibidos.map((p) => (
-                      <td key={p} className="text-center py-0.5 px-1 font-mono text-gray-700">
-                        {capacidadePeriodos.porPeriodo[p].diasDisponiveis.toLocaleString('pt-BR')}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="border-b border-amber-200">
-                    <td className="py-0.5 px-1 text-gray-600">Dias necessários (atual)</td>
-                    {periodosExibidos.map((p) => (
-                      <td key={p} className="text-center py-0.5 px-1 font-mono text-gray-700">
-                        {capacidadePeriodos.porPeriodo[p].diasAtual.toFixed(1).replace('.', ',')}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="border-b border-amber-200">
-                    <td className="py-0.5 px-1 text-gray-600">Dias tirados pela redução</td>
-                    {periodosExibidos.map((p) => {
-                      const d = capacidadePeriodos.porPeriodo[p].diasRetirados;
-                      return (
-                        <td key={p} className="text-center py-0.5 px-1 font-mono text-red-600">
-                          {d > 0 ? `-${d.toFixed(1).replace('.', ',')}` : '-'}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  <tr className="border-b border-amber-200 bg-red-50">
-                    <td className="py-0.5 px-1 text-red-700">Dias necessários (novo)</td>
-                    {periodosExibidos.map((p) => (
-                      <td key={p} className="text-center py-0.5 px-1 font-mono text-red-700 font-semibold">
-                        {capacidadePeriodos.porPeriodo[p].diasNovo.toFixed(1).replace('.', ',')}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="border-b border-amber-200">
-                    <td className="py-0.5 px-1 text-gray-600 font-semibold">Gap acumulado (dias)</td>
-                    {periodosExibidos.map((p) => {
-                      const c = capacidadePeriodos.porPeriodo[p];
-                      const sinal = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1).replace('.', ',')}`;
-                      const cor = c.gapNovo > 0 ? 'text-red-700' : 'text-emerald-700';
-                      return (
-                        <td key={p} className="text-center py-0.5 px-1 font-mono whitespace-nowrap">
-                          <span className="text-gray-500">{sinal(c.gapAtual)}</span>
-                          <span className="text-gray-400 mx-1">→</span>
-                          <span className={`font-bold ${cor}`}>{sinal(c.gapNovo)}</span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  <tr>
-                    <td className="py-0.5 px-1 text-gray-600 font-semibold">Ocupação acumulada</td>
-                    {periodosExibidos.map((p) => {
-                      const c = capacidadePeriodos.porPeriodo[p];
-                      const pct = (v: number) => `${Math.round(v * 100)}%`;
-                      const cor = c.ocupNova > 1 ? 'text-red-700' : c.ocupNova >= 0.85 ? 'text-emerald-700' : 'text-amber-700';
-                      return (
-                        <td key={p} className="text-center py-0.5 px-1 font-mono whitespace-nowrap">
-                          <span className="text-gray-500">{pct(c.ocupAtual)}</span>
-                          <span className="text-gray-400 mx-1">→</span>
-                          <span className={`font-bold ${cor}`}>{pct(c.ocupNova)}</span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                </tbody>
-              </table>
-              <div className="text-[9px] text-amber-700 mt-1">
-                🔒 = período fora do corte (acima de &quot;Reduzir ate&quot;): continua na conta acumulada, mas o plano
-                dele não é tocado.
-                ⚠️ Gap e ocupação são <strong>acumulados</strong>: o que não cabe num período transborda
-                para o seguinte. Gap positivo = estourado · ocupação verde 85-100% (fábrica cheia) ·
-                amarelo = ociosa. Dias atuais vêm do mesmo cálculo da tela de Capacidade, sobre o plano
-                total (MA inclui o em-processo); a redução é descontada por cima, ponderada pelo tempo
-                de costura.
-              </div>
-            </div>
-            )}
+            <PainelCapacidade
+              resumo={resumoDias}
+              periodos={periodosExibidos}
+              cargaRetirada={resumoGeral.reducaoSequencialCarga}
+              bloqueado={(p) => !podeReduzir(p as Periodo)}
+            />
                 </>
               );
             })()}

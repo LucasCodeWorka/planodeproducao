@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, LayoutGrid, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
+import PainelCapacidade, { type ResumoDiasCapacidade } from '../components/PainelCapacidade';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
 
@@ -15,6 +16,8 @@ type Curva = typeof CURVAS[number];
 // Uma cor por mês. O fundo entra só nas linhas filhas: na linha-pai já existe a cor do
 // bloco, e pintar coluna por cima embolaria as duas leituras.
 const MONTH_LABELS = ['SET', 'OUT', 'NOV', 'DEZ', 'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+const MES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const PERIODOS_CAPACIDADE = ['MA', 'PX', 'UL', 'QT'] as const;
 const CORES_MES = [
   { th: 'text-blue-700',    td: 'bg-blue-50/60' },
   { th: 'text-violet-700',  td: 'bg-violet-50/60' },
@@ -99,6 +102,10 @@ export default function VisaoGeral2Page() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Capacidade vem pronta do backend, a mesma conta da tela de Capacidade e da Reducao de
+  // Plano. Busca separada do carregar(): e barata, cacheada no servidor, e se falhar o
+  // painel some sem derrubar o resto da pagina.
+  const [resumoDias, setResumoDias] = useState<(ResumoDiasCapacidade & { periodos?: Record<string, number> }) | null>(null);
   const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; totalizadores: Record<string, Totalizador>; projecaoTotal: number[]; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva } & ProcessoCapacidade | null>(null);
 
   async function carregar() {
@@ -370,7 +377,23 @@ export default function VisaoGeral2Page() {
     } catch { /* silencioso: mantém os valores padrão */ }
   }
 
-  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); }, [router]);
+  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); }, [router]);
+
+  async function carregarCapacidade() {
+    try {
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/dias-resumo`, { headers: authHeaders() });
+      const p = await r.json();
+      if (!r.ok || !p?.success) return;
+      setResumoDias({
+        capacidadeDiaria: Number(p.capacidadeDiaria || 0),
+        diasNecessarios: p.diasNecessarios || {},
+        diasDisponiveis: p.diasDisponiveis || {},
+        periodos: p.periodos || {},
+      });
+    } catch {
+      setResumoDias(null);
+    }
+  }
   // O estado corrente de estoque é reconstruído do zero a cada cálculo: ele é consumido
   // dentro do laço, então reaproveitar o do cálculo anterior partiria de números já gastos.
   const coberturaPorCurva = useMemo<Record<Curva, number>>(() => ({
@@ -429,6 +452,49 @@ export default function VisaoGeral2Page() {
   // `data` continua com o mesmo formato de antes, então todos os consumidores de
   // `data.meses` seguem funcionando sem alteração.
   const data = useMemo(() => (rawData ? { ...rawData, meses } : null), [rawData, meses]);
+
+  // Uma unica linha do tempo: sai do plano fechado (out -> jan) e entra no projetado
+  // (fev -> dez), acumulando sem quebra. Tudo na capacidade diaria MEDIDA do dias-resumo.
+  //
+  // Os dias necessarios desta tela nao servem: `capacidadeDiaria` daqui esta numa escala
+  // ~18x maior que a medida, o que fazia janeiro aparecer como 2,3 dias em vez de dezenas.
+  // `diasDisponiveis` daqui esta certo (numerador e denominador inflados juntos se anulam),
+  // entao dele aproveitamos; dos necessarios reaproveitamos so a `carga`, que ja esta em
+  // minutos reais, e dividimos pela capacidade medida.
+  const resumoContinuo = useMemo<(ResumoDiasCapacidade & { chaves: string[] }) | null>(() => {
+    if (!resumoDias || !data) return null;
+    const capDiaria = Number(resumoDias.capacidadeDiaria || 0);
+    if (capDiaria <= 0) return null;
+
+    const anoBase = data.anoDestino - 1;
+    const mesMA = Number(resumoDias.periodos?.MA || 0);
+    const diasNecessarios: Record<string, number> = {};
+    const diasDisponiveis: Record<string, number> = {};
+    const chaves: string[] = [];
+
+    for (const p of PERIODOS_CAPACIDADE) {
+      const mes = Number(resumoDias.periodos?.[p] || 0);
+      if (!mes) continue;
+      const ano = mes >= mesMA ? anoBase : data.anoDestino;
+      const chave = `${MES_ABREV[mes - 1]}/${String(ano).slice(2)}`;
+      chaves.push(chave);
+      diasNecessarios[chave] = Number(resumoDias.diasNecessarios?.[p] || 0);
+      diasDisponiveis[chave] = Number(resumoDias.diasDisponiveis?.[p] || 0);
+    }
+
+    const ultimoMesFechado = Number(resumoDias.periodos?.QT || 0);
+    for (const m of data.meses) {
+      const mes = MONTHS.indexOf(m.mes) + 1;
+      if (mes <= ultimoMesFechado) continue;
+      const chave = `${m.mes}/${String(data.anoDestino).slice(2)}`;
+      chaves.push(chave);
+      diasNecessarios[chave] = m.carga / capDiaria;
+      diasDisponiveis[chave] = m.diasDisponiveis;
+    }
+
+    return { capacidadeDiaria: capDiaria, diasNecessarios, diasDisponiveis, chaves };
+  }, [resumoDias, data]);
+
   const totalDemanda = useMemo(() => data?.meses.reduce((s, m) => s + m.demanda, 0) || 0, [data]);
   const totalProducao = useMemo(() => data?.meses.reduce((s, m) => s + m.producao, 0) || 0, [data]);
   const ultimo = data?.meses[data.meses.length - 1];
@@ -707,13 +773,17 @@ export default function VisaoGeral2Page() {
           ['Estoque + processo', fmt(data.posicao.estoqueDisponivel), 'text-slate-800', 'Coluna estoque_disponivel da matriz: estoque físico + em processo (não abate pendente)'],
         ].map(([label, value, color, hint]) => <div key={label} title={hint} className="bg-white border border-gray-200 rounded-lg px-4 py-3"><div className="text-xs uppercase tracking-wide text-gray-500 truncate">{label}</div><div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div></div>)}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        {[['Disponível em dezembro', fmt(data.estoqueFimDezembro), data.estoqueFimDezembro < 0 ? 'text-red-700' : 'text-blue-700'], ['Demanda 2027.1', fmt(totalDemanda), 'text-emerald-700'], ['Plano previsto 2027.1', fmt(totalProducao), 'text-indigo-700'], ['Capacidade diária média 3M', fmt(data.capacidadeDiaria), 'text-slate-800']].map(([label, value, color]) => <div key={label} className="bg-white border border-gray-200 rounded-lg px-4 py-3"><div className="text-xs uppercase tracking-wide text-gray-500 truncate" title={label}>{label}</div><div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div></div>)}
+      {/* "Capacidade diária média 3M" saiu daqui: o valor esta numa escala ~18x maior que a
+          medida no ERP (1.066.064 contra 57.889) e conflitava com o painel de capacidade. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {[['Disponível em dezembro', fmt(data.estoqueFimDezembro), data.estoqueFimDezembro < 0 ? 'text-red-700' : 'text-blue-700'], ['Demanda 2027.1', fmt(totalDemanda), 'text-emerald-700'], ['Plano previsto 2027.1', fmt(totalProducao), 'text-indigo-700']].map(([label, value, color]) => <div key={label} className="bg-white border border-gray-200 rounded-lg px-4 py-3"><div className="text-xs uppercase tracking-wide text-gray-500 truncate" title={label}>{label}</div><div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div></div>)}
       </div>
       <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Capacidade e processo · mês atual (período MA)</div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+      {/* "Capacidade restante (mês)" saiu daqui: subtraia um executado em escala real de um
+          total vindo de capacidadePorMes, que esta inflado. A leitura de folga do mes agora
+          vem do painel de capacidade, em dias. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         {[
-          ['Capacidade restante (mês)', fmt(data.capacidadeRestanteMes), 'text-slate-800', 'Minutos disponíveis no mês menos o que já foi executado'],
           ['Já executado no mês', fmt(data.minutosExecutadosMesAtual), 'text-blue-700', 'Minutos já produzidos no mês corrente (movimentos do ERP)'],
           ['Carga restante do plano (MA)', fmt(data.cargaRestanteMA), 'text-amber-700', 'Minutos das peças do período MA que ainda não foram finalizadas'],
           [
@@ -725,6 +795,14 @@ export default function VisaoGeral2Page() {
           ['Lead time médio de OP', `${fmt(data.leadTimeDias)}d`, 'text-indigo-700', 'Média real de inicio a encerramento de OP (LIEBE), últimos 6 meses, sem outliers'],
         ].map(([label, value, color, hint]) => <div key={label} title={hint} className="bg-white border border-gray-200 rounded-lg px-4 py-3"><div className="text-xs uppercase tracking-wide text-gray-500 truncate">{label}</div><div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div></div>)}
       </div>
+      <PainelCapacidade
+        resumo={resumoContinuo}
+        periodos={resumoContinuo?.chaves || []}
+        variante="amplo"
+        titulo={`Capacidade · plano fechado até jan, projetado até dez/${String(data.anoDestino).slice(2)}`}
+        nota={`Até jan: plano fechado, mesmos números das telas de Capacidade e Redução. De fev em diante: produção simulada por esta tela pela política de cobertura. Os dois lados usam a mesma capacidade diária medida, então o acumulado corre sem quebra.`}
+      />
+
       <div className="bg-white border border-gray-200 rounded-lg mb-6 overflow-hidden">
         <div className="px-5 py-4 border-b flex items-center gap-2">
           <LayoutGrid size={18} className="text-slate-600" />
