@@ -1396,4 +1396,93 @@ router.get('/gap-mensal', auth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/capacidade/indice-mensal
+ *
+ * Perfil sazonal da produtividade diaria, por mes do calendario. A capacidade que o
+ * dias-resumo entrega e de UM mes so (o ultimo fechado) e vale para o horizonte inteiro;
+ * este indice diz o quanto cada mes historicamente rende acima ou abaixo da media.
+ *
+ * Duas decisoes que explicam o numero:
+ *
+ * 1) E por dia TRABALHADO, nao por dia util do calendario. O modelo da tela ja multiplica
+ *    pela quantidade de dias disponiveis (sem feriado, sem coletiva), entao um indice por
+ *    dia util contaria o efeito do calendario duas vezes — dezembro cairia para 0,665 so
+ *    por causa da coletiva que ja foi descontada nos dias.
+ *
+ * 2) E DESTENDENCIADO: cada mes e dividido pela media do proprio ano antes de entrar. A
+ *    fabrica ficou ~5% mais produtiva de 2025 para 2026, e out/nov/dez so tem observacao
+ *    de 2025 — sem isso eles herdariam a produtividade antiga e apareceriam piores por
+ *    falta de dado, nao por sazonalidade.
+ *
+ * Cuidado conhecido: dias_com_movimento conta sabado, que rende menos que um dia cheio.
+ * Mes com mais sabado trabalhado puxa a media para baixo sem que a fabrica tenha piorado,
+ * entao parte da amplitude de 14% e esse efeito, nao estacao.
+ */
+router.get('/indice-mensal', auth, async (req, res) => {
+  try {
+    const pool = req.app.get('pool');
+    if (!pool) return res.status(500).json({ success: false, error: 'Pool de conexao nao disponivel' });
+
+    const desde = String(req.query.desde || '2025-07-01');
+    const { rows } = await pool.query(`
+      SELECT to_char(DATE_TRUNC('month', e.dt_ref),'YYYY-MM') AS competencia,
+             EXTRACT(YEAR FROM e.dt_ref)::INT AS ano,
+             EXTRACT(MONTH FROM e.dt_ref)::INT AS mes,
+             SUM(COALESCE(e.tempo_produzido_min, 0))::FLOAT AS minutos,
+             COUNT(DISTINCT e.dt_ref)::INT AS dias
+        FROM pcp_cache_eficiencia_dia e
+       WHERE e.cd_grupo::text = ANY($2::text[])
+         AND e.dt_ref >= $1::date AND e.dt_ref < DATE_TRUNC('month', CURRENT_DATE)::date
+         AND EXTRACT(ISODOW FROM e.dt_ref) BETWEEN 1 AND 5
+         AND COALESCE(e.tempo_produzido_min, 0) > 0
+       GROUP BY 1, 2, 3
+       ORDER BY 1
+    `, [desde, DEFAULT_REAL_GROUP_IDS.map(String)]);
+
+    const obs = rows
+      .map((r) => ({ competencia: r.competencia, ano: Number(r.ano), mes: Number(r.mes),
+                     minutos: Number(r.minutos), dias: Number(r.dias),
+                     porDia: Number(r.dias) > 0 ? Number(r.minutos) / Number(r.dias) : 0 }))
+      .filter((o) => o.porDia > 0);
+    if (!obs.length) return res.json({ success: true, desde, nivel: 0, data: {} });
+
+    const media = (v) => v.reduce((s, x) => s + x, 0) / v.length;
+    const mediaDoAno = new Map();
+    for (const o of obs) {
+      const a = mediaDoAno.get(o.ano) || { soma: 0, n: 0 };
+      a.soma += o.porDia; a.n += 1;
+      mediaDoAno.set(o.ano, a);
+    }
+    const baseDoAno = (ano) => { const a = mediaDoAno.get(ano); return a && a.n ? a.soma / a.n : 1; };
+
+    const data = {};
+    const detalhe = [];
+    for (let mes = 1; mes <= 12; mes += 1) {
+      const doMes = obs.filter((o) => o.mes === mes);
+      const indice = doMes.length ? media(doMes.map((o) => o.porDia / baseDoAno(o.ano))) : 1;
+      data[String(mes)] = Number(indice.toFixed(4));
+      detalhe.push({ mes, indice: Number(indice.toFixed(4)), observacoes: doMes.length,
+                     competencias: doMes.map((o) => o.competencia) });
+    }
+
+    // Nivel: media dos tres ultimos meses fechados, na mesma formula.
+    const ultimos = obs.slice(-3);
+    const nivel = Math.round(media(ultimos.map((o) => o.porDia)));
+
+    res.json({
+      success: true,
+      desde,
+      nivel,
+      nivelBase: ultimos.map((o) => o.competencia),
+      base: 'minutos produzidos somados, divididos pelos dias em que a fabrica rodou (seg-sex)',
+      data,
+      ...(req.query.detalhe === '1' ? { detalhe, serie: obs } : {}),
+    });
+  } catch (err) {
+    console.error('[capacidade/indice-mensal] Erro:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

@@ -43,8 +43,10 @@ export type MesCapacidadeVenda = {
   pendenteBaixa?: number;
   /** Saldo de carteira que ainda restaria no fim do mês, se a agenda se cumprir. */
   pendenteSaldo?: number;
-  /** Mês com plano real já lançado: entra como piso fixo, o nivelamento não mexe. */
+  /** Mês com plano real já lançado: entra como piso, o plano nunca é cortado abaixo dele. */
   travado?: boolean;
+  /** Mês em curso: já está rodando, então nem o piso sobe — vale o plano como está. */
+  mesCorrente?: boolean;
 };
 
 type Props = {
@@ -52,6 +54,8 @@ type Props = {
   /** Estoque físico (estoque + processo) na abertura do horizonte, sem abater pendentes. */
   aberturaEstoque: number;
   pedidosPendentes: number;
+  /** Peças já em processo hoje; somadas apenas na exibição da produção do mês corrente. */
+  emProcessoAtual: number;
   /** Referencia de estoque disponivel no fim do horizonte. So leitura: nao limita o plano. */
   metaEstoqueFinal?: number;
   /** Teto de ocupacao (0-1). Limita o plano nos dois modos de nivelamento. */
@@ -62,6 +66,12 @@ type Props = {
 // dias, mas ali tem atraso embutido; 25 e o prazo que a expedicao pratica, e e esse que
 // vale como politica. O medido continua visivel na faixa de Ajustes, para conferencia.
 const CARTEIRA_DIAS_PADRAO = 25;
+
+
+// Referência operacional informada para out/26. Já inclui estoque, carteira e plano;
+// não se deve aplicar essas parcelas de novo. Substituir por fonte de dados quando
+// essa posição consolidada estiver disponível no backend.
+const REFERENCIA_OUTUBRO_2026 = { disponivel: 192541, vendaRestante: 131713 };
 
 function fmt(v: number) {
   return Math.round(v || 0).toLocaleString('pt-BR');
@@ -75,6 +85,7 @@ export default function CapacidadeVsVenda({
   meses,
   aberturaEstoque,
   pedidosPendentes,
+  emProcessoAtual,
   metaEstoqueFinal = 100000,
   limiteOcupacao = 0.9,
 }: Props) {
@@ -82,8 +93,11 @@ export default function CapacidadeVsVenda({
   // teto no ACUMULADO. Os dois nivelamentos respondem a perguntas diferentes — "nenhum mes
   // passa de 90%" e "a fabrica no conjunto nao passa de 90%" — e com os meses reais ja em
   // 95% eles dao planos bem distintos, entao os dois ficam disponiveis no botao.
-  const [modo, setModo] = useState<'atual' | 'mes' | 'acumulado'>('mes');
+  const [modo, setModo] = useState<'capacidade' | 'atual' | 'mes' | 'acumulado'>('capacidade');
   const nivelar = modo !== 'atual';
+  // Teto de ocupacao efetivo do modo. "capacidade" roda a fabrica cheia: o que ela aguenta
+  // e o que entra no estoque, que e a leitura dos tres pilares.
+  const tetoDoModo = modo === 'capacidade' ? 1 : limiteOcupacao;
   // Niveis abertos na tabela. Ausente = aberto; so o `false` explicito fecha, para um nivel
   // novo nascer visivel sem precisar vir cadastrado aqui. O comparativo da divida fixa
   // nasce fechado: e referencia de conferencia, nao leitura do dia a dia.
@@ -97,6 +111,7 @@ export default function CapacidadeVsVenda({
     ocupAcum: false,
     pendente: false,
     disponivel: false,
+    info: false,
   });
   // Cobertura da carteira, em DIAS de venda — e assim que a operacao pensa o prazo de
   // expedicao. Abre no padrao da casa, nao no medido: o medido e o retrato de hoje, que
@@ -104,6 +119,7 @@ export default function CapacidadeVsVenda({
   const [diasCarteira, setDiasCarteira] = useState<number>(CARTEIRA_DIAS_PADRAO);
   // A faixa de ajustes nasce fechada: o relatorio abre na leitura, nao na configuracao.
   const [mostrarAjustes, setMostrarAjustes] = useState(false);
+  const [modoGrafico, setModoGrafico] = useState<'isolado' | 'comparado'>('isolado');
 
   if (!meses.length) return null;
 
@@ -174,17 +190,25 @@ export default function CapacidadeVsVenda({
     let dispAcum = 0;
     return meses.map((m) => {
       dispAcum += m.diasDisponiveis;
-      if (m.travado) {
+      // O mes em curso fica como esta: faltam poucos dias e o que vai sair da costura e o
+      // que ja esta na fila, nao a capacidade teorica do mes inteiro.
+      if (m.mesCorrente) {
         necAcum += m.diasNecessarios;
         return m.producao;
       }
-      const diasPeloMes = m.diasDisponiveis * limiteOcupacao;
+      const diasPeloMes = m.diasDisponiveis * tetoDoModo;
       const diasPeloAcumulado = limitarAcumulado
-        ? Math.max(0, dispAcum * limiteOcupacao - necAcum)
+        ? Math.max(0, dispAcum * tetoDoModo - necAcum)
         : Infinity;
       const dias = Math.min(diasPeloMes, diasPeloAcumulado);
-      necAcum += dias;
-      return pecasPorDia(m) * dias;
+      const peloTeto = m.capacidadePecas * (dias / (m.diasDisponiveis || 1));
+      // Mes com plano real ja lancado e PISO, nao teto: da para carregar a fabrica ate a
+      // capacidade, nao da para cortar abaixo do que ja foi emitido.
+      const q = m.travado ? Math.max(m.producao, peloTeto) : peloTeto;
+      necAcum += m.travado && m.producao > 0
+        ? m.diasNecessarios * (q / m.producao)
+        : dias;
+      return q;
     });
   };
   const planoNivelado = nivelarCom(modo === 'acumulado');
@@ -203,17 +227,27 @@ export default function CapacidadeVsVenda({
     const estoque = nivelar ? estoqueNivelado[i] : estoqueAtual[i];
     // Dias a partir das pecas, pelo mix do mes: assim a linha exibida e exatamente a conta
     // que o teto usou, inclusive num mes cujo plano atual e zero.
+    // Num mes real a carga ja inclui o em-processo, entao os dias nao saem das pecas que
+    // entram no estoque: escalam junto com o quanto o plano subiu. Num mes projetado saem
+    // do mix do proprio mes.
     const ppd = pecasPorDia(m);
-    const diasNovos = m.travado ? m.diasNecessarios : (ppd > 0 ? producao / ppd : 0);
+    const diasNovos = m.travado
+      ? m.diasNecessarios * (m.producao > 0 ? producao / m.producao : 1)
+      : (ppd > 0 ? producao / ppd : 0);
     necVista += diasNovos;
     dispVista += m.diasDisponiveis;
     return {
       ...m,
+
       producao,
       estoque,
       producaoAtual: m.producao,
       carteira: carteiraProjetada[i],
-      disponivel: estoque - carteiraProjetada[i],
+      // A carteira sai UMA vez, contra a posicao de abertura. Abater o saldo de cada mes
+      // fazia o disponivel nao andar pela sobra: ele levava junto a variacao da propria
+      // carteira, e a tabela deixava de fechar de cima para baixo. O livro de pedidos
+      // projetado continua na linha de informativo, como referencia.
+      disponivel: estoque - carteiraProjetada[0],
       ocupacao: m.diasDisponiveis > 0 ? diasNovos / m.diasDisponiveis : 0,
       ocupacaoAcum: dispVista > 0 ? necVista / dispVista : 0,
       gapAcum: necVista - dispVista,
@@ -221,32 +255,69 @@ export default function CapacidadeVsVenda({
   });
 
   const ultimo = linhas[linhas.length - 1];
-  const desvioMeta = ultimo.disponivel - metaEstoqueFinal;
-  const menorDisponivel = Math.min(...linhas.map((l) => l.disponivel));
+  const referenciaOutubro = linhas[0]?.mes === 'out/26' ? REFERENCIA_OUTUBRO_2026 : null;
+  // Outubro parte do disponível consolidado informado, que JÁ abate carteira e plano.
+  // A única diferença a aplicar é o que falta vender além da capacidade restante.
+  // Os meses seguintes caminham a partir desse fechamento, sem reaplicar outubro.
+  const sobraTabela = (l: typeof linhas[number], i: number) =>
+    i === 0 && referenciaOutubro
+      ? l.capacidadePecas - referenciaOutubro.vendaRestante
+      : l.producao - demandaTotal(l);
+  const disponivelTabela = linhas.reduce<number[]>((valores, l, i) => {
+    const anterior = i === 0
+      ? (referenciaOutubro?.disponivel ?? aberturaEstoque - carteiraProjetada[0])
+      : valores[i - 1];
+    valores.push(anterior + sobraTabela(l, i));
+    return valores;
+  }, []);
+  const mesAtual = linhas[0];
+  const disponivelLiquidoMesAtual = disponivelTabela[0];
+  const desvioMeta = disponivelTabela[disponivelTabela.length - 1] - metaEstoqueFinal;
+  const menorDisponivel = Math.min(...disponivelTabela);
   const primeiroProjetado = linhas.findIndex((l) => !l.travado);
 
-  // Duas curvas e so: o plano e o teto de pecas que a fabrica aguenta. A pergunta do
-  // grafico e quanto do teto o plano ocupa — venda e plano anterior poluiam a leitura e
-  // estao na tabela logo abaixo, mes a mes.
-  const teto = Math.max(...linhas.flatMap((l) => [l.capacidadePecas, l.producao]), 1);
+  // As tres curvas sao os tres pilares: o que sai (venda), o que entra (capacidade) e o
+  // saldo que resulta (disponivel). O disponivel pode ficar negativo, entao o eixo precisa
+  // descer abaixo de zero — e so nesse caso a linha do zero aparece.
+  const serie = (l: typeof linhas[number], i: number) => [
+    i === 0 && referenciaOutubro ? referenciaOutubro.vendaRestante : demandaTotal(l),
+    l.capacidadePecas,
+    disponivelTabela[i],
+  ];
+  const valores = linhas.flatMap(serie);
+  const teto = Math.max(...valores, 1);
+  const piso = Math.min(...valores, 0);
   // O SVG escala por largura, entao TUDO aqui e relativo a W: um texto de 12 unidades num
   // viewBox de 880 renderiza enorme numa tela larga. Alargar o viewBox para 1200 e achatar
   // a altura encolhe a fonte e deita o grafico de uma vez so, sem mexer em cada tamanho.
   // O T maior abre espaco para o rotulo da capacidade acima da linha tracejada.
-  const L = 66;
+  const L = 80;
   const R = 20;
   const T = 28;
   const B = 32;
   const W = 1200;
-  const H = 280;
+  const H = modoGrafico === 'isolado' ? 400 : 280;
   // Escala arredondada para cima, para a linha de topo cair num numero redondo.
-  const passo = Math.pow(10, Math.floor(Math.log10(teto))) / 2;
-  const escala = Math.ceil(teto / passo) * passo;
-  const marcas = [0, 0.25, 0.5, 0.75, 1].map((f) => escala * f);
+  const passo = Math.pow(10, Math.floor(Math.log10(Math.max(teto, -piso)))) / 2;
+  const escalaTopo = Math.ceil(teto / passo) * passo;
+  const escalaPiso = Math.floor(piso / passo) * passo;
+  const amplitude = escalaTopo - escalaPiso || 1;
+  const marcas = [0, 0.25, 0.5, 0.75, 1].map((f) => escalaPiso + amplitude * f);
   const x = (i: number) => L + ((W - L - R) * i) / Math.max(1, linhas.length - 1);
-  const y = (v: number) => T + (H - T - B) * (1 - v / escala);
-  const caminho = (sel: (l: typeof linhas[number]) => number) =>
-    linhas.map((l, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(sel(l)).toFixed(1)}`).join(' ');
+  const y = (v: number) => T + (H - T - B) * (1 - (v - escalaPiso) / amplitude);
+  const faixaAltura = (H - T - B) / 3;
+  const faixas = [0, 1, 2].map((indice) => {
+    const serieAtual = linhas.map((l, i) => serie(l, i)[indice]);
+    return { minimo: Math.min(...serieAtual), maximo: Math.max(...serieAtual), topo: T + indice * faixaAltura };
+  });
+  const ySerie = (indice: number, valor: number) => {
+    if (modoGrafico === 'comparado') return y(valor);
+    const faixa = faixas[indice];
+    const proporcao = faixa.maximo === faixa.minimo ? 0.5 : (valor - faixa.minimo) / (faixa.maximo - faixa.minimo);
+    return faixa.topo + 23 + (faixaAltura - 46) * (1 - proporcao);
+  };
+  const caminho = (indice: number) =>
+    linhas.map((l, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${ySerie(indice, serie(l, i)[indice]).toFixed(1)}`).join(' ');
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg mb-6 overflow-hidden">
@@ -267,12 +338,9 @@ export default function CapacidadeVsVenda({
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Disponível ao fim</div>
-            <div className={`text-xl font-bold ${Math.abs(desvioMeta) <= metaEstoqueFinal * 0.1 ? 'text-emerald-700' : 'text-amber-700'}`}>
-              {fmt(ultimo.disponivel)}
-            </div>
-            <div className="text-[11px] text-gray-500">
-              meta {fmt(metaEstoqueFinal)} · {desvioMeta >= 0 ? '+' : ''}{fmt(desvioMeta)}
+            <div className="text-xs uppercase tracking-wide text-gray-500">Disponível líquido · {mesAtual.mes}</div>
+            <div className={`text-xl font-bold ${disponivelLiquidoMesAtual < 0 ? 'text-red-700' : 'text-amber-700'}`}>
+              {fmt(disponivelLiquidoMesAtual)}
             </div>
           </div>
           <button
@@ -326,7 +394,8 @@ export default function CapacidadeVsVenda({
           <span className="font-semibold text-gray-600">Leitura do plano</span>
             <div className="inline-flex rounded border border-gray-300 overflow-hidden">
               {([
-                { id: 'atual', rotulo: 'Plano atual', dica: 'O plano como está hoje, sem nivelar' },
+                { id: 'capacidade', rotulo: 'Capacidade cheia', dica: 'Produzimos tudo o que a fábrica aguenta: a capacidade do mês é o que entra no estoque' },
+              { id: 'atual', rotulo: 'Plano atual', dica: 'O plano como está hoje, sem nivelar' },
                 { id: 'mes', rotulo: `${pct(limiteOcupacao)} no mês`, dica: `Nenhum mês passa de ${pct(limiteOcupacao)} dos próprios dias` },
                 { id: 'acumulado', rotulo: `${pct(limiteOcupacao)} acumulado`, dica: `A fábrica no conjunto não passa de ${pct(limiteOcupacao)}: os meses reais já entregam 95%, então os projetados entram abaixo para puxar a média` },
               ] as const).map((op) => (
@@ -362,19 +431,54 @@ export default function CapacidadeVsVenda({
             Menor disponível do horizonte: <strong>{fmt(menorDisponivel)}</strong>
           </span>
           <span className={desvioMeta >= 0 ? 'text-emerald-800' : 'text-amber-800'}>
-            Disponível ao fim: <strong>{fmt(ultimo.disponivel)}</strong>
+            Disponível ao fim: <strong>{fmt(disponivelTabela[disponivelTabela.length - 1])}</strong>
             {' '}({desvioMeta >= 0 ? '+' : ''}{fmt(desvioMeta)} vs. meta)
           </span>
         </div>
       )}
 
       <div className="px-5 py-4 border-b">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img">
-          {marcas.map((v) => (
+        <div aria-label="Legenda do gráfico" className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
+          <span className="font-semibold text-gray-800">Legenda</span>
+          <span className="inline-flex items-center gap-2">
+            <span className="w-6 border-t-[3px] border-amber-500" aria-hidden="true" />
+            Projeção de venda
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="w-6 border-t-2 border-dashed border-slate-400" aria-hidden="true" />
+            Capacidade do mês em peças (já descontados 5% de faltas)
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="w-6 border-t-[3px] border-indigo-600" aria-hidden="true" />
+            Disponível fim do mês
+          </span>
+        </div>
+        <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-gray-600">
+          <div className="inline-flex overflow-hidden rounded border border-gray-300" aria-label="Visualização do gráfico">
+            <button type="button" onClick={() => setModoGrafico('isolado')} aria-pressed={modoGrafico === 'isolado'} className={`px-3 py-1.5 ${modoGrafico === 'isolado' ? 'bg-indigo-600 text-white' : 'bg-white hover:bg-gray-50'}`}>
+              Comportamento separado
+            </button>
+            <button type="button" onClick={() => setModoGrafico('comparado')} aria-pressed={modoGrafico === 'comparado'} className={`border-l border-gray-300 px-3 py-1.5 ${modoGrafico === 'comparado' ? 'bg-indigo-600 text-white' : 'bg-white hover:bg-gray-50'}`}>
+              Valores na mesma escala
+            </button>
+          </div>
+          {modoGrafico === 'isolado' && <span>Cada faixa usa sua própria escala; altura entre faixas não compara quantidades.</span>}
+        </div>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={modoGrafico === 'isolado' ? 'Tendência separada de venda, capacidade e disponível por mês' : 'Venda, capacidade e disponível na mesma escala por mês'}>
+          {modoGrafico === 'comparado' && marcas.map((v) => (
             <g key={v}>
               <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="#e5e7eb" strokeWidth="1" />
               <text x={L - 8} y={y(v) + 3.5} textAnchor="end" fontSize="10" fill="#9ca3af" fontFamily="ui-monospace, monospace">
                 {fmt(v)}
+              </text>
+            </g>
+          ))}
+          {modoGrafico === 'isolado' && faixas.map((faixa, indice) => (
+            <g key={indice}>
+              <rect x={L} y={faixa.topo} width={W - L - R} height={faixaAltura} fill={indice % 2 ? '#f8fafc' : '#ffffff'} />
+              <line x1={L} x2={W - R} y1={faixa.topo + faixaAltura} y2={faixa.topo + faixaAltura} stroke="#e5e7eb" />
+              <text x={L - 8} y={faixa.topo + 17} textAnchor="end" fontSize="11" fontWeight="600" fill={['#b45309', '#64748b', '#4f46e5'][indice]}>
+                {['Venda', 'Capacidade', 'Disponível'][indice]}
               </text>
             </g>
           ))}
@@ -404,47 +508,43 @@ export default function CapacidadeVsVenda({
             </g>
           )}
 
-          <path
-            d={`${caminho((l) => l.capacidadePecas)} L ${x(linhas.length - 1).toFixed(1)} ${y(0)} L ${x(0).toFixed(1)} ${y(0)} Z`}
+          {modoGrafico === 'comparado' && <path
+            d={`${caminho(1)} L ${x(linhas.length - 1).toFixed(1)} ${y(escalaPiso)} L ${x(0).toFixed(1)} ${y(escalaPiso)} Z`}
             fill="#f1f5f9"
-          />
-          <path d={caminho((l) => l.capacidadePecas)} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 4" />
-          <path d={caminho((l) => l.producao)} fill="none" stroke="#4f46e5" strokeWidth="3.5" strokeLinejoin="round" />
+          />}
+          {modoGrafico === 'comparado' && escalaPiso < 0 && (
+            <line x1={L} x2={W - R} y1={y(0)} y2={y(0)} stroke="#cbd5e1" strokeWidth="1.5" />
+          )}
+          <path d={caminho(1)} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 4" />
+          <path d={caminho(0)} fill="none" stroke="#f59e0b" strokeWidth="2.5" />
+          <path d={caminho(2)} fill="none" stroke="#4f46e5" strokeWidth="3.5" strokeLinejoin="round" />
 
-          {/* Rotulos de dados: a capacidade ACIMA da tracejada e o plano ABAIXO do ponto.
-              Como o plano nunca passa do teto, os dois nunca se encavalam. */}
           {linhas.map((l, i) => (
             <g key={l.mes}>
-              <text
-                x={x(i)}
-                y={Math.max(T - 6, y(l.capacidadePecas) - 7)}
-                textAnchor="middle"
-                fontSize="9.5"
-                fill="#94a3b8"
-                fontFamily="ui-monospace, monospace"
-              >
-                {fmt(l.capacidadePecas)}
-              </text>
-              <circle cx={x(i)} cy={y(l.producao)} r="3.5" fill="#fff" stroke="#4f46e5" strokeWidth="2" />
-              <text
-                x={x(i)}
-                y={Math.min(y(l.producao) + 14, H - B - 3)}
-                textAnchor="middle"
-                fontSize="10"
-                fontWeight="600"
-                fill="#4f46e5"
-                fontFamily="ui-monospace, monospace"
-              >
-                {fmt(l.producao)}
-              </text>
+              {modoGrafico === 'isolado' ? serie(l, i).map((valor, indice) => (
+                <g key={indice}>
+                  <circle cx={x(i)} cy={ySerie(indice, valor)} r="4" fill="#fff" stroke={['#f59e0b', '#94a3b8', '#4f46e5'][indice]} strokeWidth="2">
+                    <title>{`${l.mes} · ${['Venda', 'Capacidade', 'Disponível'][indice]}: ${fmt(valor)} peças`}</title>
+                  </circle>
+                  <text x={x(i)} y={ySerie(indice, valor) - 8} textAnchor="middle" fontSize="10" fontWeight="600" fill={['#b45309', '#64748b', '#4f46e5'][indice]} fontFamily="ui-monospace, monospace">
+                    {fmt(valor)}
+                  </text>
+                </g>
+              )) : (
+                <>
+                  <text x={x(i)} y={Math.max(T - 6, y(l.capacidadePecas) - 7)} textAnchor="middle" fontSize="9.5" fill="#94a3b8" fontFamily="ui-monospace, monospace">
+                    {fmt(l.capacidadePecas)}
+                  </text>
+                  <circle cx={x(i)} cy={y(disponivelTabela[i])} r="3.5" fill="#fff" stroke="#4f46e5" strokeWidth="2" />
+                  <text x={x(i)} y={Math.min(y(disponivelTabela[i]) + 14, H - B - 3)} textAnchor="middle" fontSize="10" fontWeight="600" fill="#4f46e5" fontFamily="ui-monospace, monospace">
+                    {fmt(disponivelTabela[i])}
+                  </text>
+                </>
+              )}
               <text x={x(i)} y={H - 10} textAnchor="middle" fontSize="11" fill="#6b7280">{l.mes}</text>
             </g>
           ))}
         </svg>
-        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-600 mt-1">
-          <span><span className="inline-block w-3 border-t-2 border-indigo-600 align-middle mr-1" />Produção {nivelar ? 'nivelada' : 'planejada'}</span>
-          <span><span className="inline-block w-3 border-t-2 border-dashed border-slate-400 align-middle mr-1" />Capacidade em peças</span>
-        </div>
       </div>
 
       {/* Transposta: mes vira coluna e indicador vira linha, no mesmo formato da Visao
@@ -480,7 +580,9 @@ export default function CapacidadeVsVenda({
                   forte: true,
                   expansivel: true,
                   celula: (l: typeof linhas[number]) => (
-                    <span className="text-amber-700 font-semibold">{fmt(demandaTotal(l))}</span>
+                    <span className="text-amber-700 font-semibold">
+                      {fmt(l === mesAtual && referenciaOutubro ? referenciaOutubro.vendaRestante : demandaTotal(l))}
+                    </span>
                   ),
                 },
                 {
@@ -561,12 +663,63 @@ export default function CapacidadeVsVenda({
                     ),
                 },
                 {
+                  id: 'capacidade',
+                  rotulo: 'Capacidade',
+                  forte: true,
+                  celula: (l: typeof linhas[number]) => <span className="text-gray-600">{fmt(l.capacidadePecas)}</span>,
+                },
+                {
+                  id: 'sobra',
+                  rotulo: 'Sobra do mês (entra − sai)',
+                  forte: true,
+                  celula: (l: typeof linhas[number]) => {
+                    const d = sobraTabela(l, linhas.indexOf(l));
+                    return (
+                      <span className={d >= 0 ? 'text-emerald-700' : 'text-red-700'}>
+                        {d >= 0 ? '+' : '−'}{fmt(Math.abs(d))}
+                      </span>
+                    );
+                  },
+                },
+                {
+                  id: 'disponivel',
+                  rotulo: 'Disponível fim do mês',
+                  forte: true,
+                  expansivel: true,
+                  celula: (l: typeof linhas[number]) => (
+                    <span className={`font-semibold ${disponivelTabela[linhas.indexOf(l)] < 0 ? 'text-red-700' : 'text-gray-900'}`}>
+                      {fmt(disponivelTabela[linhas.indexOf(l)])}
+                    </span>
+                  ),
+                },
+                {
+                  id: 'disponivel-divida-fixa',
+                  rotulo: 'se a carteira do mês fosse abatida',
+                  pai: 'disponivel',
+                  celula: (l: typeof linhas[number]) => (
+                    <span className="text-gray-400">{fmt(l.estoque - l.carteira)}</span>
+                  ),
+                },
+                {
+                  id: 'info',
+                  rotulo: 'Informativo',
+                  expansivel: true,
+                  celula: () => <span className="text-gray-300">·</span>,
+                },
+                {
                   id: 'producao',
                   rotulo: 'Produção planejada',
-                  forte: true,
+                  pai: 'info',
                   celula: (l: typeof linhas[number]) => (
                     <>
-                      <span className="text-indigo-700 font-semibold">{fmt(l.producao)}</span>
+                      <span className="text-indigo-700 font-semibold">
+                        {fmt(l.producao + (l.mesCorrente ? emProcessoAtual : 0))}
+                      </span>
+                      {l.mesCorrente && emProcessoAtual > 0 && (
+                        <div className="text-[10px] font-normal text-gray-500">
+                          {fmt(l.producao)} plano + {fmt(emProcessoAtual)} em processo
+                        </div>
+                      )}
                       {nivelar && Math.abs(l.producao - l.producaoAtual) >= 1 && (
                         <div className={`text-[10px] font-normal ${l.producao > l.producaoAtual ? 'text-emerald-600' : 'text-red-600'}`}>
                           {l.producao > l.producaoAtual ? '+' : ''}{fmt(l.producao - l.producaoAtual)}
@@ -576,14 +729,9 @@ export default function CapacidadeVsVenda({
                   ),
                 },
                 {
-                  id: 'capacidade',
-                  rotulo: 'Capacidade (peças)',
-                  celula: (l: typeof linhas[number]) => <span className="text-gray-600">{fmt(l.capacidadePecas)}</span>,
-                },
-                {
                   id: 'ocupAcum',
                   rotulo: 'Ocupação acumulada',
-                  forte: true,
+                  pai: 'info',
                   expansivel: true,
                   celula: (l: typeof linhas[number]) => (
                     <>
@@ -624,11 +772,13 @@ export default function CapacidadeVsVenda({
                 {
                   id: 'fisico',
                   rotulo: 'Estoque (s/ abater pedidos)',
+                  pai: 'info',
                   celula: (l: typeof linhas[number]) => <span className="text-slate-700">{fmt(l.estoque)}</span>,
                 },
                 {
                   id: 'pendente',
-                  rotulo: 'Carteira pendente (abatida)',
+                  rotulo: 'Carteira pendente',
+                  pai: 'info',
                   expansivel: true,
                   celula: (l: typeof linhas[number]) => (
                     <span className="text-rose-700">−{fmt(l.carteira)}</span>
@@ -650,25 +800,6 @@ export default function CapacidadeVsVenda({
                   pai: 'pendente',
                   celula: (l: typeof linhas[number]) => (
                     <span className="text-gray-500">{l.pendenteBaixa ? fmt(l.pendenteBaixa) : '—'}</span>
-                  ),
-                },
-                {
-                  id: 'disponivel',
-                  rotulo: 'Estoque disponível',
-                  forte: true,
-                  expansivel: true,
-                  celula: (l: typeof linhas[number]) => (
-                    <span className={`font-semibold ${l.disponivel < 0 ? 'text-red-700' : 'text-gray-900'}`}>
-                      {fmt(l.disponivel)}
-                    </span>
-                  ),
-                },
-                {
-                  id: 'disponivel-divida-fixa',
-                  rotulo: 'se a carteira ficasse congelada em hoje',
-                  pai: 'disponivel',
-                  celula: (l: typeof linhas[number]) => (
-                    <span className="text-gray-400">{fmt(l.estoque - pedidosPendentes)}</span>
                   ),
                 },
               ] as const;
@@ -760,13 +891,7 @@ export default function CapacidadeVsVenda({
         A capacidade em peças varia por mês porque depende do mix: cada referência custa um tempo
         de costura diferente, então o mesmo minuto rende mais ou menos peça.
         {' '}
-        <strong>Carteira pendente:</strong> a carteira de hoje ({fmt(pedidosPendentes)} peças) equivale a{' '}
-        <strong>{diasMedidos} dias</strong> de venda — é o valor medido, e o ponto de partida da barra
-        acima. Daí para frente ela é projetada nessa cobertura sobre a venda dos meses seguintes: a
-        fábrica não para de receber pedido, então sempre há livro aberto, maior nos meses de pico e menor
-        nos fracos. <strong>Ajuste a barra para o prazo real da expedição</strong> — quanto menor o prazo,
-        menor a carteira parada e maior o estoque disponível. O nível &quot;firme hoje&quot; mostra só o
-        pedido <em>já colocado</em>, que é o que o ERP conhece e por isso se esgota em poucos meses.
+        <strong>Carteira pendente:</strong> sai <em>uma vez</em>, contra a posição de abertura — é uma dívida de hoje, não um valor que se repete todo mês. Por isso o disponível anda exatamente pela sobra, e a tabela fecha de cima para baixo. O tamanho dela ({fmt(pedidosPendentes)} peças hoje, {diasMedidos} dias de venda) sai da barra em Ajustes, hoje em {diasEfetivos} dias. Dentro de Informativo a linha mostra quanto de livro de pedidos estaríamos carregando em cada mês, como referência: ela não é abatida de novo.
         {' '}
 A projeção abre de duas formas sobre o <em>mesmo</em> total: por <strong>canal</strong>
         (fábrica e lojas) e por <strong>continuidade</strong> (permanente e edição limitada) — não

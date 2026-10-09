@@ -124,6 +124,10 @@ export default function VisaoGeral2Page() {
   // Abertura do calculo de edicao limitada por mes: base de fabrica e lojas, ano de origem
   // e fator aplicado. E o terceiro nivel da linha de projecao.
   const [elDetalhe, setElDetalhe] = useState<Record<string, ElDetalheMes> | null>(null);
+  // Perfil sazonal da produtividade diaria, por mes do calendario. Sem ele a capacidade
+  // do ultimo mes fechado vale para os 15 meses do horizonte, e a variacao real de 14%
+  // entre o melhor e o pior mes some.
+  const [indiceMensal, setIndiceMensal] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
   const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; totalizadores: Record<string, Totalizador>; projecaoTotal: number[]; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   async function carregar() {
@@ -514,7 +518,18 @@ export default function VisaoGeral2Page() {
     } catch { /* silencioso: mantém os valores padrão */ }
   }
 
-  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); }, [router]);
+  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); }, [router]);
+
+  async function carregarIndiceMensal() {
+    try {
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/indice-mensal`, { headers: authHeaders() });
+      const p = await r.json();
+      if (!r.ok || !p?.success) return;
+      setIndiceMensal({ nivel: Number(p.nivel || 0), data: p.data || {} });
+    } catch {
+      setIndiceMensal(null);
+    }
+  }
 
   async function carregarEdicaoLimitada() {
     try {
@@ -664,6 +679,45 @@ export default function VisaoGeral2Page() {
     if (capDiaria <= 0 || !mesMA) return null;
     const anoBase = data.anoDestino - 1;
     const el = (mes: number) => Number(projEdicaoLimitada?.[String(mes)] || 0);
+    // FATOR DE CAPACIDADE DO MES. Corrige duas coisas de uma vez.
+    //
+    // 1) NIVEL. O `dias-resumo` soma a MEDIA DIARIA DE CADA GRUPO. Isso funciona quando
+    //    todo grupo trabalha o mes inteiro, mas entorta com as oficinas, que trabalham em
+    //    blocos: uma oficina que rodou 2 dias entra na soma com o rendimento daqueles 2
+    //    dias como se fosse o ritmo dela todo dia do mes. Elas valem 9,4% dos minutos
+    //    produzidos e entravam como 20,5% da capacidade. O nivel do endpoint soma os
+    //    minutos de todos (oficinas inclusive) e divide pelos dias em que a fabrica rodou
+    //    — 54.243 contra os 57.889 de hoje, 6,3% a menos.
+    //
+    // 2) SAZONALIDADE. A capacidade do dias-resumo e de um mes so e vale para os quinze.
+    //    O indice diz quanto cada mes rende acima ou abaixo da media, destendenciado e
+    //    sem sabado. Entra pela METADE: oito dos doze meses tem uma observacao so.
+    //
+    // O divisor do indice sao dias TRABALHADOS, nao dias do calendario — se fosse
+    // calendario, dezembro levaria o desconto da coletiva aqui e de novo nos dias
+    // disponiveis. Dezembro em 0,906 e o ritmo mais lento nos dias que ele de fato rodou.
+    // 3) PERDA POR FALTA. Definida pela operacao, nao pelo dado — por isso vive aqui e
+    //    nao no endpoint. Vale saber, para quem for mexer: o nivel acima ja e minuto
+    //    PRODUZIDO por dia trabalhado, e quem faltou nao produziu, entao parte da falta
+    //    ja esta no numero. Os 3% sao a reserva por cima disso.
+    const PERDA_FALTAS = 0.03;
+    const AMORTECIMENTO_INDICE = 0.5;
+    const capDiariaAtual = Number(resumoDias.capacidadeDiaria || 0);
+    const nivelNovo = Number(indiceMensal?.nivel || 0);
+    const fatorNivel = capDiariaAtual > 0 && nivelNovo > 0 ? nivelNovo / capDiariaAtual : 1;
+    // A falta entra no RITMO, nao nas pecas: o dia existe, quem nao veio foi a pessoa.
+    // Na pratica isso quer dizer duas coisas ao mesmo tempo, e as duas precisam andar
+    // juntas senao a tabela se contradiz:
+    //   - a capacidade em pecas do mes cai 3%
+    //   - a mesma carga passa a precisar de 3% MAIS dias (ritmo menor, trabalho igual)
+    // Se so as pecas caissem, a ocupacao leria 97% — "sobrou dia" — quando o que houve
+    // foi a fabrica render menos nos dias que teve.
+    const fatorFalta = 1 - PERDA_FALTAS;
+    // Fator de capacidade SEM a falta: nivel corrigido x sazonalidade amortecida.
+    const idx = (mes: number) => {
+      const bruto = Number(indiceMensal?.data?.[String(mes)] ?? 1) || 1;
+      return fatorNivel * (1 + (bruto - 1) * AMORTECIMENTO_INDICE);
+    };
 
     // Rateio FABRICA x LOJAS. A projecao gravada vem como total, sem canal, entao o canal e
     // imputado pela participacao do mesmo mes no ano base — com o +10% ja aplicado na
@@ -735,12 +789,16 @@ export default function VisaoGeral2Page() {
         // `estoque_disponivel` ja conta o em-processo. Os dias do periodo ja vem da fabrica
         // inteira, entao aqui o plano tambem soma as duas continuidades.
         producao: Number(data.planoRestantePorPeriodo[p] || 0) + Number(data.elPlanoPorPeriodo[p] || 0),
-        capacidadePecas: diasNecessarios > 0 ? (pecasCarga * diasDisponiveis) / diasNecessarios : 0,
-        diasNecessarios,
+        // Com a falta no ritmo, os dias necessarios sobem — e como as pecas saem da razao
+        // pecas/dias, elas ja caem na mesma proporcao sem multiplicar nada.
+        capacidadePecas: diasNecessarios > 0 ? ((pecasCarga * diasDisponiveis) / (diasNecessarios / fatorFalta)) * idx(mes) : 0,
+        diasNecessarios: diasNecessarios / fatorFalta,
         diasDisponiveis,
         pendenteBaixa: baixaDe(ano, mes),
         pendenteSaldo: (saldoPendente = Math.max(0, saldoPendente - baixaDe(ano, mes))),
         travado: true,
+        // MA e o mes em curso: ja esta rodando, entao nem o teto de capacidade o levanta.
+        mesCorrente: p === 'MA',
       });
     }
 
@@ -770,8 +828,8 @@ export default function VisaoGeral2Page() {
           return { demandaFabrica: c.fabrica, demandaLojas: c.lojas };
         })(),
         producao: m.producao + demandaEl,
-        capacidadePecas: m.capacidadePecas,
-        diasNecessarios: diasPerm + (pecasPorDia > 0 ? demandaEl / pecasPorDia : 0),
+        capacidadePecas: m.capacidadePecas * idx(mes) * fatorFalta,
+        diasNecessarios: (diasPerm + (pecasPorDia > 0 ? demandaEl / pecasPorDia : 0)) / fatorFalta,
         diasDisponiveis: m.diasDisponiveis,
         pendenteBaixa: baixaDe(data.anoDestino, mes),
         pendenteSaldo: (saldoPendente = Math.max(0, saldoPendente - baixaDe(data.anoDestino, mes))),
@@ -786,7 +844,7 @@ export default function VisaoGeral2Page() {
       abertura: Number(data.estoqueBaseReal || 0) + Number(data.elEstoque || 0),
       pedidosPendentes: Number(data.pedidosPendentes || 0) + Number(data.elPendentes || 0),
     };
-  }, [resumoDias, data, projEdicaoLimitada, elDetalhe]);
+  }, [resumoDias, data, projEdicaoLimitada, elDetalhe, indiceMensal]);
 
   const ultimo = data?.meses[data.meses.length - 1];
   const primeiroNegativo = data?.meses.find((m) => m.estoque < 0);
@@ -1129,6 +1187,7 @@ export default function VisaoGeral2Page() {
           meses={relatorioCapacidade.linhas}
           aberturaEstoque={relatorioCapacidade.abertura}
           pedidosPendentes={relatorioCapacidade.pedidosPendentes}
+          emProcessoAtual={data.posicao.emProcesso}
         />
       )}
 
