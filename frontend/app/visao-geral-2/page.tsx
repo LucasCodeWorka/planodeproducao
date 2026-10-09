@@ -5,6 +5,8 @@ import { ChevronDown, ChevronRight, LayoutGrid, RefreshCw, TriangleAlert } from 
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import PainelCapacidade, { type ResumoDiasCapacidade } from '../components/PainelCapacidade';
+import CapacidadeVsVenda, { MesCapacidadeVenda } from '../components/CapacidadeVsVenda';
+import { diasDeFabricaNoMes, diasUteisNoMes } from '../lib/feriados';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
 
@@ -18,6 +20,14 @@ type Curva = typeof CURVAS[number];
 const MONTH_LABELS = ['SET', 'OUT', 'NOV', 'DEZ', 'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 const MES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const PERIODOS_CAPACIDADE = ['MA', 'PX', 'UL', 'QT'] as const;
+// Chave para reexibir o painel de Capacidade, hoje coberto pelo relatorio abaixo dele.
+const MOSTRAR_PAINEL_CAPACIDADE = false;
+// Idem para a tabela da Visao Geral, que hoje duplica o que o relatorio ja mostra.
+const MOSTRAR_TABELA_VISAO_GERAL = false;
+// Idem para a faixa de cobertura-alvo: o estado continua valendo nos defaults.
+const MOSTRAR_COBERTURA_ALVO = false;
+// Idem para a previsao de termino do plano corrente (MA).
+const MOSTRAR_PREVISAO_TERMINO = false;
 const CORES_MES = [
   { th: 'text-blue-700',    td: 'bg-blue-50/60' },
   { th: 'text-violet-700',  td: 'bg-violet-50/60' },
@@ -44,6 +54,7 @@ type Totalizador = { fabrica: number; fabricaAjustada: number; lojas: number; to
 type Posicao = { skus: number; estoqueAtual: number; pedidosPendentes: number; estoqueDisponivel: number; emProcesso: number };
 
 type PlanoPeriodo = { qtdLote: number; qtdGerouOp: number };
+type ElDetalheMes = { anoFonte: number; fonte: string; fatorFabrica: number; fabricaBase: number; lojasBase: number; fabrica: number; lojas: number; quantidade: number };
 
 type PlanoCurva = Record<string, Record<Curva, { lote: number; op: number }>>;
 
@@ -106,7 +117,14 @@ export default function VisaoGeral2Page() {
   // Plano. Busca separada do carregar(): e barata, cacheada no servidor, e se falhar o
   // painel some sem derrubar o resto da pagina.
   const [resumoDias, setResumoDias] = useState<(ResumoDiasCapacidade & { periodos?: Record<string, number> }) | null>(null);
-  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; totalizadores: Record<string, Totalizador>; projecaoTotal: number[]; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva } & ProcessoCapacidade | null>(null);
+  // Projecao de edicao limitada do ano destino, vinda do historico de colecoes. Fica fora do
+  // `rawData` porque vem de outro endpoint e nao deve segurar o carregamento da tela: se
+  // falhar, a tabela mostra so o permanente, que e o comportamento antigo.
+  const [projEdicaoLimitada, setProjEdicaoLimitada] = useState<Record<string, number> | null>(null);
+  // Abertura do calculo de edicao limitada por mes: base de fabrica e lojas, ano de origem
+  // e fator aplicado. E o terceiro nivel da linha de projecao.
+  const [elDetalhe, setElDetalhe] = useState<Record<string, ElDetalheMes> | null>(null);
+  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; totalizadores: Record<string, Totalizador>; projecaoTotal: number[]; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   async function carregar() {
     setLoading(true); setError(null);
@@ -201,11 +219,44 @@ export default function VisaoGeral2Page() {
       // Demanda de set a dez por SKU: projeção gravada quando existe, média 3m como
       // fallback mês a mês. O cálculo anterior usava média × 3, que ignorava dezembro
       // (nem o plano nem a venda) e subestimava a demanda dos outros três meses.
+      // A posicao de estoque da matriz e de HOJE (o cache da matriz carimba a data). Entao a
+      // venda de um mes ja fechado JA SAIU dela: descontar setembro de novo tirava ~148 mil
+      // pecas do saldo inicial sem que nada tivesse acontecido. Pelo mesmo motivo o mes em
+      // curso entra pro-rata pelos dias uteis que ainda faltam — a venda dos dias ja corridos
+      // tambem ja esta no estoque. Do lado da producao o `plano` da matriz ja vem como
+      // RESTANTE, entao com isto os dois lados passam a falar do mesmo pedaco do mes.
+      const mesCorrenteBase = hoje.getMonth() + 1;
+      const mesesRestantesBase = Array.from({ length: 12 - mesCorrenteBase + 1 }, (_, i) => mesCorrenteBase + i);
+      // Quanto do mes corrente ainda falta. Sai da MESMA config de dias que a tela de
+      // Capacidade usa (`dias` e um retrato rolante: mes fechado vira 0, mes em curso fica
+      // com os dias que sobram — outubro esta em 13 de 22). Assim a venda e a capacidade do
+      // mes andam no mesmo relogio. O denominador sao os dias UTEIS do mes (ja sem feriado:
+      // outubro/2026 tem 22 dias de semana, menos o dia 12, da como 21), porque o numerador
+      // que vem da config tambem ja e liquido de feriado.
+      let fracaoCache: number | null = null;
+      const fracaoMesCorrente = () => {
+        if (fracaoCache !== null) return fracaoCache;
+        const total = diasUteisNoMes(anoBase, mesCorrenteBase);
+        const restantes = Number(days[String(mesCorrenteBase)] || 0) || (() => {
+          let faltam = 0;
+          const d = new Date(Date.UTC(anoBase, mesCorrenteBase - 1, hoje.getDate()));
+          while (d.getUTCMonth() === mesCorrenteBase - 1) {
+            const w = d.getUTCDay();
+            if (w >= 1 && w <= 5) faltam += 1;
+            d.setUTCDate(d.getUTCDate() + 1);
+          }
+          return faltam;
+        })();
+        fracaoCache = total > 0 ? Math.min(1, restantes / total) : 1;
+        return fracaoCache;
+      };
+      const vendaDoMesDe = (id: string, media3m: number, mes: number) => {
+        const v = projPorSku[id]?.[String(mes)];
+        const cheio = v !== undefined ? Number(v) : media3m;
+        return mes === mesCorrenteBase ? cheio * fracaoMesCorrente() : cheio;
+      };
       const vendaAteDezDe = (id: string, media3m: number) =>
-        [9, 10, 11, 12].reduce((soma, mes) => {
-          const v = projPorSku[id]?.[String(mes)];
-          return soma + (v !== undefined ? Number(v) : media3m);
-        }, 0);
+        mesesRestantesBase.reduce((soma, mes) => soma + vendaDoMesDe(id, media3m, mes), 0);
       const corteJson = await corteResponse.json();
       const cortePorId = new Map<string, number>(
         (Array.isArray(corteJson?.data) ? corteJson.data : [])
@@ -273,6 +324,63 @@ export default function VisaoGeral2Page() {
       const pedidosPendentes = items.reduce((sum, item) => sum + Number(matrixById.get(String(item.idproduto))?.demanda?.pedidos_pendentes || 0), 0);
       const planToDecember = items.reduce((sum, item) => { const p = matrixById.get(String(item.idproduto))?.plano || {}; return sum + Number(p.ma || 0) + Number(p.px || 0) + Number(p.ul || 0) + Number(p.qt || 0); }, 0);
       const demandToDecember = items.reduce((sum, item) => sum + vendaAteDezDe(String(item.idproduto), Number(matrixById.get(String(item.idproduto))?.demanda?.media_vendas_3m || item.media_3m || 0)), 0);
+      // Abertura dos dois totais acima, mes a mes e periodo a periodo. O relatorio de
+      // Capacidade x Venda precisa CAMINHAR pelos meses reais em vez de recebe-los
+      // colapsados dentro do saldo inicial de janeiro — e caminhar com exatamente as mesmas
+      // parcelas, senao a conta nao fecha com o resto da tela.
+      const planoRestantePorPeriodo = items.reduce((acc, item) => {
+        const p = matrixById.get(String(item.idproduto))?.plano || {};
+        acc.MA += Number(p.ma || 0); acc.PX += Number(p.px || 0);
+        acc.UL += Number(p.ul || 0); acc.QT += Number(p.qt || 0);
+        return acc;
+      }, { MA: 0, PX: 0, UL: 0, QT: 0 } as Record<string, number>);
+      const demandaRestantePorMes: Record<string, number> = {};
+      const origemBasePorMes: Record<string, { lancada: number; modelo: number }> = {};
+      for (const mes of mesesRestantesBase) {
+        let lancada = 0;
+        let modelo = 0;
+        demandaRestantePorMes[String(mes)] = items.reduce((sum, item) => {
+          const id = String(item.idproduto);
+          const m3 = Number(matrixById.get(id)?.demanda?.media_vendas_3m || item.media_3m || 0);
+          const v = vendaDoMesDe(id, m3, mes);
+          // Mesma separacao do ano destino: projecao lancada x media de 3 meses (o fallback
+          // de quem ainda nao tem projecao no mes).
+          if (projPorSku[id]?.[String(mes)] !== undefined) lancada += v; else modelo += v;
+          return sum + v;
+        }, 0);
+        // Chave separada da do ano destino de proposito: out/nov/dez existem nos dois anos e
+        // um sobrescreveria o outro.
+        origemBasePorMes[String(mes)] = { lancada, modelo };
+      }
+
+      // EDICAO LIMITADA. A populacao do preview e so permanente (o servico de projecao
+      // exclui edicao limitada por construcao), mas a CAPACIDADE da tela ja conta a fabrica
+      // inteira — os periodos do plano vem sem filtro de continuidade. Entao o relatorio
+      // comparava uma demanda de permanentes contra uma capacidade de tudo. Trazer edicao
+      // limitada fecha essa assimetria. Estoque, plano e pendente saem da propria matriz,
+      // que ja esta carregada; a demanda do ano base sai da projecao gravada, com o mesmo
+      // pro-rata do mes corrente.
+      // O ERP grava as duas formas, "EDICAO LIMITADA" e "EDIÇÃO LIMITADA", entao a
+      // comparacao tira acento antes. `norm` so apara e sobe a caixa.
+      const semAcento = (v: unknown) => norm(v).normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const ehEdicaoLimitada = (r: MatrixRow) => semAcento(r.produto?.continuidade) === 'EDICAO LIMITADA';
+      const elRows = ((matrix.data || []) as MatrixRow[]).filter(ehEdicaoLimitada);
+      const elEstoque = elRows.reduce((s, r) => s + Number(r.estoques?.estoque_disponivel || 0), 0);
+      const elPendentes = elRows.reduce((s, r) => s + Number(r.demanda?.pedidos_pendentes || 0), 0);
+      const elPlanoPorPeriodo = elRows.reduce((acc, r) => {
+        const p = r.plano || {};
+        acc.MA += Number(p.ma || 0); acc.PX += Number(p.px || 0);
+        acc.UL += Number(p.ul || 0); acc.QT += Number(p.qt || 0);
+        return acc;
+      }, { MA: 0, PX: 0, UL: 0, QT: 0 } as Record<string, number>);
+      const elDemandaPorMes: Record<string, number> = {};
+      for (const mes of mesesRestantesBase) {
+        elDemandaPorMes[String(mes)] = elRows.reduce((s, r) => s + vendaDoMesDe(
+          String(r.produto?.idproduto || ''),
+          Number(r.demanda?.media_vendas_3m || 0),
+          mes,
+        ), 0);
+      }
       // Composição medida no backend (producaoService: estoqueDisponivel = estoque + emProcesso):
       //   `estoque_disponivel` = estoque físico + em processo (NÃO abate pendente)
       //   `plano.ma/px/ul/qt/qu` da matriz = plano RESTANTE (lote que ainda não gerou OP)
@@ -282,13 +390,22 @@ export default function VisaoGeral2Page() {
       // 2027 no preview é MODELO (mesmo mês do ano anterior, fábrica +10%) — mas jan-jun/2027
       // já têm projeção gravada de verdade em app_projecoes (~1.600 SKUs, conferido em
       // 30/09/2026). Onde tiver gravado, usa; o modelo cobre só o que ainda falta lançar.
+      // Origem da projecao, mes a mes: quanto veio de projecao LANCADA em app_projecoes e
+      // quanto veio do MODELO (mesmo mes do ano anterior, fabrica +10%). E a base de calculo
+      // do mes, e muda o quanto dele e decisao da empresa e o quanto e extrapolacao.
+      const projOrigem: Record<string, { lancada: number; modelo: number }> = {};
+      MONTHS.forEach((m) => { projOrigem[m] = { lancada: 0, modelo: 0 }; });
       const projecoesAjustadas = (item: ProjectionItem): Record<Month, number> => {
         const gravado = proj2027PorSku[String(item.idproduto)];
-        if (!gravado) return item.projecoes;
         const ajustada = { ...item.projecoes };
         MONTHS.forEach((mesNome, idx) => {
-          const valor = gravado[String(idx + 1)];
-          if (valor !== undefined) ajustada[mesNome] = Number(valor);
+          const valor = gravado?.[String(idx + 1)];
+          if (valor !== undefined) {
+            ajustada[mesNome] = Number(valor);
+            projOrigem[mesNome].lancada += Number(valor);
+          } else {
+            projOrigem[mesNome].modelo += Number(ajustada[mesNome] || 0);
+          }
         });
         return ajustada;
       };
@@ -333,6 +450,26 @@ export default function VisaoGeral2Page() {
       const agendaPendente = somarAgenda(agendaPendPorSku);
       const agendaMeta = { wipVencido: Number(agendaJson?.meta?.totais?.wipVencido || 0) };
       const capacidadePorMes = MONTHS.map((_, index) => capacityGroups.reduce((sum, g) => sum + Number(g.capacidade_diaria || 0) * Number(days[String(index + 1)] || 0), 0));
+      // Dias uteis por mes, separados da capacidade: a capacidade em minutos passa a ser
+      // calculada com a diaria MEDIDA no ERP (dias-resumo), nao com o capacidade_diaria do
+      // arquivo de config, que esta ~18x acima do real.
+      //
+      // O arquivo de dias e indexado por numero do mes, sem ano, e vale como retrato do ano
+      // CORRENTE: mes que ja fechou vira 0 e o mes em curso guarda so os dias que faltam.
+      // Para planejar o ano seguinte isso nao serve — setembro apareceria com capacidade
+      // zero e outubro com 13 dias. Conferido contra o calendario de 2026: a config bate com
+      // os dias de semana em 8 dos 12 meses, e onde difere sao feriados reais (jan -1 do Ano
+      // Novo, dez -5 da coletiva). Entao a regra e: manter a config onde ela e crivel e cair
+      // no dia de semana do ano planejado so nos meses que o retrato atropelou.
+      const mesCorrente = hoje.getMonth() + 1;
+      // Dias do ano PLANEJADO, pelo calendario real dele: dias de semana menos os feriados
+      // de Fortaleza/CE, menos a parada programada (coletiva de dezembro).
+      //
+      // Antes isto saia do `capacidade_dias.json`, que e um retrato ROLANTE do ano CORRENTE
+      // — mes fechado vira 0, mes em curso guarda so o que falta. Emprestar esse retrato
+      // para o ano seguinte trazia os feriados do ano errado: julho aparecia com 23 dias
+      // uteis em 2027, mais do que os 22 dias de semana que o mes tem.
+      const diasPorMes = MONTHS.map((_, index) => diasDeFabricaNoMes(anoDestino, index + 1));
       const vendas: VendasCanal = { fabrica: preview.vendas?.fabrica || {}, lojas: preview.vendas?.lojas || {} };
       const totalizadores: Record<string, Totalizador> = preview.totalizadores || {};
 
@@ -353,7 +490,7 @@ export default function VisaoGeral2Page() {
       const diasUteisRestantes = capacidadeDiariaTotal > 0 ? cargaRestanteMA / capacidadeDiariaTotal : 0;
       const previsaoTermino = diasUteisRestantes > 0 ? addDiasUteis(hoje, diasUteisRestantes).toISOString().slice(0, 10) : null;
 
-      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, pctContinuidade, vendas, totalizadores, projecaoTotal, projecaoMatrizTotal, planoPeriodos, planoPorCurva, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
+      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, totalizadores, projecaoTotal, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, demandaRestantePorMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao carregar visão macro'); }
     finally { setLoading(false); }
   }
@@ -377,7 +514,22 @@ export default function VisaoGeral2Page() {
     } catch { /* silencioso: mantém os valores padrão */ }
   }
 
-  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); }, [router]);
+  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); }, [router]);
+
+  async function carregarEdicaoLimitada() {
+    try {
+      const ano = new Date().getFullYear() + 1;
+      const r = await fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${ano}&detalhe=1`, { headers: authHeaders() });
+      const p = await r.json();
+      if (!r.ok || !p?.success) return;
+      setProjEdicaoLimitada(p.data || {});
+      const porMes = Array.isArray(p.porMes) ? p.porMes : [];
+      setElDetalhe(Object.fromEntries(porMes.map((m: ElDetalheMes & { mes: number }) => [String(m.mes), m])));
+    } catch {
+      setProjEdicaoLimitada(null);
+      setElDetalhe(null);
+    }
+  }
 
   async function carregarCapacidade() {
     try {
@@ -440,15 +592,20 @@ export default function VisaoGeral2Page() {
         producao += necessidade;
         carga += necessidade * s.tempo;
       }
-      const capacidade = Number(rawData.capacidadePorMes[index] || 0);
+      // Capacidade na base MEDIDA no ERP (dias-resumo), nao no capacidade_diaria do arquivo
+      // de config: aquele esta ~18x acima do real e fazia a capacidade em pecas e os dias
+      // necessarios sairem sem sentido. Sem a medida carregada, fica zero — melhor em branco
+      // do que um numero que nao existe na fabrica.
+      const capDiariaMedida = Number(resumoDias?.capacidadeDiaria || 0);
+      const diasDisponiveis = Number(rawData.diasPorMes[index] || 0);
+      const capacidade = capDiariaMedida * diasDisponiveis;
       const estoque = Array.from(corrente.values()).reduce((sum, v) => sum + v, 0);
-      const diasDisponiveis = rawData.capacidadeDiaria > 0 ? capacidade / rawData.capacidadeDiaria : 0;
-      const diasNecessarios = rawData.capacidadeDiaria > 0 ? carga / rawData.capacidadeDiaria : 0;
+      const diasNecessarios = capDiariaMedida > 0 ? carga / capDiariaMedida : 0;
       const minutosPorPeca = producao > 0 ? carga / producao : 0;
       const capacidadePecas = minutosPorPeca > 0 ? capacidade / minutosPorPeca : 0;
       return { mes, demanda, producao, producaoPorCurva, estoque, cobertura: demanda > 0 ? estoque / demanda : 0, carga, capacidade, capacidadePecas, diasDisponiveis, diasNecessarios, utilizacao: capacidade > 0 ? (carga / capacidade) * 100 : 0 };
     });
-  }, [rawData, modoCobertura, multiplicadorCobertura, coberturaPorCurva, coberturaMaxPorCurva]);
+  }, [rawData, resumoDias, modoCobertura, multiplicadorCobertura, coberturaPorCurva, coberturaMaxPorCurva]);
   // `data` continua com o mesmo formato de antes, então todos os consumidores de
   // `data.meses` seguem funcionando sem alteração.
   const data = useMemo(() => (rawData ? { ...rawData, meses } : null), [rawData, meses]);
@@ -495,6 +652,142 @@ export default function VisaoGeral2Page() {
     return { capacidadeDiaria: capDiaria, diasNecessarios, diasDisponiveis, chaves };
   }, [resumoDias, data]);
 
+  // Linha do tempo do relatorio de Capacidade x Venda: os meses de plano REAL (out -> jan)
+  // entram como linha propria, em vez de ficarem colapsados dentro do saldo inicial de
+  // janeiro. Era essa a origem de dois numeros estranhos: a ocupacao de janeiro aparecia
+  // isolada (76%) em vez de acumulada (95%, o que a tela de Capacidade mostra), e o plano
+  // de janeiro era somado duas vezes — uma dentro do saldo inicial, outra como producao.
+  const relatorioCapacidade = useMemo(() => {
+    if (!data || !resumoDias) return null;
+    const capDiaria = Number(resumoDias.capacidadeDiaria || 0);
+    const mesMA = Number(resumoDias.periodos?.MA || 0);
+    if (capDiaria <= 0 || !mesMA) return null;
+    const anoBase = data.anoDestino - 1;
+    const el = (mes: number) => Number(projEdicaoLimitada?.[String(mes)] || 0);
+
+    // Rateio FABRICA x LOJAS. A projecao gravada vem como total, sem canal, entao o canal e
+    // imputado pela participacao do mesmo mes no ano base — com o +10% ja aplicado na
+    // fabrica, que e a propria regra do modelo. Para edicao limitada nao e rateio: o
+    // endpoint devolve os dois canais separados, medidos no historico.
+    const partFabrica = (mes: number) => {
+      const fab = Number(data.vendas.fabrica?.[String(mes)] || 0) * 1.1;
+      const loj = Number(data.vendas.lojas?.[String(mes)] || 0);
+      return fab + loj > 0 ? fab / (fab + loj) : 0;
+    };
+    const canalDoMes = (mes: number, perm: number, elTotal: number) => {
+      const permFab = perm * partFabrica(mes);
+      const d = elDetalhe?.[String(mes)];
+      const elTot = d ? d.fabrica + d.lojas : 0;
+      const elFab = d && elTot > 0 ? elTotal * (d.fabrica / elTot) : elTotal * partFabrica(mes);
+      return { fabrica: permFab + elFab, lojas: (perm - permFab) + (elTotal - elFab) };
+    };
+
+    // Agenda da carteira pendente: o ERP sabe o mes de baixa prevista de cada pedido. A
+    // agenda vem por SKU sem filtro de marca, entao a populacao dela e maior que a desta
+    // tela; o que se aproveita e a FORMA (a distribuicao pelos meses), aplicada sobre o
+    // pendente da populacao daqui. Serve para mostrar que a carteira nao e uma divida
+    // permanente: ela tem data para acabar.
+    const pendenteTotal = Number(data.pedidosPendentes || 0) + Number(data.elPendentes || 0);
+    const agendaTotal = Object.values(data.agendaPendente || {}).reduce((s, v) => s + Number(v || 0), 0);
+    const baixaDe = (ano: number, mes: number) => {
+      if (agendaTotal <= 0) return 0;
+      const chave = `${ano}-${String(mes).padStart(2, '0')}`;
+      return (Number(data.agendaPendente[chave] || 0) / agendaTotal) * pendenteTotal;
+    };
+    let saldoPendente = pendenteTotal;
+
+    const linhas: MesCapacidadeVenda[] = [];
+    for (const p of PERIODOS_CAPACIDADE) {
+      const mes = Number(resumoDias.periodos?.[p] || 0);
+      if (!mes) continue;
+      const ano = mes >= mesMA ? anoBase : data.anoDestino;
+      const diasNecessarios = Number(resumoDias.diasNecessarios?.[p] || 0);
+      const diasDisponiveis = Number(resumoDias.diasDisponiveis?.[p] || 0);
+      // Pecas por tras da carga do periodo: o lote que ainda nao virou OP mais o que ja
+      // esta em processo. E essa a populacao que o dias-resumo poe no numerador — usar o
+      // lote cheio daria 4,1 min/peca em outubro contra 6,4-8,3 nos outros meses.
+      const pecasCarga = Math.max(0, Number(data.planoPeriodos[p]?.qtdLote || 0) - Number(data.planoPeriodos[p]?.qtdGerouOp || 0))
+        + Number(data.processoPorPeriodo[p] || 0);
+      linhas.push({
+        mes: `${MES_ABREV[mes - 1]}/${String(ano).slice(2)}`,
+        // No ano base a demanda vem da projecao gravada (mes corrente pro-rata pelos dias
+        // uteis que faltam); de janeiro em diante, da projecao desta tela.
+        demanda: ano === anoBase
+          ? Number(data.demandaRestantePorMes[String(mes)] || 0)
+          : Number(data.meses[mes - 1]?.demanda || 0),
+        demandaEl: ano === anoBase ? Number(data.elDemandaPorMes[String(mes)] || 0) : el(mes),
+        baseLancada: ano === anoBase
+          ? Number(data.origemBasePorMes[String(mes)]?.lancada || 0)
+          : Number(data.projOrigem[MES_ABREV[mes - 1]]?.lancada || 0),
+        baseModelo: ano === anoBase
+          ? Number(data.origemBasePorMes[String(mes)]?.modelo || 0)
+          : Number(data.projOrigem[MES_ABREV[mes - 1]]?.modelo || 0),
+        elBase: ano === anoBase ? undefined : elDetalhe?.[String(mes)],
+        ...(() => {
+          const perm = ano === anoBase
+            ? Number(data.demandaRestantePorMes[String(mes)] || 0)
+            : Number(data.meses[mes - 1]?.demanda || 0);
+          const elTotal = ano === anoBase ? Number(data.elDemandaPorMes[String(mes)] || 0) : el(mes);
+          const c = canalDoMes(mes, perm, elTotal);
+          return { demandaFabrica: c.fabrica, demandaLojas: c.lojas };
+        })(),
+        // So o plano RESTANTE entra no estoque: o que ja virou OP esta em processo, e
+        // `estoque_disponivel` ja conta o em-processo. Os dias do periodo ja vem da fabrica
+        // inteira, entao aqui o plano tambem soma as duas continuidades.
+        producao: Number(data.planoRestantePorPeriodo[p] || 0) + Number(data.elPlanoPorPeriodo[p] || 0),
+        capacidadePecas: diasNecessarios > 0 ? (pecasCarga * diasDisponiveis) / diasNecessarios : 0,
+        diasNecessarios,
+        diasDisponiveis,
+        pendenteBaixa: baixaDe(ano, mes),
+        pendenteSaldo: (saldoPendente = Math.max(0, saldoPendente - baixaDe(ano, mes))),
+        travado: true,
+      });
+    }
+
+    const ultimoFechado = Number(resumoDias.periodos?.QT || 0);
+    data.meses.forEach((m, i) => {
+      const mes = i + 1;
+      if (mes <= ultimoFechado) return;
+      // Edicao limitada e feita para vender na estacao, nao para estocar: a producao do mes
+      // acompanha a demanda dele. Ela nao sobra nem falta no estoque — mas OCUPA a fabrica,
+      // e por isso entra nos dias. Nos meses reais isso ja acontecia sozinho (o dias-resumo
+      // nao filtra continuidade); aqui a simulacao so conhece permanentes, entao os dias de
+      // edicao limitada entram por fora, na mesma peca-por-dia do mes.
+      const diasPerm = m.carga / capDiaria;
+      const pecasPorDia = m.producao > 0 && diasPerm > 0
+        ? m.producao / diasPerm
+        : (m.diasDisponiveis > 0 ? m.capacidadePecas / m.diasDisponiveis : 0);
+      const demandaEl = el(mes);
+      linhas.push({
+        mes: `${m.mes}/${String(data.anoDestino).slice(2)}`,
+        demanda: m.demanda,
+        demandaEl,
+        baseLancada: Number(data.projOrigem[m.mes]?.lancada || 0),
+        baseModelo: Number(data.projOrigem[m.mes]?.modelo || 0),
+        elBase: elDetalhe?.[String(mes)],
+        ...(() => {
+          const c = canalDoMes(mes, m.demanda, demandaEl);
+          return { demandaFabrica: c.fabrica, demandaLojas: c.lojas };
+        })(),
+        producao: m.producao + demandaEl,
+        capacidadePecas: m.capacidadePecas,
+        diasNecessarios: diasPerm + (pecasPorDia > 0 ? demandaEl / pecasPorDia : 0),
+        diasDisponiveis: m.diasDisponiveis,
+        pendenteBaixa: baixaDe(data.anoDestino, mes),
+        pendenteSaldo: (saldoPendente = Math.max(0, saldoPendente - baixaDe(data.anoDestino, mes))),
+        travado: false,
+      });
+    });
+
+    // Abertura FISICA de hoje (estoque + em processo, sem abater pendente) e a carteira
+    // pendente da MESMA populacao — permanentes do preview mais edicao limitada da matriz.
+    return {
+      linhas,
+      abertura: Number(data.estoqueBaseReal || 0) + Number(data.elEstoque || 0),
+      pedidosPendentes: Number(data.pedidosPendentes || 0) + Number(data.elPendentes || 0),
+    };
+  }, [resumoDias, data, projEdicaoLimitada, elDetalhe]);
+
   const ultimo = data?.meses[data.meses.length - 1];
   const primeiroNegativo = data?.meses.find((m) => m.estoque < 0);
   // Agrupamento visual por semestre (pedido do usuário): 4 meses (set-dez do ano corrente) +
@@ -511,6 +804,24 @@ export default function VisaoGeral2Page() {
   // A partir daqui a coluna "Real" nunca tem dado de verdade: 2027 não fecha mês com
   // totalizador realizado, só projeção. Só set-dez do ano corrente (índices 0-3) tem Real.
   const ULTIMA_COLUNA_REAL = 4;
+  // Em que coluna cai cada período do plano. Fica fora do memo da tabela porque o cabeçalho
+  // também precisa saber onde o plano fechado acaba e a simulação começa.
+  //
+  // O ERP empurra MA pro mês seguinte no último dia do mês corrente (mesma regra de
+  // capacidade.js) — MA deixou de ser SET e virou OUT em 30/09/2026. Por isso a coluna de
+  // cada período é calculada, não fixada: senão a tabela mostra o plano de outubro sob o
+  // rótulo "SET", que foi exatamente o que o usuário notou faltando no sistema.
+  const colunasPlano = useMemo(() => {
+    const periodosPlano = ['MA', 'PX', 'UL', 'QT', 'QU'];
+    const hojeCalc = new Date();
+    const ultimoDiaMesAtual = new Date(hojeCalc.getFullYear(), hojeCalc.getMonth() + 1, 0).getDate();
+    const maMes = hojeCalc.getDate() === ultimoDiaMesAtual ? hojeCalc.getMonth() + 2 : hojeCalc.getMonth() + 1;
+    // Coluna 0 = SET do anoBase; mês >= 9 cai no mesmo ano, mês < 9 é ano seguinte.
+    const colunaDoMes = (m: number) => { const mm = ((m - 1) % 12) + 1; return (mm - 9 + 12) % 12; };
+    const periodoParaColuna: Record<string, number> = {};
+    periodosPlano.forEach((p, idx) => { periodoParaColuna[p] = colunaDoMes(maMes + idx); });
+    return { periodosPlano, periodoParaColuna, maxColunaPeriodo: Math.max(...Object.values(periodoParaColuna)) };
+  }, []);
   type VisaoGeralLinha = { label: string; hint?: string; values: (number | null)[]; decimals?: number; suffix?: string; dangerBelow?: number };
   type VisaoGeralBloco = VisaoGeralLinha & { id: string; rowClass: string; filhos: VisaoGeralLinha[] };
   const visaoGeralBlocos = useMemo<VisaoGeralBloco[]>(() => {
@@ -546,19 +857,7 @@ export default function VisaoGeral2Page() {
         return [projetado -Math.round(projetado * participacaoFabrica), null];
       }).flat(),
     ];
-    const periodosPlano = ['MA', 'PX', 'UL', 'QT', 'QU'];
-    // O ERP empurra MA pro mês seguinte no último dia do mês corrente (mesma regra de
-    // capacidade.js) — MA deixou de ser SET e virou OUT hoje (30/09/2026). Por isso a coluna
-    // de cada período é calculada, não fixada: senão a tabela mostra o plano de outubro sob
-    // o rótulo "SET", que é exatamente o que o usuário notou faltando no sistema.
-    const hojeCalc = new Date();
-    const ultimoDiaMesAtual = new Date(hojeCalc.getFullYear(), hojeCalc.getMonth() + 1, 0).getDate();
-    const maMes = hojeCalc.getDate() === ultimoDiaMesAtual ? hojeCalc.getMonth() + 2 : hojeCalc.getMonth() + 1;
-    // Coluna 0 = SET do anoBase; mês >= 9 cai no mesmo ano, mês < 9 é ano seguinte.
-    const colunaDoMes = (m: number) => { const mm = ((m - 1) % 12) + 1; return (mm - 9 + 12) % 12; };
-    const periodoParaColuna: Record<string, number> = {};
-    periodosPlano.forEach((p, idx) => { periodoParaColuna[p] = colunaDoMes(maMes + idx); });
-    const maxColunaPeriodo = Math.max(...Object.values(periodoParaColuna));
+    const { periodosPlano, periodoParaColuna, maxColunaPeriodo } = colunasPlano;
     // Coluna com período: usa o dado real do plano. Coluna depois do último período: usa a
     // simulação de 2027 (sempre ancorada em JAN = coluna 4, isso não muda com o rollover).
     // Coluna antes do primeiro período (hoje, só SET): fica em branco — não existe mais
@@ -697,7 +996,9 @@ export default function VisaoGeral2Page() {
         ],
       },
     ];
-  }, [data, coberturaPorCurva, modoCobertura, multiplicadorCobertura]);  const Trend = ({ curr, prev }: { curr: number | null; prev: number | null }) => {
+  }, [data, colunasPlano, coberturaPorCurva, modoCobertura, multiplicadorCobertura]);
+
+  const Trend = ({ curr, prev }: { curr: number | null; prev: number | null }) => {
     if (curr === null || prev === null || curr === prev) return null;
     return curr > prev
       ? <span className="text-emerald-600 ml-1 text-[10px] align-middle">▲</span>
@@ -708,66 +1009,72 @@ export default function VisaoGeral2Page() {
     <div className="flex items-start justify-between mb-6"><div><p className="text-xs uppercase tracking-widest text-gray-500">Planejamento agregado</p><h1 className="text-2xl font-bold text-gray-900">Visão Geral 2 (teste)</h1><p className="text-sm text-gray-500 mt-1">Projeção {data?.anoDestino || new Date().getFullYear() + 1}.1 usando permanentes com venda em 6m ou 3m.</p></div><button onClick={carregar} className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button></div>
     {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
     {loading ? <div className="rounded-lg bg-white p-10 text-center text-gray-500">Calculando visão macro...</div> : data && <>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex shrink-0 items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-3 py-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Cobertura-alvo</span>
-          <button
-            onClick={() => setModoCobertura('curva')}
-            title="Usa a cobertura mínima configurada para cada curva ABC"
-            className={`rounded px-2 py-0.5 text-xs font-semibold transition ${modoCobertura === 'curva' ? 'bg-slate-800 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
-          >
-            Por curva
-          </button>
-          {modoCobertura === 'curva' && [1, 1.5, 2, 3, 4].map((m) => (
+      {/* Faixa de cobertura-alvo OCULTA, nao removida. Os defaults do estado (curva, x3)
+          sao os mesmos que estavam selecionados, entao a simulacao de producao continua
+          identica — o controle so sumiu da vista. A legenda de cob. min/max veio junto por
+          ser legenda DESTE controle. Para reexibir, troque a chave no topo do arquivo. */}
+      {MOSTRAR_COBERTURA_ALVO && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-3 py-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Cobertura-alvo</span>
             <button
-              key={`m${m}`}
-              onClick={() => setMultiplicadorCobertura(m)}
-              title={`Política × ${m} — curva A fica em ${(coberturaPorCurva.A * m).toFixed(2)}x`}
-              className={`rounded px-1.5 py-0.5 text-[11px] font-semibold transition ${multiplicadorCobertura === m ? 'bg-emerald-700 text-white' : 'text-gray-500 hover:bg-gray-200'}`}
+              onClick={() => setModoCobertura('curva')}
+              title="Usa a cobertura mínima configurada para cada curva ABC"
+              className={`rounded px-2 py-0.5 text-xs font-semibold transition ${modoCobertura === 'curva' ? 'bg-slate-800 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
             >
-              ×{m.toLocaleString('pt-BR')}
+              Por curva
             </button>
-          ))}
-          <span className="h-3 w-px bg-gray-300" />
-          {[0.5, 1, 1.5, 2].map((c) => (
-            <button
-              key={c}
-              onClick={() => setModoCobertura(c)}
-              title="Aplica o mesmo alvo a todos os SKUs (simulação)"
-              className={`rounded px-2 py-0.5 text-xs font-semibold transition ${modoCobertura === c ? 'bg-slate-800 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
-            >
-              {c.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x
-            </button>
-          ))}
-          <span className="text-[10px] text-gray-400">do estoque mínimo</span>
+            {modoCobertura === 'curva' && [1, 1.5, 2, 3, 4].map((m) => (
+              <button
+                key={`m${m}`}
+                onClick={() => setMultiplicadorCobertura(m)}
+                title={`Política × ${m} — curva A fica em ${(coberturaPorCurva.A * m).toFixed(2)}x`}
+                className={`rounded px-1.5 py-0.5 text-[11px] font-semibold transition ${multiplicadorCobertura === m ? 'bg-emerald-700 text-white' : 'text-gray-500 hover:bg-gray-200'}`}
+              >
+                ×{m.toLocaleString('pt-BR')}
+              </button>
+            ))}
+            <span className="h-3 w-px bg-gray-300" />
+            {[0.5, 1, 1.5, 2].map((c) => (
+              <button
+                key={c}
+                onClick={() => setModoCobertura(c)}
+                title="Aplica o mesmo alvo a todos os SKUs (simulação)"
+                className={`rounded px-2 py-0.5 text-xs font-semibold transition ${modoCobertura === c ? 'bg-slate-800 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+              >
+                {c.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x
+              </button>
+            ))}
+            <span className="text-[10px] text-gray-400">do estoque mínimo</span>
+          </div>
+          {(() => {
+            const curvas = [
+              { letra: 'A', cor: 'text-emerald-600', min: cfgCurvas.cobertura_min_a, max: cfgCurvas.cobertura_max_a },
+              { letra: 'B', cor: 'text-blue-600',    min: cfgCurvas.cobertura_min_b, max: cfgCurvas.cobertura_max_b },
+              { letra: 'C', cor: 'text-amber-600',   min: cfgCurvas.cobertura_min_c, max: cfgCurvas.cobertura_max_c },
+              { letra: 'D', cor: 'text-red-600',     min: cfgCurvas.cobertura_min_d, max: cfgCurvas.cobertura_max_d },
+            ];
+            const fmtX = (n: number) => `${n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`;
+            return (
+              <div className="flex shrink-0 items-center gap-x-2.5 rounded-md border border-gray-200 bg-gray-50 px-3 py-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Cob. mín</span>
+                {curvas.map((c) => (
+                  <span key={`min-${c.letra}`} className="text-xs text-gray-700">
+                    <span className={`font-bold ${c.cor}`}>{c.letra}</span> {fmtX(c.min)}
+                  </span>
+                ))}
+                <span className="h-3 w-px bg-gray-300" />
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Cob. máx</span>
+                {curvas.map((c) => (
+                  <span key={`max-${c.letra}`} className="text-xs text-gray-700">
+                    <span className={`font-bold ${c.cor}`}>{c.letra}</span> {fmtX(c.max)}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
         </div>
-        {(() => {
-          const curvas = [
-            { letra: 'A', cor: 'text-emerald-600', min: cfgCurvas.cobertura_min_a, max: cfgCurvas.cobertura_max_a },
-            { letra: 'B', cor: 'text-blue-600',    min: cfgCurvas.cobertura_min_b, max: cfgCurvas.cobertura_max_b },
-            { letra: 'C', cor: 'text-amber-600',   min: cfgCurvas.cobertura_min_c, max: cfgCurvas.cobertura_max_c },
-            { letra: 'D', cor: 'text-red-600',     min: cfgCurvas.cobertura_min_d, max: cfgCurvas.cobertura_max_d },
-          ];
-          const fmtX = (n: number) => `${n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`;
-          return (
-            <div className="flex shrink-0 items-center gap-x-2.5 rounded-md border border-gray-200 bg-gray-50 px-3 py-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Cob. mín</span>
-              {curvas.map((c) => (
-                <span key={`min-${c.letra}`} className="text-xs text-gray-700">
-                  <span className={`font-bold ${c.cor}`}>{c.letra}</span> {fmtX(c.min)}
-                </span>
-              ))}
-              <span className="h-3 w-px bg-gray-300" />
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Cob. máx</span>
-              {curvas.map((c) => (
-                <span key={`max-${c.letra}`} className="text-xs text-gray-700">
-                  <span className={`font-bold ${c.cor}`}>{c.letra}</span> {fmtX(c.max)}
-                </span>
-              ))}
-            </div>
-          );
-        })()}
-      </div>
+      )}
       <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Posição atual · {fmt(data.posicao.skus)} SKUs em linha da matriz</div>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
         {[
@@ -787,117 +1094,144 @@ export default function VisaoGeral2Page() {
             ~18x maior que a medida no ERP.
           Sobram aqui so os dois que nao existem em nenhum outro ponto da tela. */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6 text-sm">
-        <span className="text-gray-600">
-          Previsão de término do plano (MA):{' '}
-          <strong className={data.previsaoTermino ? 'text-red-700' : 'text-emerald-700'}>
-            {data.previsaoTermino ? new Date(`${data.previsaoTermino}T00:00:00`).toLocaleDateString('pt-BR') : 'Concluído'}
-          </strong>
-          <span className="text-gray-400"> · {fmt(data.diasUteisRestantes)} dias úteis no ritmo atual</span>
-        </span>
+        {/* Previsao de termino do MA OCULTA, nao removida. Para reexibir, troque a chave
+            no topo do arquivo. */}
+        {MOSTRAR_PREVISAO_TERMINO && (
+          <span className="text-gray-600">
+            Previsão de término do plano (MA):{' '}
+            <strong className={data.previsaoTermino ? 'text-red-700' : 'text-emerald-700'}>
+              {data.previsaoTermino ? new Date(`${data.previsaoTermino}T00:00:00`).toLocaleDateString('pt-BR') : 'Concluído'}
+            </strong>
+            <span className="text-gray-400"> · {fmt(data.diasUteisRestantes)} dias úteis no ritmo atual</span>
+          </span>
+        )}
         <span className="text-gray-600">
           Lead time médio de OP: <strong className="text-indigo-700">{fmt(data.leadTimeDias)}d</strong>
         </span>
       </div>
-      <PainelCapacidade
-        resumo={resumoContinuo}
-        periodos={resumoContinuo?.chaves || []}
-        variante="amplo"
-        titulo={`Capacidade · plano fechado até jan, projetado até dez/${String(data.anoDestino).slice(2)}`}
-        nota={`Até jan: plano fechado, mesmos números das telas de Capacidade e Redução. De fev em diante: produção simulada por esta tela pela política de cobertura. Os dois lados usam a mesma capacidade diária medida, então o acumulado corre sem quebra.`}
-      />
+      {/* Painel de Capacidade OCULTO, nao removido. O relatorio de Capacidade x Venda logo
+          abaixo ja traz a mesma leitura acumulada, sobre a mesma capacidade diaria medida, e
+          com o plano nivelado — ter os dois lado a lado mostrava duas ocupacoes diferentes
+          para o mesmo mes (este painel le o plano ATUAL, o relatorio le o nivelado) e so
+          confundia. Para trazer de volta, troque para `true`. */}
+      {MOSTRAR_PAINEL_CAPACIDADE && (
+        <PainelCapacidade
+          resumo={resumoContinuo}
+          periodos={resumoContinuo?.chaves || []}
+          variante="amplo"
+          titulo={`Capacidade · plano fechado até jan, projetado até dez/${String(data.anoDestino).slice(2)}`}
+          nota={`Até jan: plano fechado, mesmos números das telas de Capacidade e Redução. De fev em diante: produção simulada por esta tela pela política de cobertura. Os dois lados usam a mesma capacidade diária medida, então o acumulado corre sem quebra.`}
+        />
+      )}
 
-      <div className="bg-white border border-gray-200 rounded-lg mb-6 overflow-hidden">
-        <div className="px-5 py-4 border-b flex items-center gap-2">
-          <LayoutGrid size={18} className="text-slate-600" />
-          <div>
-            <h2 className="font-semibold text-gray-900">Visão Geral</h2>
-            <p className="text-xs text-gray-500">Cobre os {fmt(data.skus)} SKUs permanentes da projeção (os cards acima somam os {fmt(data.posicao.skus)} da matriz). As demais linhas do plano de contas entram uma a uma, depois de validadas.</p>
+      {relatorioCapacidade && (
+        <CapacidadeVsVenda
+          meses={relatorioCapacidade.linhas}
+          aberturaEstoque={relatorioCapacidade.abertura}
+          pedidosPendentes={relatorioCapacidade.pedidosPendentes}
+        />
+      )}
+
+      {/* Tabela da Visao Geral OCULTA, nao removida. Para reexibir, troque a chave no
+          topo do arquivo. */}
+      {MOSTRAR_TABELA_VISAO_GERAL && (
+        <div className="bg-white border border-gray-200 rounded-lg mb-6 overflow-hidden">
+          <div className="px-5 py-4 border-b flex items-center gap-2">
+            <LayoutGrid size={18} className="text-slate-600" />
+            <div>
+              <h2 className="font-semibold text-gray-900">Visão Geral</h2>
+              <p className="text-xs text-gray-500">Cobre os {fmt(data.skus)} SKUs permanentes da projeção (os cards acima somam os {fmt(data.posicao.skus)} da matriz). As demais linhas do plano de contas entram uma a uma, depois de validadas.</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-xs uppercase">
+                <tr>
+                  <th rowSpan={3} className="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-left text-gray-700 w-56 min-w-[14rem]">Indicador</th>
+                  {SEMESTRES.map((sem) => (
+                    <th
+                      key={sem.label}
+                      colSpan={sem.meses * 2}
+                      className={`border-r-2 border-slate-300 bg-slate-100 px-2 py-1 text-center text-[11px] font-bold tracking-wide text-slate-500 last:border-r-0`}
+                    >
+                      {sem.label}
+                    </th>
+                  ))}
+                </tr>
+                <tr>
+                  {MONTH_LABELS.map((m, i) => (
+                    <th key={`${m}-${i}`} colSpan={2} className={`px-4 py-2 text-center font-bold ${CORES_MES[i % CORES_MES.length].th} ${fimDeSemestre.has(i) ? 'border-r-2 border-slate-300' : ''}`}>{m}</th>
+                  ))}
+                </tr>
+                <tr>
+                  {MONTH_LABELS.flatMap((_, i) => [
+                    <th key={`r-${i}`} className={`px-3 py-2 text-right text-[10px] font-semibold ${i < ULTIMA_COLUNA_REAL ? CORES_MES[i % CORES_MES.length].th : 'text-gray-300'}`}>Real</th>,
+                    <th key={`p-${i}`} className={`px-3 py-2 text-right text-[10px] font-semibold ${CORES_MES[i % CORES_MES.length].th} ${fimDeSemestre.has(i) ? 'border-r-2 border-slate-300' : ''} ${i === ULTIMA_COLUNA_REAL - 1 ? 'border-r-4 border-slate-500' : ''} ${i === colunasPlano.maxColunaPeriodo ? 'border-r-4 border-dashed border-amber-500' : ''}`} title={i === colunasPlano.maxColunaPeriodo ? 'Último mês com plano fechado. Daqui para a direita a linha Plano mostra a simulação desta tela.' : undefined}>Projetado</th>,
+                  ])}
+                </tr>
+              </thead>
+              <tbody>
+                {visaoGeralBlocos.map((bloco) => {
+                  const aberto = abertos[bloco.id] !== false;
+                  const celulas = (linha: VisaoGeralLinha, destaque: boolean) => {
+                    // As linhas são montadas como [projetado, real] por mês; a tabela mostra
+                    // Real primeiro. Inverter aqui evita mexer em cada array e correr o risco
+                    // de desalinhar um deles em silêncio.
+                    const vals = linha.values.map((_, i) => linha.values[i % 2 === 0 ? i + 1 : i - 1] ?? null);
+                    return vals.map((v, i) => {
+                      const perigo = linha.dangerBelow !== undefined && v !== null && v < linha.dangerBelow;
+                      const texto = v === null ? '—' : linha.decimals !== undefined ? `${v.toFixed(linha.decimals)}${linha.suffix || ''}` : fmt(v);
+                      // A borda de semestre/real-projetado só faz sentido na 2ª coluna do par
+                      // (Projetado): é ali que a dupla do mês termina e a próxima começa.
+                      const mesIdx = Math.floor(i / 2);
+                      const divisor = i % 2 === 1 && mesIdx === ULTIMA_COLUNA_REAL - 1
+                        ? 'border-r-4 border-slate-500'
+                        // Onde o plano fechado acaba: dali pra frente a linha Plano passa a
+                        // mostrar a simulacao, e sem a marca o degrau parece erro de dado.
+                        : i % 2 === 1 && mesIdx === colunasPlano.maxColunaPeriodo
+                          ? 'border-r-4 border-dashed border-amber-500'
+                          : i % 2 === 1 && fimDeSemestre.has(mesIdx)
+                            ? 'border-r-2 border-slate-300'
+                            : '';
+                      return (
+                        <td key={i} className={`px-4 py-3 text-right font-mono ${destaque ? '' : CORES_MES[Math.floor(i / 2) % CORES_MES.length].td} ${perigo ? 'text-red-600 font-semibold' : destaque ? 'font-semibold text-gray-900' : 'text-gray-900'} ${divisor}`}>
+                          {texto}
+                          {i > 0 && <Trend curr={v} prev={vals[i - 1]} />}
+                        </td>
+                      );
+                    });
+                  };
+                  const temFilhos = bloco.filhos.length > 0;
+                  return (
+                    <Fragment key={bloco.id}>
+                      <tr
+                        className={`border-t select-none ${temFilhos ? 'cursor-pointer hover:brightness-95' : ''} ${bloco.rowClass}`}
+                        onClick={temFilhos ? () => setAbertos((prev) => ({ ...prev, [bloco.id]: !aberto })) : undefined}
+                      >
+                        <td title={bloco.hint} className={`sticky left-0 z-10 w-56 min-w-[14rem] whitespace-nowrap px-4 py-3 font-semibold text-gray-900 ${bloco.rowClass}`}>
+                          <span className="inline-flex items-center gap-1.5">
+                            {temFilhos
+                              ? (aberto ? <ChevronDown size={14} className="text-gray-500" /> : <ChevronRight size={14} className="text-gray-500" />)
+                              : <span className="inline-block w-3.5" />}
+                            {bloco.label}
+                          </span>
+                        </td>
+                        {celulas(bloco, true)}
+                      </tr>
+                      {aberto && bloco.filhos.map((filho) => (
+                        <tr key={filho.label} className="border-t border-gray-100">
+                          <td title={filho.hint} className="sticky left-0 z-10 w-56 min-w-[14rem] whitespace-nowrap bg-white px-4 py-2 pl-11 text-[13px] font-medium text-gray-900">{filho.label}</td>
+                          {celulas(filho, false)}
+                        </tr>
+                      ))}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs uppercase">
-              <tr>
-                <th rowSpan={3} className="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-left text-gray-700 w-56 min-w-[14rem]">Indicador</th>
-                {SEMESTRES.map((sem) => (
-                  <th
-                    key={sem.label}
-                    colSpan={sem.meses * 2}
-                    className={`border-r-2 border-slate-300 bg-slate-100 px-2 py-1 text-center text-[11px] font-bold tracking-wide text-slate-500 last:border-r-0`}
-                  >
-                    {sem.label}
-                  </th>
-                ))}
-              </tr>
-              <tr>
-                {MONTH_LABELS.map((m, i) => (
-                  <th key={`${m}-${i}`} colSpan={2} className={`px-4 py-2 text-center font-bold ${CORES_MES[i % CORES_MES.length].th} ${fimDeSemestre.has(i) ? 'border-r-2 border-slate-300' : ''}`}>{m}</th>
-                ))}
-              </tr>
-              <tr>
-                {MONTH_LABELS.flatMap((_, i) => [
-                  <th key={`r-${i}`} className={`px-3 py-2 text-right text-[10px] font-semibold ${i < ULTIMA_COLUNA_REAL ? CORES_MES[i % CORES_MES.length].th : 'text-gray-300'}`}>Real</th>,
-                  <th key={`p-${i}`} className={`px-3 py-2 text-right text-[10px] font-semibold ${CORES_MES[i % CORES_MES.length].th} ${fimDeSemestre.has(i) ? 'border-r-2 border-slate-300' : ''} ${i === ULTIMA_COLUNA_REAL - 1 ? 'border-r-4 border-slate-500' : ''}`}>Projetado</th>,
-                ])}
-              </tr>
-            </thead>
-            <tbody>
-              {visaoGeralBlocos.map((bloco) => {
-                const aberto = abertos[bloco.id] !== false;
-                const celulas = (linha: VisaoGeralLinha, destaque: boolean) => {
-                  // As linhas são montadas como [projetado, real] por mês; a tabela mostra
-                  // Real primeiro. Inverter aqui evita mexer em cada array e correr o risco
-                  // de desalinhar um deles em silêncio.
-                  const vals = linha.values.map((_, i) => linha.values[i % 2 === 0 ? i + 1 : i - 1] ?? null);
-                  return vals.map((v, i) => {
-                    const perigo = linha.dangerBelow !== undefined && v !== null && v < linha.dangerBelow;
-                    const texto = v === null ? '—' : linha.decimals !== undefined ? `${v.toFixed(linha.decimals)}${linha.suffix || ''}` : fmt(v);
-                    // A borda de semestre/real-projetado só faz sentido na 2ª coluna do par
-                    // (Projetado): é ali que a dupla do mês termina e a próxima começa.
-                    const mesIdx = Math.floor(i / 2);
-                    const divisor = i % 2 === 1 && mesIdx === ULTIMA_COLUNA_REAL - 1
-                      ? 'border-r-4 border-slate-500'
-                      : i % 2 === 1 && fimDeSemestre.has(mesIdx)
-                        ? 'border-r-2 border-slate-300'
-                        : '';
-                    return (
-                      <td key={i} className={`px-4 py-3 text-right font-mono ${destaque ? '' : CORES_MES[Math.floor(i / 2) % CORES_MES.length].td} ${perigo ? 'text-red-600 font-semibold' : destaque ? 'font-semibold text-gray-900' : 'text-gray-900'} ${divisor}`}>
-                        {texto}
-                        {i > 0 && <Trend curr={v} prev={vals[i - 1]} />}
-                      </td>
-                    );
-                  });
-                };
-                const temFilhos = bloco.filhos.length > 0;
-                return (
-                  <Fragment key={bloco.id}>
-                    <tr
-                      className={`border-t select-none ${temFilhos ? 'cursor-pointer hover:brightness-95' : ''} ${bloco.rowClass}`}
-                      onClick={temFilhos ? () => setAbertos((prev) => ({ ...prev, [bloco.id]: !aberto })) : undefined}
-                    >
-                      <td title={bloco.hint} className={`sticky left-0 z-10 w-56 min-w-[14rem] whitespace-nowrap px-4 py-3 font-semibold text-gray-900 ${bloco.rowClass}`}>
-                        <span className="inline-flex items-center gap-1.5">
-                          {temFilhos
-                            ? (aberto ? <ChevronDown size={14} className="text-gray-500" /> : <ChevronRight size={14} className="text-gray-500" />)
-                            : <span className="inline-block w-3.5" />}
-                          {bloco.label}
-                        </span>
-                      </td>
-                      {celulas(bloco, true)}
-                    </tr>
-                    {aberto && bloco.filhos.map((filho) => (
-                      <tr key={filho.label} className="border-t border-gray-100">
-                        <td title={filho.hint} className="sticky left-0 z-10 w-56 min-w-[14rem] whitespace-nowrap bg-white px-4 py-2 pl-11 text-[13px] font-medium text-gray-900">{filho.label}</td>
-                        {celulas(filho, false)}
-                      </tr>
-                    ))}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
       {(primeiroNegativo || (data.meses.some((m) => m.utilizacao > 100))) && <div className="mt-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><TriangleAlert size={17} />{primeiroNegativo ? `O estoque projetado fica negativo em ${primeiroNegativo.mes}.` : 'Há meses acima de 100% da capacidade cadastrada.'} Essa tela é uma visão de decisão; o detalhamento continua no plano.</div>}
     </>}
   </main></div>;

@@ -22,6 +22,7 @@ const totvsModaRoutes = require("./routes/totvsModa");
 const excessoMpRoutes = require("./routes/excessoMp");
 const relatorioOpMpRoutes = require("./routes/relatorioOpMp");
 const projecaoPermanentesRoutes = require("./routes/projecao-permanentes");
+const projecaoEdicaoLimitadaRoutes = require("./routes/projecao-edicao-limitada");
 
 const app = express();
 
@@ -116,6 +117,7 @@ app.use("/api/totvs-moda",     totvsModaRoutes);
 app.use("/api/excesso-mp",     excessoMpRoutes);
 app.use("/api/relatorio-op-mp", relatorioOpMpRoutes);
 app.use("/api/projecao-permanentes", projecaoPermanentesRoutes);
+app.use("/api/projecao-edicao-limitada", projecaoEdicaoLimitadaRoutes);
 
 // Rota legada mantida para compatibilidade
 app.get("/api/vr-vendas-qtd", async (req, res) => {
