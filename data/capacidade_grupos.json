@@ -1,106 +1,111 @@
 {
-  "timestamp": 1781176458916,
-  "total": 20,
+  "timestamp": 1790768614137,
+  "total": 21,
   "data": [
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
-      "tipo": "NOITE",
-      "capacidade_diaria": 2725
+      "tipo": "",
+      "capacidade_diaria": 136122
     },
     {
       "grupo": "03 - EXCELENCIA SU BASICO",
-      "tipo": "CALCA",
-      "capacidade_diaria": 2366
+      "tipo": "",
+      "capacidade_diaria": 303603
     },
     {
       "grupo": "03 - FELICIDADE SU LUXE",
-      "tipo": "SUTIA",
-      "capacidade_diaria": 3585
+      "tipo": "",
+      "capacidade_diaria": 503806
     },
     {
       "grupo": "03 - FUTURO SU LUXE",
-      "tipo": "SUTIA",
-      "capacidade_diaria": 3636
+      "tipo": "",
+      "capacidade_diaria": 504053
     },
     {
       "grupo": "04 - HARMONIA SU BASICO",
-      "tipo": "SUTIA",
-      "capacidade_diaria": 3636
+      "tipo": "",
+      "capacidade_diaria": 303603
     },
     {
       "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
-      "tipo": "SUTIA",
-      "capacidade_diaria": 3841
+      "tipo": "",
+      "capacidade_diaria": 606189
     },
     {
       "grupo": "04 - SUPERACAO SU FASHION/BASICO",
-      "tipo": "SUTIA",
-      "capacidade_diaria": 3688
+      "tipo": "",
+      "capacidade_diaria": 606789
     },
     {
       "grupo": "05 - MOTIVACAO SU BASICO",
-      "tipo": "SUTIA",
-      "capacidade_diaria": 4302
+      "tipo": "",
+      "capacidade_diaria": 123605
     },
     {
       "grupo": "05 - POSITIVO SU BASICO",
-      "tipo": "SUTIA",
-      "capacidade_diaria": 3944
+      "tipo": "",
+      "capacidade_diaria": 123018
     },
     {
       "grupo": "06 - UNIAO CA LUXE",
-      "tipo": "CALCA",
-      "capacidade_diaria": 2617
+      "tipo": "",
+      "capacidade_diaria": 501753
     },
     {
       "grupo": "07 - DESAFIO CA FASHION",
-      "tipo": "CALCA",
-      "capacidade_diaria": 3119
+      "tipo": "",
+      "capacidade_diaria": 121105
     },
     {
-      "grupo": "07 - EVOLUCAO SO BASICO",
-      "tipo": "SUTIA",
-      "capacidade_diaria": 3585
+      "grupo": "07 - EVOLUCAO CA FASHION",
+      "tipo": "",
+      "capacidade_diaria": 121305
     },
     {
       "grupo": "08 - CONQUISTA CA BASICO/FASHION",
-      "tipo": "SUTIA",
-      "capacidade_diaria": 2868
-    },
-    {
-      "grupo": "08 - ESPERANCA CA BASICO",
-      "tipo": "CALCA",
-      "capacidade_diaria": 1793
+      "tipo": "",
+      "capacidade_diaria": 303805
     },
     {
       "grupo": "08 - OBJETIVO SO BASICO",
-      "tipo": "SUTIA",
-      "capacidade_diaria": 3790
+      "tipo": "",
+      "capacidade_diaria": 303603
     },
     {
       "grupo": "08 - PROGRESSO SO BASICO",
-      "tipo": "SUTIA",
-      "capacidade_diaria": 3227
+      "tipo": "",
+      "capacidade_diaria": 303603
     },
     {
       "grupo": "09 - LIDERANCA ANATOMIC",
-      "tipo": "ANATOMIC",
-      "capacidade_diaria": 3073
+      "tipo": "",
+      "capacidade_diaria": 302106
+    },
+    {
+      "grupo": "OFICINA - ATILA",
+      "tipo": "",
+      "capacidade_diaria": 701748
     },
     {
       "grupo": "OFICINA - GLEDSON SOARES",
-      "tipo": "CALCA",
-      "capacidade_diaria": 2859
+      "tipo": "",
+      "capacidade_diaria": 701748
     },
     {
       "grupo": "OFICINA - IANA",
-      "tipo": "CALCA",
-      "capacidade_diaria": 1240
+      "tipo": "",
+      "capacidade_diaria": 701748
+    },
+    {
+      "grupo": "OFICINA - MARCELO FREITAS",
+      "tipo": "",
+      "capacidade_diaria": 701705
     },
     {
       "grupo": "OFICINA - PAULO BRUNO",
-      "tipo": "CALCA",
-      "capacidade_diaria": 1240
+      "tipo": "",
+      "capacidade_diaria": 701748
     }
   ]
 }
