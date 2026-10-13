@@ -696,24 +696,13 @@ export default function VisaoGeral2Page() {
     // O divisor do indice sao dias TRABALHADOS, nao dias do calendario — se fosse
     // calendario, dezembro levaria o desconto da coletiva aqui e de novo nos dias
     // disponiveis. Dezembro em 0,906 e o ritmo mais lento nos dias que ele de fato rodou.
-    // 3) PERDA POR FALTA. Definida pela operacao, nao pelo dado — por isso vive aqui e
-    //    nao no endpoint. Vale saber, para quem for mexer: o nivel acima ja e minuto
-    //    PRODUZIDO por dia trabalhado, e quem faltou nao produziu, entao parte da falta
-    //    ja esta no numero. Os 3% sao a reserva por cima disso.
-    const PERDA_FALTAS = 0.03;
     const AMORTECIMENTO_INDICE = 0.5;
     const capDiariaAtual = Number(resumoDias.capacidadeDiaria || 0);
     const nivelNovo = Number(indiceMensal?.nivel || 0);
     const fatorNivel = capDiariaAtual > 0 && nivelNovo > 0 ? nivelNovo / capDiariaAtual : 1;
-    // A falta entra no RITMO, nao nas pecas: o dia existe, quem nao veio foi a pessoa.
-    // Na pratica isso quer dizer duas coisas ao mesmo tempo, e as duas precisam andar
-    // juntas senao a tabela se contradiz:
-    //   - a capacidade em pecas do mes cai 3%
-    //   - a mesma carga passa a precisar de 3% MAIS dias (ritmo menor, trabalho igual)
-    // Se so as pecas caissem, a ocupacao leria 97% — "sobrou dia" — quando o que houve
-    // foi a fabrica render menos nos dias que teve.
-    const fatorFalta = 1 - PERDA_FALTAS;
-    // Fator de capacidade SEM a falta: nivel corrigido x sazonalidade amortecida.
+    // Sem desconto de falta: o nivel ja e minuto PRODUZIDO por dia trabalhado, e quem
+    // faltou nao produziu — a perda ja esta dentro do numero medido.
+    // Fator de capacidade do mes: nivel corrigido x sazonalidade amortecida.
     const idx = (mes: number) => {
       const bruto = Number(indiceMensal?.data?.[String(mes)] ?? 1) || 1;
       return fatorNivel * (1 + (bruto - 1) * AMORTECIMENTO_INDICE);
@@ -791,8 +780,8 @@ export default function VisaoGeral2Page() {
         producao: Number(data.planoRestantePorPeriodo[p] || 0) + Number(data.elPlanoPorPeriodo[p] || 0),
         // Com a falta no ritmo, os dias necessarios sobem — e como as pecas saem da razao
         // pecas/dias, elas ja caem na mesma proporcao sem multiplicar nada.
-        capacidadePecas: diasNecessarios > 0 ? ((pecasCarga * diasDisponiveis) / (diasNecessarios / fatorFalta)) * idx(mes) : 0,
-        diasNecessarios: diasNecessarios / fatorFalta,
+        capacidadePecas: diasNecessarios > 0 ? ((pecasCarga * diasDisponiveis) / diasNecessarios) * idx(mes) : 0,
+        diasNecessarios,
         diasDisponiveis,
         pendenteBaixa: baixaDe(ano, mes),
         pendenteSaldo: (saldoPendente = Math.max(0, saldoPendente - baixaDe(ano, mes))),
@@ -828,8 +817,8 @@ export default function VisaoGeral2Page() {
           return { demandaFabrica: c.fabrica, demandaLojas: c.lojas };
         })(),
         producao: m.producao + demandaEl,
-        capacidadePecas: m.capacidadePecas * idx(mes) * fatorFalta,
-        diasNecessarios: (diasPerm + (pecasPorDia > 0 ? demandaEl / pecasPorDia : 0)) / fatorFalta,
+        capacidadePecas: m.capacidadePecas * idx(mes),
+        diasNecessarios: diasPerm + (pecasPorDia > 0 ? demandaEl / pecasPorDia : 0),
         diasDisponiveis: m.diasDisponiveis,
         pendenteBaixa: baixaDe(data.anoDestino, mes),
         pendenteSaldo: (saldoPendente = Math.max(0, saldoPendente - baixaDe(data.anoDestino, mes))),
