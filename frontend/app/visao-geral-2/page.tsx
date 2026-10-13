@@ -1133,7 +1133,10 @@ export default function VisaoGeral2Page() {
           })()}
         </div>
       )}
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Posição atual · {fmt(data.posicao.skus)} SKUs em linha da matriz</div>
+      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Posição atual · {fmt(data.posicao.skus)} SKUs em linha da matriz</div>
+      <div className="mb-2 text-xs text-gray-400">
+        Estes cards somam a matriz inteira. O relatório "Capacidade produtiva x projeção de venda" logo abaixo usa só os permanentes + edição limitada, já líquidos de carteira pendente — por isso os números das duas áreas não fecham entre si; são populações diferentes por desenho, não um erro de conta.
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
         {[
           ['Estoque atual', fmt(data.posicao.estoqueAtual), 'text-blue-700', 'Estoque físico em casa hoje'],

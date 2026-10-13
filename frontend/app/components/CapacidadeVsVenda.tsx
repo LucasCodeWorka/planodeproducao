@@ -119,7 +119,10 @@ export default function CapacidadeVsVenda({
   const [diasCarteira, setDiasCarteira] = useState<number>(CARTEIRA_DIAS_PADRAO);
   // A faixa de ajustes nasce fechada: o relatorio abre na leitura, nao na configuracao.
   const [mostrarAjustes, setMostrarAjustes] = useState(false);
-  const [modoGrafico, setModoGrafico] = useState<'isolado' | 'comparado'>('isolado');
+  // Padrão em 'comparado': as três séries na MESMA escala. 'isolado' (cada série com sua
+  // própria normalização) convida a comparar altura/paralelismo entre faixas que não são
+  // comparáveis — por isso vira opção, não default. Ver análise de 13/10/2026.
+  const [modoGrafico, setModoGrafico] = useState<'isolado' | 'comparado'>('comparado');
 
   if (!meses.length) return null;
 
@@ -338,7 +341,17 @@ export default function CapacidadeVsVenda({
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <div className="text-xs uppercase tracking-wide text-gray-500">Disponível líquido · {mesAtual.mes}</div>
+            <div className="text-xs uppercase tracking-wide text-gray-500">
+              Disponível líquido · {mesAtual.mes}
+              {referenciaOutubro && (
+                <span
+                  title={`Ponto de partida fixo no código (REFERENCIA_OUTUBRO_2026), não vem do backend: disponível ${fmt(referenciaOutubro.disponivel)} e venda restante ${fmt(referenciaOutubro.vendaRestante)}. Substituir assim que existir fonte de dados para essa posição consolidada; depois de out/26 esse ponto deixa de ser aplicado sozinho.`}
+                  className="ml-1.5 inline-flex cursor-help items-center rounded border border-amber-300 bg-amber-50 px-1 text-[9px] font-semibold uppercase tracking-wide text-amber-700 normal-case"
+                >
+                  âncora fixa
+                </span>
+              )}
+            </div>
             <div className={`text-xl font-bold ${disponivelLiquidoMesAtual < 0 ? 'text-red-700' : 'text-amber-700'}`}>
               {fmt(disponivelLiquidoMesAtual)}
             </div>
