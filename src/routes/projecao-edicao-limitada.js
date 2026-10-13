@@ -18,6 +18,8 @@ function auth(req, res, next) {
  *   - anoDestino: ano a projetar (default: ano atual + 1)
  *   - marca: default LIEBE
  *   - detalhe: "1" devolve tambem a abertura mes a mes (base, fator e canal)
+ *   - crescimentoFabrica: cenario de crescimento anual da fabrica, 0-1 (default: 0.10,
+ *     o historico). Sobrescreve a mesma taxa em todos os meses.
  */
 router.get('/', auth, async (req, res) => {
   try {
@@ -26,8 +28,11 @@ router.get('/', auth, async (req, res) => {
 
     const anoDestino = Number(req.query.anoDestino) || new Date().getFullYear() + 1;
     const marca = String(req.query.marca || 'LIEBE');
+    const crescimentoFabrica = req.query.crescimentoFabrica !== undefined && req.query.crescimentoFabrica !== ''
+      ? Number(req.query.crescimentoFabrica)
+      : null;
 
-    const resultado = await projetarEdicaoLimitada(pool, { anoDestino, marca });
+    const resultado = await projetarEdicaoLimitada(pool, { anoDestino, marca, crescimentoFabrica });
     const { porMes, ...resumo } = resultado;
 
     res.json({

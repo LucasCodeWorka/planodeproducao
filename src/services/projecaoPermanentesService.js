@@ -87,17 +87,27 @@ function solicitarRefreshMvDiario(pool) {
     .finally(() => { refreshMvEmAndamento = null; });
 }
 
-async function buscarVendasPorCanal(pool, ano) {
+async function buscarVendasPorCanal(pool, ano, idsPermitidos = null) {
   const vendas = {
     fabrica: Object.fromEntries(MESES_SEMESTRE.map((mes) => [mes, 0])),
     lojas: Object.fromEntries(MESES_SEMESTRE.map((mes) => [mes, 0])),
   };
-  const idsResult = await pool.query(`
-    SELECT DISTINCT idproduto::BIGINT AS idproduto
-    FROM public.app_projecoes
-    WHERE ano = $1
-  `, [ano]);
-  const ids = idsResult.rows.map((row) => Number(row.idproduto)).filter(Number.isFinite);
+  // Sem filtro: ids de app_projecoes do ano inteiro, a empresa toda — alimenta o REAL da
+  // tela (cards, coluna REAL), que precisa contar venda de todo mundo, mesmo quem saiu de
+  // linha depois. Com filtro: so os ids passados — restringe o TOTAL que o modelo
+  // distribui a mesma populacao que recebe a projecao, senao quem continua em linha
+  // herda venda de quem ja saiu.
+  let ids;
+  if (idsPermitidos) {
+    ids = idsPermitidos.map(Number).filter(Number.isFinite);
+  } else {
+    const idsResult = await pool.query(`
+      SELECT DISTINCT idproduto::BIGINT AS idproduto
+      FROM public.app_projecoes
+      WHERE ano = $1
+    `, [ano]);
+    ids = idsResult.rows.map((row) => Number(row.idproduto)).filter(Number.isFinite);
+  }
   if (ids.length === 0) return vendas;
   const result = await pool.query(`
     SELECT EXTRACT(MONTH FROM v.data)::INT AS mes,
@@ -117,6 +127,31 @@ async function buscarVendasPorCanal(pool, ano) {
   return vendas;
 }
 
+// A abertura por canal da Visao Geral precisa usar exatamente os SKUs do preview.
+// O totalizador geral acima usa todos os IDs de app_projecoes e nao serve para
+// repartir uma projecao que mostra apenas os permanentes em linha.
+async function buscarVendasDosItensPorAno(pool, ids, anoBase) {
+  const porAno = {};
+  if (!ids.length) return porAno;
+  const result = await pool.query(`
+    SELECT EXTRACT(YEAR FROM v.data)::INT AS ano,
+           EXTRACT(MONTH FROM v.data)::INT AS mes,
+           SUM(CASE WHEN v.idempresa = 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS fabrica,
+           SUM(CASE WHEN v.idempresa <> 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS lojas
+    FROM public.mv_vendas_qtd v
+    WHERE v.idproduto = ANY($1::BIGINT[])
+      AND v.data >= $2::DATE AND v.data < $3::DATE
+    GROUP BY 1, 2
+  `, [ids.map(Number), `${anoBase - 1}-10-01`, `${anoBase + 1}-01-01`]);
+  for (const row of result.rows) {
+    const ano = String(row.ano);
+    porAno[ano] ||= { fabrica: {}, lojas: {} };
+    porAno[ano].fabrica[row.mes] = Math.round(Number(row.fabrica) || 0);
+    porAno[ano].lojas[row.mes] = Math.round(Number(row.lojas) || 0);
+  }
+  return porAno;
+}
+
 /**
  * Meses ainda nao fechados do ano base (o corrente e os futuros) nao tem venda real
  * completa; usar so o realizado faria a projecao do mesmo mes do ano seguinte nascer
@@ -125,7 +160,7 @@ async function buscarVendasPorCanal(pool, ano) {
  * lojas pela participacao dos meses ja fechados. Se o realizado ja superou a projecao,
  * vale o realizado. Devolve uma copia; o realizado original nao e alterado.
  */
-async function completarMesesAbertosComProjecao(pool, ano, vendasReais) {
+async function completarMesesAbertosComProjecao(pool, ano, vendasReais, idsPermitidos = null) {
   const vendas = { fabrica: { ...vendasReais.fabrica }, lojas: { ...vendasReais.lojas } };
   const hoje = new Date();
   if (hoje.getFullYear() !== Number(ano)) return vendas;
@@ -134,12 +169,18 @@ async function completarMesesAbertosComProjecao(pool, ano, vendasReais) {
   const totalFabrica = fechados.reduce((acc, mes) => acc + (Number(vendas.fabrica[mes]) || 0), 0);
   const totalLojas = fechados.reduce((acc, mes) => acc + (Number(vendas.lojas[mes]) || 0), 0);
   const participacaoFabrica = totalFabrica + totalLojas > 0 ? totalFabrica / (totalFabrica + totalLojas) : 0;
+  // Mesmo filtro de populacao do total restrito: sem ele, o mes aberto reintroduziria a
+  // projecao gravada de quem ja saiu de linha, do mesmo jeito que o total fechado fazia.
+  const idsFiltro = idsPermitidos ? idsPermitidos.map(Number).filter(Number.isFinite) : null;
+  const filtroIds = idsFiltro && idsFiltro.length ? "AND idproduto::BIGINT = ANY($3::BIGINT[])" : "";
+  const params = idsFiltro && idsFiltro.length ? [ano, mesAtual, idsFiltro] : [ano, mesAtual];
   const result = await pool.query(`
     SELECT mes::INT AS mes, SUM(quantidade)::FLOAT AS total
     FROM public.app_projecoes
     WHERE ano = $1 AND mes >= $2
+    ${filtroIds}
     GROUP BY 1
-  `, [ano, mesAtual]);
+  `, params);
   for (const row of result.rows) {
     const mes = Number(row.mes);
     if (!MESES_SEMESTRE.includes(mes)) continue;
@@ -157,13 +198,15 @@ async function completarMesesAbertosComProjecao(pool, ano, vendasReais) {
  * @param {Object} vendas - { fabrica: {...}, lojas: {...} }
  * @returns {Object} { 1: { fabrica, lojas, ajuste, total }, 2: {...}, ... }
  */
-function calcularTotalizadores(vendas) {
+function calcularTotalizadores(vendas, crescimentoFabrica = null) {
   const totalizadores = {};
-
+  // Cenario de crescimento: null usa o padrao histórico (AJUSTES_FABRICA, 10% ao ano);
+  // um numero (0, 0.05, 0.10...) sobrescreve TODOS os meses com a mesma taxa, para
+  // simular "e se a fabrica crescesse X% em vez de 10%".
   for (const mes of MESES_SEMESTRE) {
     const fabricaBase = Number(vendas.fabrica[mes]) || 0;
     const lojasBase = Number(vendas.lojas[mes]) || 0;
-    const ajuste = AJUSTES_FABRICA[mes] || 1.10;
+    const ajuste = crescimentoFabrica !== null ? (1 + crescimentoFabrica) : (AJUSTES_FABRICA[mes] || 1.10);
     const fabricaAjustada = Math.round(fabricaBase * ajuste);
     const total = fabricaAjustada + lojasBase;
 
@@ -842,26 +885,24 @@ function gerarProjecoesComArredondamentoSimples(totalizadores, representatividad
  * @returns {Promise<Object>} Resultado completo com totalizadores, SKUs e projeções
  */
 async function gerarPreviewProjecoes(pool, anoBase, anoDestino, opcoes = {}) {
-  // 1. Busca vendas por canal
-  const vendas = await buscarVendasPorCanal(pool, anoBase);
-
-  // 2. Calcula totalizadores
-  const totalizadores = calcularTotalizadores(vendas);
-  // Opt-in: as projecoes do ano destino nascem da base completada com a projecao dos
-  // meses abertos; `totalizadores` segue mostrando so o realizado.
-  const totalizadoresBase = opcoes.completarMesesAbertos
-    ? calcularTotalizadores(await completarMesesAbertosComProjecao(pool, anoBase, vendas))
-    : totalizadores;
-
-  // 3. Busca SKUs permanentes
+  // 1. Busca SKUs permanentes ativos hoje. Vem ANTES das vendas de proposito: a mesma
+  //    populacao que recebe a projecao (representatividades, abaixo) precisa ser a que
+  //    fornece o TOTAL a distribuir, senao o sobrevivente herda venda de quem ja saiu de
+  //    linha sem limite.
   let skus = await buscarSkusPermanentes(pool, anoBase);
 
+  const crescimentoFabrica = opcoes.crescimentoFabrica === undefined || opcoes.crescimentoFabrica === null
+    ? null
+    : Number(opcoes.crescimentoFabrica);
+
   if (skus.length === 0) {
+    const totalizadoresVazio = calcularTotalizadores({ fabrica: {}, lojas: {} }, crescimentoFabrica);
     return {
       success: true,
       anoBase,
       anoDestino,
-      totalizadores,
+      totalizadores: totalizadoresVazio,
+      vendasItensPorAno: {},
       resumo: {
         totalSkus: 0,
         skusPermanente: 0,
@@ -878,6 +919,22 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino, opcoes = {}) {
 
   const contextoDePara = await montarContextoDeParaPermanentes(pool, skus, anoDestino);
   skus = contextoDePara.skus;
+  const idsModelo = [...contextoDePara.idsHistorico].map(Number).filter(Number.isFinite);
+
+  // 2. Vendas REAIS da empresa inteira (alimentam os cards e a coluna REAL da tela — tem
+  //    de contar quem vendeu naquele mes, mesmo quem saiu de linha depois) e vendas
+  //    RESTRITAS a quem ainda esta em linha hoje + de-para (alimentam so o MODELO).
+  //    Medido: o total irrestrito vinha de 3.272 SKUs que ja tiveram projecao gravada;
+  //    so 1.579 (48%) seguem em linha. Sem a restricao, jul/ago/set nasciam ~50% acima
+  //    do que a propria populacao sobrevivente vendeu.
+  const vendas = await buscarVendasPorCanal(pool, anoBase);
+  const vendasModelo = await buscarVendasPorCanal(pool, anoBase, idsModelo);
+
+  // 3. Totalizadores: o real para exibicao, o restrito para o modelo.
+  const totalizadores = calcularTotalizadores(vendas, crescimentoFabrica);
+  const totalizadoresBase = opcoes.completarMesesAbertos
+    ? calcularTotalizadores(await completarMesesAbertosComProjecao(pool, anoBase, vendasModelo, idsModelo), crescimentoFabrica)
+    : calcularTotalizadores(vendasModelo, crescimentoFabrica);
 
   // 4. Calcula médias usando venda real do semestre base
   const mediasBrutas = await calcularMediasVendas(pool, contextoDePara.idsHistorico, anoBase);
@@ -944,6 +1001,10 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino, opcoes = {}) {
     };
   });
 
+  const vendasItensPorAno = await buscarVendasDosItensPorAno(
+    pool, itens.map((item) => item.idproduto), anoBase
+  );
+
   const itensSemVenda = skusSemVenda.map((sku) => ({
     idproduto: String(sku.idproduto),
     referencia: sku.referencia || '',
@@ -976,6 +1037,7 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino, opcoes = {}) {
     vendas,
     totalizadores,
     totalizadoresBase,
+    vendasItensPorAno,
     resumo,
     itens,
     itensSemVenda,

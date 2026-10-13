@@ -74,7 +74,10 @@ async function venderPorMesHistorico(pool, { de, ate, marca = 'LIEBE' }) {
  * distancia em anos (1,10 por ano). Sem esse recuo, out/nov/dez do ano destino nasceriam
  * com a venda de um mes que ainda esta acontecendo.
  */
-async function projetarEdicaoLimitada(pool, { anoDestino, marca = 'LIEBE', hoje = new Date() } = {}) {
+async function projetarEdicaoLimitada(pool, { anoDestino, marca = 'LIEBE', hoje = new Date(), crescimentoFabrica = null } = {}) {
+  // Cenario de crescimento: null usa o padrao historico (AJUSTE_FABRICA_ANUAL, 10% ao ano
+  // de distancia); um numero (0, 0.05, 0.10...) sobrescreve a mesma taxa em todos os meses.
+  const ajusteFabricaCenario = crescimentoFabrica !== null ? (1 + Number(crescimentoFabrica)) : AJUSTE_FABRICA_ANUAL;
   const destino = Number(anoDestino);
   if (!Number.isInteger(destino)) throw new Error('anoDestino invalido');
 
@@ -96,7 +99,7 @@ async function projetarEdicaoLimitada(pool, { anoDestino, marca = 'LIEBE', hoje 
     const anoFonte = fechado ? anoBase : anoBase - 1;
     const base = vendas.get(`${anoFonte}-${mes}`) || { fabrica: 0, lojas: 0 };
     const distancia = destino - anoFonte;
-    const fator = Math.pow(AJUSTE_FABRICA_ANUAL, distancia);
+    const fator = Math.pow(ajusteFabricaCenario, distancia);
     const fabrica = Math.round(base.fabrica * fator);
     const lojas = Math.round(base.lojas);
     porMes.push({
@@ -120,7 +123,7 @@ async function projetarEdicaoLimitada(pool, { anoDestino, marca = 'LIEBE', hoje 
     anoBase,
     marca: String(marca).toUpperCase(),
     statusConsiderados: STATUS_EM_LINHA,
-    ajusteFabricaAnual: AJUSTE_FABRICA_ANUAL,
+    ajusteFabricaAnual: ajusteFabricaCenario,
     total,
     data,
     porMes,

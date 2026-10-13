@@ -26,9 +26,11 @@ export type MesCapacidadeVenda = {
   demanda: number;
   /** Projeção de edição limitada, do histórico de coleções. */
   demandaEl?: number;
-  /** Mesma projeção aberta por canal. Exato na edição limitada, rateado nos permanentes. */
+  /** Mesma projeção aberta por canal. Edição limitada vem separada do histórico. */
   demandaFabrica?: number;
   demandaLojas?: number;
+  demandaLojasPermanentes?: number;
+  demandaLojasEdicaoLimitada?: number;
   /** Base de cálculo dos permanentes: quanto veio de projeção lançada e quanto do modelo. */
   baseLancada?: number;
   baseModelo?: number;
@@ -68,10 +70,9 @@ type Props = {
 const CARTEIRA_DIAS_PADRAO = 25;
 
 
-// Referência operacional informada para out/26. Já inclui estoque, carteira e plano;
-// não se deve aplicar essas parcelas de novo. Substituir por fonte de dados quando
-// essa posição consolidada estiver disponível no backend.
-const REFERENCIA_OUTUBRO_2026 = { disponivel: 192541, vendaRestante: 131713 };
+// Referência operacional informada para out/26. O estoque consolidado já inclui
+// carteira e plano; a venda restante vem agora da projeção atualizada da página.
+const REFERENCIA_OUTUBRO_2026 = { disponivel: 192541 };
 
 function fmt(v: number) {
   return Math.round(v || 0).toLocaleString('pt-BR');
@@ -264,7 +265,7 @@ export default function CapacidadeVsVenda({
   // Os meses seguintes caminham a partir desse fechamento, sem reaplicar outubro.
   const sobraTabela = (l: typeof linhas[number], i: number) =>
     i === 0 && referenciaOutubro
-      ? l.capacidadePecas - referenciaOutubro.vendaRestante
+      ? l.capacidadePecas - demandaTotal(l)
       : l.producao - demandaTotal(l);
   const disponivelTabela = linhas.reduce<number[]>((valores, l, i) => {
     const anterior = i === 0
@@ -283,7 +284,7 @@ export default function CapacidadeVsVenda({
   // saldo que resulta (disponivel). O disponivel pode ficar negativo, entao o eixo precisa
   // descer abaixo de zero — e so nesse caso a linha do zero aparece.
   const serie = (l: typeof linhas[number], i: number) => [
-    i === 0 && referenciaOutubro ? referenciaOutubro.vendaRestante : demandaTotal(l),
+    demandaTotal(l),
     l.capacidadePecas,
     disponivelTabela[i],
   ];
@@ -345,7 +346,7 @@ export default function CapacidadeVsVenda({
               Disponível líquido · {mesAtual.mes}
               {referenciaOutubro && (
                 <span
-                  title={`Ponto de partida fixo no código (REFERENCIA_OUTUBRO_2026), não vem do backend: disponível ${fmt(referenciaOutubro.disponivel)} e venda restante ${fmt(referenciaOutubro.vendaRestante)}. Substituir assim que existir fonte de dados para essa posição consolidada; depois de out/26 esse ponto deixa de ser aplicado sozinho.`}
+                  title={`Ponto de partida fixo no código (REFERENCIA_OUTUBRO_2026): disponível ${fmt(referenciaOutubro.disponivel)}. A venda restante de outubro vem da projeção atualizada; depois de out/26 essa âncora deixa de ser aplicada.`}
                   className="ml-1.5 inline-flex cursor-help items-center rounded border border-amber-300 bg-amber-50 px-1 text-[9px] font-semibold uppercase tracking-wide text-amber-700 normal-case"
                 >
                   âncora fixa
@@ -594,7 +595,7 @@ export default function CapacidadeVsVenda({
                   expansivel: true,
                   celula: (l: typeof linhas[number]) => (
                     <span className="text-amber-700 font-semibold">
-                      {fmt(l === mesAtual && referenciaOutubro ? referenciaOutubro.vendaRestante : demandaTotal(l))}
+                      {fmt(demandaTotal(l))}
                     </span>
                   ),
                 },
@@ -610,9 +611,22 @@ export default function CapacidadeVsVenda({
                   id: 'venda-lojas',
                   rotulo: 'lojas',
                   pai: 'venda',
+                  expansivel: true,
                   celula: (l: typeof linhas[number]) => (
                     <span className="text-amber-600">{fmt(l.demandaLojas || 0)}</span>
                   ),
+                },
+                {
+                  id: 'venda-lojas-perm',
+                  rotulo: 'permanentes',
+                  pai: 'venda-lojas',
+                  celula: (l: typeof linhas[number]) => <span className="text-gray-500">{fmt(l.demandaLojasPermanentes || 0)}</span>,
+                },
+                {
+                  id: 'venda-lojas-el',
+                  rotulo: 'edição limitada',
+                  pai: 'venda-lojas',
+                  celula: (l: typeof linhas[number]) => <span className="text-gray-500">{fmt(l.demandaLojasEdicaoLimitada || 0)}</span>,
                 },
                 {
                   id: 'venda-perm',

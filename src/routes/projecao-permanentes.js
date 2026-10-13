@@ -19,6 +19,9 @@ function auth(req, res, next) {
  * Query params:
  *   - anoBase: ano de referência para histórico (default: ano atual)
  *   - anoDestino: ano para aplicar projeções (default: anoBase + 1)
+ *   - crescimentoFabrica: cenário de crescimento anual da fábrica, 0-1 (default: 0.10,
+ *     o histórico). Sobrescreve a mesma taxa em todos os meses — usado para simular
+ *     "e se crescêssemos X% em vez de 10%".
  */
 router.get('/preview', auth, async (req, res) => {
   try {
@@ -30,11 +33,15 @@ router.get('/preview', auth, async (req, res) => {
     const anoAtual = new Date().getFullYear();
     const anoBase = parseInt(req.query.anoBase, 10) || anoAtual;
     const anoDestino = parseInt(req.query.anoDestino, 10) || anoBase + 1;
+    const crescimentoFabrica = req.query.crescimentoFabrica !== undefined && req.query.crescimentoFabrica !== ''
+      ? Number(req.query.crescimentoFabrica)
+      : null;
 
     console.log(`[projecao-permanentes] Gerando preview: anoBase=${anoBase}, anoDestino=${anoDestino}`);
 
     const resultado = await projecaoPermanentesService.gerarPreviewProjecoes(pool, anoBase, anoDestino, {
       completarMesesAbertos: req.query.completarMesesAbertos === 'true',
+      crescimentoFabrica,
     });
 
     console.log(`[projecao-permanentes] Preview gerado: ${resultado.resumo?.totalSkus || 0} SKUs`);
