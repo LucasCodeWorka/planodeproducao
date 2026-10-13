@@ -42,7 +42,7 @@ type MatrixRow = { produto?: { idproduto?: string | number; referencia?: string;
 type PctContinuidade = { permanente: number; corNova: number; edicaoLimitada: number };
 // Insumos por SKU guardados crus: o laço mês a mês virou memo para reagir ao seletor
 // de cobertura sem refazer as consultas.
-type BaseSku = { id: string; curva: Curva; projecoes: Record<Month, number>; estoqueInicial: number; minimo: number; lote: number; tempo: number };
+type BaseSku = { id: string; curva: Curva; projecoes: Record<Month, number>; projecoesModelo: Record<Month, number>; projecoesLancadas: Partial<Record<Month, number>>; estoqueInicial: number; minimo: number; lote: number; tempo: number };
 type Group = { grupo: string; capacidade_diaria: number };
 type RealCapacity = { grupo: string; minutosTrabalhados: number; diasComMovimento: number; mes?: string };
 type MonthRow = { mes: Month; demanda: number; producao: number; producaoPorCurva: Record<Curva, number>; estoque: number; cobertura: number; carga: number; capacidade: number; capacidadePecas: number; diasDisponiveis: number; diasNecessarios: number; utilizacao: number };
@@ -120,32 +120,30 @@ export default function VisaoGeral2Page() {
   // Projecao de edicao limitada do ano destino, vinda do historico de colecoes. Fica fora do
   // `rawData` porque vem de outro endpoint e nao deve segurar o carregamento da tela: se
   // falhar, a tabela mostra so o permanente, que e o comportamento antigo.
-  const [projEdicaoLimitada, setProjEdicaoLimitada] = useState<Record<string, number> | null>(null);
+  const [elDetalheBruto, setElDetalheBruto] = useState<Record<string, ElDetalheMes> | null>(null);
   // Abertura do calculo de edicao limitada por mes: base de fabrica e lojas, ano de origem
   // e fator aplicado. E o terceiro nivel da linha de projecao.
-  const [elDetalhe, setElDetalhe] = useState<Record<string, ElDetalheMes> | null>(null);
   // Mesmo detalhe, mas para o ANO BASE (nao o destino): da o canal (fabrica x lojas)
   // medido de edicao limitada para nov/dez do ano corrente, meses ainda abertos que
   // tambem usam recuo. Sem isto, os meses REAIS (travado) ficavam sem canal proprio e
   // caiam no rateio generico dos permanentes (~85% fabrica o ano inteiro), quando o
   // canal real de edicao limitada e muito sazonal (nov ~74% fabrica, dez ~35% -
   // dezembro e mes de loja, Natal).
-  const [elDetalheBase, setElDetalheBase] = useState<Record<string, ElDetalheMes> | null>(null);
+  const [elDetalheBaseBruto, setElDetalheBaseBruto] = useState<Record<string, ElDetalheMes> | null>(null);
   // Cenario de crescimento da fabrica: substitui o historico (10% ao ano) pela taxa
   // escolhida em TODO o modelo (permanentes e edicao limitada, 2027 e o fechamento de
-  // 2026 que ainda falta). Fica fora do botao de Ajustes porque muda a ORIGEM do dado
-  // (precisa recarregar do backend), nao so a leitura de um dado ja carregado.
+  // 2026 que ainda falta). As bases são carregadas uma vez com taxa zero; o clique apenas
+  // recompõe os valores no navegador, sem buscar novamente matriz, capacidade ou vendas.
   const [cenarioFabrica, setCenarioFabrica] = useState<number>(0.10);
   // Perfil sazonal da produtividade diaria, por mes do calendario. Sem ele a capacidade
   // do ultimo mes fechado vale para os 15 meses do horizonte, e a variacao real de 14%
   // entre o melhor e o pior mes some.
   const [indiceMensal, setIndiceMensal] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
-  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
+  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
-  // Cache das respostas que NAO dependem do cenario de crescimento (matriz, capacidade,
-  // curva ABC, cortes minimos, gravado, agenda...). Clicar num cenario so precisa de dado
-  // novo do preview e da edicao limitada; reusar o resto evita repetir ~13 chamadas (uma
-  // delas sozinha custa ~20s) a cada clique, que e o que deixava o botao impraticavel.
+  // Cache das respostas que não mudam com o cenário (matriz, capacidade, curva ABC,
+  // cortes mínimos, gravado e agenda). Preview e edição limitada carregam uma base neutra;
+  // o cenário inteiro é recomposto em memória.
   const cacheIndependenteRef = useRef<Record<string, { ok: boolean; dados: unknown }>>({});
   async function fetchCacheado(url: string, options?: RequestInit) {
     const existente = cacheIndependenteRef.current[url];
@@ -172,7 +170,7 @@ export default function VisaoGeral2Page() {
       // nao ficar refem de um unico pico sazonal.
       const desdeLeadTime = new Date(hoje.getFullYear(), hoje.getMonth() - 6, hoje.getDate()).toISOString().slice(0, 10);
       const [previewResponse, configResponse, matrixResponse, realResponse, realMesAtualResponse, curvaResponse, corteResponse, projBaseResponse, proj2027Response, planoResponse, lotesExecResponse, indicadoresOpResponse, agendaResponse] = await Promise.all([
-        fetchNoCache(`${API_URL}/api/projecao-permanentes/preview?anoBase=${anoBase}&anoDestino=${anoDestino}&completarMesesAbertos=true&crescimentoFabrica=${cenarioFabrica}`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/projecao-permanentes/preview?anoBase=${anoBase}&anoDestino=${anoDestino}&completarMesesAbertos=true&crescimentoFabrica=0`, { headers: authHeaders() }),
         fetchCacheado(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
         fetchCacheado(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=LIEBE&status=EM%20LINHA%2CNOVA%20COLECAO`),
         // `ate=isoMes(0)` corta no dia 1 do mês corrente de propósito, pra média de 3M não
@@ -332,6 +330,15 @@ export default function VisaoGeral2Page() {
       const vendasItensPorAno = (preview.vendasItensPorAno || {}) as Record<string, VendasCanal>;
       const vendasHistoricas = vendasItensPorAno[String(anoBase - 1)] || { fabrica: {}, lojas: {} };
       const vendas: VendasCanal = vendasItensPorAno[String(anoBase)] || { fabrica: {}, lojas: {} };
+      const totalizadoresModeloBase: Record<string, Totalizador> = Object.fromEntries(
+        MONTHS.map((_, i) => {
+          const mes = String(i + 1);
+          const t = preview.totalizadoresBase?.[mes] || {};
+          const fabrica = Number(t.fabrica || 0);
+          const lojas = Number(t.lojas || 0);
+          return [mes, { fabrica, fabricaAjustada: fabrica, lojas, total: fabrica + lojas }];
+        })
+      );
       // set-dez de 2026 vêm só da projeção gravada de 2026; o por-mes de 2027 colapsa o mês
       // na mesma chave e sobrescreveria. Os meses de 2027 usam as regras de permanentes
       // (preview), lidas de `meses` e não daqui.
@@ -453,7 +460,8 @@ export default function VisaoGeral2Page() {
         const mesNome = MONTHS[mes - 1];
         const base = Number(projecaoBaseCompleta[chave] || 0);
         const lojas = Math.min(base, Math.max(0, Number(vendasHistoricas.lojas[chave] || 0)));
-        const alvo = Math.round((base - lojas) * (1 + cenarioFabrica)) + lojas;
+        const alvo = Math.round(base - lojas) + lojas;
+        totalizadoresModeloBase[chave] = { fabrica: base - lojas, fabricaAjustada: base - lojas, lojas, total: alvo };
         const lancado = items.reduce((sum, item) => sum + Number(proj2027PorSku[String(item.idproduto)]?.[chave] || 0), 0);
         const livres = items.filter((item) => proj2027PorSku[String(item.idproduto)]?.[chave] === undefined);
         const restante = Math.max(0, alvo - lancado);
@@ -487,6 +495,18 @@ export default function VisaoGeral2Page() {
         });
         return ajustada;
       };
+      const projecoesModeloDe = (item: ProjectionItem): Record<Month, number> => Object.fromEntries(
+        MONTHS.map((mesNome, idx) => [
+          mesNome,
+          Number(modeloSazonal[String(item.idproduto)]?.[String(idx + 1)] ?? item.projecoes[mesNome] ?? 0),
+        ])
+      ) as Record<Month, number>;
+      const projecoesLancadasDe = (item: ProjectionItem): Partial<Record<Month, number>> => Object.fromEntries(
+        MONTHS.flatMap((mesNome, idx) => {
+          const valor = proj2027PorSku[String(item.idproduto)]?.[String(idx + 1)];
+          return valor === undefined ? [] : [[mesNome, Number(valor)]];
+        })
+      );
       const baseSkus: BaseSku[] = items.map((item) => {
         const row = matrixById.get(String(item.idproduto));
         const stock = row?.estoques || {};
@@ -499,6 +519,8 @@ export default function VisaoGeral2Page() {
           id: String(item.idproduto),
           curva: curvaPorRef.get(norm(item.referencia)) || 'B',
           projecoes: projecoesAjustadas(item),
+          projecoesModelo: projecoesModeloDe(item),
+          projecoesLancadas: projecoesLancadasDe(item),
           // Série LÍQUIDA (disponível): o que sobra pra atender venda nova. O estoque bruto
           // sai daqui somando o pendente de volta, na montagem das linhas.
           estoqueInicial: Number(stock.estoque_disponivel || 0) - pending + Number(p.ma || 0) + Number(p.px || 0) + Number(p.ul || 0) + Number(p.qt || 0) - vendaAteDezDe(String(item.idproduto), media3m),
@@ -553,7 +575,7 @@ export default function VisaoGeral2Page() {
           const mes = String(i + 1);
           const fabrica = Number(vendas.fabrica[mes] || 0);
           const lojas = Number(vendas.lojas[mes] || 0);
-          const fabricaAjustada = Math.round(fabrica * (1 + cenarioFabrica));
+          const fabricaAjustada = Math.round(fabrica);
           return [mes, { fabrica, fabricaAjustada, lojas, total: fabricaAjustada + lojas }];
         })
       );
@@ -575,7 +597,7 @@ export default function VisaoGeral2Page() {
       const diasUteisRestantes = capacidadeDiariaTotal > 0 ? cargaRestanteMA / capacidadeDiariaTotal : 0;
       const previsaoTermino = diasUteisRestantes > 0 ? addDiasUteis(hoje, diasUteisRestantes).toISOString().slice(0, 10) : null;
 
-      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, demandaRestantePorMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
+      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, demandaRestantePorMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao carregar visão macro'); }
     finally { setLoading(false); }
   }
@@ -599,7 +621,7 @@ export default function VisaoGeral2Page() {
     } catch { /* silencioso: mantém os valores padrão */ }
   }
 
-  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); }, [router, cenarioFabrica]);
+  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); }, [router]);
 
   async function carregarIndiceMensal() {
     try {
@@ -623,22 +645,20 @@ export default function VisaoGeral2Page() {
       // aconteceu); anoDestino=anoBase da o canal medido para os meses abertos do ano
       // corrente, que os rows travado (real) usam.
       const [rDestino, rBase] = await Promise.all([
-        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${ano}&detalhe=1&crescimentoFabrica=${cenarioFabrica}`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${anoBase}&detalhe=1&crescimentoFabrica=${cenarioFabrica}`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${ano}&detalhe=1&crescimentoFabrica=0`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${anoBase}&detalhe=1&crescimentoFabrica=0`, { headers: authHeaders() }),
       ]);
       const pDestino = await rDestino.json();
       if (rDestino.ok && pDestino?.success) {
-        setProjEdicaoLimitada(pDestino.data || {});
-        setElDetalhe(paraDetalhe(pDestino.porMes));
+        setElDetalheBruto(paraDetalhe(pDestino.porMes));
       }
       const pBase = await rBase.json();
       if (rBase.ok && pBase?.success) {
-        setElDetalheBase(paraDetalhe(pBase.porMes));
+        setElDetalheBaseBruto(paraDetalhe(pBase.porMes));
       }
     } catch {
-      setProjEdicaoLimitada(null);
-      setElDetalhe(null);
-      setElDetalheBase(null);
+      setElDetalheBruto(null);
+      setElDetalheBaseBruto(null);
     }
   }
 
@@ -669,16 +689,89 @@ export default function VisaoGeral2Page() {
     A: Number(cfgCurvas.cobertura_max_a) + 0.5, B: Number(cfgCurvas.cobertura_max_b),
     C: Number(cfgCurvas.cobertura_max_c), D: Number(cfgCurvas.cobertura_max_d),
   }), [cfgCurvas]);
+
+  const aplicarCenarioEl = (detalhes: Record<string, ElDetalheMes> | null, anoDestino: number) => {
+    if (!detalhes) return null;
+    return Object.fromEntries(Object.entries(detalhes).map(([mes, detalhe]) => {
+      const fator = Math.pow(1 + cenarioFabrica, Math.max(0, anoDestino - Number(detalhe.anoFonte)));
+      const fabrica = Math.round(Number(detalhe.fabricaBase || 0) * fator);
+      const lojas = Math.round(Number(detalhe.lojasBase || 0));
+      return [mes, { ...detalhe, fatorFabrica: Number(fator.toFixed(4)), fabrica, lojas, quantidade: fabrica + lojas }];
+    }));
+  };
+  const elDetalhe = useMemo(
+    () => aplicarCenarioEl(elDetalheBruto, rawData?.anoDestino || new Date().getFullYear() + 1),
+    [elDetalheBruto, rawData?.anoDestino, cenarioFabrica],
+  );
+  const elDetalheBase = useMemo(
+    () => aplicarCenarioEl(elDetalheBaseBruto, rawData?.anoBase || new Date().getFullYear()),
+    [elDetalheBaseBruto, rawData?.anoBase, cenarioFabrica],
+  );
+  const projEdicaoLimitada = useMemo(
+    () => elDetalhe ? Object.fromEntries(Object.entries(elDetalhe).map(([mes, detalhe]) => [mes, detalhe.quantidade])) : null,
+    [elDetalhe],
+  );
+
+  // Recompõe apenas os campos afetados pelo cenário. As consultas entregam a base a 0%;
+  // lançamentos gravados continuam fixos e o saldo do modelo é rateado pelos mesmos pesos.
+  const dadosCenario = useMemo(() => {
+    if (!rawData) return null;
+    const projecoesPorSku = new Map(rawData.baseSkus.map((sku) => [sku.id, {} as Record<Month, number>]));
+    const projOrigem: Record<string, { lancada: number; modelo: number }> = {};
+
+    MONTHS.forEach((mesNome, idx) => {
+      const chave = String(idx + 1);
+      const base = rawData.totalizadoresModeloBase[chave] || { fabrica: 0, lojas: 0 };
+      const alvo = Math.round(Number(base.fabrica || 0) * (1 + cenarioFabrica)) + Math.round(Number(base.lojas || 0));
+      const lancada = rawData.baseSkus.reduce((soma, sku) => soma + Number(sku.projecoesLancadas[mesNome] ?? 0), 0);
+      const livres = rawData.baseSkus.filter((sku) => sku.projecoesLancadas[mesNome] === undefined);
+      const restante = Math.max(0, alvo - lancada);
+      const pesoTotal = livres.reduce((soma, sku) => soma + Math.max(0, Number(sku.projecoesModelo[mesNome] || 0)), 0);
+      const parcelas = livres.map((sku) => {
+        const peso = pesoTotal > 0 ? Math.max(0, Number(sku.projecoesModelo[mesNome] || 0)) / pesoTotal : 1 / Math.max(1, livres.length);
+        const bruto = restante * peso;
+        return { id: sku.id, inteiro: Math.floor(bruto), sobra: bruto - Math.floor(bruto) };
+      });
+      let sobras = restante - parcelas.reduce((soma, parcela) => soma + parcela.inteiro, 0);
+      parcelas.sort((a, b) => b.sobra - a.sobra || a.id.localeCompare(b.id));
+
+      for (const sku of rawData.baseSkus) {
+        const valor = sku.projecoesLancadas[mesNome];
+        if (valor !== undefined) projecoesPorSku.get(sku.id)![mesNome] = Number(valor);
+      }
+      for (const parcela of parcelas) {
+        projecoesPorSku.get(parcela.id)![mesNome] = parcela.inteiro + (sobras > 0 ? 1 : 0);
+        if (sobras > 0) sobras -= 1;
+      }
+      projOrigem[mesNome] = { lancada, modelo: restante };
+    });
+
+    const totalizadores: Record<string, Totalizador> = Object.fromEntries(MONTHS.map((_, idx) => {
+      const chave = String(idx + 1);
+      const fabrica = Number(rawData.vendas.fabrica[chave] || 0);
+      const lojas = Number(rawData.vendas.lojas[chave] || 0);
+      const fabricaAjustada = Math.round(fabrica * (1 + cenarioFabrica));
+      return [chave, { fabrica, fabricaAjustada, lojas, total: fabricaAjustada + lojas }];
+    }));
+
+    return {
+      ...rawData,
+      totalizadores,
+      projOrigem,
+      baseSkus: rawData.baseSkus.map((sku) => ({ ...sku, projecoes: projecoesPorSku.get(sku.id)! })),
+    };
+  }, [rawData, cenarioFabrica]);
+
   const meses = useMemo<MonthRow[]>(() => {
-    if (!rawData) return [];
-    const corrente = new Map(rawData.baseSkus.map((s) => [s.id, s.estoqueInicial]));
+    if (!dadosCenario) return [];
+    const corrente = new Map(dadosCenario.baseSkus.map((s) => [s.id, s.estoqueInicial]));
     const alvoDe = (s: BaseSku) => (modoCobertura === 'curva' ? (coberturaPorCurva[s.curva] ?? 1) * multiplicadorCobertura : modoCobertura);
     const maxDe = (s: BaseSku) => coberturaMaxPorCurva[s.curva] ?? 3;
     return MONTHS.map((mes, index) => {
-      const demanda = rawData.baseSkus.reduce((sum, s) => sum + Number(s.projecoes?.[mes] || 0), 0);
+      const demanda = dadosCenario.baseSkus.reduce((sum, s) => sum + Number(s.projecoes?.[mes] || 0), 0);
       const producaoPorCurva: Record<Curva, number> = { A: 0, B: 0, C: 0, D: 0 };
       let producao = 0; let carga = 0;
-      for (const s of rawData.baseSkus) {
+      for (const s of dadosCenario.baseSkus) {
         const venda = Number(s.projecoes?.[mes] || 0);
         const atual = Number(corrente.get(s.id) || 0);
         // Piso em C x estoque mínimo. C sai da curva do SKU (política) ou do alvo único
@@ -708,7 +801,7 @@ export default function VisaoGeral2Page() {
       // necessarios sairem sem sentido. Sem a medida carregada, fica zero — melhor em branco
       // do que um numero que nao existe na fabrica.
       const capDiariaMedida = Number(resumoDias?.capacidadeDiaria || 0);
-      const diasDisponiveis = Number(rawData.diasPorMes[index] || 0);
+      const diasDisponiveis = Number(dadosCenario.diasPorMes[index] || 0);
       const capacidade = capDiariaMedida * diasDisponiveis;
       const estoque = Array.from(corrente.values()).reduce((sum, v) => sum + v, 0);
       const diasNecessarios = capDiariaMedida > 0 ? carga / capDiariaMedida : 0;
@@ -716,10 +809,10 @@ export default function VisaoGeral2Page() {
       const capacidadePecas = minutosPorPeca > 0 ? capacidade / minutosPorPeca : 0;
       return { mes, demanda, producao, producaoPorCurva, estoque, cobertura: demanda > 0 ? estoque / demanda : 0, carga, capacidade, capacidadePecas, diasDisponiveis, diasNecessarios, utilizacao: capacidade > 0 ? (carga / capacidade) * 100 : 0 };
     });
-  }, [rawData, resumoDias, modoCobertura, multiplicadorCobertura, coberturaPorCurva, coberturaMaxPorCurva]);
+  }, [dadosCenario, resumoDias, modoCobertura, multiplicadorCobertura, coberturaPorCurva, coberturaMaxPorCurva]);
   // `data` continua com o mesmo formato de antes, então todos os consumidores de
   // `data.meses` seguem funcionando sem alteração.
-  const data = useMemo(() => (rawData ? { ...rawData, meses } : null), [rawData, meses]);
+  const data = useMemo(() => (dadosCenario ? { ...dadosCenario, meses } : null), [dadosCenario, meses]);
 
   // Uma unica linha do tempo: sai do plano fechado (out -> jan) e entra no projetado
   // (fev -> dez), acumulando sem quebra. Tudo na capacidade diaria MEDIDA do dias-resumo.
@@ -1188,19 +1281,16 @@ export default function VisaoGeral2Page() {
   return <div className="min-h-screen bg-gray-100"><Sidebar onCollapse={setCollapsed} /><main className={`${collapsed ? 'ml-20' : 'ml-64'} p-6 transition-all`}>
     <div className="flex items-start justify-between mb-6"><div><p className="text-xs uppercase tracking-widest text-gray-500">Planejamento agregado</p><h1 className="text-2xl font-bold text-gray-900">Visão Geral 2 (teste)</h1><p className="text-sm text-gray-500 mt-1">Projeção {data?.anoDestino || new Date().getFullYear() + 1}.1 usando permanentes com venda em 6m ou 3m.</p></div>
       <div className="flex items-center gap-3">
-        {/* Cenario de crescimento da fabrica: fora do botao de Ajustes de proposito — muda a
-            ORIGEM do dado (recarrega do backend com uma taxa diferente), nao so a leitura de
-            um dado ja carregado. Substitui o historico (10% ao ano) em todo o modelo:
-            permanentes e edicao limitada, 2027 inteiro e o fechamento de nov/dez/2026. */}
+        {/* O cenário usa a base já carregada e recompõe localmente permanentes e edição
+            limitada, 2027 inteiro e o fechamento de nov/dez/2026. */}
         <div className="flex shrink-0 items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Crescimento fábrica</span>
           {([0.10, 0.05, 0] as const).map((c) => (
             <button
               key={c}
               onClick={() => setCenarioFabrica(c)}
-              disabled={loading}
               title={`Simula a fabrica crescendo ${Math.round(c * 100)}% ao ano em vez do historico`}
-              className={`rounded px-2 py-1 text-xs font-semibold transition disabled:opacity-50 ${cenarioFabrica === c ? 'bg-slate-800 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+              className={`rounded px-2 py-1 text-xs font-semibold transition ${cenarioFabrica === c ? 'bg-slate-800 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
             >
               {Math.round(c * 100)}%
             </button>

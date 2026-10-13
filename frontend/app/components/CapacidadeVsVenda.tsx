@@ -274,8 +274,6 @@ export default function CapacidadeVsVenda({
     valores.push(anterior + sobraTabela(l, i));
     return valores;
   }, []);
-  const mesAtual = linhas[0];
-  const disponivelLiquidoMesAtual = disponivelTabela[0];
   const desvioMeta = disponivelTabela[disponivelTabela.length - 1] - metaEstoqueFinal;
   const menorDisponivel = Math.min(...disponivelTabela);
   const primeiroProjetado = linhas.findIndex((l) => !l.travado);
@@ -341,22 +339,6 @@ export default function CapacidadeVsVenda({
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-xs uppercase tracking-wide text-gray-500">
-              Disponível líquido · {mesAtual.mes}
-              {referenciaOutubro && (
-                <span
-                  title={`Ponto de partida fixo no código (REFERENCIA_OUTUBRO_2026): disponível ${fmt(referenciaOutubro.disponivel)}. A venda restante de outubro vem da projeção atualizada; depois de out/26 essa âncora deixa de ser aplicada.`}
-                  className="ml-1.5 inline-flex cursor-help items-center rounded border border-amber-300 bg-amber-50 px-1 text-[9px] font-semibold uppercase tracking-wide text-amber-700 normal-case"
-                >
-                  âncora fixa
-                </span>
-              )}
-            </div>
-            <div className={`text-xl font-bold ${disponivelLiquidoMesAtual < 0 ? 'text-red-700' : 'text-amber-700'}`}>
-              {fmt(disponivelLiquidoMesAtual)}
-            </div>
-          </div>
           <button
             onClick={() => setMostrarAjustes((v) => !v)}
             title="Ajustes do relatório: leitura do plano e cobertura da carteira"
