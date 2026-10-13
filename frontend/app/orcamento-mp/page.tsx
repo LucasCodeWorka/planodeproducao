@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw, Save, History, Trash2, GitCompare, Eye, X, Upload } from 'lucide-react';
+import { RefreshCw, Save, History, Trash2, GitCompare, Eye, X, Upload, ClipboardList } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import { Planejamento } from '../types';
 import { authHeaders, getToken } from '../lib/auth';
@@ -96,6 +96,49 @@ type MpCalculada = MpRow & {
   folgaOrcamentoPorPiso: boolean;
 };
 
+type MpContextoRefCor = {
+  chaveContexto: string;
+  referencia: string;
+  cor: string;
+  apresentacao: string;
+  artigo: string;
+  skus: number;
+  estoque: number;
+  valorEstoque: number;
+  consumoAte: number;
+  valorUnitario: number;
+  origemValor: string;
+  valorConsumo: number;
+  comprasRegra: number;
+  valorComprasRegra: number;
+  comprasTotal: number;
+  valorComprasTotal: number;
+  necessidadeRegra: number;
+  valorNecessidadeRegra: number;
+  necessidadeTotal: number;
+  valorNecessidadeTotal: number;
+  valorFolgaOrcamentoTotal: number;
+  valorOrcamentoTotal: number;
+};
+
+type DespesaTotvs = {
+  id: number;
+  idmateriaprima: string;
+  artigo?: string | null;
+  descricao?: string | null;
+  unidade?: string | null;
+  quantidade_necessidade: number;
+  valor_unitario: number;
+  valor_necessidade: number;
+  valor_folga: number;
+  valor_orcamento: number;
+  periodo_ate: string;
+  origem_valor?: string | null;
+  status: 'PENDENTE' | 'CONFERIDO' | 'IGNORADO';
+  observacao?: string | null;
+  preparado_em: string;
+};
+
 type PercentualPeriodo = { qtdLote: number; qtdFinalizada: number; qtdGerouOp: number; percentual: number; percentualGerouOp: number };
 type DiasCapacidade = { porPeriodo: Record<Periodo, number>; acumulado: Record<Periodo, number>; capacidadeDiaria: number };
 type OpsAntigas = { qtdTotal: number; opsCount: number; porFaixa: Record<string, { qtd: number; ops: number }>; data: Array<{ cdProduto: string; nrOp: string; nrCiclo: string; dtInicio: string; diasEmProcesso: number; qtdEmProcesso: number; descricao: string; referencia: string }> };
@@ -138,7 +181,7 @@ type ArtigoSortKey =
   // vivem em artigoDetalhePorPeriodo e so fazem sentido acompanhadas de um periodo.
   | 'perConsumo' | 'perEstoque' | 'perComprado' | 'perNecessidade' | 'perNecAcum';
 type MpSortKey =
-  | 'idmateriaprima' | 'nome_materiaprima' | 'cor' | 'artigo' | 'estoquetotal'
+  | 'referencia' | 'cor' | 'apresentacao' | 'artigo' | 'skus' | 'estoque'
   | 'valorEstoque' | 'consumoAte' | 'valorUnitario' | 'valorConsumo'
   | 'comprasRegra' | 'valorComprasRegra' | 'comprasTotal' | 'valorComprasTotal'
   | 'necessidadeRegra' | 'valorNecessidadeRegra' | 'necessidadeTotal' | 'valorNecessidadeTotal'
@@ -355,6 +398,9 @@ export default function OrcamentoMpPage() {
   // Exportacao enxuta (codigo MP + R$ total/folga/orcamento) para o sistema externo ler.
   const [exportandoOrcamento, setExportandoOrcamento] = useState(false);
   const [exportacaoFeedback, setExportacaoFeedback] = useState<{ tipo: 'ok' | 'erro'; msg: string } | null>(null);
+  const [despesasTotvs, setDespesasTotvs] = useState<DespesaTotvs[]>([]);
+  const [preparandoDespesas, setPreparandoDespesas] = useState(false);
+  const [despesasFeedback, setDespesasFeedback] = useState<{ tipo: 'ok' | 'erro'; msg: string } | null>(null);
   const [snapshotComparando, setSnapshotComparando] = useState<{ idA: number; idB: number } | null>(null);
   const [comparacaoSnapshot, setComparacaoSnapshot] = useState<ComparacaoSnapshotType | null>(null);
   const [snapshotDetalheAberto, setSnapshotDetalheAberto] = useState<SnapshotDetalhe | null>(null);
@@ -374,6 +420,7 @@ export default function OrcamentoMpPage() {
       return;
     }
     carregar(false);
+    carregarDespesasTotvs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -883,6 +930,69 @@ export default function OrcamentoMpPage() {
     }
   }
 
+  async function carregarDespesasTotvs() {
+    try {
+      const response = await fetchNoCache(`${API_URL}/api/producao/orcamento-mp-despesas?marca=${MARCA_FIXA}`, { headers: authHeaders() }, 30000);
+      const payload = await response.json();
+      if (response.ok && payload?.success) setDespesasTotvs(Array.isArray(payload.data) ? payload.data : []);
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao carregar despesas para conferencia:', err);
+    }
+  }
+
+  async function prepararDespesasTotvs() {
+    setPreparandoDespesas(true);
+    setDespesasFeedback(null);
+    try {
+      const itens = rowsCalculadas
+        .filter((row) => Number(row.valorOrcamentoTotal || 0) > 0)
+        .map((row) => ({
+          idmateriaprima: row.idmateriaprima,
+          artigo: row.artigo,
+          descricao: row.nome_materiaprima,
+          unidade: row.unidade_compra,
+          quantidadeNecessidade: row.necessidadeTotal,
+          valorUnitario: row.valorUnitario,
+          valorNecessidade: row.valorNecessidadeTotal,
+          valorFolga: row.valorFolgaOrcamentoTotal,
+          valorOrcamento: row.valorOrcamentoTotal,
+          origemValor: row.origemValor,
+          cor: row.cor,
+          consumoAte: row.consumoAte,
+          comprasTotal: row.comprasTotal,
+        }));
+      const response = await fetchNoCache(`${API_URL}/api/producao/orcamento-mp-despesas/preparar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ marca: MARCA_FIXA, periodoAte: planoAte, itens }),
+      }, 60000);
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Erro ao preparar despesas');
+      await carregarDespesasTotvs();
+      setDespesasFeedback({ tipo: 'ok', msg: `${payload.qtd} despesas preparadas para conferencia.` });
+    } catch (err) {
+      console.error('[orcamento-mp] Erro ao preparar despesas:', err);
+      setDespesasFeedback({ tipo: 'erro', msg: err instanceof Error ? err.message : 'Erro de conexao ao preparar despesas' });
+    } finally {
+      setPreparandoDespesas(false);
+    }
+  }
+
+  async function atualizarStatusDespesa(id: number, status: DespesaTotvs['status']) {
+    try {
+      const response = await fetchNoCache(`${API_URL}/api/producao/orcamento-mp-despesas/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ status }),
+      }, 30000);
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Erro ao atualizar status');
+      setDespesasTotvs((atual) => atual.map((item) => item.id === id ? { ...item, status } : item));
+    } catch (err) {
+      setDespesasFeedback({ tipo: 'erro', msg: err instanceof Error ? err.message : 'Erro ao atualizar status' });
+    }
+  }
+
   async function compararSnapshots(idA: number, idB: number) {
     setSnapshotComparando({ idA, idB });
     try {
@@ -1075,15 +1185,82 @@ export default function OrcamentoMpPage() {
       });
   }, [rowsComValores, artigosSelecionados, somenteComNecessidade, busca]);
 
-  const rowsOrdenadas = useMemo(() => {
+  const rowsContextoRefCor = useMemo<MpContextoRefCor[]>(() => {
     const base = artigoFocado
       ? rowsCalculadas.filter((r) => String(r.artigo || '-').trim() === artigoFocado)
       : rowsCalculadas;
-    return [...base].sort((a, b) => {
+    const map = new Map<string, MpContextoRefCor>();
+
+    for (const row of base) {
+      const referencia = String(row.referencia || '-').trim() || '-';
+      const cor = String(row.cor || '-').trim() || '-';
+      const chaveContexto = `${referencia}::${cor}`;
+      if (!map.has(chaveContexto)) {
+        map.set(chaveContexto, {
+          chaveContexto,
+          referencia,
+          cor,
+          apresentacao: String(row.nome_materiaprima || '-').trim() || '-',
+          artigo: String(row.artigo || '-').trim() || '-',
+          skus: 0,
+          estoque: 0,
+          valorEstoque: 0,
+          consumoAte: 0,
+          valorUnitario: 0,
+          origemValor: '',
+          valorConsumo: 0,
+          comprasRegra: 0,
+          valorComprasRegra: 0,
+          comprasTotal: 0,
+          valorComprasTotal: 0,
+          necessidadeRegra: 0,
+          valorNecessidadeRegra: 0,
+          necessidadeTotal: 0,
+          valorNecessidadeTotal: 0,
+          valorFolgaOrcamentoTotal: 0,
+          valorOrcamentoTotal: 0,
+        });
+      }
+
+      const acc = map.get(chaveContexto)!;
+      acc.skus += 1;
+      if (acc.apresentacao === '-' && row.nome_materiaprima) {
+        acc.apresentacao = String(row.nome_materiaprima).trim();
+      }
+      acc.estoque += Number(row.estoquetotal || 0);
+      acc.valorEstoque += row.valorEstoque;
+      acc.consumoAte += row.consumoAte;
+      acc.valorConsumo += row.valorConsumo;
+      acc.comprasRegra += row.comprasRegra;
+      acc.valorComprasRegra += row.valorComprasRegra;
+      acc.comprasTotal += row.comprasTotal;
+      acc.valorComprasTotal += row.valorComprasTotal;
+      acc.necessidadeRegra += row.necessidadeRegra;
+      acc.valorNecessidadeRegra += row.valorNecessidadeRegra;
+      acc.necessidadeTotal += row.necessidadeTotal;
+      acc.valorNecessidadeTotal += row.valorNecessidadeTotal;
+      acc.valorFolgaOrcamentoTotal += row.valorFolgaOrcamentoTotal;
+      acc.valorOrcamentoTotal += row.valorOrcamentoTotal;
+      if (!acc.origemValor) acc.origemValor = row.origemValor;
+    }
+
+    return Array.from(map.values()).map((row) => ({
+      ...row,
+      valorUnitario: row.consumoAte > 0
+        ? row.valorConsumo / row.consumoAte
+        : row.necessidadeTotal > 0
+          ? row.valorNecessidadeTotal / row.necessidadeTotal
+          : 0,
+      origemValor: row.skus > 1 ? 'Media ponderada dos SKUs' : row.origemValor,
+    }));
+  }, [rowsCalculadas, artigoFocado]);
+
+  const rowsOrdenadas = useMemo(() => {
+    return [...rowsContextoRefCor].sort((a, b) => {
       const primary = compareValues(a[mpSort.key], b[mpSort.key], mpSort.dir);
-      return primary || String(a.idmateriaprima || '').localeCompare(String(b.idmateriaprima || ''), 'pt-BR', { numeric: true });
+      return primary || a.chaveContexto.localeCompare(b.chaveContexto, 'pt-BR', { numeric: true });
     });
-  }, [rowsCalculadas, mpSort, artigoFocado]);
+  }, [rowsContextoRefCor, mpSort]);
 
   const porArtigo = useMemo<ArtigoRow[]>(() => {
     const map = new Map<string, ArtigoRow>();
@@ -2488,7 +2665,80 @@ export default function OrcamentoMpPage() {
                     {exportacaoFeedback.msg}
                   </span>
                 )}
+                <button
+                  type="button"
+                  title="Prepara a fila interna de despesas para conferencia futura; nao envia ao TOTVS"
+                  onClick={prepararDespesasTotvs}
+                  disabled={preparandoDespesas || loading || loadingPrices || !!snapshotVisualizado}
+                  className="inline-flex items-center gap-1.5 rounded border border-violet-500 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50"
+                >
+                  <ClipboardList size={14} />
+                  {preparandoDespesas ? 'Preparando...' : 'Preparar despesas'}
+                </button>
+                {despesasFeedback && (
+                  <span className={`text-[11px] font-medium ${despesasFeedback.tipo === 'ok' ? 'text-emerald-700' : 'text-red-700'}`}>
+                    {despesasFeedback.msg}
+                  </span>
+                )}
               </div>
+
+              <section className="bg-violet-50 rounded-lg border border-violet-200 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <div>
+                    <div className="text-sm font-semibold text-violet-900">Despesas preparadas para conferencia</div>
+                    <div className="text-[11px] text-violet-700">Fila interna do projeto. Nenhum item foi enviado ao TOTVS.</div>
+                  </div>
+                  <div className="text-xs text-violet-800">
+                    {despesasTotvs.filter((item) => item.status === 'PENDENTE').length} pendentes |{' '}
+                    {despesasTotvs.filter((item) => item.status === 'CONFERIDO').length} conferidas |{' '}
+                    Total {money(despesasTotvs.reduce((acc, item) => acc + Number(item.valor_orcamento || 0), 0))}
+                  </div>
+                </div>
+                {despesasTotvs.length === 0 ? (
+                  <div className="rounded border border-violet-200 bg-white px-3 py-2 text-xs text-violet-700">
+                    Nenhuma despesa preparada. Use o botao acima depois de conferir os calculos atuais.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded border border-violet-200 bg-white">
+                    <table className="min-w-full text-xs">
+                      <thead className="bg-violet-100 text-violet-900">
+                        <tr>
+                          <th className="px-2 py-1.5 text-left">MP</th>
+                          <th className="px-2 py-1.5 text-left">Artigo</th>
+                          <th className="px-2 py-1.5 text-right">Qtd necessidade</th>
+                          <th className="px-2 py-1.5 text-right">R$ necessidade</th>
+                          <th className="px-2 py-1.5 text-right">R$ folga</th>
+                          <th className="px-2 py-1.5 text-right">R$ orçamento</th>
+                          <th className="px-2 py-1.5 text-left">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {despesasTotvs.map((item) => (
+                          <tr key={item.id} className="border-t border-violet-100">
+                            <td className="px-2 py-1.5 font-mono">{item.idmateriaprima}</td>
+                            <td className="px-2 py-1.5">{item.artigo || '-'}</td>
+                            <td className="px-2 py-1.5 text-right">{fmt(Number(item.quantidade_necessidade || 0), 2)}</td>
+                            <td className="px-2 py-1.5 text-right">{money(Number(item.valor_necessidade || 0))}</td>
+                            <td className="px-2 py-1.5 text-right">{money(Number(item.valor_folga || 0))}</td>
+                            <td className="px-2 py-1.5 text-right font-semibold">{money(Number(item.valor_orcamento || 0))}</td>
+                            <td className="px-2 py-1.5">
+                              <select
+                                value={item.status}
+                                onChange={(event) => atualizarStatusDespesa(item.id, event.target.value as DespesaTotvs['status'])}
+                                className="rounded border border-violet-200 bg-white px-1.5 py-1 text-[11px]"
+                              >
+                                <option value="PENDENTE">Pendente</option>
+                                <option value="CONFERIDO">Conferido</option>
+                                <option value="IGNORADO">Ignorado</option>
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
 
               <div className="pt-5 text-[11px] text-gray-500">
                 <div>{cacheStatus || 'Cache persistido no banco'}</div>
@@ -2798,17 +3048,18 @@ export default function OrcamentoMpPage() {
                   </button>
                 )}
               </span>
-              <span className="text-[11px] text-gray-500">{rowsOrdenadas.length} MPs</span>
+              <span className="text-[11px] text-gray-500">{rowsOrdenadas.length} contextos ref + cor</span>
             </div>
             <div className="max-h-[52vh] overflow-auto">
               <table className="min-w-full text-xs">
                 <thead className="sticky top-0 z-10 bg-gray-100">
                   <tr>
-                    <SortTh active={mpSort.key === 'idmateriaprima'} dir={mpSort.dir} onClick={() => toggleMpSort('idmateriaprima')}>MP</SortTh>
-                    <SortTh active={mpSort.key === 'nome_materiaprima'} dir={mpSort.dir} onClick={() => toggleMpSort('nome_materiaprima')}>Descricao</SortTh>
+                    <SortTh active={mpSort.key === 'referencia'} dir={mpSort.dir} onClick={() => toggleMpSort('referencia')}>Referencia</SortTh>
                     <SortTh active={mpSort.key === 'cor'} dir={mpSort.dir} onClick={() => toggleMpSort('cor')}>COR</SortTh>
+                    <SortTh active={mpSort.key === 'apresentacao'} dir={mpSort.dir} onClick={() => toggleMpSort('apresentacao')}>Apresentacao</SortTh>
                     <SortTh active={mpSort.key === 'artigo'} dir={mpSort.dir} onClick={() => toggleMpSort('artigo')}>Artigo</SortTh>
-                    <SortTh align="right" active={mpSort.key === 'estoquetotal'} dir={mpSort.dir} onClick={() => toggleMpSort('estoquetotal')}>Estoque</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'skus'} dir={mpSort.dir} onClick={() => toggleMpSort('skus')}>SKUs</SortTh>
+                    <SortTh align="right" active={mpSort.key === 'estoque'} dir={mpSort.dir} onClick={() => toggleMpSort('estoque')}>Estoque</SortTh>
                     <SortTh align="right" active={mpSort.key === 'valorEstoque'} dir={mpSort.dir} onClick={() => toggleMpSort('valorEstoque')}>R$ estoque</SortTh>
                     <SortTh align="right" active={mpSort.key === 'consumoAte'} dir={mpSort.dir} onClick={() => toggleMpSort('consumoAte')}>Consumo plano</SortTh>
                     <SortTh align="right" active={mpSort.key === 'valorUnitario'} dir={mpSort.dir} onClick={() => toggleMpSort('valorUnitario')}>V. unit.</SortTh>
@@ -2827,12 +3078,13 @@ export default function OrcamentoMpPage() {
                 </thead>
                 <tbody>
                   {rowsOrdenadas.map((row, idx) => (
-                    <tr key={`${row.idmateriaprima}-${idx}`} onClick={() => setMpModal(row)} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200 cursor-pointer hover:bg-amber-50`}>
-                      <Td strong>{row.idmateriaprima}</Td>
-                      <Td>{String(row.nome_materiaprima || '-')}</Td>
+                    <tr key={row.chaveContexto} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/70'} border-t border-gray-200`}>
+                      <Td strong>{row.referencia}</Td>
                       <Td>{String(row.cor || '-')}</Td>
+                      <Td><span className="inline-block max-w-[220px] truncate" title={row.apresentacao}>{row.apresentacao}</span></Td>
                       <Td>{String(row.artigo || '-')}</Td>
-                      <Td align="right">{fmt(Number(row.estoquetotal || 0))}</Td>
+                      <Td align="right">{fmt(row.skus)}</Td>
+                      <Td align="right">{fmt(Number(row.estoque || 0))}</Td>
                       <Td align="right" strong>{row.valorEstoque > 0 ? money(row.valorEstoque) : '-'}</Td>
                       <Td align="right">{fmt(row.consumoAte)}</Td>
                       <Td align="right">
@@ -2852,14 +3104,14 @@ export default function OrcamentoMpPage() {
                         {row.valorFolgaOrcamentoTotal > 0 ? (
                           <div>
                             <div className="font-semibold">{money(row.valorFolgaOrcamentoTotal)}</div>
-                            <div className="text-[10px] text-gray-400">{row.folgaOrcamentoPorPiso ? 'piso 250' : '5%'}</div>
+                            <div className="text-[10px] text-gray-400">{row.skus > 1 ? 'agrupado por ref + cor' : 'por regra'}</div>
                           </div>
                         ) : '-'}
                       </Td>
                       <Td align="right" tone={row.valorOrcamentoTotal > 0 ? 'red' : undefined} strong>{row.valorOrcamentoTotal > 0 ? money(row.valorOrcamentoTotal) : '-'}</Td>
                     </tr>
                   ))}
-                  {rowsOrdenadas.length === 0 && <tr><td colSpan={19} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
+                  {rowsOrdenadas.length === 0 && <tr><td colSpan={20} className="px-3 py-8 text-center text-gray-500">Sem dados para exibir.</td></tr>}
                 </tbody>
                 {rowsOrdenadas.length > 0 && (
                   <tfoot className="sticky bottom-0 z-10 bg-gray-200 font-semibold text-gray-900">
@@ -2868,6 +3120,7 @@ export default function OrcamentoMpPage() {
                       <Td />
                       <Td />
                       <Td />
+                      <Td align="right" strong>{fmt(rowsCalculadas.length)}</Td>
                       <Td align="right" strong>{fmt(totais.estoque)}</Td>
                       <Td align="right" strong>{money(totais.valorEstoque)}</Td>
                       <Td align="right" strong>{fmt(totais.consumo)}</Td>

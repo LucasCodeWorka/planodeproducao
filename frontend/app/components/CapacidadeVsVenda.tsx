@@ -456,7 +456,7 @@ export default function CapacidadeVsVenda({
           <span className="font-semibold text-gray-800">Legenda</span>
           <span className="inline-flex items-center gap-2">
             <span className="w-6 border-t-[3px] border-amber-500" aria-hidden="true" />
-            Projeção de venda
+            Projeção de venda (Em linha)
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="w-6 border-t-2 border-dashed border-slate-400" aria-hidden="true" />
@@ -590,7 +590,7 @@ export default function CapacidadeVsVenda({
               const defs = [
                 {
                   id: 'venda',
-                  rotulo: 'Projeção de venda',
+                  rotulo: 'Projeção de venda (Em linha)',
                   forte: true,
                   expansivel: true,
                   celula: (l: typeof linhas[number]) => (
@@ -601,7 +601,7 @@ export default function CapacidadeVsVenda({
                 },
                 {
                   id: 'venda-fabrica',
-                  rotulo: 'fábrica',
+                  rotulo: 'fábrica (Em linha)',
                   pai: 'venda',
                   celula: (l: typeof linhas[number]) => (
                     <span className="text-amber-600">{fmt(l.demandaFabrica || 0)}</span>
@@ -609,7 +609,7 @@ export default function CapacidadeVsVenda({
                 },
                 {
                   id: 'venda-lojas',
-                  rotulo: 'lojas',
+                  rotulo: 'lojas (Em linha)',
                   pai: 'venda',
                   expansivel: true,
                   celula: (l: typeof linhas[number]) => (

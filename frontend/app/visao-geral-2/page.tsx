@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, LayoutGrid, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
@@ -142,7 +142,23 @@ export default function VisaoGeral2Page() {
   const [indiceMensal, setIndiceMensal] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
   const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
-  async function carregar() {
+  // Cache das respostas que NAO dependem do cenario de crescimento (matriz, capacidade,
+  // curva ABC, cortes minimos, gravado, agenda...). Clicar num cenario so precisa de dado
+  // novo do preview e da edicao limitada; reusar o resto evita repetir ~13 chamadas (uma
+  // delas sozinha custa ~20s) a cada clique, que e o que deixava o botao impraticavel.
+  const cacheIndependenteRef = useRef<Record<string, { ok: boolean; dados: unknown }>>({});
+  async function fetchCacheado(url: string, options?: RequestInit) {
+    const existente = cacheIndependenteRef.current[url];
+    if (existente) return { ok: existente.ok, json: async () => existente.dados };
+    const r = await fetchNoCache(url, options);
+    const ok = r.ok;
+    const dados = await r.json().catch(() => null);
+    cacheIndependenteRef.current[url] = { ok, dados };
+    return { ok, json: async () => dados };
+  }
+
+  async function carregar(forcarTudo = false) {
+    if (forcarTudo) cacheIndependenteRef.current = {};
     setLoading(true); setError(null);
     try {
       const anoBase = new Date().getFullYear();
@@ -157,39 +173,39 @@ export default function VisaoGeral2Page() {
       const desdeLeadTime = new Date(hoje.getFullYear(), hoje.getMonth() - 6, hoje.getDate()).toISOString().slice(0, 10);
       const [previewResponse, configResponse, matrixResponse, realResponse, realMesAtualResponse, curvaResponse, corteResponse, projBaseResponse, proj2027Response, planoResponse, lotesExecResponse, indicadoresOpResponse, agendaResponse] = await Promise.all([
         fetchNoCache(`${API_URL}/api/projecao-permanentes/preview?anoBase=${anoBase}&anoDestino=${anoDestino}&completarMesesAbertos=true&crescimentoFabrica=${cenarioFabrica}`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=LIEBE&status=EM%20LINHA%2CNOVA%20COLECAO`),
+        fetchCacheado(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
+        fetchCacheado(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=LIEBE&status=EM%20LINHA%2CNOVA%20COLECAO`),
         // `ate=isoMes(0)` corta no dia 1 do mês corrente de propósito, pra média de 3M não
         // levar um mês ainda incompleto. Por isso o executado deste mês vem de outra chamada.
-        fetchNoCache(`${API_URL}/api/capacidade/real?de=${isoMes(-3)}&ate=${isoMes(0)}`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/capacidade/real?de=${isoMes(0)}&ate=${isoMes(1)}`, { headers: authHeaders() }),
+        fetchCacheado(`${API_URL}/api/capacidade/real?de=${isoMes(-3)}&ate=${isoMes(0)}`, { headers: authHeaders() }),
+        fetchCacheado(`${API_URL}/api/capacidade/real?de=${isoMes(0)}&ate=${isoMes(1)}`, { headers: authHeaders() }),
         // Vão no mesmo Promise.all de propósito: se fossem fetches soltos, o cálculo poderia
         // rodar antes de chegarem, e todo SKU cairia no default de curva e de lote.
-        fetchNoCache(`${API_URL}/api/analises/curva-abc-referencias`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() }),
+        fetchCacheado(`${API_URL}/api/analises/curva-abc-referencias`, { headers: authHeaders() }),
+        fetchCacheado(`${API_URL}/api/configuracoes/corte-minimos`, { headers: authHeaders() }),
         // Projeção gravada de set a dez, para não estimar a demanda por média. Custa ~20s e
         // é a chamada mais lenta da tela. Atenção: este endpoint colapsa os anos na mesma
         // chave de mês — hoje funciona porque a busca de baixo é de um ANO SEPARADO
         // (anoDestino), então não tem risco de um sobrescrever o outro aqui.
-        fetchNoCache(`${API_URL}/api/projecoes/por-mes?ano=${anoBase}&meses=9,10,11,12`, { headers: authHeaders() }),
+        fetchCacheado(`${API_URL}/api/projecoes/por-mes?ano=${anoBase}&meses=9,10,11,12`, { headers: authHeaders() }),
         // Projeção gravada de 2027: conferido em 30/09/2026 que jan-jun já está lançado
         // (~1.600 SKUs, sem os buracos de dez/2026). O modelo (fábrica+10% do mesmo mês do
         // ano anterior) só entra onde isto não cobrir.
-        fetchNoCache(`${API_URL}/api/projecoes/por-mes?ano=${anoDestino}&meses=1,2,3,4,5,6,7,8,9,10,11,12`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/producao/percentual-finalizado?marca=LIEBE&status=EM%20LINHA,NOVA%20COLECAO`),
+        fetchCacheado(`${API_URL}/api/projecoes/por-mes?ano=${anoDestino}&meses=1,2,3,4,5,6,7,8,9,10,11,12`, { headers: authHeaders() }),
+        fetchCacheado(`${API_URL}/api/producao/percentual-finalizado?marca=LIEBE&status=EM%20LINHA,NOVA%20COLECAO`),
         // Processo por período do plano (etapa 3) e carga restante do MA (etapa 4): mesma
         // view usada no Extrato do Plano, sem filtro de período.
-        fetchNoCache(`${API_URL}/api/producao/lotes-execucao-matriz?marca=LIEBE&status=EM%20LINHA,NOVA%20COLECAO`, { headers: authHeaders() }),
+        fetchCacheado(`${API_URL}/api/producao/lotes-execucao-matriz?marca=LIEBE&status=EM%20LINHA,NOVA%20COLECAO`, { headers: authHeaders() }),
         // Tempo médio real de OP (etapa 3/4): media_dias já exclui outliers (melhor e pior OP).
-        fetchNoCache(`${API_URL}/api/indicadores-op/liebe?desde=${desdeLeadTime}`, { headers: authHeaders() }),
+        fetchCacheado(`${API_URL}/api/indicadores-op/liebe?desde=${desdeLeadTime}`, { headers: authHeaders() }),
         // Quando o estoque se mexe: OP por mês de entrega prevista e pedido pendente por mês
         // de baixa prevista, com a data do próprio ERP. Vem por SKU, sem filtro de marca.
-        fetchNoCache(`${API_URL}/api/producao/agenda-estoque`, { headers: authHeaders() }),
+        fetchCacheado(`${API_URL}/api/producao/agenda-estoque`, { headers: authHeaders() }),
       ]);
       const preview = await previewResponse.json();
       if (!previewResponse.ok || !preview.success) throw new Error(preview.error || 'Erro ao carregar projeção');
       const refs = Array.from(new Set((preview.itens || []).map((i: ProjectionItem) => norm(i.referencia)).filter(Boolean)));
-      const tempoResponse = await fetchNoCache(`${API_URL}/api/capacidade/tempos-ref?referencias=${encodeURIComponent(refs.join(','))}`, { headers: authHeaders() });
+      const tempoResponse = await fetchCacheado(`${API_URL}/api/capacidade/tempos-ref?referencias=${encodeURIComponent(refs.join(','))}`, { headers: authHeaders() });
       const config = await configResponse.json(); const matrix = await matrixResponse.json(); const tempos = await tempoResponse.json();
       const real = await realResponse.json();
       const realMesAtual = await realMesAtualResponse.json();
@@ -1190,7 +1206,7 @@ export default function VisaoGeral2Page() {
             </button>
           ))}
         </div>
-        <button onClick={carregar} className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
+        <button onClick={() => carregar(true)} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
       </div>
     </div>
     {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}

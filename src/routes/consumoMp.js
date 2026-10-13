@@ -503,7 +503,11 @@ router.post("/analise", async (req, res) => {
           MAX(COALESCE(f_dic_sld_prd_produto('1', '2'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoqueinsp,
           MAX(COALESCE(f_dic_sld_prd_produto('1', '15'::text, a.cd_produto, NULL::timestamp), 0))::FLOAT AS estoquecorte
         FROM public.vr_prd_prdgrade a
-        WHERE a.cd_produto::TEXT = ANY($1::TEXT[])
+        -- O contexto da tela e referencia + cor, obtido no mesmo universo de
+        -- produtos usado pelo PCP; o SKU continua sendo apenas a origem do calculo.
+        WHERE a.cd_produto >= 1000000
+          AND a.cd_produto < 5000000
+          AND a.cd_produto::TEXT = ANY($1::TEXT[])
         GROUP BY a.cd_produto
       `, [idsMp]),
 

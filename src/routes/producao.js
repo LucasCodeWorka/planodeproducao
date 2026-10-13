@@ -907,8 +907,15 @@ router.all("/estoque-minimo-fechamentos", async (req, res) => {
 
     const data = Array.from(vendas.keys()).map((sku) => {
       const valores = fechamentos.map((fechamento) => calcular(sku, fechamento));
+      // Venda mes a mes do periodo consultado. O endpoint ja tinha isso em memoria e
+      // descartava; sem ele nao da para auditar de onde sai cada media.
+      const mapa = vendas.get(sku) || new Map();
+      const vendasMensais = Array.from(mapa.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([mes, qtd]) => ({ mes, qtd }));
       return {
         sku,
+        vendasMensais,
         fechamentos: fechamentos.map((fechamento, index) => ({ ...fechamento, ...valores[index], minimo: Math.round(valores[index].minimo * 100) / 100 })),
         variacao12: valores[0].minimo ? ((valores[1].minimo - valores[0].minimo) / valores[0].minimo) * 100 : null,
         variacao23: valores[1].minimo ? ((valores[2].minimo - valores[1].minimo) / valores[1].minimo) * 100 : null,
@@ -2016,6 +2023,158 @@ router.get("/orcamento-mp-exportacao", async (req, res) => {
       error: "Erro ao consultar exportacao do orcamento",
       details: error.message
     });
+  }
+});
+
+// ============================================================================
+// DESPESAS DO ORCAMENTO MP PARA CONFERENCIA FUTURA NO TOTVS
+// Esta tabela e interna ao projeto: preparar uma despesa nao envia nada ao TOTVS.
+// ============================================================================
+
+async function ensureOrcamentoDespesasTable(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.app_orcamento_mp_despesas_totvs (
+      id BIGSERIAL PRIMARY KEY,
+      marca TEXT NOT NULL DEFAULT 'LIEBE',
+      idmateriaprima TEXT NOT NULL,
+      artigo TEXT,
+      descricao TEXT,
+      unidade TEXT,
+      quantidade_necessidade NUMERIC(15,4) NOT NULL DEFAULT 0,
+      valor_unitario NUMERIC(15,4) NOT NULL DEFAULT 0,
+      valor_necessidade NUMERIC(15,2) NOT NULL DEFAULT 0,
+      valor_folga NUMERIC(15,2) NOT NULL DEFAULT 0,
+      valor_orcamento NUMERIC(15,2) NOT NULL DEFAULT 0,
+      periodo_ate TEXT NOT NULL DEFAULT 'QU',
+      origem_valor TEXT,
+      status TEXT NOT NULL DEFAULT 'PENDENTE',
+      observacao TEXT,
+      dados_origem JSONB NOT NULL DEFAULT '{}'::jsonb,
+      preparado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      conferido_em TIMESTAMPTZ,
+      UNIQUE (marca, idmateriaprima),
+      CONSTRAINT app_orcamento_mp_despesas_status_ck
+        CHECK (status IN ('PENDENTE', 'CONFERIDO', 'IGNORADO'))
+    )
+  `);
+}
+
+router.post("/orcamento-mp-despesas/preparar", async (req, res) => {
+  const pool = req.app.get("pool");
+  const client = await pool.connect();
+  try {
+    const marca = String(req.body?.marca || 'LIEBE').trim() || 'LIEBE';
+    const periodoAte = String(req.body?.periodoAte || 'QU').trim() || 'QU';
+    const itens = Array.isArray(req.body?.itens) ? req.body.itens : [];
+    await ensureOrcamentoDespesasTable(pool);
+
+    await client.query("BEGIN");
+    let qtd = 0;
+    for (const item of itens) {
+      const idmateriaprima = String(item?.idmateriaprima || '').trim();
+      if (!idmateriaprima) continue;
+      await client.query(`
+        INSERT INTO public.app_orcamento_mp_despesas_totvs (
+          marca, idmateriaprima, artigo, descricao, unidade,
+          quantidade_necessidade, valor_unitario, valor_necessidade,
+          valor_folga, valor_orcamento, periodo_ate, origem_valor,
+          dados_origem, preparado_em
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+        ON CONFLICT (marca, idmateriaprima) DO UPDATE SET
+          artigo = EXCLUDED.artigo,
+          descricao = EXCLUDED.descricao,
+          unidade = EXCLUDED.unidade,
+          quantidade_necessidade = EXCLUDED.quantidade_necessidade,
+          valor_unitario = EXCLUDED.valor_unitario,
+          valor_necessidade = EXCLUDED.valor_necessidade,
+          valor_folga = EXCLUDED.valor_folga,
+          valor_orcamento = EXCLUDED.valor_orcamento,
+          periodo_ate = EXCLUDED.periodo_ate,
+          origem_valor = EXCLUDED.origem_valor,
+          dados_origem = EXCLUDED.dados_origem,
+          preparado_em = NOW()
+      `, [
+        marca,
+        idmateriaprima,
+        String(item?.artigo || '').trim() || null,
+        String(item?.descricao || item?.nome_materiaprima || '').trim() || null,
+        String(item?.unidade || item?.unidade_compra || '').trim() || null,
+        Number(item?.quantidadeNecessidade) || 0,
+        Number(item?.valorUnitario) || 0,
+        Number(item?.valorNecessidade) || 0,
+        Number(item?.valorFolga) || 0,
+        Number(item?.valorOrcamento) || 0,
+        periodoAte,
+        String(item?.origemValor || '').trim() || null,
+        JSON.stringify({
+          cor: item?.cor || null,
+          consumoAte: Number(item?.consumoAte) || 0,
+          comprasTotal: Number(item?.comprasTotal) || 0,
+        }),
+      ]);
+      qtd += 1;
+    }
+    await client.query("COMMIT");
+    return res.status(200).json({ success: true, qtd });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("[orcamento-mp-despesas/preparar] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao preparar despesas do orcamento MP", details: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+router.get("/orcamento-mp-despesas", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    await ensureOrcamentoDespesasTable(pool);
+    const marca = String(req.query?.marca || 'LIEBE').trim() || 'LIEBE';
+    const status = String(req.query?.status || '').trim();
+    const params = [marca];
+    const where = ['marca = $1'];
+    if (['PENDENTE', 'CONFERIDO', 'IGNORADO'].includes(status)) {
+      params.push(status);
+      where.push(`status = $${params.length}`);
+    }
+    const result = await pool.query(`
+      SELECT id, marca, idmateriaprima, artigo, descricao, unidade,
+             quantidade_necessidade, valor_unitario, valor_necessidade,
+             valor_folga, valor_orcamento, periodo_ate, origem_valor,
+             status, observacao, preparado_em, conferido_em
+      FROM public.app_orcamento_mp_despesas_totvs
+      WHERE ${where.join(' AND ')}
+      ORDER BY valor_orcamento DESC, idmateriaprima
+    `, params);
+    return res.status(200).json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error("[orcamento-mp-despesas GET] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao consultar despesas do orcamento MP", details: error.message });
+  }
+});
+
+router.patch("/orcamento-mp-despesas/:id", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    await ensureOrcamentoDespesasTable(pool);
+    const id = Number(req.params.id);
+    const status = String(req.body?.status || '').trim();
+    const observacao = req.body?.observacao == null ? null : String(req.body.observacao).trim();
+    if (!id || !['PENDENTE', 'CONFERIDO', 'IGNORADO'].includes(status)) {
+      return res.status(400).json({ success: false, error: "ID ou status invalido" });
+    }
+    const result = await pool.query(`
+      UPDATE public.app_orcamento_mp_despesas_totvs
+      SET status = $2, observacao = $3,
+          conferido_em = CASE WHEN $2 = 'PENDENTE' THEN NULL ELSE NOW() END
+      WHERE id = $1
+      RETURNING id, status, observacao, conferido_em
+    `, [id, status, observacao || null]);
+    if (!result.rowCount) return res.status(404).json({ success: false, error: "Despesa nao encontrada" });
+    return res.status(200).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error("[orcamento-mp-despesas PATCH] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao atualizar despesa", details: error.message });
   }
 });
 

@@ -67,7 +67,20 @@
       "Bash(curl -s -m 20 http://localhost:8000/health)",
       "Bash(node -e 'require\\(\"dotenv\"\\).config\\(\\); const {Pool}=require\\(\"pg\"\\); const p=new Pool\\({host:process.env.DB_HOST,port:+process.env.DB_PORT,database:process.env.DB_NAME,user:process.env.DB_USER,password:process.env.DB_PASSWORD,connectionTimeoutMillis:30000}\\); const q=` *)",
       "Bash(node -e 'require\\(\"dotenv\"\\).config\\(\\); const {Pool}=require\\(\"pg\"\\); const p=new Pool\\({host:process.env.DB_HOST,port:+process.env.DB_PORT,database:process.env.DB_NAME,user:process.env.DB_USER,password:process.env.DB_PASSWORD,connectionTimeoutMillis:60000}\\); p.query\\(\"SELECT MIN\\(data\\)::date AS mais_antigo, MAX\\(data\\)::date AS mais_recente, COUNT\\(*\\)::bigint AS linhas FROM vr_vendas_qtd\"\\).then\\(r=>{const x=r.rows[0]; console.log\\(\"mais antigo :\", x.mais_antigo\\); console.log\\(\"mais recente:\", x.mais_recente\\); console.log\\(\"linhas      :\", Number\\(x.linhas\\).toLocaleString\\(\"pt-BR\"\\)\\); return p.end\\(\\);}\\).catch\\(e=>{console.error\\(\"ERRO:\",e.message\\);process.exit\\(1\\);}\\);')",
-      "Bash(node -e 'const fs=require\\(\"fs\"\\); try{const c=JSON.parse\\(fs.readFileSync\\(\"data/capacidade_config.json\",\"utf8\"\\)\\); const g=c.grupos||[]; let t=0; for\\(const x of g\\){ t+=Number\\(x.capacidade_diaria||0\\); console.log\\(`  ${String\\(x.grupo\\).padEnd\\(28\\)} ${String\\(x.tipo||\"\"\\).padEnd\\(10\\)} ${Number\\(x.capacidade_diaria||0\\).toLocaleString\\(\"pt-BR\"\\)}`\\);} console.log\\(\"  TOTAL cadastrado:\", t.toLocaleString\\(\"pt-BR\"\\), \"min/dia\"\\); }catch\\(e\\){ console.log\\(\"  \\(capacidade_config.json nao lido:\", e.message, \"\\)\"\\); }')"
+      "Bash(node -e 'const fs=require\\(\"fs\"\\); try{const c=JSON.parse\\(fs.readFileSync\\(\"data/capacidade_config.json\",\"utf8\"\\)\\); const g=c.grupos||[]; let t=0; for\\(const x of g\\){ t+=Number\\(x.capacidade_diaria||0\\); console.log\\(`  ${String\\(x.grupo\\).padEnd\\(28\\)} ${String\\(x.tipo||\"\"\\).padEnd\\(10\\)} ${Number\\(x.capacidade_diaria||0\\).toLocaleString\\(\"pt-BR\"\\)}`\\);} console.log\\(\"  TOTAL cadastrado:\", t.toLocaleString\\(\"pt-BR\"\\), \"min/dia\"\\); }catch\\(e\\){ console.log\\(\"  \\(capacidade_config.json nao lido:\", e.message, \"\\)\"\\); }')",
+      "Bash(node --check src/services/producaoService.js)",
+      "Bash(node --check src/routes/producao.js)",
+      "Bash(nohup node src/index.js)",
+      "Bash(disown)",
+      "Bash(curl -s -m 90 -o /dev/null -w \"status: %{http_code} tempo: %{time_total}s\\\\n\" http://127.0.0.1:3000/visao-geral-2)",
+      "Bash(sed -i '554,624d' app/visao-geral-2/page.tsx)",
+      "Bash(sed -i '448,537d' app/visao-geral-2/page.tsx)",
+      "Bash(sed -i '102s/projecaoTotal: number\\\\[\\\\];/projecaoTotal: number[]; projecaoMatrizTotal: number[];/' app/visao-geral-2/page.tsx)",
+      "Bash(sed -i '330s/totalizadores, projecaoTotal,/totalizadores, projecaoTotal, projecaoMatrizTotal,/' app/visao-geral-2/page.tsx)",
+      "Bash(curl -s -m 60 -o /dev/null -w \"pagina: %{http_code}\\\\n\" http://127.0.0.1:3000/visao-geral-2)",
+      "Read(//c/Users/ce_lu/AppData/Local/Temp/claude/c--Users-ce-lu-OneDrive-Documentos-Nova-pasta--4--planodeproducao/1fb3eaaa-51fb-4a6e-bf6d-f195b8c29195/scratchpad/**)",
+      "Bash(node conn.js)",
+      "Bash(curl -s -m 60 -o /dev/null -w \"status: %{http_code}\\\\n\" http://127.0.0.1:3000/visao-geral-2)"
     ]
   }
 }

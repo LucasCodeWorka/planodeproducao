@@ -99,6 +99,6 @@ curl "http://localhost:8000/api/producao/planejamento/4130"
 curl "http://localhost:8000/api/producao/planejamento?apenas_necessidade=true&ordenar_por=prioridade"
 ```
 
-Veja [PLANEJAMENTO_PRODUCAO.md](PLANEJAMENTO_PRODUCAO.md) para documentação completa do módulo de produção.
+Veja [PLANEJAMENTO_PRODUCAO.md](arquivo_morto/docs/PLANEJAMENTO_PRODUCAO.md) para documentação completa do módulo de produção.
 
-Veja [API_ESTOQUE_MINIMO.md](API_ESTOQUE_MINIMO.md) para documentação detalhada do cálculo de estoque mínimo.
+Veja [API_ESTOQUE_MINIMO.md](arquivo_morto/docs/API_ESTOQUE_MINIMO.md) para documentação detalhada do cálculo de estoque mínimo.

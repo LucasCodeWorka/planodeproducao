@@ -1,0 +1,3468 @@
+[
+  {
+    "idmateriaprima": "1010252",
+    "seqgrupo": "11130",
+    "cor": "1061",
+    "iddespesa": 11054,
+    "descricao": "REGULADOR METAL AMR 000/C 10MM DOURADO U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "5001145",
+    "seqgrupo": "6311",
+    "cor": "904",
+    "iddespesa": 11691,
+    "descricao": "PROT 45 X 70 X 0,5 PLUS BODY FURO CABII UNICA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1010251",
+    "seqgrupo": "11128",
+    "cor": "1061",
+    "iddespesa": 11383,
+    "descricao": "ARGOLA METAL AMA 000/B 8/10MM DOURADO DOURADO U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014654",
+    "seqgrupo": "1409",
+    "cor": "2380",
+    "iddespesa": 11181,
+    "descricao": "REGULADOR PLAST 10MM  APR 001 20041 VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014661",
+    "seqgrupo": "1407",
+    "cor": "2380",
+    "iddespesa": 11172,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014667",
+    "seqgrupo": "3342",
+    "cor": "2380",
+    "iddespesa": 11129,
+    "descricao": "REGULADOR APR 002 POM  12 MM 27168 VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1001829",
+    "seqgrupo": "1573",
+    "cor": "1649",
+    "iddespesa": 11593,
+    "descricao": "ETIQ. TECIDO LIEBE 10- BEGE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014492",
+    "seqgrupo": "1036",
+    "cor": "2380",
+    "iddespesa": 11366,
+    "descricao": "ELAST. TUI 5MM VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014691",
+    "seqgrupo": "1600",
+    "cor": "2380",
+    "iddespesa": 11260,
+    "descricao": "GANCHO APG 005 10MM VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014657",
+    "seqgrupo": "999",
+    "cor": "2380",
+    "iddespesa": 11710,
+    "descricao": "ELAST. NILLO 16MM C/100MT VANILLA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014647",
+    "seqgrupo": "1406",
+    "cor": "2380",
+    "iddespesa": 11166,
+    "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1005471",
+    "seqgrupo": "1442",
+    "cor": "0045",
+    "iddespesa": 11196,
+    "descricao": "FECHO GIRATORIO 13 MM C/ LOGO SUEDE U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1010925",
+    "seqgrupo": "11380",
+    "cor": "300",
+    "iddespesa": 11068,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST PRETO U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014653",
+    "seqgrupo": "1409",
+    "cor": "1885",
+    "iddespesa": 11457,
+    "descricao": "REGULADOR PLAST 10MM  APR 001 20041 TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014488",
+    "seqgrupo": "13308",
+    "cor": "2380",
+    "iddespesa": 11416,
+    "descricao": "ELASTICO TUSTI 10MM VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016067",
+    "seqgrupo": "1484",
+    "cor": "1906",
+    "iddespesa": 11563,
+    "descricao": "LACO MIDI MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015415",
+    "seqgrupo": "1406",
+    "cor": "1901",
+    "iddespesa": 11441,
+    "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015413",
+    "seqgrupo": "1409",
+    "cor": "1901",
+    "iddespesa": 11459,
+    "descricao": "REGULADOR PLAST 10MM  APR 001 20041 AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014649",
+    "seqgrupo": "1406",
+    "cor": "1885",
+    "iddespesa": 11438,
+    "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1006191",
+    "seqgrupo": "6264",
+    "cor": "904",
+    "iddespesa": 11690,
+    "descricao": "TAG SUTIA IDEAL BASICO & RENDA UNICA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016186",
+    "seqgrupo": "14736",
+    "cor": "1002",
+    "iddespesa": 11533,
+    "descricao": "ARGOLA DE CORACAO AMC 009 20MM OURO OURO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1005645",
+    "seqgrupo": "1600",
+    "cor": "0045",
+    "iddespesa": 11257,
+    "descricao": "GANCHO APG 005 10MM SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1005473",
+    "seqgrupo": "3342",
+    "cor": "0045",
+    "iddespesa": 11018,
+    "descricao": "REGULADOR APR 002 POM  12 MM 27168 SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1002210",
+    "seqgrupo": "1407",
+    "cor": "300",
+    "iddespesa": 11173,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014669",
+    "seqgrupo": "7044",
+    "cor": "2380",
+    "iddespesa": 11696,
+    "descricao": "CADARCO JO 11MM REF. VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014655",
+    "seqgrupo": "1409",
+    "cor": "2379",
+    "iddespesa": 11180,
+    "descricao": "REGULADOR PLAST 10MM  APR 001 20041 MAUVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014579",
+    "seqgrupo": "3342",
+    "cor": "1885",
+    "iddespesa": 11654,
+    "descricao": "REGULADOR APR 002 POM  12 MM 27168 TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014577",
+    "seqgrupo": "1407",
+    "cor": "1885",
+    "iddespesa": 11447,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016065",
+    "seqgrupo": "1484",
+    "cor": "1901",
+    "iddespesa": 11561,
+    "descricao": "LACO MIDI AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1010920",
+    "seqgrupo": "11376",
+    "cor": "300",
+    "iddespesa": 11390,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST PRETO U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1004040",
+    "seqgrupo": "3342",
+    "cor": "300",
+    "iddespesa": 11294,
+    "descricao": "REGULADOR APR 002 POM  12 MM 27168 PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016318",
+    "seqgrupo": "1409",
+    "cor": "1903",
+    "iddespesa": 11460,
+    "descricao": "REGULADOR PLAST 10MM  APR 001 20041 OLIVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016317",
+    "seqgrupo": "1406",
+    "cor": "1903",
+    "iddespesa": 11442,
+    "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 OLIVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014490",
+    "seqgrupo": "2976",
+    "cor": "2380",
+    "iddespesa": 11650,
+    "descricao": "RENDA 270115 90%POLIAMIDA 10%ELASTANO VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016395",
+    "seqgrupo": "17843",
+    "cor": "904",
+    "iddespesa": 11605,
+    "descricao": "ARCO MF FIT 1000 AA396 UNICA 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015364",
+    "seqgrupo": "14288",
+    "cor": "1002",
+    "iddespesa": 11471,
+    "descricao": "AMP 009 10MM OURO24K OURO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014390",
+    "seqgrupo": "999",
+    "cor": "1885",
+    "iddespesa": 11290,
+    "descricao": "ELAST. NILLO 16MM C/100MT TRUFA U",
+    "status": "SEM_CONFIRMACAO"
+  },
+  {
+    "idmateriaprima": "1014199",
+    "seqgrupo": "1036",
+    "cor": "1885",
+    "iddespesa": 11031,
+    "descricao": "ELAST. TUI 5MM TRUFA U",
+    "status": "SEM_CONFIRMACAO"
+  },
+  {
+    "idmateriaprima": "1016066",
+    "seqgrupo": "1484",
+    "cor": "1903",
+    "iddespesa": 11562,
+    "descricao": "LACO MIDI OLIVE U",
+    "status": "SEM_CONFIRMACAO"
+  },
+  {
+    "idmateriaprima": "1015667",
+    "seqgrupo": "1409",
+    "cor": "1906",
+    "iddespesa": 11461,
+    "descricao": "REGULADOR PLAST 10MM  APR 001 20041 MALAGUETA U",
+    "status": "SEM_CONFIRMACAO"
+  },
+  {
+    "idmateriaprima": "1015349",
+    "seqgrupo": "14238",
+    "cor": "1002",
+    "iddespesa": 11465,
+    "descricao": "ARGOLA CORACAO KBR43650 - 0167 25X22MM OURO U",
+    "status": "SEM_CONFIRMACAO"
+  },
+  {
+    "idmateriaprima": "1011864",
+    "seqgrupo": "12152",
+    "cor": "904",
+    "iddespesa": 11080,
+    "descricao": "MP AVIAMENTO BARBATANA (PALHETA) 7 CM FERMOPLAST UNICA U",
+    "status": "SEM_CONFIRMACAO"
+  },
+  {
+    "idmateriaprima": "1001482",
+    "seqgrupo": "1036",
+    "cor": "300",
+    "iddespesa": 11367,
+    "descricao": "ELAST. TUI 5MM PRETO U",
+    "status": "SEM_CONFIRMACAO"
+  },
+  {
+    "idmateriaprima": "1010252",
+    "seqgrupo": "11130",
+    "cor": "1061",
+    "iddespesa": 11054,
+    "descricao": "REGULADOR METAL AMR 000/C 10MM DOURADO U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1010251",
+    "seqgrupo": "11128",
+    "cor": "1061",
+    "iddespesa": 11383,
+    "descricao": "ARGOLA METAL AMA 000/B 8/10MM DOURADO DOURADO U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014657",
+    "seqgrupo": "999",
+    "cor": "2380",
+    "iddespesa": 11710,
+    "descricao": "ELAST. NILLO 16MM C/100MT VANILLA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1005471",
+    "seqgrupo": "1442",
+    "cor": "0045",
+    "iddespesa": 11196,
+    "descricao": "FECHO GIRATORIO 13 MM C/ LOGO SUEDE U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1010925",
+    "seqgrupo": "11380",
+    "cor": "300",
+    "iddespesa": 11068,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST PRETO U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1006191",
+    "seqgrupo": "6264",
+    "cor": "904",
+    "iddespesa": 11690,
+    "descricao": "TAG SUTIA IDEAL BASICO & RENDA UNICA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1010252",
+    "seqgrupo": "11130",
+    "cor": "1061",
+    "iddespesa": 11054,
+    "descricao": "REGULADOR METAL AMR 000/C 10MM DOURADO U",
+    "status": "SEM_CONFIRMACAO"
+  },
+  {
+    "idmateriaprima": "1010252",
+    "seqgrupo": "11130",
+    "cor": "1061",
+    "iddespesa": 11054,
+    "descricao": "REGULADOR METAL AMR 000/C 10MM DOURADO U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014390",
+    "seqgrupo": "999",
+    "cor": "1885",
+    "iddespesa": 11290,
+    "descricao": "ELAST. NILLO 16MM C/100MT TRUFA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014199",
+    "seqgrupo": "1036",
+    "cor": "1885",
+    "iddespesa": 11031,
+    "descricao": "ELAST. TUI 5MM TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016066",
+    "seqgrupo": "1484",
+    "cor": "1903",
+    "iddespesa": 11562,
+    "descricao": "LACO MIDI OLIVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015667",
+    "seqgrupo": "1409",
+    "cor": "1906",
+    "iddespesa": 11461,
+    "descricao": "REGULADOR PLAST 10MM  APR 001 20041 MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015349",
+    "seqgrupo": "14238",
+    "cor": "1002",
+    "iddespesa": 11465,
+    "descricao": "ARGOLA CORACAO KBR43650 - 0167 25X22MM OURO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1011864",
+    "seqgrupo": "12152",
+    "cor": "904",
+    "iddespesa": 11080,
+    "descricao": "MP AVIAMENTO BARBATANA (PALHETA) 7 CM FERMOPLAST UNICA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1001482",
+    "seqgrupo": "1036",
+    "cor": "300",
+    "iddespesa": 11367,
+    "descricao": "ELAST. TUI 5MM PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015420",
+    "seqgrupo": "14370",
+    "cor": "300",
+    "iddespesa": 11477,
+    "descricao": "ELAST ANNICK 11MM PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014656",
+    "seqgrupo": "1029",
+    "cor": "2380",
+    "iddespesa": 11025,
+    "descricao": "ELAST. PAJAU 14 MM VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014648",
+    "seqgrupo": "1406",
+    "cor": "2379",
+    "iddespesa": 11444,
+    "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 MAUVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014384",
+    "seqgrupo": "999",
+    "cor": "2379",
+    "iddespesa": 11291,
+    "descricao": "ELAST. NILLO 16MM C/100MT MAUVE U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015576",
+    "seqgrupo": "14370",
+    "cor": "1906",
+    "iddespesa": 11476,
+    "descricao": "ELAST ANNICK 11MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014472",
+    "seqgrupo": "1036",
+    "cor": "2379",
+    "iddespesa": 11032,
+    "descricao": "ELAST. TUI 5MM MAUVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015348",
+    "seqgrupo": "14235",
+    "cor": "1002",
+    "iddespesa": 11464,
+    "descricao": "ARGOLA CORACAO KBR43651- 0068 16X14MM OURO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014663",
+    "seqgrupo": "1068",
+    "cor": "2380",
+    "iddespesa": 11381,
+    "descricao": "ELAST. DONNA 14MM VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014651",
+    "seqgrupo": "1067",
+    "cor": "2380",
+    "iddespesa": 11378,
+    "descricao": "ELAST. DONNA 10MM VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015327",
+    "seqgrupo": "14178",
+    "cor": "1035",
+    "iddespesa": 11463,
+    "descricao": "ELAST. MOLETON 25MM CRU U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1002419",
+    "seqgrupo": "1429",
+    "cor": "1061",
+    "iddespesa": 11193,
+    "descricao": "REGULADOR METAL AMR 13 MM DOURADO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1008965",
+    "seqgrupo": "10727",
+    "cor": "1694",
+    "iddespesa": 11044,
+    "descricao": "BJ 907.743 ESTLIEBE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015499",
+    "seqgrupo": "1424",
+    "cor": "1901",
+    "iddespesa": 11467,
+    "descricao": "ARGOLA DE 18MM APA 005 AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015421",
+    "seqgrupo": "14370",
+    "cor": "1902",
+    "iddespesa": 11475,
+    "descricao": "ELAST ANNICK 11MM MILKSHAKE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016145",
+    "seqgrupo": "1407",
+    "cor": "1906",
+    "iddespesa": 11452,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1012649",
+    "seqgrupo": "12843",
+    "cor": "100",
+    "iddespesa": 11408,
+    "descricao": "ELASTICO CERRUTI 11MM BRANCO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016435",
+    "seqgrupo": "1406",
+    "cor": "1906",
+    "iddespesa": 11443,
+    "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015704",
+    "seqgrupo": "3344",
+    "cor": "1901",
+    "iddespesa": 11659,
+    "descricao": "REGULADOR APR 016 POM  18 MM AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015412",
+    "seqgrupo": "1409",
+    "cor": "1900",
+    "iddespesa": 11458,
+    "descricao": "REGULADOR PLAST 10MM  APR 001 20041 DUNA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015414",
+    "seqgrupo": "1406",
+    "cor": "1900",
+    "iddespesa": 11440,
+    "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 DUNA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015431",
+    "seqgrupo": "14378",
+    "cor": "100",
+    "iddespesa": 11478,
+    "descricao": "ELAST JERI 11MM BRANCO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015338",
+    "seqgrupo": "14210",
+    "cor": "0045",
+    "iddespesa": 11183,
+    "descricao": "ELAST. TATTO 10MM SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015564",
+    "seqgrupo": "14378",
+    "cor": "1906",
+    "iddespesa": 11479,
+    "descricao": "ELAST JERI 11MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1002441",
+    "seqgrupo": "1442",
+    "cor": "300",
+    "iddespesa": 11197,
+    "descricao": "FECHO GIRATORIO 13 MM C/ LOGO PRETO U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1008964",
+    "seqgrupo": "10727",
+    "cor": "1694",
+    "iddespesa": 11044,
+    "descricao": "BJ 907.743 ESTLIEBE 44",
+    "status": "SEM_CONFIRMACAO"
+  },
+  {
+    "idmateriaprima": "1002418",
+    "seqgrupo": "1428",
+    "cor": "1061",
+    "iddespesa": 11470,
+    "descricao": "ARGOLA METAL AMA 13 MM DOURADO DOURADO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015725",
+    "seqgrupo": "12843",
+    "cor": "1906",
+    "iddespesa": 11412,
+    "descricao": "ELASTICO CERRUTI 11MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1006898",
+    "seqgrupo": "7044",
+    "cor": "0045",
+    "iddespesa": 11342,
+    "descricao": "CADARCO JO 11MM REF. SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016444",
+    "seqgrupo": "3342",
+    "cor": "1906",
+    "iddespesa": 11658,
+    "descricao": "REGULADOR APR 002 POM  12 MM 27168 MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014668",
+    "seqgrupo": "609",
+    "cor": "2380",
+    "iddespesa": 11683,
+    "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016312",
+    "seqgrupo": "11376",
+    "cor": "2381",
+    "iddespesa": 11389,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST BERINGELA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016313",
+    "seqgrupo": "11380",
+    "cor": "2381",
+    "iddespesa": 11397,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST BERINGELA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1005598",
+    "seqgrupo": "1409",
+    "cor": "0045",
+    "iddespesa": 11174,
+    "descricao": "REGULADOR PLAST 10MM  APR 001 20041 SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016146",
+    "seqgrupo": "1407",
+    "cor": "1903",
+    "iddespesa": 11451,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 OLIVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016467",
+    "seqgrupo": "14752",
+    "cor": "2380",
+    "iddespesa": 11544,
+    "descricao": "ELAST MANACA BRILHOSO 13MM VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1005998",
+    "seqgrupo": "6029",
+    "cor": "0060",
+    "iddespesa": 11673,
+    "descricao": "ARGOLA METAL AMA 000 7MM ROSE GOLD U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016450",
+    "seqgrupo": "1442",
+    "cor": "1827",
+    "iddespesa": 11486,
+    "descricao": "FECHO GIRATORIO 13 MM C/ LOGO AMENDOA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015595",
+    "seqgrupo": "11380",
+    "cor": "1903",
+    "iddespesa": 11395,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST OLIVE U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015594",
+    "seqgrupo": "11376",
+    "cor": "1903",
+    "iddespesa": 11387,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST OLIVE U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015451",
+    "seqgrupo": "1407",
+    "cor": "1901",
+    "iddespesa": 11450,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015403",
+    "seqgrupo": "15717",
+    "cor": "1901",
+    "iddespesa": 11589,
+    "descricao": "ELAST HORTENCIA 16MM AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1009644",
+    "seqgrupo": "10842",
+    "cor": "300",
+    "iddespesa": 11382,
+    "descricao": "ELAST. PAIVA 11MM PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015522",
+    "seqgrupo": "609",
+    "cor": "1902",
+    "iddespesa": 11681,
+    "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 MILKSHAKE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015389",
+    "seqgrupo": "15717",
+    "cor": "1899",
+    "iddespesa": 11587,
+    "descricao": "ELAST HORTENCIA 16MM ROSEWOOD U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1006528",
+    "seqgrupo": "7044",
+    "cor": "300",
+    "iddespesa": 11697,
+    "descricao": "CADARCO JO 11MM REF. PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1011740",
+    "seqgrupo": "12017",
+    "cor": "1590",
+    "iddespesa": 11071,
+    "descricao": "VIES DE 2,5 VISCOVE M.V.S OFF WHITE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013817",
+    "seqgrupo": "13490",
+    "cor": "300",
+    "iddespesa": 11141,
+    "descricao": "BOJO BOLHA 912.772 PRETO 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014584",
+    "seqgrupo": "15717",
+    "cor": "300",
+    "iddespesa": 11592,
+    "descricao": "ELAST HORTENCIA 16MM PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015568",
+    "seqgrupo": "7044",
+    "cor": "1906",
+    "iddespesa": 11694,
+    "descricao": "CADARCO JO 11MM REF. MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1010918",
+    "seqgrupo": "3342",
+    "cor": "1785",
+    "iddespesa": 11652,
+    "descricao": "REGULADOR APR 002 POM  12 MM 27168 CALLAS U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016449",
+    "seqgrupo": "3342",
+    "cor": "1827",
+    "iddespesa": 11653,
+    "descricao": "REGULADOR APR 002 POM  12 MM 27168 AMENDOA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013605",
+    "seqgrupo": "1443",
+    "cor": "1785",
+    "iddespesa": 11487,
+    "descricao": "FECHO GIRATORIO 18 MM C/ LOGO CALLAS U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014403",
+    "seqgrupo": "609",
+    "cor": "1885",
+    "iddespesa": 11328,
+    "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014195",
+    "seqgrupo": "13308",
+    "cor": "1885",
+    "iddespesa": 11112,
+    "descricao": "ELASTICO TUSTI 10MM TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014196",
+    "seqgrupo": "2976",
+    "cor": "1885",
+    "iddespesa": 11017,
+    "descricao": "RENDA 270115 90%POLIAMIDA 10%ELASTANO TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013929",
+    "seqgrupo": "13508",
+    "cor": "1707",
+    "iddespesa": 11144,
+    "descricao": "BJ 215.963 (PLZ) CHOCO/ESTLIEBE 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014388",
+    "seqgrupo": "7044",
+    "cor": "1885",
+    "iddespesa": 11345,
+    "descricao": "CADARCO JO 11MM REF. TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1002211",
+    "seqgrupo": "1407",
+    "cor": "500",
+    "iddespesa": 11453,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 CHOCOLATE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013930",
+    "seqgrupo": "13508",
+    "cor": "1707",
+    "iddespesa": 11144,
+    "descricao": "BJ 215.963 (PLZ) CHOCO/ESTLIEBE 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016206",
+    "seqgrupo": "14761",
+    "cor": "1906",
+    "iddespesa": 11549,
+    "descricao": "ELAST MANACA BRILHOSO 7MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014666",
+    "seqgrupo": "3342",
+    "cor": "2379",
+    "iddespesa": 11128,
+    "descricao": "REGULADOR APR 002 POM  12 MM 27168 MAUVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014662",
+    "seqgrupo": "1407",
+    "cor": "2379",
+    "iddespesa": 11171,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 MAUVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013665",
+    "seqgrupo": "13488",
+    "cor": "500",
+    "iddespesa": 11135,
+    "descricao": "BOJO CASCA 911.001 CHOCOLATE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015668",
+    "seqgrupo": "1600",
+    "cor": "1906",
+    "iddespesa": 11597,
+    "descricao": "GANCHO APG 005 10MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015669",
+    "seqgrupo": "2914",
+    "cor": "1906",
+    "iddespesa": 11649,
+    "descricao": "ESPARTILHO APE 001 10MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013745",
+    "seqgrupo": "13488",
+    "cor": "300",
+    "iddespesa": 11134,
+    "descricao": "BOJO CASCA 911.001 PRETO 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015341",
+    "seqgrupo": "14217",
+    "cor": "0045",
+    "iddespesa": 11185,
+    "descricao": "ELAST. TATTO 13MM SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1001481",
+    "seqgrupo": "1036",
+    "cor": "100",
+    "iddespesa": 11363,
+    "descricao": "ELAST. TUI 5MM BRANCO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013746",
+    "seqgrupo": "13488",
+    "cor": "300",
+    "iddespesa": 11134,
+    "descricao": "BOJO CASCA 911.001 PRETO 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015808",
+    "seqgrupo": "12843",
+    "cor": "1902",
+    "iddespesa": 11410,
+    "descricao": "ELASTICO CERRUTI 11MM MILKSHAKE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014665",
+    "seqgrupo": "1068",
+    "cor": "1885",
+    "iddespesa": 11380,
+    "descricao": "ELAST. DONNA 14MM TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1005618",
+    "seqgrupo": "1443",
+    "cor": "0045",
+    "iddespesa": 11199,
+    "descricao": "FECHO GIRATORIO 18 MM C/ LOGO SUEDE U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1013928",
+    "seqgrupo": "13508",
+    "cor": "1707",
+    "iddespesa": 11144,
+    "descricao": "BJ 215.963 (PLZ) CHOCO/ESTLIEBE 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1006271",
+    "seqgrupo": "1407",
+    "cor": "0045",
+    "iddespesa": 11167,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013818",
+    "seqgrupo": "13490",
+    "cor": "300",
+    "iddespesa": 11141,
+    "descricao": "BOJO BOLHA 912.772 PRETO 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014387",
+    "seqgrupo": "609",
+    "cor": "2379",
+    "iddespesa": 11329,
+    "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 MAUVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015013",
+    "seqgrupo": "3329",
+    "cor": "0071",
+    "iddespesa": 11651,
+    "descricao": "ELAST MANACA BRILHOSO 17MM LOVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015497",
+    "seqgrupo": "14423",
+    "cor": "904",
+    "iddespesa": 1459,
+    "descricao": "TAG LIEBE ONE UNICA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016433",
+    "seqgrupo": "11376",
+    "cor": "1906",
+    "iddespesa": 11388,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST MALAGUETA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016431",
+    "seqgrupo": "11380",
+    "cor": "1901",
+    "iddespesa": 11394,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST AMEIXA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016429",
+    "seqgrupo": "11376",
+    "cor": "1901",
+    "iddespesa": 11386,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST AMEIXA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016434",
+    "seqgrupo": "11380",
+    "cor": "1906",
+    "iddespesa": 11396,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST MALAGUETA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1013816",
+    "seqgrupo": "13490",
+    "cor": "300",
+    "iddespesa": 11141,
+    "descricao": "BOJO BOLHA 912.772 PRETO 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016438",
+    "seqgrupo": "3342",
+    "cor": "1903",
+    "iddespesa": 11657,
+    "descricao": "REGULADOR APR 002 POM  12 MM 27168 OLIVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013781",
+    "seqgrupo": "13490",
+    "cor": "500",
+    "iddespesa": 11142,
+    "descricao": "BOJO BOLHA 912.772 CHOCOLATE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1005999",
+    "seqgrupo": "6031",
+    "cor": "0060",
+    "iddespesa": 11326,
+    "descricao": "REGULADOR METAL AMR 000 7MM ROSE GOLD U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1012002",
+    "seqgrupo": "1409",
+    "cor": "1827",
+    "iddespesa": 11456,
+    "descricao": "REGULADOR PLAST 10MM  APR 001 20041 AMENDOA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015393",
+    "seqgrupo": "11376",
+    "cor": "1899",
+    "iddespesa": 11385,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST ROSEWOOD U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015394",
+    "seqgrupo": "11380",
+    "cor": "1899",
+    "iddespesa": 11393,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST ROSEWOOD U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015520",
+    "seqgrupo": "15717",
+    "cor": "1902",
+    "iddespesa": 11590,
+    "descricao": "ELAST HORTENCIA 16MM MILKSHAKE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016315",
+    "seqgrupo": "13411",
+    "cor": "2382",
+    "iddespesa": 11417,
+    "descricao": "VIES DE CETIM DE 2,5CM - ENVIESADO MALBEC U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013047",
+    "seqgrupo": "13097",
+    "cor": "500",
+    "iddespesa": 11103,
+    "descricao": "BOJO 7004 CHOCOLATE 48",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013046",
+    "seqgrupo": "13097",
+    "cor": "500",
+    "iddespesa": 11103,
+    "descricao": "BOJO 7004 CHOCOLATE 48",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015461",
+    "seqgrupo": "13644",
+    "cor": "1900",
+    "iddespesa": 11432,
+    "descricao": "ELASTICO CHER DUNA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1010947",
+    "seqgrupo": "11495",
+    "cor": "904",
+    "iddespesa": 11399,
+    "descricao": "ARCO EURO  MF DF 12 AA 377 UNICA 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1010946",
+    "seqgrupo": "11495",
+    "cor": "904",
+    "iddespesa": 11399,
+    "descricao": "ARCO EURO  MF DF 12 AA 377 UNICA 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015455",
+    "seqgrupo": "3342",
+    "cor": "1901",
+    "iddespesa": 11656,
+    "descricao": "REGULADOR APR 002 POM  12 MM 27168 AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015855",
+    "seqgrupo": "1600",
+    "cor": "1827",
+    "iddespesa": 11595,
+    "descricao": "GANCHO APG 005 10MM AMENDOA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015570",
+    "seqgrupo": "15717",
+    "cor": "1906",
+    "iddespesa": 11591,
+    "descricao": "ELAST HORTENCIA 16MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014689",
+    "seqgrupo": "1600",
+    "cor": "1885",
+    "iddespesa": 11596,
+    "descricao": "GANCHO APG 005 10MM TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015347",
+    "seqgrupo": "1484",
+    "cor": "2380",
+    "iddespesa": 11206,
+    "descricao": "LACO MIDI VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016042",
+    "seqgrupo": "1067",
+    "cor": "1903",
+    "iddespesa": 11376,
+    "descricao": "ELAST. DONNA 10MM OLIVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1005638",
+    "seqgrupo": "1062",
+    "cor": "0045",
+    "iddespesa": 11039,
+    "descricao": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015463",
+    "seqgrupo": "13644",
+    "cor": "1903",
+    "iddespesa": 11433,
+    "descricao": "ELASTICO CHER OLIVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1002757",
+    "seqgrupo": "1484",
+    "cor": "300",
+    "iddespesa": 11564,
+    "descricao": "LACO MIDI PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015569",
+    "seqgrupo": "609",
+    "cor": "1906",
+    "iddespesa": 11682,
+    "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015445",
+    "seqgrupo": "7044",
+    "cor": "1901",
+    "iddespesa": 11693,
+    "descricao": "CADARCO JO 11MM REF. AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014382",
+    "seqgrupo": "7044",
+    "cor": "2379",
+    "iddespesa": 11695,
+    "descricao": "CADARCO JO 11MM REF. MAUVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014080",
+    "seqgrupo": "11380",
+    "cor": "500",
+    "iddespesa": 11398,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST CHOCOLATE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013851",
+    "seqgrupo": "13520",
+    "cor": "1694",
+    "iddespesa": 11147,
+    "descricao": "BJ 210.976 (PLZ) ESTLIEBE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1010917",
+    "seqgrupo": "1407",
+    "cor": "1785",
+    "iddespesa": 11445,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 CALLAS U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016207",
+    "seqgrupo": "14761",
+    "cor": "1902",
+    "iddespesa": 11547,
+    "descricao": "ELAST MANACA BRILHOSO 7MM MILKSHAKE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013744",
+    "seqgrupo": "13488",
+    "cor": "300",
+    "iddespesa": 11134,
+    "descricao": "BOJO CASCA 911.001 PRETO 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014683",
+    "seqgrupo": "1039",
+    "cor": "2380",
+    "iddespesa": 11369,
+    "descricao": "ELAST. PAJAU 12 MM VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013666",
+    "seqgrupo": "13488",
+    "cor": "500",
+    "iddespesa": 11135,
+    "descricao": "BOJO CASCA 911.001 CHOCOLATE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014432",
+    "seqgrupo": "1029",
+    "cor": "1885",
+    "iddespesa": 11023,
+    "descricao": "ELAST. PAJAU 14 MM TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013664",
+    "seqgrupo": "13488",
+    "cor": "500",
+    "iddespesa": 11135,
+    "descricao": "BOJO CASCA 911.001 CHOCOLATE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014696",
+    "seqgrupo": "615",
+    "cor": "2380",
+    "iddespesa": 11689,
+    "descricao": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015632",
+    "seqgrupo": "1029",
+    "cor": "1906",
+    "iddespesa": 11358,
+    "descricao": "ELAST. PAJAU 14 MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014672",
+    "seqgrupo": "13488",
+    "cor": "2380",
+    "iddespesa": 11423,
+    "descricao": "BJ 911.001 CASCA C/ ALCA VANILLA 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1013782",
+    "seqgrupo": "13490",
+    "cor": "500",
+    "iddespesa": 11142,
+    "descricao": "BOJO BOLHA 912.772 CHOCOLATE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1008247",
+    "seqgrupo": "10349",
+    "cor": "500",
+    "iddespesa": 11027,
+    "descricao": "BJ 915.514 CHOCOLATE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015450",
+    "seqgrupo": "1407",
+    "cor": "1900",
+    "iddespesa": 11449,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 DUNA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015454",
+    "seqgrupo": "3342",
+    "cor": "1900",
+    "iddespesa": 11655,
+    "descricao": "REGULADOR APR 002 POM  12 MM 27168 DUNA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014686",
+    "seqgrupo": "13490",
+    "cor": "2380",
+    "iddespesa": 11140,
+    "descricao": "BOJO BOLHA 912.772 VANILLA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016586",
+    "seqgrupo": "12843",
+    "cor": "1900",
+    "iddespesa": 11409,
+    "descricao": "ELASTICO CERRUTI 11MM DUNA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016212",
+    "seqgrupo": "14743",
+    "cor": "1906",
+    "iddespesa": 11535,
+    "descricao": "ELAST MANACA BRILHOSO 10MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015449",
+    "seqgrupo": "1029",
+    "cor": "1901",
+    "iddespesa": 11357,
+    "descricao": "ELAST. PAJAU 14 MM AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014671",
+    "seqgrupo": "13488",
+    "cor": "2380",
+    "iddespesa": 11423,
+    "descricao": "BJ 911.001 CASCA C/ ALCA VANILLA 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1005460",
+    "seqgrupo": "1039",
+    "cor": "0045",
+    "iddespesa": 11368,
+    "descricao": "ELAST. PAJAU 12 MM SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016200",
+    "seqgrupo": "14752",
+    "cor": "300",
+    "iddespesa": 11545,
+    "descricao": "ELAST MANACA BRILHOSO 13MM PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013831",
+    "seqgrupo": "13505",
+    "cor": "1721",
+    "iddespesa": 11143,
+    "descricao": "BJ 207.961 (PLZ) CH EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014685",
+    "seqgrupo": "13490",
+    "cor": "2380",
+    "iddespesa": 11140,
+    "descricao": "BOJO BOLHA 912.772 VANILLA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013927",
+    "seqgrupo": "13508",
+    "cor": "1707",
+    "iddespesa": 11144,
+    "descricao": "BJ 215.963 (PLZ) CHOCO/ESTLIEBE 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015357",
+    "seqgrupo": "1407",
+    "cor": "1827",
+    "iddespesa": 11446,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 AMENDOA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1006248",
+    "seqgrupo": "6436",
+    "cor": "904",
+    "iddespesa": 11692,
+    "descricao": "PLACA METAL LIEBE OURO ROSE 08X 24MM UNICA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014673",
+    "seqgrupo": "13488",
+    "cor": "2380",
+    "iddespesa": 11423,
+    "descricao": "BJ 911.001 CASCA C/ ALCA VANILLA 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1000300",
+    "seqgrupo": "641",
+    "cor": "1694",
+    "iddespesa": 11340,
+    "descricao": "BJ EXT-PREM D 1900 TAM:44 ESTLIEBE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013737",
+    "seqgrupo": "13488",
+    "cor": "1697",
+    "iddespesa": 11130,
+    "descricao": "BOJO CASCA 911.001 NUDE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016585",
+    "seqgrupo": "12843",
+    "cor": "1903",
+    "iddespesa": 11411,
+    "descricao": "ELASTICO CERRUTI 11MM OLIVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1012003",
+    "seqgrupo": "1406",
+    "cor": "1827",
+    "iddespesa": 11437,
+    "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 AMENDOA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016305",
+    "seqgrupo": "999",
+    "cor": "2381",
+    "iddespesa": 11711,
+    "descricao": "ELAST. NILLO 16MM C/100MT BERINGELA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1013048",
+    "seqgrupo": "13097",
+    "cor": "500",
+    "iddespesa": 11103,
+    "descricao": "BOJO 7004 CHOCOLATE 48",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014569",
+    "seqgrupo": "447",
+    "cor": "2380",
+    "iddespesa": 11666,
+    "descricao": "MALHA SIELLA 1.65 VANILLA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013933",
+    "seqgrupo": "13510",
+    "cor": "1721",
+    "iddespesa": 11145,
+    "descricao": "BJ 210.962 (PLZ) CH EST/ LIEBE 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016443",
+    "seqgrupo": "3344",
+    "cor": "2381",
+    "iddespesa": 11662,
+    "descricao": "REGULADOR APR 016 POM  18 MM BERINGELA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016442",
+    "seqgrupo": "1598",
+    "cor": "2381",
+    "iddespesa": 11594,
+    "descricao": "FECHO APS 001 13MM E 18MM BERINGELA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013934",
+    "seqgrupo": "13510",
+    "cor": "1721",
+    "iddespesa": 11145,
+    "descricao": "BJ 210.962 (PLZ) CH EST/ LIEBE 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1000307",
+    "seqgrupo": "643",
+    "cor": "1694",
+    "iddespesa": 11341,
+    "descricao": "BJ EXT-PREM D 1900 TAM:46 ESTLIEBE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013819",
+    "seqgrupo": "13490",
+    "cor": "300",
+    "iddespesa": 11141,
+    "descricao": "BOJO BOLHA 912.772 PRETO 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013780",
+    "seqgrupo": "13490",
+    "cor": "500",
+    "iddespesa": 11142,
+    "descricao": "BOJO BOLHA 912.772 CHOCOLATE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1008246",
+    "seqgrupo": "10349",
+    "cor": "500",
+    "iddespesa": 11027,
+    "descricao": "BJ 915.514 CHOCOLATE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015665",
+    "seqgrupo": "14536",
+    "cor": "300",
+    "iddespesa": 11491,
+    "descricao": "TULE BORDADO - DES 15836 PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013852",
+    "seqgrupo": "13520",
+    "cor": "1694",
+    "iddespesa": 11147,
+    "descricao": "BJ 210.976 (PLZ) ESTLIEBE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1004563",
+    "seqgrupo": "1442",
+    "cor": "1697",
+    "iddespesa": 11484,
+    "descricao": "FECHO GIRATORIO 13 MM C/ LOGO NUDE U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016041",
+    "seqgrupo": "1067",
+    "cor": "1901",
+    "iddespesa": 11375,
+    "descricao": "ELAST. DONNA 10MM AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015508",
+    "seqgrupo": "999",
+    "cor": "1900",
+    "iddespesa": 11706,
+    "descricao": "ELAST. NILLO 16MM C/100MT DUNA U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016211",
+    "seqgrupo": "14743",
+    "cor": "1902",
+    "iddespesa": 11534,
+    "descricao": "ELAST MANACA BRILHOSO 10MM MILKSHAKE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1011854",
+    "seqgrupo": "12136",
+    "cor": "300",
+    "iddespesa": 11074,
+    "descricao": "VIES EM TECIDO MVS 2,5CM - COMPRIMENTO PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016649",
+    "seqgrupo": "18083",
+    "cor": "500",
+    "iddespesa": 11645,
+    "descricao": "BJ 904.731 REMOVIVEL CHOCOLATE 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013045",
+    "seqgrupo": "13097",
+    "cor": "500",
+    "iddespesa": 11103,
+    "descricao": "BOJO 7004 CHOCOLATE 48",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014405",
+    "seqgrupo": "447",
+    "cor": "1885",
+    "iddespesa": 11307,
+    "descricao": "MALHA SIELLA 1.65 TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015872",
+    "seqgrupo": "14690",
+    "cor": "0045",
+    "iddespesa": 11526,
+    "descricao": "TECIDO UV 3147 SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013983",
+    "seqgrupo": "11380",
+    "cor": "1697",
+    "iddespesa": 11391,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST NUDE U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016436",
+    "seqgrupo": "1424",
+    "cor": "1906",
+    "iddespesa": 11469,
+    "descricao": "ARGOLA DE 18MM APA 005 MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016437",
+    "seqgrupo": "3344",
+    "cor": "1906",
+    "iddespesa": 11661,
+    "descricao": "REGULADOR APR 016 POM  18 MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016439",
+    "seqgrupo": "3344",
+    "cor": "1903",
+    "iddespesa": 11660,
+    "descricao": "REGULADOR APR 016 POM  18 MM OLIVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016440",
+    "seqgrupo": "1424",
+    "cor": "1903",
+    "iddespesa": 11468,
+    "descricao": "ARGOLA DE 18MM APA 005 OLIVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013853",
+    "seqgrupo": "13520",
+    "cor": "1694",
+    "iddespesa": 11147,
+    "descricao": "BJ 210.976 (PLZ) ESTLIEBE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014425",
+    "seqgrupo": "13488",
+    "cor": "1885",
+    "iddespesa": 11132,
+    "descricao": "BOJO CASCA 911.001 TRUFA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014687",
+    "seqgrupo": "13490",
+    "cor": "2380",
+    "iddespesa": 11140,
+    "descricao": "BOJO BOLHA 912.772 VANILLA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1000050",
+    "seqgrupo": "447",
+    "cor": "300",
+    "iddespesa": 11309,
+    "descricao": "MALHA SIELLA 1.65 PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014431",
+    "seqgrupo": "1029",
+    "cor": "2379",
+    "iddespesa": 11024,
+    "descricao": "ELAST. PAJAU 14 MM MAUVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014426",
+    "seqgrupo": "13488",
+    "cor": "1885",
+    "iddespesa": 11132,
+    "descricao": "BOJO CASCA 911.001 TRUFA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014684",
+    "seqgrupo": "13490",
+    "cor": "2380",
+    "iddespesa": 11140,
+    "descricao": "BOJO BOLHA 912.772 VANILLA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1001638",
+    "seqgrupo": "1067",
+    "cor": "1697",
+    "iddespesa": 11373,
+    "descricao": "ELAST. DONNA 10MM NUDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016357",
+    "seqgrupo": "17837",
+    "cor": "904",
+    "iddespesa": 11604,
+    "descricao": "ARCO MF 2001 AA421 (PONTA 21) UNICA 50",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015385",
+    "seqgrupo": "1484",
+    "cor": "1827",
+    "iddespesa": 11560,
+    "descricao": "LACO MIDI AMENDOA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014370",
+    "seqgrupo": "13490",
+    "cor": "1885",
+    "iddespesa": 11138,
+    "descricao": "BOJO BOLHA 912.772 TRUFA 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015401",
+    "seqgrupo": "1036",
+    "cor": "1901",
+    "iddespesa": 11364,
+    "descricao": "ELAST. TUI 5MM AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015577",
+    "seqgrupo": "1036",
+    "cor": "1906",
+    "iddespesa": 11365,
+    "descricao": "ELAST. TUI 5MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016650",
+    "seqgrupo": "18083",
+    "cor": "500",
+    "iddespesa": 11645,
+    "descricao": "BJ 904.731 REMOVIVEL CHOCOLATE 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014424",
+    "seqgrupo": "13488",
+    "cor": "1885",
+    "iddespesa": 11132,
+    "descricao": "BOJO CASCA 911.001 TRUFA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013505",
+    "seqgrupo": "13411",
+    "cor": "300",
+    "iddespesa": 11121,
+    "descricao": "VIES DE CETIM DE 3CM - ENVIESADO PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013812",
+    "seqgrupo": "13490",
+    "cor": "1697",
+    "iddespesa": 11136,
+    "descricao": "BOJO BOLHA 912.772 NUDE 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014383",
+    "seqgrupo": "447",
+    "cor": "2379",
+    "iddespesa": 11308,
+    "descricao": "MALHA SIELLA 1.65 MAUVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013813",
+    "seqgrupo": "13490",
+    "cor": "1697",
+    "iddespesa": 11136,
+    "descricao": "BOJO BOLHA 912.772 NUDE 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1010821",
+    "seqgrupo": "1031",
+    "cor": "1785",
+    "iddespesa": 11359,
+    "descricao": "AVIAMENTO ELAST. JATAI 30MM ( COZ) CALLAS U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016222",
+    "seqgrupo": "14761",
+    "cor": "1899",
+    "iddespesa": 11546,
+    "descricao": "ELAST MANACA BRILHOSO 7MM ROSEWOOD U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014197",
+    "seqgrupo": "2976",
+    "cor": "1785",
+    "iddespesa": 11016,
+    "descricao": "RENDA 270115 90%POLIAMIDA 10%ELASTANO CALLAS U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013935",
+    "seqgrupo": "13510",
+    "cor": "1721",
+    "iddespesa": 11145,
+    "descricao": "BJ 210.962 (PLZ) CH EST/ LIEBE 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014697",
+    "seqgrupo": "615",
+    "cor": "1885",
+    "iddespesa": 11687,
+    "descricao": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1000051",
+    "seqgrupo": "447",
+    "cor": "500",
+    "iddespesa": 11310,
+    "descricao": "MALHA SIELLA 1.65 CHOCOLATE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014866",
+    "seqgrupo": "13488",
+    "cor": "1885",
+    "iddespesa": 11132,
+    "descricao": "BOJO CASCA 911.001 TRUFA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014421",
+    "seqgrupo": "13488",
+    "cor": "2379",
+    "iddespesa": 11133,
+    "descricao": "BOJO CASCA 911.001 MAUVE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014568",
+    "seqgrupo": "613",
+    "cor": "1885",
+    "iddespesa": 11332,
+    "descricao": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014377",
+    "seqgrupo": "13490",
+    "cor": "2379",
+    "iddespesa": 11139,
+    "descricao": "BOJO BOLHA 912.772 MAUVE 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013814",
+    "seqgrupo": "13490",
+    "cor": "1697",
+    "iddespesa": 11136,
+    "descricao": "BOJO BOLHA 912.772 NUDE 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014422",
+    "seqgrupo": "13488",
+    "cor": "2379",
+    "iddespesa": 11133,
+    "descricao": "BOJO CASCA 911.001 MAUVE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013769",
+    "seqgrupo": "13490",
+    "cor": "100",
+    "iddespesa": 11424,
+    "descricao": "BJ 912.772 BOLHA C/ ALCA BRANCO 42",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016677",
+    "seqgrupo": "18083",
+    "cor": "300",
+    "iddespesa": 11644,
+    "descricao": "BJ 904.731 REMOVIVEL PRETO 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015707",
+    "seqgrupo": "14080",
+    "cor": "1906",
+    "iddespesa": 11455,
+    "descricao": "ELASTICO FANCY 20MM MALAGUETA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1010824",
+    "seqgrupo": "3344",
+    "cor": "1785",
+    "iddespesa": 11299,
+    "descricao": "REGULADOR APR 016 POM  18 MM CALLAS U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014378",
+    "seqgrupo": "13490",
+    "cor": "2379",
+    "iddespesa": 11139,
+    "descricao": "BOJO BOLHA 912.772 MAUVE 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016310",
+    "seqgrupo": "12136",
+    "cor": "2381",
+    "iddespesa": 11404,
+    "descricao": "VIES EM TECIDO MVS 2,5CM - COMPRIMENTO BERINGELA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015402",
+    "seqgrupo": "15717",
+    "cor": "1900",
+    "iddespesa": 11588,
+    "descricao": "ELAST HORTENCIA 16MM DUNA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014369",
+    "seqgrupo": "13490",
+    "cor": "1885",
+    "iddespesa": 11138,
+    "descricao": "BOJO BOLHA 912.772 TRUFA 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015708",
+    "seqgrupo": "14080",
+    "cor": "1902",
+    "iddespesa": 11454,
+    "descricao": "ELASTICO FANCY 20MM MILKSHAKE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015498",
+    "seqgrupo": "1424",
+    "cor": "1900",
+    "iddespesa": 11466,
+    "descricao": "ARGOLA DE 18MM APA 005 DUNA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015807",
+    "seqgrupo": "615",
+    "cor": "1902",
+    "iddespesa": 1461,
+    "descricao": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 MILKSHAKE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016322",
+    "seqgrupo": "1407",
+    "cor": "1899",
+    "iddespesa": 11448,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 ROSEWOOD U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1001450",
+    "seqgrupo": "1029",
+    "cor": "300",
+    "iddespesa": 1455,
+    "descricao": "ELAST. PAJAU 14 MM PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013648",
+    "seqgrupo": "13488",
+    "cor": "100",
+    "iddespesa": 11006,
+    "descricao": "BOJO CASCA 911.001 BRANCO 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1008245",
+    "seqgrupo": "10349",
+    "cor": "500",
+    "iddespesa": 11027,
+    "descricao": "BJ 915.514 CHOCOLATE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014368",
+    "seqgrupo": "13490",
+    "cor": "1885",
+    "iddespesa": 11138,
+    "descricao": "BOJO BOLHA 912.772 TRUFA 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013747",
+    "seqgrupo": "13488",
+    "cor": "300",
+    "iddespesa": 11134,
+    "descricao": "BOJO CASCA 911.001 PRETO 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013832",
+    "seqgrupo": "13505",
+    "cor": "1721",
+    "iddespesa": 11143,
+    "descricao": "BJ 207.961 (PLZ) CH EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1013515",
+    "seqgrupo": "13431",
+    "cor": "100",
+    "iddespesa": 11122,
+    "descricao": "VIES DE CETIM DE 2,5CM DE LARGURA BRANCO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013770",
+    "seqgrupo": "13490",
+    "cor": "100",
+    "iddespesa": 11424,
+    "descricao": "BJ 912.772 BOLHA C/ ALCA BRANCO 42",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1013736",
+    "seqgrupo": "13488",
+    "cor": "1697",
+    "iddespesa": 11130,
+    "descricao": "BOJO CASCA 911.001 NUDE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016447",
+    "seqgrupo": "14299",
+    "cor": "904",
+    "iddespesa": 11472,
+    "descricao": "ARCO UNI 1215 UNICA 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016566",
+    "seqgrupo": "1034",
+    "cor": "1901",
+    "iddespesa": 11361,
+    "descricao": "ELAST MANACA BRILHOSO 7MM AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016300",
+    "seqgrupo": "13044",
+    "cor": "2381",
+    "iddespesa": 11413,
+    "descricao": "VIES EM TECIDO MVS 2,5CM BERINGELA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015666",
+    "seqgrupo": "14536",
+    "cor": "1901",
+    "iddespesa": 11490,
+    "descricao": "TULE BORDADO - DES 15836 AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016237",
+    "seqgrupo": "14761",
+    "cor": "1903",
+    "iddespesa": 11548,
+    "descricao": "ELAST MANACA BRILHOSO 7MM OLIVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016297",
+    "seqgrupo": "8356",
+    "cor": "2381",
+    "iddespesa": 11703,
+    "descricao": "MALHA VISCOSE M.V.S THIRTY PLUS 22518 BERINGELA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1005636",
+    "seqgrupo": "1031",
+    "cor": "0045",
+    "iddespesa": 11026,
+    "descricao": "ELAST. JATAI 30MM ( COZ) SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015468",
+    "seqgrupo": "2914",
+    "cor": "1901",
+    "iddespesa": 11648,
+    "descricao": "ESPARTILHO APE 001 10MM AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014371",
+    "seqgrupo": "13490",
+    "cor": "1885",
+    "iddespesa": 11138,
+    "descricao": "BOJO BOLHA 912.772 TRUFA 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013743",
+    "seqgrupo": "13488",
+    "cor": "300",
+    "iddespesa": 11134,
+    "descricao": "BOJO CASCA 911.001 PRETO 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014670",
+    "seqgrupo": "13488",
+    "cor": "2380",
+    "iddespesa": 11423,
+    "descricao": "BJ 911.001 CASCA C/ ALCA VANILLA 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1013830",
+    "seqgrupo": "13505",
+    "cor": "1721",
+    "iddespesa": 11143,
+    "descricao": "BJ 207.961 (PLZ) CH EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1013513",
+    "seqgrupo": "13431",
+    "cor": "300",
+    "iddespesa": 11124,
+    "descricao": "VIES DE CETIM DE 3CM DE LARGURA PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1005620",
+    "seqgrupo": "3344",
+    "cor": "0045",
+    "iddespesa": 11295,
+    "descricao": "REGULADOR APR 016 POM  18 MM SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015573",
+    "seqgrupo": "13490",
+    "cor": "1906",
+    "iddespesa": 11431,
+    "descricao": "BJ 912.772 BOLHA C/ ALCA MALAGUETA 42",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016664",
+    "seqgrupo": "18083",
+    "cor": "1697",
+    "iddespesa": 11638,
+    "descricao": "BJ 904.731 REMOVIVEL NUDE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013649",
+    "seqgrupo": "13488",
+    "cor": "100",
+    "iddespesa": 11006,
+    "descricao": "BOJO CASCA 911.001 BRANCO 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013049",
+    "seqgrupo": "13097",
+    "cor": "500",
+    "iddespesa": 11103,
+    "descricao": "BOJO 7004 CHOCOLATE 48",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1000292",
+    "seqgrupo": "639",
+    "cor": "1694",
+    "iddespesa": 11339,
+    "descricao": "BJ EXT-PREM D 1900 TAM:42 ESTLIEBE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013850",
+    "seqgrupo": "13520",
+    "cor": "1694",
+    "iddespesa": 11147,
+    "descricao": "BJ 210.976 (PLZ) ESTLIEBE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016333",
+    "seqgrupo": "1406",
+    "cor": "1899",
+    "iddespesa": 11439,
+    "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 ROSEWOOD U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1002238",
+    "seqgrupo": "1407",
+    "cor": "1697",
+    "iddespesa": 11170,
+    "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 NUDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016057",
+    "seqgrupo": "1011",
+    "cor": "1901",
+    "iddespesa": 1454,
+    "descricao": "ELAST. NILLO 25MM AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014759",
+    "seqgrupo": "13520",
+    "cor": "1721",
+    "iddespesa": 11148,
+    "descricao": "BJ 210.976 (PLZ) CH EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014420",
+    "seqgrupo": "13488",
+    "cor": "2379",
+    "iddespesa": 11133,
+    "descricao": "BOJO CASCA 911.001 MAUVE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016679",
+    "seqgrupo": "18083",
+    "cor": "300",
+    "iddespesa": 11644,
+    "descricao": "BJ 904.731 REMOVIVEL PRETO 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015574",
+    "seqgrupo": "13490",
+    "cor": "1906",
+    "iddespesa": 11431,
+    "descricao": "BJ 912.772 BOLHA C/ ALCA MALAGUETA 42",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016669",
+    "seqgrupo": "18083",
+    "cor": "1903",
+    "iddespesa": 11641,
+    "descricao": "BJ 904.731 REMOVIVEL OLIVE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013667",
+    "seqgrupo": "13488",
+    "cor": "500",
+    "iddespesa": 11135,
+    "descricao": "BOJO CASCA 911.001 CHOCOLATE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016314",
+    "seqgrupo": "13431",
+    "cor": "2382",
+    "iddespesa": 11418,
+    "descricao": "VIES DE CETIM DE 2,5CM DE LARGURA MALBEC U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016676",
+    "seqgrupo": "18083",
+    "cor": "300",
+    "iddespesa": 11644,
+    "descricao": "BJ 904.731 REMOVIVEL PRETO 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016008",
+    "seqgrupo": "13488",
+    "cor": "1901",
+    "iddespesa": 11420,
+    "descricao": "BJ 911.001 CASCA C/ ALCA AMEIXA 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015863",
+    "seqgrupo": "1062",
+    "cor": "1827",
+    "iddespesa": 11372,
+    "descricao": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR AMENDOA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015238",
+    "seqgrupo": "13411",
+    "cor": "1892",
+    "iddespesa": 11120,
+    "descricao": "VIES DE CETIM DE 2,5CM - ENVIESADO AZUL AURA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014518",
+    "seqgrupo": "1062",
+    "cor": "1785",
+    "iddespesa": 11371,
+    "descricao": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR CALLAS U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015259",
+    "seqgrupo": "13520",
+    "cor": "1983",
+    "iddespesa": 11149,
+    "descricao": "BJ 210.976 (PLZ) VN EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1011520",
+    "seqgrupo": "615",
+    "cor": "0045",
+    "iddespesa": 11334,
+    "descricao": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016651",
+    "seqgrupo": "18083",
+    "cor": "500",
+    "iddespesa": 11645,
+    "descricao": "BJ 904.731 REMOVIVEL CHOCOLATE 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016031",
+    "seqgrupo": "13488",
+    "cor": "1906",
+    "iddespesa": 11422,
+    "descricao": "BJ 911.001 CASCA C/ ALCA MALAGUETA 42",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016666",
+    "seqgrupo": "18083",
+    "cor": "1697",
+    "iddespesa": 11638,
+    "descricao": "BJ 904.731 REMOVIVEL NUDE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014423",
+    "seqgrupo": "13488",
+    "cor": "1885",
+    "iddespesa": 11132,
+    "descricao": "BOJO CASCA 911.001 TRUFA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1001633",
+    "seqgrupo": "1067",
+    "cor": "300",
+    "iddespesa": 11379,
+    "descricao": "ELAST. DONNA 10MM PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016678",
+    "seqgrupo": "18083",
+    "cor": "300",
+    "iddespesa": 11644,
+    "descricao": "BJ 904.731 REMOVIVEL PRETO 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015493",
+    "seqgrupo": "13490",
+    "cor": "1900",
+    "iddespesa": 11427,
+    "descricao": "BJ 912.772 BOLHA C/ ALCA DUNA 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016032",
+    "seqgrupo": "13488",
+    "cor": "1906",
+    "iddespesa": 11422,
+    "descricao": "BJ 911.001 CASCA C/ ALCA MALAGUETA 42",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016020",
+    "seqgrupo": "13488",
+    "cor": "1903",
+    "iddespesa": 11421,
+    "descricao": "BJ 911.001 CASCA C/ ALCA OLIVE 42",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1013926",
+    "seqgrupo": "13508",
+    "cor": "1707",
+    "iddespesa": 11144,
+    "descricao": "BJ 215.963 (PLZ) CHOCO/ESTLIEBE 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1013854",
+    "seqgrupo": "13520",
+    "cor": "1694",
+    "iddespesa": 11147,
+    "descricao": "BJ 210.976 (PLZ) ESTLIEBE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014376",
+    "seqgrupo": "13490",
+    "cor": "2379",
+    "iddespesa": 11139,
+    "descricao": "BOJO BOLHA 912.772 MAUVE 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013738",
+    "seqgrupo": "13488",
+    "cor": "1697",
+    "iddespesa": 11130,
+    "descricao": "BOJO CASCA 911.001 NUDE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014652",
+    "seqgrupo": "1067",
+    "cor": "1885",
+    "iddespesa": 11374,
+    "descricao": "ELAST. DONNA 10MM TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016007",
+    "seqgrupo": "13488",
+    "cor": "1901",
+    "iddespesa": 11420,
+    "descricao": "BJ 911.001 CASCA C/ ALCA AMEIXA 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016019",
+    "seqgrupo": "13488",
+    "cor": "1903",
+    "iddespesa": 11421,
+    "descricao": "BJ 911.001 CASCA C/ ALCA OLIVE 42",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016638",
+    "seqgrupo": "18083",
+    "cor": "1515",
+    "iddespesa": 11637,
+    "descricao": "BJ 904.731 REMOVIVEL AMEIXA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016658",
+    "seqgrupo": "18083",
+    "cor": "1906",
+    "iddespesa": 11642,
+    "descricao": "BJ 904.731 REMOVIVEL MALAGUETA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015871",
+    "seqgrupo": "14690",
+    "cor": "300",
+    "iddespesa": 11528,
+    "descricao": "TECIDO UV 3147 PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1005586",
+    "seqgrupo": "1036",
+    "cor": "0045",
+    "iddespesa": 11362,
+    "descricao": "ELAST. TUI 5MM SUEDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016684",
+    "seqgrupo": "18083",
+    "cor": "1899",
+    "iddespesa": 11640,
+    "descricao": "BJ 904.731 REMOVIVEL ROSEWOOD 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014379",
+    "seqgrupo": "13490",
+    "cor": "2379",
+    "iddespesa": 11139,
+    "descricao": "BOJO BOLHA 912.772 MAUVE 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015206",
+    "seqgrupo": "11376",
+    "cor": "1755",
+    "iddespesa": 11384,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST NAVY U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015205",
+    "seqgrupo": "11380",
+    "cor": "1755",
+    "iddespesa": 11392,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST NAVY U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1000287",
+    "seqgrupo": "637",
+    "cor": "1694",
+    "iddespesa": 11338,
+    "descricao": "BJ EXT-PREM D 1900 TAM:40 ESTLIEBE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013783",
+    "seqgrupo": "13490",
+    "cor": "500",
+    "iddespesa": 11142,
+    "descricao": "BOJO BOLHA 912.772 CHOCOLATE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013932",
+    "seqgrupo": "13510",
+    "cor": "1721",
+    "iddespesa": 11145,
+    "descricao": "BJ 210.962 (PLZ) CH EST/ LIEBE 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015769",
+    "seqgrupo": "14624",
+    "cor": "1697",
+    "iddespesa": 11202,
+    "descricao": "BOJO CASCA 811.664 ESPUMA TOUCH PREMIUM NUDE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015532",
+    "seqgrupo": "13649",
+    "cor": "1899",
+    "iddespesa": 11434,
+    "descricao": "ELASTICO ROYALE 14MM ROSEWOOD U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013326",
+    "seqgrupo": "13308",
+    "cor": "300",
+    "iddespesa": 1458,
+    "descricao": "ELASTICO TUSTI 10MM PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1000993",
+    "seqgrupo": "937",
+    "cor": "1707",
+    "iddespesa": 11281,
+    "descricao": "BJ  207.605 TAM:40 CHOCO/ESTLIEBE U",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015492",
+    "seqgrupo": "13490",
+    "cor": "1900",
+    "iddespesa": 11427,
+    "descricao": "BJ 912.772 BOLHA C/ ALCA DUNA 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015575",
+    "seqgrupo": "13490",
+    "cor": "1906",
+    "iddespesa": 11431,
+    "descricao": "BJ 912.772 BOLHA C/ ALCA MALAGUETA 42",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016010",
+    "seqgrupo": "13488",
+    "cor": "1901",
+    "iddespesa": 11420,
+    "descricao": "BJ 911.001 CASCA C/ ALCA AMEIXA 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1016639",
+    "seqgrupo": "18083",
+    "cor": "1515",
+    "iddespesa": 11637,
+    "descricao": "BJ 904.731 REMOVIVEL AMEIXA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016659",
+    "seqgrupo": "18083",
+    "cor": "1906",
+    "iddespesa": 11642,
+    "descricao": "BJ 904.731 REMOVIVEL MALAGUETA 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016670",
+    "seqgrupo": "18083",
+    "cor": "1903",
+    "iddespesa": 11641,
+    "descricao": "BJ 904.731 REMOVIVEL OLIVE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014758",
+    "seqgrupo": "13520",
+    "cor": "1721",
+    "iddespesa": 11148,
+    "descricao": "BJ 210.976 (PLZ) CH EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1000059",
+    "seqgrupo": "447",
+    "cor": "1697",
+    "iddespesa": 11305,
+    "descricao": "MALHA SIELLA 1.65 NUDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1011865",
+    "seqgrupo": "12154",
+    "cor": "904",
+    "iddespesa": 11081,
+    "descricao": "MP AVIAMENTO BARBATANA (PALHETA) 8 CM FERMOPLAST UNICA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1012345",
+    "seqgrupo": "12615",
+    "cor": "300",
+    "iddespesa": 11086,
+    "descricao": "BJ 17-026 PRETO 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1004162",
+    "seqgrupo": "444",
+    "cor": "1694",
+    "iddespesa": 11303,
+    "descricao": "MANTA CACHARREL D33  5MM ESTLIEBE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1001648",
+    "seqgrupo": "1068",
+    "cor": "1697",
+    "iddespesa": 1456,
+    "descricao": "ELAST. DONNA 14MM NUDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013663",
+    "seqgrupo": "13488",
+    "cor": "500",
+    "iddespesa": 11135,
+    "descricao": "BOJO CASCA 911.001 CHOCOLATE 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015772",
+    "seqgrupo": "14624",
+    "cor": "1697",
+    "iddespesa": 11202,
+    "descricao": "BOJO CASCA 811.664 ESPUMA TOUCH PREMIUM NUDE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015260",
+    "seqgrupo": "13520",
+    "cor": "1983",
+    "iddespesa": 11149,
+    "descricao": "BJ 210.976 (PLZ) VN EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015261",
+    "seqgrupo": "13520",
+    "cor": "1983",
+    "iddespesa": 11149,
+    "descricao": "BJ 210.976 (PLZ) VN EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014760",
+    "seqgrupo": "13520",
+    "cor": "1721",
+    "iddespesa": 11148,
+    "descricao": "BJ 210.976 (PLZ) CH EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014674",
+    "seqgrupo": "13488",
+    "cor": "2380",
+    "iddespesa": 11423,
+    "descricao": "BJ 911.001 CASCA C/ ALCA VANILLA 46",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1003684",
+    "seqgrupo": "803",
+    "cor": "1697",
+    "iddespesa": 11355,
+    "descricao": "BJ EXTRA CONFORT 213.385 TAM:48 NUDE U\u0010",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1012344",
+    "seqgrupo": "12615",
+    "cor": "300",
+    "iddespesa": 11086,
+    "descricao": "BJ 17-026 PRETO 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015263",
+    "seqgrupo": "13520",
+    "cor": "1983",
+    "iddespesa": 11149,
+    "descricao": "BJ 210.976 (PLZ) VN EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1014761",
+    "seqgrupo": "13520",
+    "cor": "1721",
+    "iddespesa": 11148,
+    "descricao": "BJ 210.976 (PLZ) CH EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1015253",
+    "seqgrupo": "13510",
+    "cor": "1983",
+    "iddespesa": 11146,
+    "descricao": "BJ 210.962 (PLZ) VN EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1005820",
+    "seqgrupo": "835",
+    "cor": "1694",
+    "iddespesa": 11265,
+    "descricao": "BJ TQC REF-217.364 TAM:48 ESTLIEBE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013833",
+    "seqgrupo": "13505",
+    "cor": "1721",
+    "iddespesa": 11143,
+    "descricao": "BJ 207.961 (PLZ) CH EST/ LIEBE 44",
+    "status": "SEM_RESULTADO"
+  },
+  {
+    "idmateriaprima": "1005821",
+    "seqgrupo": "837",
+    "cor": "1694",
+    "iddespesa": 11267,
+    "descricao": "BJ TQC REF-217.364 TAM:50 ESTLIEBE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1001386",
+    "seqgrupo": "1015",
+    "cor": "1035",
+    "iddespesa": 11003,
+    "descricao": "ELAST. MOLETON 20MM CRU U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013548",
+    "seqgrupo": "13440",
+    "cor": "500",
+    "iddespesa": 11004,
+    "descricao": "BOJO 02-0011 CHOCOLATE 48",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015756",
+    "seqgrupo": "14624",
+    "cor": "PT",
+    "iddespesa": 11203,
+    "descricao": "BOJO CASCA 811.664 ESPUMA TOUCH PREMIUM PRETO 46",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013655",
+    "seqgrupo": "13488",
+    "cor": "1785",
+    "iddespesa": 11131,
+    "descricao": "BOJO CASCA 911.001 CALLAS 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015764",
+    "seqgrupo": "14624",
+    "cor": "100",
+    "iddespesa": 11201,
+    "descricao": "BOJO CASCA 811.664 ESPUMA TOUCH PREMIUM BRANCO 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1012285",
+    "seqgrupo": "12493",
+    "cor": "500",
+    "iddespesa": 11084,
+    "descricao": "BJ 10-019 CHOCOLATE 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1003683",
+    "seqgrupo": "801",
+    "cor": "1697",
+    "iddespesa": 11353,
+    "descricao": "BJ EXTRA CONFORT 213.385 TAM:46 NUDE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1001644",
+    "seqgrupo": "1068",
+    "cor": "500",
+    "iddespesa": 11041,
+    "descricao": "ELAST. DONNA 14MM CHOCOLATE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016071",
+    "seqgrupo": "447",
+    "cor": "1901",
+    "iddespesa": 11664,
+    "descricao": "MALHA SIELLA 1.65 AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1006833",
+    "seqgrupo": "7461",
+    "cor": "300",
+    "iddespesa": 11701,
+    "descricao": "MEIA MALHA CARDADA BACTERICIDA 2045 PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014516",
+    "seqgrupo": "2580",
+    "cor": "1885",
+    "iddespesa": 11646,
+    "descricao": "PELLE 5330 79% POLIAMIDA 21% ELASTANO TRUFA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1012458",
+    "seqgrupo": "12615",
+    "cor": "100",
+    "iddespesa": 11085,
+    "descricao": "BJ 17-026 BRANCO 44",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013055",
+    "seqgrupo": "13097",
+    "cor": "100",
+    "iddespesa": 1457,
+    "descricao": "BJ 7004 TQC CASCA BRANCO 50",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1014650",
+    "seqgrupo": "1067",
+    "cor": "2379",
+    "iddespesa": 11377,
+    "descricao": "ELAST. DONNA 10MM MAUVE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013772",
+    "seqgrupo": "13490",
+    "cor": "1785",
+    "iddespesa": 11137,
+    "descricao": "BOJO BOLHA 912.772 CALLAS 42",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1005819",
+    "seqgrupo": "833",
+    "cor": "1694",
+    "iddespesa": 11264,
+    "descricao": "BJ TQC REF-217.364 TAM:46 ESTLIEBE U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1000039",
+    "seqgrupo": "585",
+    "cor": "300",
+    "iddespesa": 11320,
+    "descricao": "MANTA CACHARREL D26MC 3MM 60% POLIURETAN PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1016335",
+    "seqgrupo": "4855",
+    "cor": "1901",
+    "iddespesa": 1460,
+    "descricao": "TEC DE MALHA PLUME ACABADO 158746001011 AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1013327",
+    "seqgrupo": "13315",
+    "cor": "300",
+    "iddespesa": 11113,
+    "descricao": "92544 VISCO MODAL PRETO U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1015676",
+    "seqgrupo": "7461",
+    "cor": "1901",
+    "iddespesa": 1453,
+    "descricao": "MEIA MALHA CARDADA BACTERICIDA 2045 AMEIXA U",
+    "status": "CONFIRMADO"
+  },
+  {
+    "idmateriaprima": "1010252",
+    "seqgrupo": "11130",
+    "cor": "1061",
+    "iddespesa": 11054,
+    "descricao": "REGULADOR METAL AMR 000/C 10MM DOURADO U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T12:07:34.630Z"
+  },
+  {
+    "idmateriaprima": "1010251",
+    "seqgrupo": "11128",
+    "cor": "1061",
+    "iddespesa": 11383,
+    "descricao": "ARGOLA METAL AMA 000/B 8/10MM DOURADO DOURADO U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T12:07:34.630Z"
+  },
+  {
+    "idmateriaprima": "1014390",
+    "seqgrupo": "999",
+    "cor": "1885",
+    "iddespesa": 11290,
+    "descricao": "ELAST. NILLO 16MM C/100MT TRUFA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T12:07:34.630Z"
+  },
+  {
+    "idmateriaprima": "1006191",
+    "seqgrupo": "6264",
+    "cor": "904",
+    "iddespesa": 11690,
+    "descricao": "TAG SUTIA IDEAL BASICO & RENDA UNICA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T12:07:34.630Z"
+  },
+  {
+    "idmateriaprima": "1005471",
+    "seqgrupo": "1442",
+    "cor": "0045",
+    "iddespesa": 11196,
+    "descricao": "FECHO GIRATORIO 13 MM C/ LOGO SUEDE U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T12:07:34.630Z"
+  },
+  {
+    "idmateriaprima": "1014384",
+    "seqgrupo": "999",
+    "cor": "2379",
+    "iddespesa": 11291,
+    "descricao": "ELAST. NILLO 16MM C/100MT MAUVE U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T12:58:13.383Z"
+  },
+  {
+    "idmateriaprima": "1015508",
+    "seqgrupo": "999",
+    "cor": "1900",
+    "iddespesa": 11706,
+    "descricao": "ELAST. NILLO 16MM C/100MT DUNA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T12:58:13.384Z"
+  },
+  {
+    "idmateriaprima": "1014657",
+    "seqgrupo": "999",
+    "cor": "2380",
+    "iddespesa": 11710,
+    "descricao": "ELAST. NILLO 16MM C/100MT VANILLA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T12:58:13.384Z"
+  },
+  {
+    "idmateriaprima": "1016305",
+    "seqgrupo": "999",
+    "cor": "2381",
+    "iddespesa": 11711,
+    "descricao": "ELAST. NILLO 16MM C/100MT BERINGELA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T12:58:13.384Z"
+  },
+  {
+    "idmateriaprima": "1010925",
+    "seqgrupo": "11380",
+    "cor": "300",
+    "iddespesa": 11068,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST PRETO U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:01:18.656Z"
+  },
+  {
+    "idmateriaprima": "1013983",
+    "seqgrupo": "11380",
+    "cor": "1697",
+    "iddespesa": 11391,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST NUDE U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:01:18.657Z"
+  },
+  {
+    "idmateriaprima": "1015205",
+    "seqgrupo": "11380",
+    "cor": "1755",
+    "iddespesa": 11392,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST NAVY U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:01:18.657Z"
+  },
+  {
+    "idmateriaprima": "1015394",
+    "seqgrupo": "11380",
+    "cor": "1899",
+    "iddespesa": 11393,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST ROSEWOOD U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:01:18.657Z"
+  },
+  {
+    "idmateriaprima": "1016431",
+    "seqgrupo": "11380",
+    "cor": "1901",
+    "iddespesa": 11394,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST AMEIXA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:01:18.657Z"
+  },
+  {
+    "idmateriaprima": "1015595",
+    "seqgrupo": "11380",
+    "cor": "1903",
+    "iddespesa": 11395,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST OLIVE U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:01:18.657Z"
+  },
+  {
+    "idmateriaprima": "1016434",
+    "seqgrupo": "11380",
+    "cor": "1906",
+    "iddespesa": 11396,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST MALAGUETA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:01:18.657Z"
+  },
+  {
+    "idmateriaprima": "1016313",
+    "seqgrupo": "11380",
+    "cor": "2381",
+    "iddespesa": 11397,
+    "descricao": "REGULADOR APR 000/B - 8MM PLAST BERINGELA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:01:18.657Z"
+  },
+  {
+    "idmateriaprima": "1015206",
+    "seqgrupo": "11376",
+    "cor": "1755",
+    "iddespesa": 11384,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST NAVY U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:03:41.691Z"
+  },
+  {
+    "idmateriaprima": "1015393",
+    "seqgrupo": "11376",
+    "cor": "1899",
+    "iddespesa": 11385,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST ROSEWOOD U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:03:41.693Z"
+  },
+  {
+    "idmateriaprima": "1016429",
+    "seqgrupo": "11376",
+    "cor": "1901",
+    "iddespesa": 11386,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST AMEIXA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:03:41.693Z"
+  },
+  {
+    "idmateriaprima": "1015594",
+    "seqgrupo": "11376",
+    "cor": "1903",
+    "iddespesa": 11387,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST OLIVE U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:03:41.693Z"
+  },
+  {
+    "idmateriaprima": "1016433",
+    "seqgrupo": "11376",
+    "cor": "1906",
+    "iddespesa": 11388,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST MALAGUETA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:03:41.693Z"
+  },
+  {
+    "idmateriaprima": "1016312",
+    "seqgrupo": "11376",
+    "cor": "2381",
+    "iddespesa": 11389,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST BERINGELA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:03:41.693Z"
+  },
+  {
+    "idmateriaprima": "1010920",
+    "seqgrupo": "11376",
+    "cor": "300",
+    "iddespesa": 11390,
+    "descricao": "ARGOLA APA 000/B - 8MM PLAST PRETO U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:03:41.693Z"
+  },
+  {
+    "idmateriaprima": "1002441",
+    "seqgrupo": "1442",
+    "cor": "300",
+    "iddespesa": 11197,
+    "descricao": "FECHO GIRATORIO 13 MM C/ LOGO PRETO U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:07:09.240Z"
+  },
+  {
+    "idmateriaprima": "1004563",
+    "seqgrupo": "1442",
+    "cor": "1697",
+    "iddespesa": 11484,
+    "descricao": "FECHO GIRATORIO 13 MM C/ LOGO NUDE U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:07:09.241Z"
+  },
+  {
+    "idmateriaprima": "1016450",
+    "seqgrupo": "1442",
+    "cor": "1827",
+    "iddespesa": 11486,
+    "descricao": "FECHO GIRATORIO 13 MM C/ LOGO AMENDOA U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:07:09.241Z"
+  },
+  {
+    "idmateriaprima": "1005618",
+    "seqgrupo": "1443",
+    "cor": "0045",
+    "iddespesa": 11199,
+    "descricao": "FECHO GIRATORIO 18 MM C/ LOGO SUEDE U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:07:09.241Z"
+  },
+  {
+    "idmateriaprima": "1013605",
+    "seqgrupo": "1443",
+    "cor": "1785",
+    "iddespesa": 11487,
+    "descricao": "FECHO GIRATORIO 18 MM C/ LOGO CALLAS U",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:07:09.241Z"
+  },
+  {
+    "idmateriaprima": "1016008",
+    "seqgrupo": "13488",
+    "cor": "1901",
+    "iddespesa": 11420,
+    "descricao": "BJ 911.001 CASCA C/ ALCA AMEIXA 44",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:09:01.756Z"
+  },
+  {
+    "idmateriaprima": "1016020",
+    "seqgrupo": "13488",
+    "cor": "1903",
+    "iddespesa": 11421,
+    "descricao": "BJ 911.001 CASCA C/ ALCA OLIVE 42",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:09:01.757Z"
+  },
+  {
+    "idmateriaprima": "1016031",
+    "seqgrupo": "13488",
+    "cor": "1906",
+    "iddespesa": 11422,
+    "descricao": "BJ 911.001 CASCA C/ ALCA MALAGUETA 42",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:09:01.757Z"
+  },
+  {
+    "idmateriaprima": "1014672",
+    "seqgrupo": "13488",
+    "cor": "2380",
+    "iddespesa": 11423,
+    "descricao": "BJ 911.001 CASCA C/ ALCA VANILLA 46",
+    "status": "CONFIRMADO",
+    "origem_confirmacao": "teste_visual_busca_curta",
+    "confirmado_em": "2026-10-13T13:09:01.757Z"
+  }
+]

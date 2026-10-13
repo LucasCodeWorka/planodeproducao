@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0"
+cd /d "%~dp0.."
 echo ============================================================
 echo Removedor do servico Liebe MP Cadastro Sync
 echo Pasta: %CD%

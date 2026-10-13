@@ -8,7 +8,7 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8010 ^| findstr LISTENING') 
 
 echo.
 echo === Iniciando Backend (porta 8000) ===
-start "Backend" cmd /k "cd /d %~dp0 && node src/index.js"
+start "Backend" cmd /k "cd /d %~dp0.. && node src/index.js"
 
 echo.
 echo === Aguardando backend iniciar... ===
@@ -16,7 +16,7 @@ timeout /t 3 /nobreak >nul
 
 echo.
 echo === Iniciando Frontend (porta 3000) ===
-start "Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
+start "Frontend" cmd /k "cd /d %~dp0..\frontend && npm run dev"
 
 echo.
 echo === Projeto iniciado! ===
