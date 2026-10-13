@@ -127,6 +127,78 @@ async function buscarVendasPorCanal(pool, ano, idsPermitidos = null) {
   return vendas;
 }
 
+/**
+ * Venda historica dos permanentes, filtrada por quem ERA permanente + em linha NO MES DA
+ * VENDA — nao por quem esta em linha hoje.
+ *
+ * Por que isto existe: status e uma foto do PRESENTE (f_dic_prd_classificacao, direto na
+ * vr_prd_prdgrade). Usar essa foto para filtrar a venda de um mes passado deixa de fora
+ * todo SKU que vendeu naquele mes e ja saiu de linha depois — e em 2026 isso nao e
+ * excecao, e a regra: medido em 13/10/2026, cada um dos nove meses fechados tinha entre
+ * 5% (setembro) e 14% (fevereiro) da venda vindo de SKUs que sumiram da foto de hoje.
+ * Fevereiro e marco, nao as datas de presente, sao os piores — giro de colecao normal.
+ *
+ * A correcao e a mesma usada para edicao limitada: hist_dproduto, uma dimensao SCD-2
+ * (dt_inicio/dt_fim/atual) que sabe o status de cada SKU em qualquer data, nao so hoje.
+ *
+ * Duas decisoes de implementacao:
+ *
+ * 1) GRAO MENSAL, nao por venda individual. A primeira tentativa juntava mv_vendas_qtd
+ *    (venda a venda) direto com hist_dproduto por intervalo de data e estourou timeout de
+ *    5 minutos. Pre-agregar por SKU/mes ANTES de classificar cai de milhoes de linhas para
+ *    poucos milhares, e so entao usa o indice (cd_produto, dt_inicio) do hist — a mesma
+ *    granularidade que o resto do sistema usa (app_projecoes tambem e por mes).
+ *    Efeito colateral aceito: um SKU que mudou de status NO MEIO do mes conta o mes
+ *    inteiro de um lado so (o do intervalo que mais se sobrepoe a primeira/ultima venda).
+ *
+ * 2) O populacao que RECEBE a projecao de 2027 (representatividade) continua sendo quem
+ *    esta em linha HOJE — isso esta certo e nao muda aqui: e para eles que estamos
+ *    planejando producao. So o TOTAL historico que vira a base do modelo passa a ser
+ *    point-in-time.
+ */
+async function buscarVendasHistoricasPermanentes(pool, ano, marca = 'LIEBE') {
+  const vendas = {
+    fabrica: Object.fromEntries(MESES_SEMESTRE.map((mes) => [mes, 0])),
+    lojas: Object.fromEntries(MESES_SEMESTRE.map((mes) => [mes, 0])),
+  };
+  const result = await pool.query(`
+    WITH vendas_mes AS (
+      SELECT v.idproduto, EXTRACT(MONTH FROM v.data)::INT AS mes,
+             MIN(v.data) AS primeira_venda, MAX(v.data) AS ultima_venda,
+             SUM(CASE WHEN v.idempresa = 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS fabrica,
+             SUM(CASE WHEN v.idempresa <> 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS lojas
+        FROM public.mv_vendas_qtd v
+       WHERE v.data >= $1::DATE AND v.data < $2::DATE
+       GROUP BY 1, 2
+    ),
+    classificado AS (
+      SELECT vm.mes, vm.fabrica, vm.lojas,
+             EXISTS (
+               SELECT 1 FROM public.hist_dproduto h
+                WHERE h.cd_produto = vm.idproduto
+                  AND UPPER(TRIM(COALESCE(h.marca, ''))) = $3
+                  AND UPPER(TRIM(COALESCE(h.continuidade, ''))) IN ('PERMANENTE', 'PERMANENTE COR NOVA')
+                  AND UPPER(TRIM(COALESCE(h.status, ''))) IN ('EM LINHA', 'NOVA COLECAO', 'EM LINHA NAO COMPRAR MP')
+                  AND h.dt_inicio <= vm.ultima_venda
+                  AND (h.dt_fim IS NULL OR h.dt_fim >= vm.primeira_venda)
+             ) AS em_linha_na_epoca
+        FROM vendas_mes vm
+    )
+    SELECT mes,
+           SUM(fabrica) FILTER (WHERE em_linha_na_epoca)::FLOAT AS fabrica,
+           SUM(lojas) FILTER (WHERE em_linha_na_epoca)::FLOAT AS lojas
+      FROM classificado
+     GROUP BY mes ORDER BY mes
+  `, [`${ano}-01-01`, `${ano + 1}-01-01`, marca.toUpperCase()]);
+  for (const row of result.rows) {
+    const mes = Number(row.mes);
+    if (!MESES_SEMESTRE.includes(mes)) continue;
+    vendas.fabrica[mes] = Math.round(Number(row.fabrica) || 0);
+    vendas.lojas[mes] = Math.round(Number(row.lojas) || 0);
+  }
+  return vendas;
+}
+
 // A abertura por canal da Visao Geral precisa usar exatamente os SKUs do preview.
 // O totalizador geral acima usa todos os IDs de app_projecoes e nao serve para
 // repartir uma projecao que mostra apenas os permanentes em linha.
@@ -923,12 +995,12 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino, opcoes = {}) {
 
   // 2. Vendas REAIS da empresa inteira (alimentam os cards e a coluna REAL da tela — tem
   //    de contar quem vendeu naquele mes, mesmo quem saiu de linha depois) e vendas
-  //    RESTRITAS a quem ainda esta em linha hoje + de-para (alimentam so o MODELO).
-  //    Medido: o total irrestrito vinha de 3.272 SKUs que ja tiveram projecao gravada;
-  //    so 1.579 (48%) seguem em linha. Sem a restricao, jul/ago/set nasciam ~50% acima
-  //    do que a propria populacao sobrevivente vendeu.
+  //    HISTORICAS para o MODELO, filtradas por quem ERA permanente + em linha no MES DA
+  //    VENDA (hist_dproduto), nao por quem esta em linha hoje. Medido: filtrar pela foto
+  //    de hoje deixava de fora 5% a 14% da venda de cada mes fechado de 2026 — todo SKU
+  //    que vendeu e ja saiu de linha depois. Ver buscarVendasHistoricasPermanentes.
   const vendas = await buscarVendasPorCanal(pool, anoBase);
-  const vendasModelo = await buscarVendasPorCanal(pool, anoBase, idsModelo);
+  const vendasModelo = await buscarVendasHistoricasPermanentes(pool, anoBase);
 
   // 3. Totalizadores: o real para exibicao, o restrito para o modelo.
   const totalizadores = calcularTotalizadores(vendas, crescimentoFabrica);
@@ -1047,6 +1119,7 @@ async function gerarPreviewProjecoes(pool, anoBase, anoDestino, opcoes = {}) {
 
 module.exports = {
   buscarVendasPorCanal,
+  buscarVendasHistoricasPermanentes,
   solicitarRefreshMvDiario,
   calcularTotalizadores,
   buscarSkusPermanentes,
