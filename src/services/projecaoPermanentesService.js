@@ -162,15 +162,21 @@ async function buscarVendasPorCanal(pool, ano, idsPermitidos = null) {
 // segue point-in-time, que e onde o giro de colecao pesa (fabrica +2,4% a +2,9% no 1o tri).
 const MES_INICIO_CLASSIFICACAO_ATUAL = 7;
 
+// Meses em que so conta EM LINHA (sem NOVA COLECAO), conferido no DIA de cada venda:
+// decisao da operacao em 14/10/2026 para janeiro. Por dia porque quase todo SKU de nova
+// colecao vira EM LINHA dentro do mes — conferir por mes nao tiraria nada.
+const MESES_SO_EM_LINHA = [1];
+
 async function buscarVendasHistoricasPermanentes(pool, ano, marca = 'LIEBE', mesInicioAtual = MES_INICIO_CLASSIFICACAO_ATUAL) {
   const vendas = {
     fabrica: Object.fromEntries(MESES_SEMESTRE.map((mes) => [mes, 0])),
     lojas: Object.fromEntries(MESES_SEMESTRE.map((mes) => [mes, 0])),
   };
-  const filtroPermanente = `
+  const filtroBase = `
                   AND UPPER(TRIM(COALESCE(h.marca, ''))) = $3
-                  AND UPPER(TRIM(COALESCE(h.continuidade, ''))) IN ('PERMANENTE', 'PERMANENTE COR NOVA')
-                  AND UPPER(TRIM(COALESCE(h.status, ''))) IN ('EM LINHA', 'NOVA COLECAO', 'EM LINHA NAO COMPRAR MP')`;
+                  AND UPPER(TRIM(COALESCE(h.continuidade, ''))) IN ('PERMANENTE', 'PERMANENTE COR NOVA')`;
+  const filtroPermanente = `${filtroBase}
+                  AND UPPER(TRIM(COALESCE(h.status, ''))) IN ('EM LINHA', 'NOVA COLECAO')`;
   const result = await pool.query(`
     WITH vendas_mes AS (
       SELECT v.idproduto, EXTRACT(MONTH FROM v.data)::INT AS mes,
@@ -179,9 +185,29 @@ async function buscarVendasHistoricasPermanentes(pool, ano, marca = 'LIEBE', mes
              SUM(CASE WHEN v.idempresa <> 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS lojas
         FROM public.mv_vendas_qtd v
        WHERE v.data >= $1::DATE AND v.data < $2::DATE
+         AND NOT (EXTRACT(MONTH FROM v.data)::INT = ANY($5::INT[]))
        GROUP BY 1, 2
     ),
+    vendas_dia AS (
+      SELECT v.idproduto, EXTRACT(MONTH FROM v.data)::INT AS mes, v.data,
+             SUM(CASE WHEN v.idempresa = 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS fabrica,
+             SUM(CASE WHEN v.idempresa <> 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS lojas
+        FROM public.mv_vendas_qtd v
+       WHERE v.data >= $1::DATE AND v.data < $2::DATE
+         AND EXTRACT(MONTH FROM v.data)::INT = ANY($5::INT[])
+       GROUP BY 1, 2, 3
+    ),
     classificado AS (
+      SELECT vd.mes, vd.fabrica, vd.lojas,
+             EXISTS (
+               SELECT 1 FROM public.hist_dproduto h
+                WHERE h.cd_produto = vd.idproduto ${filtroBase}
+                  AND UPPER(TRIM(COALESCE(h.status, ''))) = 'EM LINHA'
+                  AND h.dt_inicio <= vd.data
+                  AND (h.dt_fim IS NULL OR h.dt_fim >= vd.data)
+             ) AS em_linha
+        FROM vendas_dia vd
+      UNION ALL
       SELECT vm.mes, vm.fabrica, vm.lojas,
              CASE WHEN vm.mes >= $4 THEN EXISTS (
                SELECT 1 FROM public.hist_dproduto h
@@ -199,7 +225,7 @@ async function buscarVendasHistoricasPermanentes(pool, ano, marca = 'LIEBE', mes
            SUM(lojas) FILTER (WHERE em_linha)::FLOAT AS lojas
       FROM classificado
      GROUP BY mes ORDER BY mes
-  `, [`${ano}-01-01`, `${ano + 1}-01-01`, marca.toUpperCase(), mesInicioAtual]);
+  `, [`${ano}-01-01`, `${ano + 1}-01-01`, marca.toUpperCase(), mesInicioAtual, MESES_SO_EM_LINHA]);
   for (const row of result.rows) {
     const mes = Number(row.mes);
     if (!MESES_SEMESTRE.includes(mes)) continue;

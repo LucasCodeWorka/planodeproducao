@@ -22,12 +22,15 @@
  * acrescimo.
  */
 
-// Status que contam como "estava em linha". A matriz da tela usa so os dois primeiros;
-// aqui entra tambem o "NAO COMPRAR MP", que continua sendo linha ativa — o que ele proibe
-// e a compra de materia-prima, nao a venda. Fora da lista ficam as faixas de OPORTUNIDADE
-// (queima de estoque) e LEVE DEFEITO: sao venda real, mas nao se produz para abastece-las,
-// entao nao entram numa projecao que vira plano de producao.
-const STATUS_EM_LINHA = ['EM LINHA', 'NOVA COLECAO', 'EM LINHA NAO COMPRAR MP'];
+// Status que contam como "estava em linha": os mesmos da matriz do plano. Ficam fora o
+// "EM LINHA NAO COMPRAR MP" (decisao da operacao, 14/10/2026: nao entra na projecao), e as
+// faixas de OPORTUNIDADE (queima de estoque) e LEVE DEFEITO: sao venda real, mas nao se
+// produz para abastece-las, entao nao entram numa projecao que vira plano de producao.
+const STATUS_EM_LINHA = ['EM LINHA', 'NOVA COLECAO'];
+
+// Meses em que so conta EM LINHA, sem NOVA COLECAO (decisao da operacao, 14/10/2026). Mesma
+// regra dos permanentes.
+const MESES_SO_EM_LINHA = [1];
 
 const CONTINUIDADE_EL = ['EDICAO LIMITADA', 'EDIÇÃO LIMITADA'];
 
@@ -51,9 +54,10 @@ async function venderPorMesHistorico(pool, { de, ate, marca = 'LIEBE' }) {
      WHERE UPPER(TRIM(COALESCE(h.marca, ''))) = $3
        AND UPPER(TRIM(COALESCE(h.continuidade, ''))) = ANY($4::TEXT[])
        AND UPPER(TRIM(COALESCE(h.status, '')))       = ANY($5::TEXT[])
+       AND (NOT (EXTRACT(MONTH FROM v.data)::INT = ANY($6::INT[])) OR UPPER(TRIM(COALESCE(h.status, ''))) = 'EM LINHA')
        AND v.data >= $1::DATE AND v.data < $2::DATE
      GROUP BY 1, 2
-  `, [de, ate, String(marca).toUpperCase(), CONTINUIDADE_EL, STATUS_EM_LINHA]);
+  `, [de, ate, String(marca).toUpperCase(), CONTINUIDADE_EL, STATUS_EM_LINHA, MESES_SO_EM_LINHA]);
 
   const mapa = new Map();
   for (const row of rows) {

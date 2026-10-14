@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { History, SlidersHorizontal, TrendingUp } from 'lucide-react';
+import { History, Search, SlidersHorizontal, TrendingUp } from 'lucide-react';
 import { DIAS_FIXOS_POR_MES } from '../lib/feriados';
+import AnaliseProjecaoModal from './AnaliseProjecaoModal';
 
 // Capacidade produtiva x projecao de venda, mes a mes, do plano REAL ate o projetado.
 //
@@ -37,6 +38,13 @@ export type MesCapacidadeVenda = {
   baseModelo?: number;
   /** Base de cálculo da edição limitada: venda do ano de origem, por canal, e o fator. */
   elBase?: { anoFonte: number; fonte: string; fatorFabrica: number; fabricaBase: number; lojasBase: number };
+  /** Base dos permanentes: o mesmo mês do ano anterior, por canal. `projecao` quando o mês
+   * de origem ainda não fechou e a base é a projeção gravada dele. */
+  basePerm?: { ano: number; fabrica: number; lojas: number; fonte: 'venda' | 'projecao' };
+  /** Fator aplicado na fábrica dos permanentes (1 = sem crescimento). */
+  fatorFabrica?: number;
+  /** true = mês do ano corrente: vale a projeção gravada, a base é só comparação. */
+  projecaoGravada?: boolean;
   /** Peças que ainda ENTRAM no estoque: plano restante nos meses reais, simulado depois. */
   producao: number;
   capacidadePecas: number;
@@ -139,6 +147,7 @@ export default function CapacidadeVsVenda({
   const [diasCarteira, setDiasCarteira] = useState<number>(CARTEIRA_DIAS_PADRAO);
   // A faixa de ajustes nasce fechada: o relatorio abre na leitura, nao na configuracao.
   const [mostrarAjustes, setMostrarAjustes] = useState(false);
+  const [analiseAberta, setAnaliseAberta] = useState(false);
   // Abre em 'isolado' (cada faixa com sua escala), a leitura pedida pela operacao. A
   // altura entre faixas nao compara quantidades — a legenda do botao avisa isso.
   const [modoGrafico, setModoGrafico] = useState<'isolado' | 'comparado'>('isolado');
@@ -354,6 +363,14 @@ export default function CapacidadeVsVenda({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAnaliseAberta(true)}
+            title="De onde sai a projeção de cada mês"
+            className="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
+          >
+            <Search size={14} />
+            Analisar projeção
+          </button>
           {onCenarioFabrica && cenarioFabrica !== undefined && (
             <div className="flex shrink-0 items-center gap-1.5 rounded border border-gray-200 bg-gray-50 px-3 py-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Crescimento fábrica</span>
@@ -914,6 +931,7 @@ export default function CapacidadeVsVenda({
           </tbody>
         </table>
       </div>
+      {analiseAberta && <AnaliseProjecaoModal meses={linhas} onClose={() => setAnaliseAberta(false)} />}
       <div className="px-5 py-3 border-t text-xs text-gray-500">
         Férias coletivas consideradas em 2026 e 2027: <strong>{DIAS_FIXOS_POR_MES[12]} dias</strong> em dezembro e <strong>{DIAS_FIXOS_POR_MES[1]} dias</strong> em janeiro.
       </div>

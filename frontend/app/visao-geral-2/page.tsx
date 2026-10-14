@@ -986,6 +986,20 @@ export default function VisaoGeral2Page() {
     };
     let saldoPendente = pendenteTotal;
 
+    // Base dos permanentes para o modal de analise. Ano base (out-dez/26): a venda do mesmo
+    // mes de 2025 desses SKUs, so como comparacao — ali vale a projecao gravada. Ano destino:
+    // a base que o modelo usou, que e venda real nos meses fechados e projecao gravada nos
+    // meses que ainda nao fecharam.
+    const mesCorrenteBase = new Date().getMonth() + 1;
+    const basePermDe = (ano: number, mes: number): MesCapacidadeVenda['basePerm'] => ano === anoBase
+      ? { ano: anoBase - 1, fabrica: Number(data.vendasHistoricas.fabrica[String(mes)] || 0), lojas: Number(data.vendasHistoricas.lojas[String(mes)] || 0), fonte: 'venda' }
+      : {
+          ano: anoBase,
+          fabrica: Number(data.totalizadoresModeloBase[String(mes)]?.fabrica || 0),
+          lojas: Number(data.totalizadoresModeloBase[String(mes)]?.lojas || 0),
+          fonte: mes >= mesCorrenteBase ? 'projecao' : 'venda',
+        };
+
     const linhas: MesCapacidadeVenda[] = [];
     for (const p of PERIODOS_CAPACIDADE) {
       const mes = Number(resumoDiasEfetivo.periodos?.[p] || 0);
@@ -1013,6 +1027,9 @@ export default function VisaoGeral2Page() {
           ? Number(data.origemBasePorMes[String(mes)]?.modelo || 0)
           : Number(data.projOrigem[MES_ABREV[mes - 1]]?.modelo || 0),
         elBase: ano === anoBase ? elDetalheBase?.[String(mes)] : elDetalhe?.[String(mes)],
+        basePerm: basePermDe(ano, mes),
+        fatorFabrica: ano === anoBase ? 1 : 1 + cenarioFabrica,
+        projecaoGravada: ano === anoBase,
         ...(() => {
           const perm = ano === anoBase
             ? Number(data.demandaRestantePorMes[String(mes)] || 0)
@@ -1059,6 +1076,8 @@ export default function VisaoGeral2Page() {
         baseLancada: Number(data.projOrigem[m.mes]?.lancada || 0),
         baseModelo: Number(data.projOrigem[m.mes]?.modelo || 0),
         elBase: elDetalhe?.[String(mes)],
+        basePerm: basePermDe(data.anoDestino, mes),
+        fatorFabrica: 1 + cenarioFabrica,
         ...(() => {
           const c = canalDoMes(data.anoDestino, mes, m.demanda, demandaEl);
           return { demandaFabrica: c.fabrica, demandaLojas: c.lojas, demandaLojasPermanentes: c.lojasPermanentes, demandaLojasEdicaoLimitada: c.lojasEdicaoLimitada };
@@ -1080,7 +1099,7 @@ export default function VisaoGeral2Page() {
       abertura: Number(data.estoqueBaseReal || 0) + Number(data.elEstoque || 0),
       pedidosPendentes: Number(data.pedidosPendentes || 0) + Number(data.elPendentes || 0),
     };
-  }, [resumoDiasEfetivo, data, projEdicaoLimitada, elDetalhe, elDetalheBase, indiceMensal]);
+  }, [resumoDiasEfetivo, data, projEdicaoLimitada, elDetalhe, elDetalheBase, indiceMensal, cenarioFabrica]);
 
   const ultimo = data?.meses[data.meses.length - 1];
   const primeiroNegativo = data?.meses.find((m) => m.estoque < 0);
