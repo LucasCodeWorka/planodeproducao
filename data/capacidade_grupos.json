@@ -1,6 +1,6 @@
 {
   "timestamp": 1790768614137,
-  "total": 21,
+  "total": 19,
   "data": [
     {
       "grupo": "03 - ALEGRIA SU LUXE MODA",
@@ -73,19 +73,9 @@
       "capacidade_diaria": 303603
     },
     {
-      "grupo": "08 - PROGRESSO SO BASICO",
-      "tipo": "",
-      "capacidade_diaria": 303603
-    },
-    {
       "grupo": "09 - LIDERANCA ANATOMIC",
       "tipo": "",
       "capacidade_diaria": 302106
-    },
-    {
-      "grupo": "OFICINA - ATILA",
-      "tipo": "",
-      "capacidade_diaria": 701748
     },
     {
       "grupo": "OFICINA - GLEDSON SOARES",
