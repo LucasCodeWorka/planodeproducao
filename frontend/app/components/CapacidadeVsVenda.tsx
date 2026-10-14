@@ -647,22 +647,9 @@ export default function CapacidadeVsVenda({
                   id: 'venda-lojas',
                   rotulo: 'lojas (Em linha)',
                   pai: 'venda',
-                  expansivel: true,
                   celula: (l: typeof linhas[number]) => (
                     <span className="text-amber-600">{fmt(l.demandaLojas || 0)}</span>
                   ),
-                },
-                {
-                  id: 'venda-lojas-perm',
-                  rotulo: 'permanentes',
-                  pai: 'venda-lojas',
-                  celula: (l: typeof linhas[number]) => <span className="text-gray-500">{fmt(l.demandaLojasPermanentes || 0)}</span>,
-                },
-                {
-                  id: 'venda-lojas-el',
-                  rotulo: 'edição limitada',
-                  pai: 'venda-lojas',
-                  celula: (l: typeof linhas[number]) => <span className="text-gray-500">{fmt(l.demandaLojasEdicaoLimitada || 0)}</span>,
                 },
                 {
                   id: 'venda-perm',
@@ -748,19 +735,10 @@ export default function CapacidadeVsVenda({
                   id: 'disponivel',
                   rotulo: 'Disponível fim do mês',
                   forte: true,
-                  expansivel: true,
                   celula: (l: typeof linhas[number]) => (
                     <span className={`font-semibold ${disponivelTabela[linhas.indexOf(l)] < 0 ? 'text-red-700' : 'text-gray-900'}`}>
                       {fmt(disponivelTabela[linhas.indexOf(l)])}
                     </span>
-                  ),
-                },
-                {
-                  id: 'disponivel-divida-fixa',
-                  rotulo: 'se a carteira do mês fosse abatida',
-                  pai: 'disponivel',
-                  celula: (l: typeof linhas[number]) => (
-                    <span className="text-gray-400">{fmt(l.estoque - l.carteira)}</span>
                   ),
                 },
                 {
