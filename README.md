@@ -102,3 +102,5 @@ curl "http://localhost:8000/api/producao/planejamento?apenas_necessidade=true&or
 Veja [PLANEJAMENTO_PRODUCAO.md](arquivo_morto/docs/PLANEJAMENTO_PRODUCAO.md) para documentação completa do módulo de produção.
 
 Veja [API_ESTOQUE_MINIMO.md](arquivo_morto/docs/API_ESTOQUE_MINIMO.md) para documentação detalhada do cálculo de estoque mínimo.
+
+Veja [VISAO_GERAL_2_CAPACIDADE.md](VISAO_GERAL_2_CAPACIDADE.md) para as fontes e fórmulas da linha Capacidade da Visão Geral 2.

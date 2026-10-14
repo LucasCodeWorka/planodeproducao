@@ -10,6 +10,14 @@ const GRUPOS_FILE = path.join(DATA_DIR, "capacidade_grupos.json");
 const GRUPO_REFS_FILE = path.join(DATA_DIR, "capacidade_grupo_refs.json");
 const DIAS_FILE = path.join(DATA_DIR, "capacidade_dias.json");
 const DEFAULT_REAL_GROUP_IDS = [82, 83, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 421, 681, 722, 1241, 1402, 1422];
+
+// Grupos descontinuados em 2026-10-14 (commit "Desativa grupos de capacidade
+// descontinuados"). Mantidos aqui so para o comparativo "cenario anterior";
+// capacidade_grupos.json e a unica fonte da capacidade ATIVA.
+const GRUPOS_DESATIVADOS = [
+  { grupo: "08 - PROGRESSO SO BASICO", tipo: "", capacidade_diaria: 303603 },
+  { grupo: "OFICINA - ATILA", tipo: "", capacidade_diaria: 701748 },
+];
 const realCapacityCache = { data: null, timestamp: 0 };
 
 // Cache para dias-resumo (evita recalcular a cada requisição)
@@ -1110,6 +1118,9 @@ router.get("/dias-resumo", async (req, res) => {
     const ateCap = hojeCap.toISOString().slice(0, 10);
     const { porGrupo: capacidadeRealGrupos } = await consultarCapacidadeRealPorGrupo(pool, deCap, ateCap, 'ultimo_mes');
     const capacidadeDiariaTotal = somarCapacidadeDiaria(grupos, capacidadeRealGrupos);
+    // Cenario anterior: os grupos descontinuados de volta na soma. O nivel/sazonalidade
+    // correspondente sai do indice-mensal com ?cenario=anterior.
+    const capacidadeDiariaTotalAnterior = somarCapacidadeDiaria([...grupos, ...GRUPOS_DESATIVADOS], capacidadeRealGrupos);
 
     for (const row of grupoRefs) {
       const referencia = row.referencia.toUpperCase();
@@ -1152,23 +1163,30 @@ router.get("/dias-resumo", async (req, res) => {
       cargaTotal.QU += tempo * planoBase.qu;
     }
 
-    // 9. Calcular dias necessários
-    const diasNecessarios = {
-      MA: capacidadeDiariaTotal > 0 ? (cargaTotal.processo + cargaTotal.MA) / capacidadeDiariaTotal : 0,
-      PX: capacidadeDiariaTotal > 0 ? cargaTotal.PX / capacidadeDiariaTotal : 0,
-      UL: capacidadeDiariaTotal > 0 ? cargaTotal.UL / capacidadeDiariaTotal : 0,
-      QT: capacidadeDiariaTotal > 0 ? cargaTotal.QT / capacidadeDiariaTotal : 0,
-      QU: capacidadeDiariaTotal > 0 ? cargaTotal.QU / capacidadeDiariaTotal : 0,
-    };
+    // 9. Calcular dias necessários e acumulados, dada uma capacidade diária total.
+    // Reaproveitada para o cenario atual e para o cenario anterior (grupos descontinuados
+    // de volta), que dividem a MESMA carga por uma capacidade diferente.
+    function calcularDias(capacidadeDiaria) {
+      const diasNecessarios = {
+        MA: capacidadeDiaria > 0 ? (cargaTotal.processo + cargaTotal.MA) / capacidadeDiaria : 0,
+        PX: capacidadeDiaria > 0 ? cargaTotal.PX / capacidadeDiaria : 0,
+        UL: capacidadeDiaria > 0 ? cargaTotal.UL / capacidadeDiaria : 0,
+        QT: capacidadeDiaria > 0 ? cargaTotal.QT / capacidadeDiaria : 0,
+        QU: capacidadeDiaria > 0 ? cargaTotal.QU / capacidadeDiaria : 0,
+      };
+      const diasAcumulado = {
+        MA: diasNecessarios.MA,
+        PX: diasNecessarios.MA + diasNecessarios.PX,
+        UL: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL,
+        QT: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL + diasNecessarios.QT,
+        QU: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL + diasNecessarios.QT + diasNecessarios.QU,
+      };
+      return { diasNecessarios, diasAcumulado };
+    }
 
-    // 10. Calcular dias acumulados
-    const diasAcumulado = {
-      MA: diasNecessarios.MA,
-      PX: diasNecessarios.MA + diasNecessarios.PX,
-      UL: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL,
-      QT: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL + diasNecessarios.QT,
-      QU: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL + diasNecessarios.QT + diasNecessarios.QU,
-    };
+    const { diasNecessarios, diasAcumulado } = calcularDias(capacidadeDiariaTotal);
+    const { diasNecessarios: diasNecessariosAnterior, diasAcumulado: diasAcumuladoAnterior } =
+      calcularDias(capacidadeDiariaTotalAnterior);
 
     // 11. Calcular dias disponíveis por período
     const diasDisponiveis = {
@@ -1199,6 +1217,24 @@ router.get("/dias-resumo", async (req, res) => {
       },
       diasDisponiveis,
       periodos,
+      // Cenario anterior: capacidade com os grupos descontinuados (Progresso, Oficina
+      // Atila) somados de volta, para comparar com o atual na Visao Geral 2.
+      capacidadeDiariaAnterior: capacidadeDiariaTotalAnterior,
+      diasNecessariosAnterior: {
+        MA: Number(diasNecessariosAnterior.MA.toFixed(1)),
+        PX: Number(diasNecessariosAnterior.PX.toFixed(1)),
+        UL: Number(diasNecessariosAnterior.UL.toFixed(1)),
+        QT: Number(diasNecessariosAnterior.QT.toFixed(1)),
+        QU: Number(diasNecessariosAnterior.QU.toFixed(1)),
+      },
+      diasAcumuladoAnterior: {
+        MA: Number(diasAcumuladoAnterior.MA.toFixed(1)),
+        PX: Number(diasAcumuladoAnterior.PX.toFixed(1)),
+        UL: Number(diasAcumuladoAnterior.UL.toFixed(1)),
+        QT: Number(diasAcumuladoAnterior.QT.toFixed(1)),
+        QU: Number(diasAcumuladoAnterior.QU.toFixed(1)),
+      },
+      gruposDesativados: GRUPOS_DESATIVADOS.map((g) => g.grupo),
     };
 
     // Salvar no cache
@@ -1425,6 +1461,10 @@ router.get('/indice-mensal', auth, async (req, res) => {
     if (!pool) return res.status(500).json({ success: false, error: 'Pool de conexao nao disponivel' });
 
     const desde = String(req.query.desde || '2025-07-01');
+    // cenario=anterior reproduz a conta de antes da desativacao: todos os locais do ERP,
+    // sem filtrar pelos nomes ativos (inclui Progresso e Oficina Atila).
+    const anterior = req.query.cenario === 'anterior';
+    const gruposAtivos = anterior ? null : readGrupos().map((grupo) => grupo.grupo);
     const { rows } = await pool.query(`
       SELECT to_char(DATE_TRUNC('month', e.dt_ref),'YYYY-MM') AS competencia,
              EXTRACT(YEAR FROM e.dt_ref)::INT AS ano,
@@ -1432,13 +1472,15 @@ router.get('/indice-mensal', auth, async (req, res) => {
              SUM(COALESCE(e.tempo_produzido_min, 0))::FLOAT AS minutos,
              COUNT(DISTINCT e.dt_ref)::INT AS dias
         FROM pcp_cache_eficiencia_dia e
+        LEFT JOIN pcp_cache_locais l ON l.cd_local::text = e.cd_grupo::text
        WHERE e.cd_grupo::text = ANY($2::text[])
+         AND ($3::text[] IS NULL OR UPPER(TRIM(l.ds_local)) = ANY($3::text[]))
          AND e.dt_ref >= $1::date AND e.dt_ref < DATE_TRUNC('month', CURRENT_DATE)::date
          AND EXTRACT(ISODOW FROM e.dt_ref) BETWEEN 1 AND 5
          AND COALESCE(e.tempo_produzido_min, 0) > 0
        GROUP BY 1, 2, 3
        ORDER BY 1
-    `, [desde, DEFAULT_REAL_GROUP_IDS.map(String)]);
+    `, [desde, DEFAULT_REAL_GROUP_IDS.map(String), gruposAtivos]);
 
     const obs = rows
       .map((r) => ({ competencia: r.competencia, ano: Number(r.ano), mes: Number(r.mes),

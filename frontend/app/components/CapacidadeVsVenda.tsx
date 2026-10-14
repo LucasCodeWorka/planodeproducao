@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { SlidersHorizontal, TrendingUp } from 'lucide-react';
+import { History, SlidersHorizontal, TrendingUp } from 'lucide-react';
+import { DIAS_FIXOS_POR_MES } from '../lib/feriados';
 
 // Capacidade produtiva x projecao de venda, mes a mes, do plano REAL ate o projetado.
 //
@@ -62,6 +63,17 @@ type Props = {
   metaEstoqueFinal?: number;
   /** Teto de ocupacao (0-1). Limita o plano nos dois modos de nivelamento. */
   limiteOcupacao?: number;
+  /** true = `meses` já veio calculado com a capacidade do cenário anterior (grupos
+   * descontinuados somados de volta). Só controla o rótulo do botão; quem decide qual
+   * capacidade entra em `meses` é a página, não este componente. */
+  cenarioCapacidadeAnterior?: boolean;
+  onToggleCenarioCapacidadeAnterior?: () => void;
+  capacidadeDiariaAtual?: number;
+  capacidadeDiariaAnterior?: number;
+  gruposDesativados?: string[];
+  /** Crescimento da fabrica ao ano (0-1). A pagina recompoe a projecao; aqui so o seletor. */
+  cenarioFabrica?: number;
+  onCenarioFabrica?: (c: number) => void;
 };
 
 // Cobertura PADRAO da carteira, em dias de venda. O medido na carteira de hoje da ~40
@@ -89,6 +101,13 @@ export default function CapacidadeVsVenda({
   emProcessoAtual,
   metaEstoqueFinal = 100000,
   limiteOcupacao = 0.9,
+  cenarioCapacidadeAnterior = false,
+  onToggleCenarioCapacidadeAnterior,
+  capacidadeDiariaAtual,
+  capacidadeDiariaAnterior,
+  gruposDesativados = [],
+  cenarioFabrica,
+  onCenarioFabrica,
 }: Props) {
   // Tres leituras, nao duas: o plano como esta, o nivelado com teto no MES e o nivelado com
   // teto no ACUMULADO. Os dois nivelamentos respondem a perguntas diferentes — "nenhum mes
@@ -194,9 +213,9 @@ export default function CapacidadeVsVenda({
     let dispAcum = 0;
     return meses.map((m) => {
       dispAcum += m.diasDisponiveis;
-      // O mes em curso fica como esta: faltam poucos dias e o que vai sair da costura e o
-      // que ja esta na fila, nao a capacidade teorica do mes inteiro.
-      if (m.mesCorrente) {
+      // Meses do plano ja lancado ficam exatamente como estao. O que ja virou OP esta
+      // contado no estoque e continua ocupando capacidade por meio dos dias necessarios.
+      if (m.travado) {
         necAcum += m.diasNecessarios;
         return m.producao;
       }
@@ -206,13 +225,8 @@ export default function CapacidadeVsVenda({
         : Infinity;
       const dias = Math.min(diasPeloMes, diasPeloAcumulado);
       const peloTeto = m.capacidadePecas * (dias / (m.diasDisponiveis || 1));
-      // Mes com plano real ja lancado e PISO, nao teto: da para carregar a fabrica ate a
-      // capacidade, nao da para cortar abaixo do que ja foi emitido.
-      const q = m.travado ? Math.max(m.producao, peloTeto) : peloTeto;
-      necAcum += m.travado && m.producao > 0
-        ? m.diasNecessarios * (q / m.producao)
-        : dias;
-      return q;
+      necAcum += dias;
+      return peloTeto;
     });
   };
   const planoNivelado = nivelarCom(modo === 'acumulado');
@@ -328,6 +342,7 @@ export default function CapacidadeVsVenda({
           <TrendingUp size={18} className="text-slate-600" />
           <div>
             <h2 className="font-semibold text-gray-900">Capacidade produtiva x projeção de venda</h2>
+            {/* Subtitulo oculto a pedido; para reexibir, descomente.
             <p className="text-xs text-gray-500">
               Do plano real ({linhas.filter((l) => l.travado).length} meses já lançados) até o projetado.
               {modo === 'atual'
@@ -336,9 +351,48 @@ export default function CapacidadeVsVenda({
               {' '}Carteira pendente a <strong>{diasEfetivos} dias</strong> de venda
               {diasEfetivos !== diasMedidos ? ` (medido hoje: ${diasMedidos})` : ''}.
             </p>
+            */}
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          {onCenarioFabrica && cenarioFabrica !== undefined && (
+            <div className="flex shrink-0 items-center gap-1.5 rounded border border-gray-200 bg-gray-50 px-3 py-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Crescimento fábrica</span>
+              {([0.10, 0.05, 0] as const).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => onCenarioFabrica(c)}
+                  title={`Simula a fabrica crescendo ${Math.round(c * 100)}% ao ano em vez do historico`}
+                  className={`rounded px-2 py-1 text-xs font-semibold transition ${cenarioFabrica === c ? 'bg-slate-800 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+                >
+                  {Math.round(c * 100)}%
+                </button>
+              ))}
+            </div>
+          )}
+          {onToggleCenarioCapacidadeAnterior && (
+            <button
+              onClick={onToggleCenarioCapacidadeAnterior}
+              title={
+                gruposDesativados.length
+                  ? `Compara com a capacidade de antes de desativar: ${gruposDesativados.join(', ')}`
+                  : 'Compara com a capacidade de antes dos grupos descontinuados'
+              }
+              className={`inline-flex items-center gap-1.5 rounded border px-3 py-2 text-xs font-semibold transition-colors ${
+                cenarioCapacidadeAnterior
+                  ? 'border-amber-300 bg-amber-50 text-amber-800'
+                  : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <History size={14} />
+              {cenarioCapacidadeAnterior ? 'Capacidade anterior' : 'Capacidade atual'}
+              {Number(capacidadeDiariaAtual) > 0 && Number(capacidadeDiariaAnterior) > 0 && (
+                <span className="font-normal text-[11px] opacity-75">
+                  ({fmt(cenarioCapacidadeAnterior ? capacidadeDiariaAnterior! : capacidadeDiariaAtual!)}/dia)
+                </span>
+              )}
+            </button>
+          )}
           <button
             onClick={() => setMostrarAjustes((v) => !v)}
             title="Ajustes do relatório: leitura do plano e cobertura da carteira"
@@ -883,37 +937,8 @@ export default function CapacidadeVsVenda({
           </tbody>
         </table>
       </div>
-
       <div className="px-5 py-3 border-t text-xs text-gray-500">
-        🔒 real = plano já lançado no sistema (períodos MA/PX/UL/QT). Entra como piso fixo: o
-        nivelamento não sobe nem corta esses meses, só redistribui o que vem depois deles.
-        A produção desses meses é o plano <strong>restante</strong> — o que já virou OP está em processo
-        e portanto já contado no estoque.
-        {' '}
-        As duas ocupações saem de <strong>dias</strong>, a mesma conta do painel de Capacidade. Por isso
-        o mês corrente pode produzir pouco e ocupar muito: a fábrica ainda tem de costurar o que
-        está em processo, que já entrou no estoque mas não saiu da fila.
-        {' '}
-        <strong>Ocup. acumulada</strong> é a que manda — o que não cabe num mês transborda para o
-        seguinte, e a ocupação do mês isolado ignora o atraso que vem de trás.
-        Verde 85-100% (fábrica cheia), âmbar abaixo (ociosa), vermelho acima de 100% (estourado).
-        A capacidade em peças varia por mês porque depende do mix: cada referência custa um tempo
-        de costura diferente, então o mesmo minuto rende mais ou menos peça.
-        {' '}
-        <strong>Carteira pendente:</strong> sai <em>uma vez</em>, contra a posição de abertura — é uma dívida de hoje, não um valor que se repete todo mês. Por isso o disponível anda exatamente pela sobra, e a tabela fecha de cima para baixo. O tamanho dela ({fmt(pedidosPendentes)} peças hoje, {diasMedidos} dias de venda) sai da barra em Ajustes, hoje em {diasEfetivos} dias. Dentro de Informativo a linha mostra quanto de livro de pedidos estaríamos carregando em cada mês, como referência: ela não é abatida de novo.
-        {' '}
-A projeção abre de duas formas sobre o <em>mesmo</em> total: por <strong>canal</strong>
-        (fábrica e lojas) e por <strong>continuidade</strong> (permanente e edição limitada) — não
-        some uma com a outra. Na edição limitada o canal é medido no histórico; nos permanentes a
-        projeção gravada vem sem canal, então ele é <strong>rateado</strong> pela participação do mesmo
-        mês do ano base, já com o +10% aplicado na fábrica.
-        {' '}
-                <strong>Edição limitada</strong> entra porque a capacidade sempre a contou — os períodos do plano
-        vêm da fábrica inteira, sem filtro de continuidade. A projeção dela vem do histórico de coleções
-        (<code>hist_dproduto</code>), contando em cada mês os SKUs que estavam em linha <em>naquele</em> mês,
-        com a mesma política dos permanentes: fábrica +10%, lojas sem acréscimo. Nos meses projetados
-        a produção dela acompanha a própria venda — coleção é feita para vender na estação, não para
-        estocar —, então ela ocupa a fábrica sem sobrar no estoque.
+        Férias coletivas consideradas em 2026 e 2027: <strong>{DIAS_FIXOS_POR_MES[12]} dias</strong> em dezembro e <strong>{DIAS_FIXOS_POR_MES[1]} dias</strong> em janeiro.
       </div>
     </div>
   );

@@ -116,7 +116,16 @@ export default function VisaoGeral2Page() {
   // Capacidade vem pronta do backend, a mesma conta da tela de Capacidade e da Reducao de
   // Plano. Busca separada do carregar(): e barata, cacheada no servidor, e se falhar o
   // painel some sem derrubar o resto da pagina.
-  const [resumoDias, setResumoDias] = useState<(ResumoDiasCapacidade & { periodos?: Record<string, number> }) | null>(null);
+  const [resumoDias, setResumoDias] = useState<(ResumoDiasCapacidade & {
+    periodos?: Record<string, number>;
+    capacidadeDiariaAnterior?: number;
+    diasNecessariosAnterior?: Partial<Record<string, number>>;
+    gruposDesativados?: string[];
+  }) | null>(null);
+  // Cenario anterior: soma de volta os grupos descontinuados (Progresso, Oficina Atila) na
+  // capacidade diaria, pra comparar com a reducao atual. So troca o numero de capacidade;
+  // o resto da conta (carga, demanda) e identico nos dois cenarios.
+  const [cenarioCapacidadeAnterior, setCenarioCapacidadeAnterior] = useState(true);
   // Projecao de edicao limitada do ano destino, vinda do historico de colecoes. Fica fora do
   // `rawData` porque vem de outro endpoint e nao deve segurar o carregamento da tela: se
   // falhar, a tabela mostra so o permanente, que e o comportamento antigo.
@@ -138,7 +147,12 @@ export default function VisaoGeral2Page() {
   // Perfil sazonal da produtividade diaria, por mes do calendario. Sem ele a capacidade
   // do ultimo mes fechado vale para os 15 meses do horizonte, e a variacao real de 14%
   // entre o melhor e o pior mes some.
-  const [indiceMensal, setIndiceMensal] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
+  // Dois indices: o atual (so grupos ativos) e o anterior (todos os locais do ERP, como era
+  // antes de desativar Progresso e Oficina Atila). E o `nivel` daqui que define a capacidade
+  // em pecas — a capacidade diaria do dias-resumo se cancela na conta da tabela.
+  const [indiceMensalAtual, setIndiceMensalAtual] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
+  const [indiceMensalAnterior, setIndiceMensalAnterior] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
+  const indiceMensal = cenarioCapacidadeAnterior && indiceMensalAnterior ? indiceMensalAnterior : indiceMensalAtual;
   const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   // Cache das respostas que não mudam com o cenário (matriz, capacidade, curva ABC,
@@ -624,14 +638,19 @@ export default function VisaoGeral2Page() {
   useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); }, [router]);
 
   async function carregarIndiceMensal() {
-    try {
-      const r = await fetchNoCache(`${API_URL}/api/capacidade/indice-mensal`, { headers: authHeaders() });
-      const p = await r.json();
-      if (!r.ok || !p?.success) return;
-      setIndiceMensal({ nivel: Number(p.nivel || 0), data: p.data || {} });
-    } catch {
-      setIndiceMensal(null);
-    }
+    const buscar = async (sufixo: string) => {
+      try {
+        const r = await fetchNoCache(`${API_URL}/api/capacidade/indice-mensal${sufixo}`, { headers: authHeaders() });
+        const p = await r.json();
+        if (!r.ok || !p?.success) return null;
+        return { nivel: Number(p.nivel || 0), data: p.data || {} };
+      } catch {
+        return null;
+      }
+    };
+    const [atual, anterior] = await Promise.all([buscar(''), buscar('?cenario=anterior')]);
+    setIndiceMensalAtual(atual);
+    setIndiceMensalAnterior(anterior);
   }
 
   async function carregarEdicaoLimitada() {
@@ -672,11 +691,26 @@ export default function VisaoGeral2Page() {
         diasNecessarios: p.diasNecessarios || {},
         diasDisponiveis: p.diasDisponiveis || {},
         periodos: p.periodos || {},
+        capacidadeDiariaAnterior: Number(p.capacidadeDiariaAnterior || 0),
+        diasNecessariosAnterior: p.diasNecessariosAnterior || {},
+        gruposDesativados: p.gruposDesativados || [],
       });
     } catch {
       setResumoDias(null);
     }
   }
+  // Troca capacidadeDiaria/diasNecessarios pela variante "anterior" quando o cenario esta
+  // ligado. Um unico ponto de troca: todo o resto da tela (meses, resumoContinuo,
+  // relatorioCapacidade) le so `resumoDiasEfetivo` e nao sabe que existe um cenario.
+  const resumoDiasEfetivo = useMemo(() => {
+    if (!resumoDias) return resumoDias;
+    if (!cenarioCapacidadeAnterior) return resumoDias;
+    return {
+      ...resumoDias,
+      capacidadeDiaria: resumoDias.capacidadeDiariaAnterior ?? resumoDias.capacidadeDiaria,
+      diasNecessarios: resumoDias.diasNecessariosAnterior ?? resumoDias.diasNecessarios,
+    };
+  }, [resumoDias, cenarioCapacidadeAnterior]);
   // O estado corrente de estoque é reconstruído do zero a cada cálculo: ele é consumido
   // dentro do laço, então reaproveitar o do cálculo anterior partiria de números já gastos.
   const coberturaPorCurva = useMemo<Record<Curva, number>>(() => ({
@@ -800,7 +834,7 @@ export default function VisaoGeral2Page() {
       // de config: aquele esta ~18x acima do real e fazia a capacidade em pecas e os dias
       // necessarios sairem sem sentido. Sem a medida carregada, fica zero — melhor em branco
       // do que um numero que nao existe na fabrica.
-      const capDiariaMedida = Number(resumoDias?.capacidadeDiaria || 0);
+      const capDiariaMedida = Number(resumoDiasEfetivo?.capacidadeDiaria || 0);
       const diasDisponiveis = Number(dadosCenario.diasPorMes[index] || 0);
       const capacidade = capDiariaMedida * diasDisponiveis;
       const estoque = Array.from(corrente.values()).reduce((sum, v) => sum + v, 0);
@@ -809,7 +843,7 @@ export default function VisaoGeral2Page() {
       const capacidadePecas = minutosPorPeca > 0 ? capacidade / minutosPorPeca : 0;
       return { mes, demanda, producao, producaoPorCurva, estoque, cobertura: demanda > 0 ? estoque / demanda : 0, carga, capacidade, capacidadePecas, diasDisponiveis, diasNecessarios, utilizacao: capacidade > 0 ? (carga / capacidade) * 100 : 0 };
     });
-  }, [dadosCenario, resumoDias, modoCobertura, multiplicadorCobertura, coberturaPorCurva, coberturaMaxPorCurva]);
+  }, [dadosCenario, resumoDiasEfetivo, modoCobertura, multiplicadorCobertura, coberturaPorCurva, coberturaMaxPorCurva]);
   // `data` continua com o mesmo formato de antes, então todos os consumidores de
   // `data.meses` seguem funcionando sem alteração.
   const data = useMemo(() => (dadosCenario ? { ...dadosCenario, meses } : null), [dadosCenario, meses]);
@@ -823,27 +857,27 @@ export default function VisaoGeral2Page() {
   // entao dele aproveitamos; dos necessarios reaproveitamos so a `carga`, que ja esta em
   // minutos reais, e dividimos pela capacidade medida.
   const resumoContinuo = useMemo<(ResumoDiasCapacidade & { chaves: string[] }) | null>(() => {
-    if (!resumoDias || !data) return null;
-    const capDiaria = Number(resumoDias.capacidadeDiaria || 0);
+    if (!resumoDiasEfetivo || !data) return null;
+    const capDiaria = Number(resumoDiasEfetivo.capacidadeDiaria || 0);
     if (capDiaria <= 0) return null;
 
     const anoBase = data.anoDestino - 1;
-    const mesMA = Number(resumoDias.periodos?.MA || 0);
+    const mesMA = Number(resumoDiasEfetivo.periodos?.MA || 0);
     const diasNecessarios: Record<string, number> = {};
     const diasDisponiveis: Record<string, number> = {};
     const chaves: string[] = [];
 
     for (const p of PERIODOS_CAPACIDADE) {
-      const mes = Number(resumoDias.periodos?.[p] || 0);
+      const mes = Number(resumoDiasEfetivo.periodos?.[p] || 0);
       if (!mes) continue;
       const ano = mes >= mesMA ? anoBase : data.anoDestino;
       const chave = `${MES_ABREV[mes - 1]}/${String(ano).slice(2)}`;
       chaves.push(chave);
-      diasNecessarios[chave] = Number(resumoDias.diasNecessarios?.[p] || 0);
-      diasDisponiveis[chave] = Number(resumoDias.diasDisponiveis?.[p] || 0);
+      diasNecessarios[chave] = Number(resumoDiasEfetivo.diasNecessarios?.[p] || 0);
+      diasDisponiveis[chave] = Number(resumoDiasEfetivo.diasDisponiveis?.[p] || 0);
     }
 
-    const ultimoMesFechado = Number(resumoDias.periodos?.QT || 0);
+    const ultimoMesFechado = Number(resumoDiasEfetivo.periodos?.QT || 0);
     for (const m of data.meses) {
       const mes = MONTHS.indexOf(m.mes) + 1;
       if (mes <= ultimoMesFechado) continue;
@@ -854,7 +888,7 @@ export default function VisaoGeral2Page() {
     }
 
     return { capacidadeDiaria: capDiaria, diasNecessarios, diasDisponiveis, chaves };
-  }, [resumoDias, data]);
+  }, [resumoDiasEfetivo, data]);
 
   // Linha do tempo do relatorio de Capacidade x Venda: os meses de plano REAL (out -> jan)
   // entram como linha propria, em vez de ficarem colapsados dentro do saldo inicial de
@@ -862,9 +896,9 @@ export default function VisaoGeral2Page() {
   // isolada (76%) em vez de acumulada (95%, o que a tela de Capacidade mostra), e o plano
   // de janeiro era somado duas vezes — uma dentro do saldo inicial, outra como producao.
   const relatorioCapacidade = useMemo(() => {
-    if (!data || !resumoDias) return null;
-    const capDiaria = Number(resumoDias.capacidadeDiaria || 0);
-    const mesMA = Number(resumoDias.periodos?.MA || 0);
+    if (!data || !resumoDiasEfetivo) return null;
+    const capDiaria = Number(resumoDiasEfetivo.capacidadeDiaria || 0);
+    const mesMA = Number(resumoDiasEfetivo.periodos?.MA || 0);
     if (capDiaria <= 0 || !mesMA) return null;
     const anoBase = data.anoDestino - 1;
     const el = (mes: number) => Number(projEdicaoLimitada?.[String(mes)] || 0);
@@ -878,13 +912,10 @@ export default function VisaoGeral2Page() {
       Number(elDetalheBase?.[String(mes)]?.quantidade ?? data.elDemandaPorMes[String(mes)] ?? 0);
     // FATOR DE CAPACIDADE DO MES. Corrige duas coisas de uma vez.
     //
-    // 1) NIVEL. O `dias-resumo` soma a MEDIA DIARIA DE CADA GRUPO. Isso funciona quando
-    //    todo grupo trabalha o mes inteiro, mas entorta com as oficinas, que trabalham em
-    //    blocos: uma oficina que rodou 2 dias entra na soma com o rendimento daqueles 2
-    //    dias como se fosse o ritmo dela todo dia do mes. Elas valem 9,4% dos minutos
-    //    produzidos e entravam como 20,5% da capacidade. O nivel do endpoint soma os
-    //    minutos de todos (oficinas inclusive) e divide pelos dias em que a fabrica rodou
-    //    — 54.243 contra os 57.889 de hoje, 6,3% a menos.
+    // 1) NIVEL. O `dias-resumo` soma a media diaria medida dos grupos ativos. O indice
+    //    mensal tambem filtra pelos mesmos grupos ativos; assim, um grupo desativado nao
+    //    altera o fator de nivel nem a capacidade que aparece nesta tabela. As oficinas
+    //    ativas continuam participando do nivel agregado de produtividade.
     //
     // 2) SAZONALIDADE. A capacidade do dias-resumo e de um mes so e vale para os quinze.
     //    O indice diz quanto cada mes rende acima ou abaixo da media, destendenciado e
@@ -899,7 +930,7 @@ export default function VisaoGeral2Page() {
     //    numero. Estes 5% sao a reserva por cima disso.
     const PERDA_FALTAS = 0.05;
     const AMORTECIMENTO_INDICE = 0.5;
-    const capDiariaAtual = Number(resumoDias.capacidadeDiaria || 0);
+    const capDiariaAtual = Number(resumoDiasEfetivo.capacidadeDiaria || 0);
     const nivelNovo = Number(indiceMensal?.nivel || 0);
     const fatorNivel = capDiariaAtual > 0 && nivelNovo > 0 ? nivelNovo / capDiariaAtual : 1;
     // A falta entra no RITMO, nao nas pecas: o dia existe, quem nao veio foi a pessoa.
@@ -957,11 +988,11 @@ export default function VisaoGeral2Page() {
 
     const linhas: MesCapacidadeVenda[] = [];
     for (const p of PERIODOS_CAPACIDADE) {
-      const mes = Number(resumoDias.periodos?.[p] || 0);
+      const mes = Number(resumoDiasEfetivo.periodos?.[p] || 0);
       if (!mes) continue;
       const ano = mes >= mesMA ? anoBase : data.anoDestino;
-      const diasNecessarios = Number(resumoDias.diasNecessarios?.[p] || 0);
-      const diasDisponiveis = Number(resumoDias.diasDisponiveis?.[p] || 0);
+      const diasNecessarios = Number(resumoDiasEfetivo.diasNecessarios?.[p] || 0);
+      const diasDisponiveis = Number(resumoDiasEfetivo.diasDisponiveis?.[p] || 0);
       // Pecas por tras da carga do periodo: o lote que ainda nao virou OP mais o que ja
       // esta em processo. E essa a populacao que o dias-resumo poe no numerador — usar o
       // lote cheio daria 4,1 min/peca em outubro contra 6,4-8,3 nos outros meses.
@@ -1007,7 +1038,7 @@ export default function VisaoGeral2Page() {
       });
     }
 
-    const ultimoFechado = Number(resumoDias.periodos?.QT || 0);
+    const ultimoFechado = Number(resumoDiasEfetivo.periodos?.QT || 0);
     data.meses.forEach((m, i) => {
       const mes = i + 1;
       if (mes <= ultimoFechado) return;
@@ -1049,7 +1080,7 @@ export default function VisaoGeral2Page() {
       abertura: Number(data.estoqueBaseReal || 0) + Number(data.elEstoque || 0),
       pedidosPendentes: Number(data.pedidosPendentes || 0) + Number(data.elPendentes || 0),
     };
-  }, [resumoDias, data, projEdicaoLimitada, elDetalhe, elDetalheBase, indiceMensal]);
+  }, [resumoDiasEfetivo, data, projEdicaoLimitada, elDetalhe, elDetalheBase, indiceMensal]);
 
   const ultimo = data?.meses[data.meses.length - 1];
   const primeiroNegativo = data?.meses.find((m) => m.estoque < 0);
@@ -1281,21 +1312,6 @@ export default function VisaoGeral2Page() {
   return <div className="min-h-screen bg-gray-100"><Sidebar onCollapse={setCollapsed} /><main className={`${collapsed ? 'ml-20' : 'ml-64'} p-6 transition-all`}>
     <div className="flex items-start justify-between mb-6"><div><p className="text-xs uppercase tracking-widest text-gray-500">Planejamento agregado</p><h1 className="text-2xl font-bold text-gray-900">Visão Geral 2 (teste)</h1><p className="text-sm text-gray-500 mt-1">Projeção {data?.anoDestino || new Date().getFullYear() + 1}.1 usando permanentes com venda em 6m ou 3m.</p></div>
       <div className="flex items-center gap-3">
-        {/* O cenário usa a base já carregada e recompõe localmente permanentes e edição
-            limitada, 2027 inteiro e o fechamento de nov/dez/2026. */}
-        <div className="flex shrink-0 items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Crescimento fábrica</span>
-          {([0.10, 0.05, 0] as const).map((c) => (
-            <button
-              key={c}
-              onClick={() => setCenarioFabrica(c)}
-              title={`Simula a fabrica crescendo ${Math.round(c * 100)}% ao ano em vez do historico`}
-              className={`rounded px-2 py-1 text-xs font-semibold transition ${cenarioFabrica === c ? 'bg-slate-800 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
-            >
-              {Math.round(c * 100)}%
-            </button>
-          ))}
-        </div>
         <button onClick={() => carregar(true)} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
       </div>
     </div>
@@ -1425,6 +1441,13 @@ export default function VisaoGeral2Page() {
           aberturaEstoque={relatorioCapacidade.abertura}
           pedidosPendentes={relatorioCapacidade.pedidosPendentes}
           emProcessoAtual={data.posicao.emProcesso}
+          cenarioCapacidadeAnterior={cenarioCapacidadeAnterior}
+          onToggleCenarioCapacidadeAnterior={() => setCenarioCapacidadeAnterior((v) => !v)}
+          capacidadeDiariaAtual={resumoDias?.capacidadeDiaria}
+          capacidadeDiariaAnterior={resumoDias?.capacidadeDiariaAnterior}
+          gruposDesativados={resumoDias?.gruposDesativados}
+          cenarioFabrica={cenarioFabrica}
+          onCenarioFabrica={setCenarioFabrica}
         />
       )}
 

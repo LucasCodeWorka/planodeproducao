@@ -156,11 +156,21 @@ async function buscarVendasPorCanal(pool, ano, idsPermitidos = null) {
  *    planejando producao. So o TOTAL historico que vira a base do modelo passa a ser
  *    point-in-time.
  */
-async function buscarVendasHistoricasPermanentes(pool, ano, marca = 'LIEBE') {
+// A partir deste mes do ano base a classificacao vem da foto de HOJE (h.atual), nao da
+// epoca: o semestre corrente ja e a colecao que esta em linha, e medido em 14/10/2026 a
+// diferenca entre as duas leituras em jul-set ficou entre -0,1% e 0,7%. O 1o semestre
+// segue point-in-time, que e onde o giro de colecao pesa (fabrica +2,4% a +2,9% no 1o tri).
+const MES_INICIO_CLASSIFICACAO_ATUAL = 7;
+
+async function buscarVendasHistoricasPermanentes(pool, ano, marca = 'LIEBE', mesInicioAtual = MES_INICIO_CLASSIFICACAO_ATUAL) {
   const vendas = {
     fabrica: Object.fromEntries(MESES_SEMESTRE.map((mes) => [mes, 0])),
     lojas: Object.fromEntries(MESES_SEMESTRE.map((mes) => [mes, 0])),
   };
+  const filtroPermanente = `
+                  AND UPPER(TRIM(COALESCE(h.marca, ''))) = $3
+                  AND UPPER(TRIM(COALESCE(h.continuidade, ''))) IN ('PERMANENTE', 'PERMANENTE COR NOVA')
+                  AND UPPER(TRIM(COALESCE(h.status, ''))) IN ('EM LINHA', 'NOVA COLECAO', 'EM LINHA NAO COMPRAR MP')`;
   const result = await pool.query(`
     WITH vendas_mes AS (
       SELECT v.idproduto, EXTRACT(MONTH FROM v.data)::INT AS mes,
@@ -173,23 +183,23 @@ async function buscarVendasHistoricasPermanentes(pool, ano, marca = 'LIEBE') {
     ),
     classificado AS (
       SELECT vm.mes, vm.fabrica, vm.lojas,
-             EXISTS (
+             CASE WHEN vm.mes >= $4 THEN EXISTS (
                SELECT 1 FROM public.hist_dproduto h
-                WHERE h.cd_produto = vm.idproduto
-                  AND UPPER(TRIM(COALESCE(h.marca, ''))) = $3
-                  AND UPPER(TRIM(COALESCE(h.continuidade, ''))) IN ('PERMANENTE', 'PERMANENTE COR NOVA')
-                  AND UPPER(TRIM(COALESCE(h.status, ''))) IN ('EM LINHA', 'NOVA COLECAO', 'EM LINHA NAO COMPRAR MP')
+                WHERE h.cd_produto = vm.idproduto AND h.atual ${filtroPermanente}
+             ) ELSE EXISTS (
+               SELECT 1 FROM public.hist_dproduto h
+                WHERE h.cd_produto = vm.idproduto ${filtroPermanente}
                   AND h.dt_inicio <= vm.ultima_venda
                   AND (h.dt_fim IS NULL OR h.dt_fim >= vm.primeira_venda)
-             ) AS em_linha_na_epoca
+             ) END AS em_linha
         FROM vendas_mes vm
     )
     SELECT mes,
-           SUM(fabrica) FILTER (WHERE em_linha_na_epoca)::FLOAT AS fabrica,
-           SUM(lojas) FILTER (WHERE em_linha_na_epoca)::FLOAT AS lojas
+           SUM(fabrica) FILTER (WHERE em_linha)::FLOAT AS fabrica,
+           SUM(lojas) FILTER (WHERE em_linha)::FLOAT AS lojas
       FROM classificado
      GROUP BY mes ORDER BY mes
-  `, [`${ano}-01-01`, `${ano + 1}-01-01`, marca.toUpperCase()]);
+  `, [`${ano}-01-01`, `${ano + 1}-01-01`, marca.toUpperCase(), mesInicioAtual]);
   for (const row of result.rows) {
     const mes = Number(row.mes);
     if (!MESES_SEMESTRE.includes(mes)) continue;

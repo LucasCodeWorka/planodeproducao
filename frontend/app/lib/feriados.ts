@@ -80,11 +80,12 @@ export function feriadosUteisNoMes(ano: number, mes: number): number {
 }
 
 /**
- * Paradas programadas que nenhum calendário sabe: dias de fábrica fechada por decisão da
- * empresa. Hoje só a coletiva de fim de ano, medida na config de dias (dezembro vinha com
- * 18 contra 23 dias de semana). Em dias, por mês.
+ * Meses com dias de fábrica FIXOS, que o calendário não sabe calcular: a coletiva de fim
+ * de ano começa em dezembro e termina em janeiro, sem data exata definida, e a operação
+ * trabalha 18 dias em dezembro e 18 em janeiro (mesmos números da tela de Capacidade).
+ * O número já é líquido de feriados e férias — não desconta mais nada por cima.
  */
-export const PARADAS_PROGRAMADAS: Readonly<Record<number, number>> = { 12: 5 };
+export const DIAS_FIXOS_POR_MES: Readonly<Record<number, number>> = { 12: 18, 1: 18 };
 
 /** Dias de semana do mês já descontados os feriados que caem neles. */
 export function diasUteisNoMes(ano: number, mes: number): number {
@@ -98,7 +99,7 @@ export function diasUteisNoMes(ano: number, mes: number): number {
   return Math.max(0, n - feriadosUteisNoMes(ano, mes));
 }
 
-/** Dias que a fábrica realmente tem no mês: dias úteis menos a parada programada. */
+/** Dias que a fábrica realmente tem no mês: o fixo da coletiva, ou os dias úteis. */
 export function diasDeFabricaNoMes(ano: number, mes: number): number {
-  return Math.max(0, diasUteisNoMes(ano, mes) - (PARADAS_PROGRAMADAS[mes] || 0));
+  return DIAS_FIXOS_POR_MES[mes] ?? diasUteisNoMes(ano, mes);
 }
