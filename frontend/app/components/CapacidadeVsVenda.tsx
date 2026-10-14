@@ -139,10 +139,9 @@ export default function CapacidadeVsVenda({
   const [diasCarteira, setDiasCarteira] = useState<number>(CARTEIRA_DIAS_PADRAO);
   // A faixa de ajustes nasce fechada: o relatorio abre na leitura, nao na configuracao.
   const [mostrarAjustes, setMostrarAjustes] = useState(false);
-  // Padrão em 'comparado': as três séries na MESMA escala. 'isolado' (cada série com sua
-  // própria normalização) convida a comparar altura/paralelismo entre faixas que não são
-  // comparáveis — por isso vira opção, não default. Ver análise de 13/10/2026.
-  const [modoGrafico, setModoGrafico] = useState<'isolado' | 'comparado'>('comparado');
+  // Abre em 'isolado' (cada faixa com sua escala), a leitura pedida pela operacao. A
+  // altura entre faixas nao compara quantidades — a legenda do botao avisa isso.
+  const [modoGrafico, setModoGrafico] = useState<'isolado' | 'comparado'>('isolado');
 
   if (!meses.length) return null;
 
