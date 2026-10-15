@@ -4,6 +4,7 @@ const { Pool } = require("pg");
 require("dotenv").config();
 
 const { initCache }   = require("./cache/matrizCache");
+const { aquecer: aquecerClassificacaoErp } = require("./services/classificacaoErpCache");
 const estoqueRoutes   = require("./routes/estoque");
 const vendasRoutes    = require("./routes/vendas");
 const producaoRoutes  = require("./routes/producao");
@@ -165,6 +166,9 @@ async function ensureAnalisesIndexes() {
 ensureAnalisesIndexes().then(() => initCache(pool)).then(() => {
   app.listen(listenPort, API_HOST, () => {
   console.log(`API ouvindo em http://${API_HOST}:${listenPort}`);
+  // Classificacao atual do ERP de quem vendeu no 2o semestre: cara (~80s), entao aquece em
+  // segundo plano para a primeira abertura da Visao Geral nao estourar o timeout.
+  aquecerClassificacaoErp(pool, `${new Date().getFullYear()}-07-01`);
   console.log(`\nEndpoints disponiveis:`);
   console.log(`\n  Sistema:`);
   console.log(`    GET  /health`);

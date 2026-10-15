@@ -663,29 +663,31 @@ export default function VisaoGeral2Page() {
       // Mesmo endpoint, dois anos: anoDestino real da o modelo de venda (o que ainda nao
       // aconteceu); anoDestino=anoBase da o canal medido para os meses abertos do ano
       // corrente, que os rows travado (real) usam.
+      // 5 min: a classificacao atual do ERP do 2o semestre e cara e, com o banco disputado
+      // por outras telas, os 2 min padrao abortavam e a linha saia zerada sem aviso.
       const [rDestino, rBase] = await Promise.all([
-        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${ano}&detalhe=1&crescimentoFabrica=0`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${anoBase}&detalhe=1&crescimentoFabrica=0`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${ano}&detalhe=1&crescimentoFabrica=0`, { headers: authHeaders() }, 300000),
+        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${anoBase}&detalhe=1&crescimentoFabrica=0`, { headers: authHeaders() }, 300000),
       ]);
       const pDestino = await rDestino.json();
-      if (rDestino.ok && pDestino?.success) {
-        setElDetalheBruto(paraDetalhe(pDestino.porMes));
-      }
       const pBase = await rBase.json();
-      if (rBase.ok && pBase?.success) {
-        setElDetalheBaseBruto(paraDetalhe(pBase.porMes));
+      if (!(rDestino.ok && pDestino?.success) || !(rBase.ok && pBase?.success)) {
+        throw new Error(pDestino?.error || pBase?.error || 'resposta invalida');
       }
-    } catch {
+      setElDetalheBruto(paraDetalhe(pDestino.porMes));
+      setElDetalheBaseBruto(paraDetalhe(pBase.porMes));
+    } catch (e) {
       setElDetalheBruto(null);
       setElDetalheBaseBruto(null);
+      setError(`Edição limitada não carregou (${e instanceof Error ? e.message : 'erro'}): a projeção está SEM edição limitada. Clique em Atualizar.`);
     }
   }
 
   async function carregarCapacidade() {
     try {
-      const r = await fetchNoCache(`${API_URL}/api/capacidade/dias-resumo`, { headers: authHeaders() });
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/dias-resumo`, { headers: authHeaders() }, 300000);
       const p = await r.json();
-      if (!r.ok || !p?.success) return;
+      if (!r.ok || !p?.success) throw new Error(p?.error || `HTTP ${r.status}`);
       setResumoDias({
         capacidadeDiaria: Number(p.capacidadeDiaria || 0),
         diasNecessarios: p.diasNecessarios || {},
@@ -695,8 +697,9 @@ export default function VisaoGeral2Page() {
         diasNecessariosAnterior: p.diasNecessariosAnterior || {},
         gruposDesativados: p.gruposDesativados || [],
       });
-    } catch {
+    } catch (e) {
       setResumoDias(null);
+      setError(`Capacidade não carregou (${e instanceof Error ? e.message : 'erro'}): a tabela Capacidade x Venda fica oculta. Clique em Atualizar.`);
     }
   }
   // Troca capacidadeDiaria/diasNecessarios pela variante "anterior" quando o cenario esta
@@ -960,7 +963,13 @@ export default function VisaoGeral2Page() {
       const fracaoRestante = ano === data.anoBase && mes === new Date().getMonth() + 1 && baseCheia > 0
         ? Math.min(1, Math.max(0, perm / baseCheia)) : 1;
       const lojasHistoricas = Number(data.vendasHistoricas.lojas[String(mes)] || 0);
-      const permLojas = mes >= 10 ? Math.min(perm, lojasHistoricas * fracaoRestante) : perm * (1 - partFabrica(mes));
+      // Lojas sem acrescimo: e a venda de lojas do mesmo mes do ano anterior, nao uma fatia
+      // da projecao total — ratear pela participacao jogava o crescimento da fabrica em
+      // cima do denominador e encolhia lojas (set/27 saia 18.499 contra base de 19.565).
+      const baseLojasModelo = Number(data.totalizadoresModeloBase[String(mes)]?.lojas || 0);
+      const permLojas = mes >= 10
+        ? Math.min(perm, lojasHistoricas * fracaoRestante)
+        : (baseLojasModelo > 0 ? Math.min(perm, baseLojasModelo) : perm * (1 - partFabrica(mes)));
       const permFab = perm - permLojas;
       // O canal medido e especifico do ANO: para a linha real (2026), o detalhe
       // precisa vir de elDetalheBase (2026), nao do elDetalhe do destino (2027) — senao os
@@ -1331,7 +1340,7 @@ export default function VisaoGeral2Page() {
   return <div className="min-h-screen bg-gray-100"><Sidebar onCollapse={setCollapsed} /><main className={`${collapsed ? 'ml-20' : 'ml-64'} p-6 transition-all`}>
     <div className="flex items-start justify-between mb-6"><div><p className="text-xs uppercase tracking-widest text-gray-500">Planejamento agregado</p><h1 className="text-2xl font-bold text-gray-900">Visão Geral 2 (teste)</h1><p className="text-sm text-gray-500 mt-1">Projeção {data?.anoDestino || new Date().getFullYear() + 1}.1 usando permanentes com venda em 6m ou 3m.</p></div>
       <div className="flex items-center gap-3">
-        <button onClick={() => carregar(true)} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
+        <button onClick={() => { carregar(true); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); }} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
       </div>
     </div>
     {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}

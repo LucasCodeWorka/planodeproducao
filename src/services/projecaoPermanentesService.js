@@ -156,7 +156,7 @@ async function buscarVendasPorCanal(pool, ano, idsPermitidos = null) {
  *    planejando producao. So o TOTAL historico que vira a base do modelo passa a ser
  *    point-in-time.
  */
-// A partir deste mes do ano base a classificacao vem da foto de HOJE (h.atual), nao da
+// A partir deste mes do ano base a classificacao vem da foto de HOJE (ERP ao vivo), nao da
 // epoca: o semestre corrente ja e a colecao que esta em linha, e medido em 14/10/2026 a
 // diferenca entre as duas leituras em jul-set ficou entre -0,1% e 0,7%. O 1o semestre
 // segue point-in-time, que e onde o giro de colecao pesa (fabrica +2,4% a +2,9% no 1o tri).
@@ -166,6 +166,8 @@ const MES_INICIO_CLASSIFICACAO_ATUAL = 7;
 // decisao da operacao em 14/10/2026 para janeiro. Por dia porque quase todo SKU de nova
 // colecao vira EM LINHA dentro do mes — conferir por mes nao tiraria nada.
 const MESES_SO_EM_LINHA = [1];
+
+const { classificarAtual } = require('./classificacaoErpCache');
 
 async function buscarVendasHistoricasPermanentes(pool, ano, marca = 'LIEBE', mesInicioAtual = MES_INICIO_CLASSIFICACAO_ATUAL) {
   const vendas = {
@@ -209,16 +211,14 @@ async function buscarVendasHistoricasPermanentes(pool, ano, marca = 'LIEBE', mes
         FROM vendas_dia vd
       UNION ALL
       SELECT vm.mes, vm.fabrica, vm.lojas,
-             CASE WHEN vm.mes >= $4 THEN EXISTS (
-               SELECT 1 FROM public.hist_dproduto h
-                WHERE h.cd_produto = vm.idproduto AND h.atual ${filtroPermanente}
-             ) ELSE EXISTS (
+             EXISTS (
                SELECT 1 FROM public.hist_dproduto h
                 WHERE h.cd_produto = vm.idproduto ${filtroPermanente}
                   AND h.dt_inicio <= vm.ultima_venda
                   AND (h.dt_fim IS NULL OR h.dt_fim >= vm.primeira_venda)
-             ) END AS em_linha
+             ) AS em_linha
         FROM vendas_mes vm
+       WHERE vm.mes < $4
     )
     SELECT mes,
            SUM(fabrica) FILTER (WHERE em_linha)::FLOAT AS fabrica,
@@ -226,7 +226,33 @@ async function buscarVendasHistoricasPermanentes(pool, ano, marca = 'LIEBE', mes
       FROM classificado
      GROUP BY mes ORDER BY mes
   `, [`${ano}-01-01`, `${ano + 1}-01-01`, marca.toUpperCase(), mesInicioAtual, MESES_SO_EM_LINHA]);
-  for (const row of result.rows) {
+
+  // 2o semestre: classificacao ATUAL do ERP (a mesma do BI), nao a do hist_dproduto, que
+  // depende de uma carga externa e fica dias atrasado. Vem do cache compartilhado com a
+  // edicao limitada (classificar ~6 mil SKUs no ERP leva ~80s).
+  const atual = await pool.query(`
+    SELECT v.idproduto::BIGINT AS idproduto, EXTRACT(MONTH FROM v.data)::INT AS mes,
+           SUM(CASE WHEN v.idempresa = 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS fabrica,
+           SUM(CASE WHEN v.idempresa <> 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS lojas
+      FROM public.mv_vendas_qtd v
+     WHERE v.data >= $1::DATE AND v.data < $2::DATE
+     GROUP BY 1, 2
+  `, [`${ano}-${String(mesInicioAtual).padStart(2, '0')}-01`, `${ano + 1}-01-01`]);
+  const classif = await classificarAtual(pool, atual.rows.map((r) => r.idproduto));
+  const somaAtual = new Map();
+  for (const r of atual.rows) {
+    const c = classif.get(Number(r.idproduto));
+    if (!c || c.marca !== marca.toUpperCase()) continue;
+    if (!['PERMANENTE', 'PERMANENTE COR NOVA'].includes(c.continuidade)) continue;
+    if (!['EM LINHA', 'NOVA COLECAO'].includes(c.status)) continue;
+    const mes = Number(r.mes);
+    const s = somaAtual.get(mes) || { mes, fabrica: 0, lojas: 0 };
+    s.fabrica += Number(r.fabrica) || 0;
+    s.lojas += Number(r.lojas) || 0;
+    somaAtual.set(mes, s);
+  }
+
+  for (const row of [...result.rows, ...somaAtual.values()]) {
     const mes = Number(row.mes);
     if (!MESES_SEMESTRE.includes(mes)) continue;
     vendas.fabrica[mes] = Math.round(Number(row.fabrica) || 0);

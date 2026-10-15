@@ -32,6 +32,12 @@ const STATUS_EM_LINHA = ['EM LINHA', 'NOVA COLECAO'];
 // regra dos permanentes.
 const MESES_SO_EM_LINHA = [1];
 
+// Do mes 7 do ano CORRENTE em diante a classificacao e a atual, direto do ERP (a mesma do BI),
+// como nos permanentes. Anos anteriores seguem com o status da epoca.
+const MES_INICIO_CLASSIFICACAO_ATUAL = 7;
+
+const { classificarAtual } = require('./classificacaoErpCache');
+
 const CONTINUIDADE_EL = ['EDICAO LIMITADA', 'EDIÇÃO LIMITADA'];
 
 const AJUSTE_FABRICA_ANUAL = 1.10;
@@ -40,7 +46,7 @@ const AJUSTE_FABRICA_ANUAL = 1.10;
  * Venda de edicao limitada por ano/mes e canal, com o recorte historico.
  * @returns {Promise<Map<string, {fabrica:number, lojas:number}>>} chave "ano-mes"
  */
-async function venderPorMesHistorico(pool, { de, ate, marca = 'LIEBE' }) {
+async function venderPorMesHistorico(pool, { de, ate, marca = 'LIEBE', hoje = new Date() }) {
   const { rows } = await pool.query(`
     SELECT EXTRACT(YEAR FROM v.data)::INT  AS ano,
            EXTRACT(MONTH FROM v.data)::INT AS mes,
@@ -65,6 +71,36 @@ async function venderPorMesHistorico(pool, { de, ate, marca = 'LIEBE' }) {
       fabrica: Number(row.fabrica) || 0,
       lojas: Number(row.lojas) || 0,
     });
+  }
+
+  // 2o semestre do ano corrente: classificacao ATUAL do ERP (a mesma do BI), sobrescrevendo o
+  // recorte historico desses meses. A classificacao vem do cache compartilhado: misturada ao
+  // join historico a consulta estourava 4 minutos.
+  const anoCorrente = hoje.getFullYear();
+  const inicioAtual = `${anoCorrente}-${String(MES_INICIO_CLASSIFICACAO_ATUAL).padStart(2, '0')}-01`;
+  const deAtual = inicioAtual > de ? inicioAtual : de;
+  const ateAtual = `${anoCorrente + 1}-01-01` < ate ? `${anoCorrente + 1}-01-01` : ate;
+  if (deAtual < ateAtual) {
+    const vendas = await pool.query(`
+      SELECT v.idproduto::BIGINT AS idproduto, EXTRACT(MONTH FROM v.data)::INT AS mes,
+             SUM(CASE WHEN v.idempresa = 1  THEN v.qt_liquida ELSE 0 END)::FLOAT AS fabrica,
+             SUM(CASE WHEN v.idempresa <> 1 THEN v.qt_liquida ELSE 0 END)::FLOAT AS lojas
+        FROM public.mv_vendas_qtd v
+       WHERE v.data >= $1::DATE AND v.data < $2::DATE
+       GROUP BY 1, 2
+    `, [deAtual, ateAtual]);
+    const classif = await classificarAtual(pool, vendas.rows.map((r) => r.idproduto));
+    const ehEl = new Set([...classif.entries()]
+      .filter(([, c]) => c.marca === String(marca).toUpperCase() && c.continuidade === 'EDICAO LIMITADA' && STATUS_EM_LINHA.includes(c.status))
+      .map(([id]) => id));
+    const meses = new Set(vendas.rows.map((r) => Number(r.mes)));
+    for (const mes of meses) mapa.set(`${anoCorrente}-${mes}`, { fabrica: 0, lojas: 0 });
+    for (const r of vendas.rows) {
+      if (!ehEl.has(Number(r.idproduto))) continue;
+      const atual = mapa.get(`${anoCorrente}-${Number(r.mes)}`);
+      atual.fabrica += Number(r.fabrica) || 0;
+      atual.lojas += Number(r.lojas) || 0;
+    }
   }
   return mapa;
 }
@@ -91,6 +127,7 @@ async function projetarEdicaoLimitada(pool, { anoDestino, marca = 'LIEBE', hoje 
     de: `${anoBase - 1}-01-01`,
     ate: `${anoBase + 1}-01-01`,
     marca,
+    hoje,
   });
 
   // Um mes do ano base so esta fechado se ja passou. No ano corrente isso corta no mes de
