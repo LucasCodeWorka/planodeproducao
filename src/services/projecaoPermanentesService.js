@@ -16,8 +16,15 @@ const {
   escolherDestinosParaOrigem,
 } = require('./deParaReferencias');
 
-// Regra anual: fabrica do mesmo mes do ano anterior +10%; lojas sem acrescimo.
-const AJUSTES_FABRICA = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i + 1, 1.10]));
+// Regra anual (decisao da operacao, 15/10/2026): fabrica do mesmo mes do ano anterior sem
+// acrescimo, exceto abril e maio +20% — o sinistro derrubou a venda desses meses no ano
+// base. Lojas sem acrescimo. Os +20% sao correcao de base, nao crescimento: valem em
+// qualquer cenario (o cenario so troca a taxa dos outros meses).
+const AJUSTES_FABRICA_FIXOS = { 4: 1.20, 5: 1.20 };
+const CRESCIMENTO_FABRICA_PADRAO = 0;
+const fatorFabricaMes = (mes, crescimento = null) =>
+  AJUSTES_FABRICA_FIXOS[mes] ?? (1 + (crescimento ?? CRESCIMENTO_FABRICA_PADRAO));
+const AJUSTES_FABRICA = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i + 1, fatorFabricaMes(i + 1)]));
 
 const MESES_SEMESTRE = Array.from({ length: 12 }, (_, i) => i + 1); // jan a dez
 
@@ -334,13 +341,12 @@ async function completarMesesAbertosComProjecao(pool, ano, vendasReais, idsPermi
  */
 function calcularTotalizadores(vendas, crescimentoFabrica = null) {
   const totalizadores = {};
-  // Cenario de crescimento: null usa o padrao histórico (AJUSTES_FABRICA, 10% ao ano);
-  // um numero (0, 0.05, 0.10...) sobrescreve TODOS os meses com a mesma taxa, para
-  // simular "e se a fabrica crescesse X% em vez de 10%".
+  // Cenario de crescimento: null usa a regra padrao (fatorFabricaMes); um numero (0, 0.05,
+  // 0.10...) troca a taxa dos meses sem ajuste fixo — abril e maio seguem +20%.
   for (const mes of MESES_SEMESTRE) {
     const fabricaBase = Number(vendas.fabrica[mes]) || 0;
     const lojasBase = Number(vendas.lojas[mes]) || 0;
-    const ajuste = crescimentoFabrica !== null ? (1 + crescimentoFabrica) : (AJUSTES_FABRICA[mes] || 1.10);
+    const ajuste = fatorFabricaMes(mes, crescimentoFabrica);
     const fabricaAjustada = Math.round(fabricaBase * ajuste);
     const total = fabricaAjustada + lojasBase;
 
@@ -1190,5 +1196,6 @@ module.exports = {
   gerarProjecoes,
   gerarPreviewProjecoes,
   AJUSTES_FABRICA,
+  fatorFabricaMes,
   MESES_SEMESTRE,
 };

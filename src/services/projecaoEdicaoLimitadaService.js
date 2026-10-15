@@ -2,7 +2,7 @@
  * Projecao de EDICAO LIMITADA.
  *
  * Por que um servico separado do de permanentes: la o SKU sobrevive de um ano para o outro,
- * entao a regra "mesmo mes do ano anterior +10% na fabrica" roda SKU a SKU. Aqui o SKU nao
+ * entao a regra "mesmo mes do ano anterior" roda SKU a SKU. Aqui o SKU nao
  * sobrevive — quem sobrevive e a colecao. Medido em 09/10/2026: dos SKUs de edicao limitada,
  * 1.321 estavam em linha em janeiro/2026, ~620 em agosto, e hoje sao 623. Projetar com a
  * fotografia de hoje cortaria janeiro pela metade.
@@ -18,7 +18,7 @@
  * de colecao — que ja se provou fragil: "VERAO 27" existe mas e orfa (2.063 pecas, 26 SKUs),
  * quem vendeu o verao de 2026 foi "VERAO 26/27".
  *
- * A politica de canal e a mesma ja aprovada para permanentes: fabrica +10%, lojas sem
+ * A politica de canal e a mesma ja aprovada para permanentes: fabrica pela regra de fatorFabricaMes, lojas sem
  * acrescimo.
  */
 
@@ -40,7 +40,9 @@ const { classificarAtual } = require('./classificacaoErpCache');
 
 const CONTINUIDADE_EL = ['EDICAO LIMITADA', 'EDIÇÃO LIMITADA'];
 
-const AJUSTE_FABRICA_ANUAL = 1.10;
+const { fatorFabricaMes } = require('./projecaoPermanentesService');
+
+const CRESCIMENTO_FABRICA_PADRAO = 0;
 
 /**
  * Venda de edicao limitada por ano/mes e canal, com o recorte historico.
@@ -111,13 +113,14 @@ async function venderPorMesHistorico(pool, { de, ate, marca = 'LIEBE', hoje = ne
  * Para cada mes, procura o mesmo mes no ano base (anoDestino - 1). Se aquele mes ainda nao
  * fechou — o mes corrente e os seguintes, que so tem venda parcial — cai para o mesmo mes
  * do ano anterior a ele, que e uma estacao completa, e o ajuste de fabrica compoe pela
- * distancia em anos (1,10 por ano). Sem esse recuo, out/nov/dez do ano destino nasceriam
+ * distancia em anos. Sem esse recuo, out/nov/dez do ano destino nasceriam
  * com a venda de um mes que ainda esta acontecendo.
  */
 async function projetarEdicaoLimitada(pool, { anoDestino, marca = 'LIEBE', hoje = new Date(), crescimentoFabrica = null } = {}) {
-  // Cenario de crescimento: null usa o padrao historico (AJUSTE_FABRICA_ANUAL, 10% ao ano
-  // de distancia); um numero (0, 0.05, 0.10...) sobrescreve a mesma taxa em todos os meses.
-  const ajusteFabricaCenario = crescimentoFabrica !== null ? (1 + Number(crescimentoFabrica)) : AJUSTE_FABRICA_ANUAL;
+  // Mesma regra dos permanentes (fatorFabricaMes): padrao 0%, abril e maio +20%; o cenario
+  // troca a taxa dos outros meses. Compoe pela distancia em anos no recuo.
+  const crescimento = crescimentoFabrica !== null ? Number(crescimentoFabrica) : null;
+  const ajusteFabricaCenario = 1 + (crescimento ?? CRESCIMENTO_FABRICA_PADRAO);
   const destino = Number(anoDestino);
   if (!Number.isInteger(destino)) throw new Error('anoDestino invalido');
 
@@ -140,7 +143,7 @@ async function projetarEdicaoLimitada(pool, { anoDestino, marca = 'LIEBE', hoje 
     const anoFonte = fechado ? anoBase : anoBase - 1;
     const base = vendas.get(`${anoFonte}-${mes}`) || { fabrica: 0, lojas: 0 };
     const distancia = destino - anoFonte;
-    const fator = Math.pow(ajusteFabricaCenario, distancia);
+    const fator = Math.pow(fatorFabricaMes(mes, crescimento), distancia);
     const fabrica = Math.round(base.fabrica * fator);
     const lojas = Math.round(base.lojas);
     porMes.push({

@@ -9,6 +9,7 @@ import CapacidadeVsVenda, { MesCapacidadeVenda } from '../components/CapacidadeV
 import { diasDeFabricaNoMes, diasUteisNoMes } from '../lib/feriados';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
+import { CRESCIMENTO_FABRICA_PADRAO, fatorFabricaMes } from '../lib/regraProjecao';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'] as const;
@@ -139,11 +140,11 @@ export default function VisaoGeral2Page() {
   // canal real de edicao limitada e muito sazonal (nov ~74% fabrica, dez ~35% -
   // dezembro e mes de loja, Natal).
   const [elDetalheBaseBruto, setElDetalheBaseBruto] = useState<Record<string, ElDetalheMes> | null>(null);
-  // Cenario de crescimento da fabrica: substitui o historico (10% ao ano) pela taxa
-  // escolhida em TODO o modelo (permanentes e edicao limitada, 2027 e o fechamento de
-  // 2026 que ainda falta). As bases são carregadas uma vez com taxa zero; o clique apenas
+  // Cenario de crescimento da fabrica: troca a taxa padrao (0%) em todo o modelo
+  // (permanentes e edicao limitada, 2027 e o fechamento de 2026 que ainda falta). Abril e
+  // maio ficam sempre em +20% (fatorFabricaMes). As bases são carregadas uma vez com taxa zero; o clique apenas
   // recompõe os valores no navegador, sem buscar novamente matriz, capacidade ou vendas.
-  const [cenarioFabrica, setCenarioFabrica] = useState<number>(0.10);
+  const [cenarioFabrica, setCenarioFabrica] = useState<number>(CRESCIMENTO_FABRICA_PADRAO);
   // Perfil sazonal da produtividade diaria, por mes do calendario. Sem ele a capacidade
   // do ultimo mes fechado vale para os 15 meses do horizonte, e a variacao real de 14%
   // entre o melhor e o pior mes some.
@@ -201,7 +202,7 @@ export default function VisaoGeral2Page() {
         // (anoDestino), então não tem risco de um sobrescrever o outro aqui.
         fetchCacheado(`${API_URL}/api/projecoes/por-mes?ano=${anoBase}&meses=9,10,11,12`, { headers: authHeaders() }),
         // Projeção gravada de 2027: conferido em 30/09/2026 que jan-jun já está lançado
-        // (~1.600 SKUs, sem os buracos de dez/2026). O modelo (fábrica+10% do mesmo mês do
+        // (~1.600 SKUs, sem os buracos de dez/2026). O modelo (fábrica pela regra de crescimento, mesmo mês do
         // ano anterior) só entra onde isto não cobrir.
         fetchCacheado(`${API_URL}/api/projecoes/por-mes?ano=${anoDestino}&meses=1,2,3,4,5,6,7,8,9,10,11,12`, { headers: authHeaders() }),
         fetchCacheado(`${API_URL}/api/producao/percentual-finalizado?marca=LIEBE&status=EM%20LINHA,NOVA%20COLECAO`),
@@ -455,17 +456,17 @@ export default function VisaoGeral2Page() {
       // Então estoque_disponivel + plano restante - vendas = estoque BRUTO no fim do período,
       // e o pendente só entra depois, virando o DISPONÍVEL.
       const estoqueFimDezembro = initial - pedidosPendentes + planToDecember - demandToDecember;
-      // 2027 no preview é MODELO (mesmo mês do ano anterior, fábrica +10%) — mas jan-jun/2027
+      // 2027 no preview é MODELO (mesmo mês do ano anterior, regra de crescimento) — mas jan-jun/2027
       // já têm projeção gravada de verdade em app_projecoes (~1.600 SKUs, conferido em
       // 30/09/2026). Onde tiver gravado, usa; em out-dez o modelo sazonal abaixo
       // substitui o preview, sempre na populacao de SKUs desta tela.
       // Origem da projecao, mes a mes: quanto veio de projecao LANCADA em app_projecoes e
-      // quanto veio do MODELO (mesmo mes do ano anterior, fabrica +10%). E a base de calculo
+      // quanto veio do MODELO (mesmo mes do ano anterior, regra de crescimento). E a base de calculo
       // do mes, e muda o quanto dele e decisao da empresa e o quanto e extrapolacao.
       const projOrigem: Record<string, { lancada: number; modelo: number }> = {};
       MONTHS.forEach((m) => { projOrigem[m] = { lancada: 0, modelo: 0 }; });
       // Out-dez do ano destino continuam a partir do plano do ano base, mas com os
-      // canais medidos no mesmo mes do ano anterior: lojas estaveis, fabrica +10%.
+      // canais medidos no mesmo mes do ano anterior: lojas estaveis, fabrica pela regra de crescimento.
       // Rateia o total entre os SKUs sem lancamento de 2027 pela representatividade
       // que o preview ja calculou. Lancamentos de 2027, quando houver, prevalecem.
       const modeloSazonal: Record<string, Record<string, number>> = {};
@@ -730,7 +731,7 @@ export default function VisaoGeral2Page() {
   const aplicarCenarioEl = (detalhes: Record<string, ElDetalheMes> | null, anoDestino: number) => {
     if (!detalhes) return null;
     return Object.fromEntries(Object.entries(detalhes).map(([mes, detalhe]) => {
-      const fator = Math.pow(1 + cenarioFabrica, Math.max(0, anoDestino - Number(detalhe.anoFonte)));
+      const fator = Math.pow(fatorFabricaMes(Number(mes), cenarioFabrica), Math.max(0, anoDestino - Number(detalhe.anoFonte)));
       const fabrica = Math.round(Number(detalhe.fabricaBase || 0) * fator);
       const lojas = Math.round(Number(detalhe.lojasBase || 0));
       return [mes, { ...detalhe, fatorFabrica: Number(fator.toFixed(4)), fabrica, lojas, quantidade: fabrica + lojas }];
@@ -759,7 +760,7 @@ export default function VisaoGeral2Page() {
     MONTHS.forEach((mesNome, idx) => {
       const chave = String(idx + 1);
       const base = rawData.totalizadoresModeloBase[chave] || { fabrica: 0, lojas: 0 };
-      const alvo = Math.round(Number(base.fabrica || 0) * (1 + cenarioFabrica)) + Math.round(Number(base.lojas || 0));
+      const alvo = Math.round(Number(base.fabrica || 0) * fatorFabricaMes(idx + 1, cenarioFabrica)) + Math.round(Number(base.lojas || 0));
       const lancada = rawData.baseSkus.reduce((soma, sku) => soma + Number(sku.projecoesLancadas[mesNome] ?? 0), 0);
       const livres = rawData.baseSkus.filter((sku) => sku.projecoesLancadas[mesNome] === undefined);
       const restante = Math.max(0, alvo - lancada);
@@ -787,7 +788,7 @@ export default function VisaoGeral2Page() {
       const chave = String(idx + 1);
       const fabrica = Number(rawData.vendas.fabrica[chave] || 0);
       const lojas = Number(rawData.vendas.lojas[chave] || 0);
-      const fabricaAjustada = Math.round(fabrica * (1 + cenarioFabrica));
+      const fabricaAjustada = Math.round(fabrica * fatorFabricaMes(idx + 1, cenarioFabrica));
       return [chave, { fabrica, fabricaAjustada, lojas, total: fabricaAjustada + lojas }];
     }));
 
@@ -954,7 +955,7 @@ export default function VisaoGeral2Page() {
     // do plano de 2026. O mes corrente mostra apenas a parcela que ainda falta.
     // Para edicao limitada, o endpoint ja devolve os canais historicos separados.
     const partFabrica = (mes: number) => {
-      const fab = Number(data.vendas.fabrica?.[String(mes)] || 0) * (1 + cenarioFabrica);
+      const fab = Number(data.vendas.fabrica?.[String(mes)] || 0) * fatorFabricaMes(mes, cenarioFabrica);
       const loj = Number(data.vendas.lojas?.[String(mes)] || 0);
       return fab + loj > 0 ? fab / (fab + loj) : 0;
     };
@@ -1037,7 +1038,7 @@ export default function VisaoGeral2Page() {
           : Number(data.projOrigem[MES_ABREV[mes - 1]]?.modelo || 0),
         elBase: ano === anoBase ? elDetalheBase?.[String(mes)] : elDetalhe?.[String(mes)],
         basePerm: basePermDe(ano, mes),
-        fatorFabrica: ano === anoBase ? 1 : 1 + cenarioFabrica,
+        fatorFabrica: ano === anoBase ? 1 : fatorFabricaMes(mes, cenarioFabrica),
         projecaoGravada: ano === anoBase,
         ...(() => {
           const perm = ano === anoBase
@@ -1086,7 +1087,7 @@ export default function VisaoGeral2Page() {
         baseModelo: Number(data.projOrigem[m.mes]?.modelo || 0),
         elBase: elDetalhe?.[String(mes)],
         basePerm: basePermDe(data.anoDestino, mes),
-        fatorFabrica: 1 + cenarioFabrica,
+        fatorFabrica: fatorFabricaMes(mes, cenarioFabrica),
         ...(() => {
           const c = canalDoMes(data.anoDestino, mes, m.demanda, demandaEl);
           return { demandaFabrica: c.fabrica, demandaLojas: c.lojas, demandaLojasPermanentes: c.lojasPermanentes, demandaLojasEdicaoLimitada: c.lojasEdicaoLimitada };

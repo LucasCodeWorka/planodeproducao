@@ -373,15 +373,15 @@ export default function CapacidadeVsVenda({
           </button>
           {onCenarioFabrica && cenarioFabrica !== undefined && (
             <div className="flex shrink-0 items-center gap-1.5 rounded border border-gray-200 bg-gray-50 px-3 py-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Crescimento fábrica</span>
-              {([0.10, 0.05, 0] as const).map((c) => (
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Cenário fábrica</span>
+              {([0, 0.05, 0.10] as const).map((c, i) => (
                 <button
                   key={c}
                   onClick={() => onCenarioFabrica(c)}
-                  title={`Simula a fabrica crescendo ${Math.round(c * 100)}% ao ano em vez do historico`}
+                  title={`${c === 0 ? 'Padrão: ' : ''}fábrica +${Math.round(c * 100)}% sobre o mesmo mês do ano anterior. Abril e maio ficam sempre em +20% (sinistro).`}
                   className={`rounded px-2 py-1 text-xs font-semibold transition ${cenarioFabrica === c ? 'bg-slate-800 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
                 >
-                  {Math.round(c * 100)}%
+                  {i + 1} · {Math.round(c * 100)}%
                 </button>
               ))}
             </div>
@@ -684,7 +684,7 @@ export default function CapacidadeVsVenda({
                 },
                 {
                   id: 'venda-perm-modelo',
-                  rotulo: 'modelo (fábrica +10%)',
+                  rotulo: 'modelo (regra de crescimento)',
                   pai: 'venda-perm',
                   celula: (l: typeof linhas[number]) => (
                     <span className="text-gray-500">{l.baseModelo ? fmt(l.baseModelo) : '—'}</span>
