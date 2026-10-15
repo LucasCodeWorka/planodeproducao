@@ -1,7 +1,11 @@
 const express = require('express');
 const { projetarEdicaoLimitada } = require('../services/projecaoEdicaoLimitadaService');
+const { memoizar } = require('../cache/resultadoCache');
 
 const router = express.Router();
+
+// Resultado guardado por 15 min; ?refresh=true (botao Atualizar) recalcula.
+const TTL_MS = 15 * 60 * 1000;
 
 function auth(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
@@ -32,7 +36,12 @@ router.get('/', auth, async (req, res) => {
       ? Number(req.query.crescimentoFabrica)
       : null;
 
-    const resultado = await projetarEdicaoLimitada(pool, { anoDestino, marca, crescimentoFabrica });
+    const resultado = await memoizar(
+      `edicao-limitada:${anoDestino}:${marca}:${crescimentoFabrica}`,
+      TTL_MS,
+      () => projetarEdicaoLimitada(pool, { anoDestino, marca, crescimentoFabrica }),
+      { forcar: req.query.refresh === 'true' },
+    );
     const { porMes, ...resumo } = resultado;
 
     res.json({

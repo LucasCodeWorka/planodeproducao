@@ -184,7 +184,7 @@ export default function VisaoGeral2Page() {
       // nao ficar refem de um unico pico sazonal.
       const desdeLeadTime = new Date(hoje.getFullYear(), hoje.getMonth() - 6, hoje.getDate()).toISOString().slice(0, 10);
       const [previewResponse, configResponse, matrixResponse, realResponse, realMesAtualResponse, curvaResponse, corteResponse, projBaseResponse, proj2027Response, planoResponse, lotesExecResponse, indicadoresOpResponse, agendaResponse] = await Promise.all([
-        fetchNoCache(`${API_URL}/api/projecao-permanentes/preview?anoBase=${anoBase}&anoDestino=${anoDestino}&completarMesesAbertos=true&crescimentoFabrica=0`, { headers: authHeaders() }),
+        fetchNoCache(`${API_URL}/api/projecao-permanentes/preview?anoBase=${anoBase}&anoDestino=${anoDestino}&completarMesesAbertos=true&crescimentoFabrica=0${forcarTudo ? "&refresh=true" : ""}`, { headers: authHeaders() }, 300000),
         fetchCacheado(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
         fetchCacheado(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=LIEBE&status=EM%20LINHA%2CNOVA%20COLECAO`),
         // `ate=isoMes(0)` corta no dia 1 do mês corrente de propósito, pra média de 3M não
@@ -653,7 +653,7 @@ export default function VisaoGeral2Page() {
     setIndiceMensalAnterior(anterior);
   }
 
-  async function carregarEdicaoLimitada() {
+  async function carregarEdicaoLimitada(forcar = false) {
     try {
       const ano = new Date().getFullYear() + 1;
       const anoBase = ano - 1;
@@ -666,8 +666,8 @@ export default function VisaoGeral2Page() {
       // 5 min: a classificacao atual do ERP do 2o semestre e cara e, com o banco disputado
       // por outras telas, os 2 min padrao abortavam e a linha saia zerada sem aviso.
       const [rDestino, rBase] = await Promise.all([
-        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${ano}&detalhe=1&crescimentoFabrica=0`, { headers: authHeaders() }, 300000),
-        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${anoBase}&detalhe=1&crescimentoFabrica=0`, { headers: authHeaders() }, 300000),
+        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${ano}&detalhe=1&crescimentoFabrica=0${forcar ? "&refresh=true" : ""}`, { headers: authHeaders() }, 300000),
+        fetchNoCache(`${API_URL}/api/projecao-edicao-limitada?anoDestino=${anoBase}&detalhe=1&crescimentoFabrica=0${forcar ? "&refresh=true" : ""}`, { headers: authHeaders() }, 300000),
       ]);
       const pDestino = await rDestino.json();
       const pBase = await rBase.json();
@@ -1340,7 +1340,7 @@ export default function VisaoGeral2Page() {
   return <div className="min-h-screen bg-gray-100"><Sidebar onCollapse={setCollapsed} /><main className={`${collapsed ? 'ml-20' : 'ml-64'} p-6 transition-all`}>
     <div className="flex items-start justify-between mb-6"><div><p className="text-xs uppercase tracking-widest text-gray-500">Planejamento agregado</p><h1 className="text-2xl font-bold text-gray-900">Visão Geral 2 (teste)</h1><p className="text-sm text-gray-500 mt-1">Projeção {data?.anoDestino || new Date().getFullYear() + 1}.1 usando permanentes com venda em 6m ou 3m.</p></div>
       <div className="flex items-center gap-3">
-        <button onClick={() => { carregar(true); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); }} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
+        <button onClick={() => { carregar(true); carregarCapacidade(); carregarEdicaoLimitada(true); carregarIndiceMensal(); }} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
       </div>
     </div>
     {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}

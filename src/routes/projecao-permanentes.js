@@ -1,8 +1,12 @@
 const express = require('express');
 const projecaoPermanentesService = require('../services/projecaoPermanentesService');
 const projecoesService = require('../services/projecoesService');
+const { memoizar } = require('../cache/resultadoCache');
 
 const router = express.Router();
+
+// Preview guardado por 15 min; ?refresh=true (botao Atualizar) recalcula.
+const TTL_PREVIEW_MS = 15 * 60 * 1000;
 
 // ── autenticação ─────────────────────────────────────────
 function auth(req, res, next) {
@@ -37,14 +41,17 @@ router.get('/preview', auth, async (req, res) => {
       ? Number(req.query.crescimentoFabrica)
       : null;
 
-    console.log(`[projecao-permanentes] Gerando preview: anoBase=${anoBase}, anoDestino=${anoDestino}`);
-
-    const resultado = await projecaoPermanentesService.gerarPreviewProjecoes(pool, anoBase, anoDestino, {
-      completarMesesAbertos: req.query.completarMesesAbertos === 'true',
-      crescimentoFabrica,
-    });
-
-    console.log(`[projecao-permanentes] Preview gerado: ${resultado.resumo?.totalSkus || 0} SKUs`);
+    const completarMesesAbertos = req.query.completarMesesAbertos === 'true';
+    const chave = `preview:${anoBase}:${anoDestino}:${completarMesesAbertos}:${crescimentoFabrica}`;
+    const resultado = await memoizar(chave, TTL_PREVIEW_MS, async () => {
+      console.log(`[projecao-permanentes] Gerando preview: anoBase=${anoBase}, anoDestino=${anoDestino}`);
+      const r = await projecaoPermanentesService.gerarPreviewProjecoes(pool, anoBase, anoDestino, {
+        completarMesesAbertos,
+        crescimentoFabrica,
+      });
+      console.log(`[projecao-permanentes] Preview gerado: ${r.resumo?.totalSkus || 0} SKUs`);
+      return r;
+    }, { forcar: req.query.refresh === 'true' });
 
     res.json(resultado);
   } catch (err) {
