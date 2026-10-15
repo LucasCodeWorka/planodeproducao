@@ -750,8 +750,11 @@ export default function VisaoGeral2Page() {
     [elDetalhe],
   );
 
-  // Recompõe apenas os campos afetados pelo cenário. As consultas entregam a base a 0%;
-  // lançamentos gravados continuam fixos e o saldo do modelo é rateado pelos mesmos pesos.
+  // Recompõe apenas os campos afetados pelo cenário. As consultas entregam a base a 0%.
+  // A projeção GRAVADA está no cenário padrão (1 · 0%), então o cenário também a escala: só
+  // a parte da fábrica cresce, na fatia de fábrica da base do mês. Sem isso o gravado
+  // travava o mês — janeiro não mudava ao trocar de cenário. O saldo do modelo é rateado
+  // pelos mesmos pesos.
   const dadosCenario = useMemo(() => {
     if (!rawData) return null;
     const projecoesPorSku = new Map(rawData.baseSkus.map((sku) => [sku.id, {} as Record<Month, number>]));
@@ -761,7 +764,10 @@ export default function VisaoGeral2Page() {
       const chave = String(idx + 1);
       const base = rawData.totalizadoresModeloBase[chave] || { fabrica: 0, lojas: 0 };
       const alvo = Math.round(Number(base.fabrica || 0) * fatorFabricaMes(idx + 1, cenarioFabrica)) + Math.round(Number(base.lojas || 0));
-      const lancada = rawData.baseSkus.reduce((soma, sku) => soma + Number(sku.projecoesLancadas[mesNome] ?? 0), 0);
+      const fabPadrao = Number(base.fabrica || 0) * fatorFabricaMes(idx + 1);
+      const fatiaFabrica = fabPadrao + Number(base.lojas || 0) > 0 ? fabPadrao / (fabPadrao + Number(base.lojas || 0)) : 0;
+      const escalaGravado = 1 + fatiaFabrica * (fatorFabricaMes(idx + 1, cenarioFabrica) / fatorFabricaMes(idx + 1) - 1);
+      const lancada = rawData.baseSkus.reduce((soma, sku) => soma + Number(sku.projecoesLancadas[mesNome] ?? 0) * escalaGravado, 0);
       const livres = rawData.baseSkus.filter((sku) => sku.projecoesLancadas[mesNome] === undefined);
       const restante = Math.max(0, alvo - lancada);
       const pesoTotal = livres.reduce((soma, sku) => soma + Math.max(0, Number(sku.projecoesModelo[mesNome] || 0)), 0);
@@ -775,7 +781,7 @@ export default function VisaoGeral2Page() {
 
       for (const sku of rawData.baseSkus) {
         const valor = sku.projecoesLancadas[mesNome];
-        if (valor !== undefined) projecoesPorSku.get(sku.id)![mesNome] = Number(valor);
+        if (valor !== undefined) projecoesPorSku.get(sku.id)![mesNome] = Number(valor) * escalaGravado;
       }
       for (const parcela of parcelas) {
         projecoesPorSku.get(parcela.id)![mesNome] = parcela.inteiro + (sobras > 0 ? 1 : 0);
