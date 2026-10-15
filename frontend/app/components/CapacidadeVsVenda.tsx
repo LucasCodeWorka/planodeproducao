@@ -519,6 +519,11 @@ export default function CapacidadeVsVenda({
             Disponível fim do mês
           </span>
         </div>
+        <p className="mb-3 text-xs text-gray-600">
+          <span className="font-semibold text-gray-800">Regra da projeção:</span> venda do mesmo mês do ano anterior.
+          Fábrica sem acréscimo no cenário 1 (padrão), +5% no cenário 2 e +10% no cenário 3; <strong>abril e maio +20%</strong> em
+          todos os cenários (sinistro). Lojas sem acréscimo.
+        </p>
         <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-gray-600">
           <div className="inline-flex overflow-hidden rounded border border-gray-300" aria-label="Visualização do gráfico">
             <button type="button" onClick={() => setModoGrafico('isolado')} aria-pressed={modoGrafico === 'isolado'} className={`px-3 py-1.5 ${modoGrafico === 'isolado' ? 'bg-indigo-600 text-white' : 'bg-white hover:bg-gray-50'}`}>
