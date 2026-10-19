@@ -937,8 +937,8 @@ export default function VisaoGeral2Page() {
     // 3) PERDA POR FALTA. Decisao da operacao, nao do dado — por isso vive aqui e nao no
     //    endpoint. Vale saber, para quem for mexer: o nivel acima ja e minuto PRODUZIDO
     //    por dia trabalhado, e quem faltou nao produziu, entao parte da falta ja esta no
-    //    numero. Estes 5% sao a reserva por cima disso.
-    const PERDA_FALTAS = 0.05;
+    //    numero. Estes 3% sao a reserva por cima disso.
+    const PERDA_FALTAS = 0.03;
     const AMORTECIMENTO_INDICE = 0.5;
     const capDiariaAtual = Number(resumoDiasEfetivo.capacidadeDiaria || 0);
     const nivelNovo = Number(indiceMensal?.nivel || 0);

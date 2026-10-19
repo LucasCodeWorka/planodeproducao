@@ -512,7 +512,7 @@ export default function CapacidadeVsVenda({
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="w-6 border-t-2 border-dashed border-slate-400" aria-hidden="true" />
-            Capacidade do mês em peças (já descontados 5% de faltas)
+            Capacidade do mês em peças (já descontados 3% de faltas)
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="w-6 border-t-[3px] border-indigo-600" aria-hidden="true" />
