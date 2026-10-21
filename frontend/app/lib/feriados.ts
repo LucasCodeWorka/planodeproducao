@@ -82,10 +82,15 @@ export function feriadosUteisNoMes(ano: number, mes: number): number {
 /**
  * Meses com dias de fábrica FIXOS, que o calendário não sabe calcular: a coletiva de fim
  * de ano começa em dezembro e termina em janeiro, sem data exata definida, e a operação
- * trabalha 18 dias em dezembro e 18 em janeiro (mesmos números da tela de Capacidade).
+ * trabalha 18 dias em dezembro e 20 em janeiro (mesmos números da tela de Capacidade).
  * O número já é líquido de feriados e férias — não desconta mais nada por cima.
+ *
+ * Janeiro subiu de 18 para 20 em 21/10/2026, a pedido da operação: a volta da coletiva
+ * come menos dias do que o cadastro supunha. Tem que andar junto com `capacidade_dias.json`,
+ * que é a fonte dos meses travados — se os dois discordarem, a mesma janeiro aparece com
+ * duas capacidades na tela.
  */
-export const DIAS_FIXOS_POR_MES: Readonly<Record<number, number>> = { 12: 18, 1: 18 };
+export const DIAS_FIXOS_POR_MES: Readonly<Record<number, number>> = { 12: 18, 1: 20 };
 
 /** Dias de semana do mês já descontados os feriados que caem neles. */
 export function diasUteisNoMes(ano: number, mes: number): number {

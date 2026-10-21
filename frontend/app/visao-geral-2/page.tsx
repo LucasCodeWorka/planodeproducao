@@ -154,7 +154,7 @@ export default function VisaoGeral2Page() {
   const [indiceMensalAtual, setIndiceMensalAtual] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
   const [indiceMensalAnterior, setIndiceMensalAnterior] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
   const indiceMensal = cenarioCapacidadeAnterior && indiceMensalAnterior ? indiceMensalAnterior : indiceMensalAtual;
-  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
+  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   // Cache das respostas que não mudam com o cenário (matriz, capacidade, curva ABC,
   // cortes mínimos, gravado e agenda). Preview e edição limitada carregam uma base neutra;
@@ -184,7 +184,7 @@ export default function VisaoGeral2Page() {
       // Etapa 3 (processo móvel): 6 meses de historico bastam pra media de dias de OP
       // nao ficar refem de um unico pico sazonal.
       const desdeLeadTime = new Date(hoje.getFullYear(), hoje.getMonth() - 6, hoje.getDate()).toISOString().slice(0, 10);
-      const [previewResponse, configResponse, matrixResponse, realResponse, realMesAtualResponse, curvaResponse, corteResponse, projBaseResponse, proj2027Response, planoResponse, lotesExecResponse, indicadoresOpResponse, agendaResponse] = await Promise.all([
+      const [previewResponse, configResponse, matrixResponse, realResponse, realMesAtualResponse, curvaResponse, corteResponse, projBaseResponse, proj2027Response, planoResponse, lotesExecResponse, indicadoresOpResponse, agendaResponse, vendaMesResponse] = await Promise.all([
         fetchNoCache(`${API_URL}/api/projecao-permanentes/preview?anoBase=${anoBase}&anoDestino=${anoDestino}&completarMesesAbertos=true&crescimentoFabrica=0${forcarTudo ? "&refresh=true" : ""}`, { headers: authHeaders() }, 300000),
         fetchCacheado(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
         fetchCacheado(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=LIEBE&status=EM%20LINHA%2CNOVA%20COLECAO`),
@@ -214,6 +214,9 @@ export default function VisaoGeral2Page() {
         // Quando o estoque se mexe: OP por mês de entrega prevista e pedido pendente por mês
         // de baixa prevista, com a data do próprio ERP. Vem por SKU, sem filtro de marca.
         fetchCacheado(`${API_URL}/api/producao/agenda-estoque`, { headers: authHeaders() }),
+        // Venda JA realizada no mes corrente, por SKU. Com ela o mes em curso deixa de ser
+        // uma fatia da projecao e passa a ser o ritmo que o mes esta entregando de verdade.
+        fetchCacheado(`${API_URL}/api/producao/vendas-mes-atual`, { headers: authHeaders() }),
       ]);
       const preview = await previewResponse.json();
       if (!previewResponse.ok || !preview.success) throw new Error(preview.error || 'Erro ao carregar projeção');
@@ -295,10 +298,59 @@ export default function VisaoGeral2Page() {
         fracaoCache = total > 0 ? Math.min(1, restantes / total) : 1;
         return fracaoCache;
       };
-      const vendaDoMesDe = (id: string, media3m: number, mes: number) => {
+      // RITMO DO MES EM CURSO. O pro-rata acima responde "quanto FALTA do mes", nao "quanto
+      // ainda vai vender": ele assume que o mes fecha na projecao. Quando o mes esta abaixo
+      // dela — out/2026 vinha a 3.700 pecas/dia contra as 4.568/dia que a projecao pedia —
+      // isso superestima a saida de estoque. Aqui o que falta sai do ritmo MEDIDO.
+      //
+      // Dia de CALENDARIO, nao dia util: a venda nao para no fim de semana (domingo 18/10
+      // vendeu 2.186 pecas, mais que varias quartas). O dia em curso fica de fora do ritmo
+      // (as 9h ele tem quase nada e puxaria a media para baixo) e so abate do que falta.
+      const vendaMesJson = await vendaMesResponse.json();
+      const vendasMesAtual = (vendaMesJson?.data || {}) as Record<string, { completo: number; parcial: number }>;
+      const diasCompletosMes = Number(vendaMesJson?.diasCompletos || 0);
+      const diasFaltantesMes = Number(vendaMesJson?.diasFaltantes || 0);
+      const realizadoDe = (ids: string[]) => {
+        let completo = 0;
+        let parcial = 0;
+        for (const id of ids) {
+          const v = vendasMesAtual[id];
+          if (!v) continue;
+          completo += Number(v.completo || 0);
+          parcial += Number(v.parcial || 0);
+        }
+        return { completo, parcial };
+      };
+      /**
+       * Multiplicador do mes corrente para uma populacao: o que o ritmo medido ainda deve
+       * vender, dividido pela projecao cheia da mesma populacao. Sem venda medida (dia 1 do
+       * mes, carga do BI atrasada) cai no pro-rata da projecao, que e o comportamento antigo.
+       */
+      const fatorRitmoMes = (ids: string[], projecaoCheia: number) => {
+        if (diasCompletosMes <= 0 || diasFaltantesMes <= 0 || projecaoCheia <= 0) return fracaoMesCorrente();
+        const { completo, parcial } = realizadoDe(ids);
+        if (completo <= 0) return fracaoMesCorrente();
+        const aindaVende = Math.max(0, (completo / diasCompletosMes) * diasFaltantesMes - parcial);
+        return aindaVende / projecaoCheia;
+      };
+      // Fator dos permanentes: definido como funcao preguicosa porque `items` so existe
+      // depois do preview, e `vendaDoMesDe` e chamada bem mais abaixo.
+      let fatorPermCache: number | null = null;
+      const fatorPermMes = () => {
+        if (fatorPermCache !== null) return fatorPermCache;
+        const ids = items.map((item) => String(item.idproduto));
+        const cheia = items.reduce((soma, item) => {
+          const id = String(item.idproduto);
+          const v = projPorSku[id]?.[String(mesCorrenteBase)];
+          return soma + (v !== undefined ? Number(v) : Number(matrixById.get(id)?.demanda?.media_vendas_3m || item.media_3m || 0));
+        }, 0);
+        fatorPermCache = fatorRitmoMes(ids, cheia);
+        return fatorPermCache;
+      };
+      const vendaDoMesDe = (id: string, media3m: number, mes: number, fatorMes?: number) => {
         const v = projPorSku[id]?.[String(mes)];
         const cheio = v !== undefined ? Number(v) : media3m;
-        return mes === mesCorrenteBase ? cheio * fracaoMesCorrente() : cheio;
+        return mes === mesCorrenteBase ? cheio * (fatorMes ?? fatorPermMes()) : cheio;
       };
       const vendaAteDezDe = (id: string, media3m: number) =>
         mesesRestantesBase.reduce((soma, mes) => soma + vendaDoMesDe(id, media3m, mes), 0);
@@ -442,12 +494,31 @@ export default function VisaoGeral2Page() {
         acc.UL += Number(p.ul || 0); acc.QT += Number(p.qt || 0);
         return acc;
       }, { MA: 0, PX: 0, UL: 0, QT: 0 } as Record<string, number>);
+      // Edicao limitada tem ritmo proprio, e bem diferente do dos permanentes: em out/2026
+      // ela rodava a 610 pecas/dia contra as 1.058/dia que a projecao pedia. Por isso o
+      // fator sai da venda medida DESTA populacao, nao da dos permanentes.
+      const elIds = elRows.map((r) => String(r.produto?.idproduto || ''));
+      const elCheiaMesCorrente = elRows.reduce((s, r) => {
+        const id = String(r.produto?.idproduto || '');
+        const v = projPorSku[id]?.[String(mesCorrenteBase)];
+        return s + (v !== undefined ? Number(v) : Number(r.demanda?.media_vendas_3m || 0));
+      }, 0);
+      const elRealizadoMes = realizadoDe(elIds);
+      const fatorElMes = fatorRitmoMes(elIds, elCheiaMesCorrente);
+      // Valor ABSOLUTO do que a edicao limitada ainda deve vender no mes. O relatorio de
+      // Capacidade x Venda le a quantidade do modelo sazonal, que e outra base — aplicar um
+      // fator calculado sobre esta base ali daria um numero sem sentido. `null` = sem venda
+      // medida; o relatorio cai no pro-rata antigo.
+      const elRestanteMesCorrente = diasCompletosMes > 0 && diasFaltantesMes > 0 && elRealizadoMes.completo > 0
+        ? Math.max(0, (elRealizadoMes.completo / diasCompletosMes) * diasFaltantesMes - elRealizadoMes.parcial)
+        : null;
       const elDemandaPorMes: Record<string, number> = {};
       for (const mes of mesesRestantesBase) {
         elDemandaPorMes[String(mes)] = elRows.reduce((s, r) => s + vendaDoMesDe(
           String(r.produto?.idproduto || ''),
           Number(r.demanda?.media_vendas_3m || 0),
           mes,
+          fatorElMes,
         ), 0);
       }
       // Composição medida no backend (producaoService: estoqueDisponivel = estoque + emProcesso):
@@ -612,7 +683,7 @@ export default function VisaoGeral2Page() {
       const diasUteisRestantes = capacidadeDiariaTotal > 0 ? cargaRestanteMA / capacidadeDiariaTotal : 0;
       const previsaoTermino = diasUteisRestantes > 0 ? addDiasUteis(hoje, diasUteisRestantes).toISOString().slice(0, 10) : null;
 
-      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, demandaRestantePorMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
+      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, demandaRestantePorMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao carregar visão macro'); }
     finally { setLoading(false); }
   }
@@ -911,6 +982,7 @@ export default function VisaoGeral2Page() {
     const mesMA = Number(resumoDiasEfetivo.periodos?.MA || 0);
     if (capDiaria <= 0 || !mesMA) return null;
     const anoBase = data.anoDestino - 1;
+    const mesCorrenteBase = new Date().getMonth() + 1;
     const el = (mes: number) => Number(projEdicaoLimitada?.[String(mes)] || 0);
     // Quantidade de edicao limitada para um mes do ANO BASE (travado): usa o MESMO
     // modelo sazonal (o endpoint, chamado com anoDestino=anoBase), nao o calculo avulso
@@ -918,8 +990,17 @@ export default function VisaoGeral2Page() {
     // o modelo de colecao). Com isto as duas linhas — real e projetada — usam a MESMA
     // fonte historica (2025) para nov/dez, e so o fator de composicao (1 ano vs 2 anos)
     // diferencia; lojas (sem acrescimo) sai identico nas duas, como deveria.
-    const elTravado = (mes: number) =>
-      Number(elDetalheBase?.[String(mes)]?.quantidade ?? data.elDemandaPorMes[String(mes)] ?? 0);
+    // No mes em curso vale o RITMO MEDIDO, nao o modelo: `elRestanteMesCorrente` ja e o que
+    // a edicao limitada ainda deve vender, medido na venda real do mes. Sem isto outubro
+    // somava o mes inteiro (32.817) faltando 11 dias, enquanto os permanentes ao lado ja
+    // vinham ajustados — os dois lados do mesmo mes em relogios diferentes. Sem venda
+    // medida, cai no pro-rata da projecao, que era o comportamento antigo.
+    const elTravado = (mes: number) => {
+      const cheio = Number(elDetalheBase?.[String(mes)]?.quantidade ?? data.elDemandaPorMes[String(mes)] ?? 0);
+      if (mes !== mesCorrenteBase) return cheio;
+      const medido = data.elRestanteMesCorrente;
+      return medido === null || medido === undefined ? cheio * Number(data.fracaoMesBase ?? 1) : medido;
+    };
     // FATOR DE CAPACIDADE DO MES. Corrige duas coisas de uma vez.
     //
     // 1) NIVEL. O `dias-resumo` soma a media diaria medida dos grupos ativos. O indice
@@ -1006,7 +1087,6 @@ export default function VisaoGeral2Page() {
     // mes de 2025 desses SKUs, so como comparacao — ali vale a projecao gravada. Ano destino:
     // a base que o modelo usou, que e venda real nos meses fechados e projecao gravada nos
     // meses que ainda nao fecharam.
-    const mesCorrenteBase = new Date().getMonth() + 1;
     const basePermDe = (ano: number, mes: number): MesCapacidadeVenda['basePerm'] => ano === anoBase
       ? { ano: anoBase - 1, fabrica: Number(data.vendasHistoricas.fabrica[String(mes)] || 0), lojas: Number(data.vendasHistoricas.lojas[String(mes)] || 0), fonte: 'venda' }
       : {

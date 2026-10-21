@@ -740,6 +740,93 @@ const data = { MA: null, PX: null, UL: null, QT: null, QU: null };
  * `f_dic_prd_classificacao` aqui custa mais de um minuto por consulta. Quem chama cruza
  * com a população que estiver usando.
  */
+/**
+ * GET /api/producao/vendas-mes-atual
+ * Venda ja realizada no mes corrente, por SKU, separando os dias FECHADOS do dia em curso.
+ *
+ * Serve ao mes corrente da Visao Geral. Antes ela pro-rateava a projecao pelos dias que
+ * faltavam ("se o mes todo vai vender X, faltam 38% do mes, logo faltam 0,38X"), o que
+ * ignora se o mes esta vendendo acima ou abaixo do projetado. Com o realizado na mao da
+ * para medir o RITMO do mes e projetar so o que falta por ele.
+ *
+ * Por que dia de CALENDARIO e nao dia util: a venda nao para no fim de semana. Em
+ * out/2026, domingo 18 vendeu 2.186 pecas — mais que varias quartas. Medir o ritmo em dia
+ * util jogaria essa venda para fora da conta.
+ *
+ * `completo` e `parcial` vem separados porque o dia em curso esta pela metade (as 9h ele
+ * tem quase nada) e entraria no ritmo puxando a media para baixo. O ritmo sai dos dias
+ * fechados; o parcial so abate do que ainda falta vender.
+ */
+router.get("/vendas-mes-atual", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const hoje = new Date();
+    const ano = Number(req.query.ano) || hoje.getFullYear();
+    const mes = Number(req.query.mes) || hoje.getMonth() + 1;
+    if (!Number.isInteger(ano) || !Number.isInteger(mes) || mes < 1 || mes > 12) {
+      return res.status(400).json({ success: false, error: "ano/mes invalidos" });
+    }
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const inicio = `${ano}-${pad(mes)}-01`;
+    const fim = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${pad(mes + 1)}-01`;
+    const diasNoMes = new Date(ano, mes, 0).getDate();
+    // Dia em curso: so existe se o mes pedido for o mes de hoje. Para um mes passado o
+    // mes inteiro esta fechado e nao ha parcial.
+    const mesEhOCorrente = ano === hoje.getFullYear() && mes === hoje.getMonth() + 1;
+    const diaEmCurso = mesEhOCorrente ? hoje.getDate() : null;
+    const corte = diaEmCurso ? `${ano}-${pad(mes)}-${pad(diaEmCurso)}` : fim;
+
+    const result = await pool.query(`
+      SELECT v.idproduto::TEXT AS idproduto,
+             COALESCE(SUM(v.qt_liquida) FILTER (WHERE v.data < $3::DATE), 0)::FLOAT AS completo,
+             COALESCE(SUM(v.qt_liquida) FILTER (WHERE v.data >= $3::DATE), 0)::FLOAT AS parcial,
+             MAX(v.data)::TEXT AS ultima
+        FROM public.mv_vendas_qtd v
+       WHERE v.idproduto IS NOT NULL
+         AND v.data >= $1::DATE AND v.data < $2::DATE
+       GROUP BY v.idproduto
+    `, [inicio, fim, corte]);
+
+    const data = {};
+    let ultimaData = null;
+    for (const row of result.rows) {
+      const completo = Number(row.completo) || 0;
+      const parcial = Number(row.parcial) || 0;
+      if (completo === 0 && parcial === 0) continue;
+      data[String(row.idproduto)] = { completo, parcial };
+      if (row.ultima && (!ultimaData || row.ultima > ultimaData)) ultimaData = row.ultima;
+    }
+
+    // Dias fechados: ate ontem, mas nunca alem do que a carga do BI ja trouxe — se ela
+    // estiver atrasada, medir o ritmo sobre dias sem dado inventaria uma queda de venda.
+    const diaUltimaVenda = ultimaData ? Number(String(ultimaData).slice(8, 10)) : 0;
+    const diasCompletos = diaEmCurso
+      ? Math.max(0, Math.min(diaEmCurso - 1, diaUltimaVenda))
+      : diasNoMes;
+    const diasFaltantes = Math.max(0, diasNoMes - diasCompletos);
+
+    return res.json({
+      success: true,
+      ano,
+      mes,
+      diasNoMes,
+      diasCompletos,
+      diasFaltantes,
+      ultimaData,
+      skus: Object.keys(data).length,
+      data,
+    });
+  } catch (error) {
+    console.error("[producao/vendas-mes-atual] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao buscar venda do mes atual",
+      details: error.message,
+    });
+  }
+});
+
 router.get("/agenda-estoque", async (req, res) => {
   try {
     const pool = req.app.get("pool");
