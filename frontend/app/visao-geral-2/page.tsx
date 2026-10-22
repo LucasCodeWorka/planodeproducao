@@ -1150,19 +1150,22 @@ export default function VisaoGeral2Page() {
         // cheio consome dias na mesma proporcao.
         // Pelo MES do lote, nao pelo rotulo do periodo: o balde MA mistura meses (em
         // out/2026 ele carregava setembro junto, e outubro aparecia com 300 mil em vez de
-        // 202 mil). Mes sem lote lancado — dezembro e janeiro — cai no plano da matriz,
-        // que e planejamento e ainda nao virou lote.
-        planoCompleto: Number(
-          data.planoPorMesReal?.[`${ano}-${String(mes).padStart(2, '0')}`]?.qtdLote
-          ?? data.planoPeriodos[p]?.qtdLote
-          ?? 0
+        // 202 mil).
+        //
+        // O MAIOR entre o lote do mes e o plano RESTANTE da matriz, porque o lote vai
+        // sendo lancado aos poucos: dezembro ja tinha um lote de 1.480 pecas enquanto a
+        // matriz planejava 109.870, e mostrar so o lote faria dezembro parecer vazio.
+        // Comparar com `planoPeriodos[p].qtdLote` nao serve — aquele e o balde do periodo,
+        // justamente o que mistura os meses.
+        planoCompleto: Math.max(
+          Number(data.planoPorMesReal?.[`${ano}-${String(mes).padStart(2, '0')}`]?.qtdLote || 0),
+          Number(data.planoRestantePorPeriodo[p] || 0) + Number(data.elPlanoPorPeriodo[p] || 0),
         ),
         diasDisponiveisMes: diasDeFabricaNoMes(ano, mes),
         planoCompletoDias: pecasCarga > 0 && diasNecessarios > 0
-          ? (diasNecessarios / fatorFalta) * (Number(
-              data.planoPorMesReal?.[`${ano}-${String(mes).padStart(2, '0')}`]?.qtdLote
-              ?? data.planoPeriodos[p]?.qtdLote
-              ?? 0
+          ? (diasNecessarios / fatorFalta) * (Math.max(
+              Number(data.planoPorMesReal?.[`${ano}-${String(mes).padStart(2, '0')}`]?.qtdLote || 0),
+              Number(data.planoRestantePorPeriodo[p] || 0) + Number(data.elPlanoPorPeriodo[p] || 0),
             ) / pecasCarga)
           : 0,
         // Com a falta no ritmo, os dias necessarios sobem — e como as pecas saem da razao

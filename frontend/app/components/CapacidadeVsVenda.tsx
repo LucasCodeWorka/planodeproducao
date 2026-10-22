@@ -648,7 +648,10 @@ export default function CapacidadeVsVenda({
                   <circle cx={x(i)} cy={ySerie(indice, valor)} r="4" fill="#fff" stroke={SERIE_COR[indice]} strokeWidth="2">
                     <title>{`${l.mes} · ${SERIE_NOMES[indice]}: ${fmt(valor)} peças`}</title>
                   </circle>
-                  <text x={x(i)} y={ySerie(indice, valor) - 8} textAnchor="middle" fontSize="10" fontWeight="600" fill={SERIE_COR_TEXTO[indice]} fontFamily="ui-monospace, monospace">
+                  {/* O primeiro ponto ancora a esquerda: centralizado, um numero de 6
+                      digitos invade o rotulo da faixa e vira "72.602" no lugar de
+                      "202.602". */}
+                  <text x={i === 0 ? x(i) - 10 : x(i)} y={ySerie(indice, valor) - 8} textAnchor={i === 0 ? 'start' : 'middle'} fontSize="10" fontWeight="600" fill={SERIE_COR_TEXTO[indice]} fontFamily="ui-monospace, monospace">
                     {fmt(valor)}
                   </text>
                 </g>)
