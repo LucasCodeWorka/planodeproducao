@@ -102,11 +102,45 @@ function diasDeFabricaRestantes(ano, mes, hoje = new Date()) {
   return Math.round((totalFabrica * restantesCalendario) / totalCalendario);
 }
 
+/** Dias de fabrica do mes inteiro: o fixo da coletiva, ou os dias uteis do calendario. */
+function diasDeFabricaNoMes(ano, mes) {
+  return DIAS_FIXOS_POR_MES[mes] ?? diasUteisNoMes(ano, mes);
+}
+
+/**
+ * Em que ANO cai o mes de um periodo do plano. Os periodos andam para frente a partir do
+ * mes corrente, entao um mes MENOR que o de hoje ja e do ano que vem (em outubro/2026, o
+ * periodo QT = mes 1 e janeiro/2027).
+ */
+function anoDoPeriodo(mesPeriodo, hoje = new Date()) {
+  const mesAtual = hoje.getMonth() + 1;
+  return Number(mesPeriodo) < mesAtual ? hoje.getFullYear() + 1 : hoje.getFullYear();
+}
+
+/**
+ * Dias disponiveis de um periodo do plano, do calendario.
+ *
+ * O mes em curso entra so com o que falta; os demais entram inteiros. Substitui o
+ * `capacidade_dias.json` nessa funcao: aquele arquivo e mantido a mao e nao acompanha nem
+ * o relogio (dizia 12 dias de outubro quando faltavam 7) nem o calendario (dizia 21 dias
+ * em novembro/2026, que tem 19 — Finados cai na segunda e Consciencia Negra na sexta).
+ */
+function diasDisponiveisDoPeriodo(mesPeriodo, hoje = new Date()) {
+  const mes = Number(mesPeriodo);
+  if (!mes) return 0;
+  const ano = anoDoPeriodo(mes, hoje);
+  const ehMesCorrente = mes === hoje.getMonth() + 1 && ano === hoje.getFullYear();
+  return ehMesCorrente ? diasDeFabricaRestantes(ano, mes, hoje) : diasDeFabricaNoMes(ano, mes);
+}
+
 module.exports = {
   feriadosDoAno,
   feriadosUteisNoMes,
   diasUteisNoMes,
   diasUteisRestantesNoMes,
   diasDeFabricaRestantes,
+  diasDeFabricaNoMes,
+  anoDoPeriodo,
+  diasDisponiveisDoPeriodo,
   DIAS_FIXOS_POR_MES,
 };

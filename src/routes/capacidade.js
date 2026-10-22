@@ -2,7 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const { calcularPeriodosPlano } = require("../services/periodoPlanoService");
-const { diasDeFabricaRestantes } = require("../lib/diasUteis");
+const { diasDeFabricaRestantes, diasDisponiveisDoPeriodo } = require("../lib/diasUteis");
 
 const router = express.Router();
 
@@ -1356,14 +1356,14 @@ router.get("/dias-resumo", async (req, res) => {
     // em 84,4% quando era 90,8%. Os demais períodos são meses inteiros e seguem na config,
     // que é onde a operação cadastra coletiva e paradas.
     const hojeDias = new Date();
-    const maCalculado = diasDeFabricaRestantes(hojeDias.getFullYear(), Number(periodos.MA), hojeDias);
+    const maCalculado = diasDisponiveisDoPeriodo(periodos.MA, hojeDias);
     const maConfig = Number(dias[String(periodos.MA)] || 0);
     const diasDisponiveis = {
       MA: maCalculado,
-      PX: Number(dias[String(periodos.PX)] || 0),
-      UL: Number(dias[String(periodos.UL)] || 0),
-      QT: Number(dias[String(periodos.QT)] || 0),
-      QU: Number(dias[String(periodos.QU)] || 0),
+      PX: diasDisponiveisDoPeriodo(periodos.PX, hojeDias),
+      UL: diasDisponiveisDoPeriodo(periodos.UL, hojeDias),
+      QT: diasDisponiveisDoPeriodo(periodos.QT, hojeDias),
+      QU: diasDisponiveisDoPeriodo(periodos.QU, hojeDias),
     };
 
     // Preparar resposta e salvar no cache
@@ -1560,6 +1560,28 @@ router.get('/gap-mensal', auth, async (req, res) => {
       processoCarga += tempo * Number(processoPorRef.get(row.referencia) || 0) * rateio;
     }
 
+    // Referencia sem grupo de capacidade TAMBEM ocupa a fabrica. O laco acima so percorre
+    // `grupoRefs`, entao tudo que nao esta mapeado sumia da conta: em 22/10/2026 eram 60
+    // referencias, 100.707 pecas, 16,9 dias de trabalho — 22% do total. Era a maior parte
+    // da "folga" que esta tela prometia (janeiro aparecia com 30 dias sobrando quando
+    // sobravam 4). O dias-resumo ja fazia isso; aqui faltava.
+    const refsComGrupo = new Set(grupoRefs.map((row) => String(row.referencia || '').toUpperCase()));
+    const refsComCarga = new Set([...planoPorRef.keys(), ...processoPorRef.keys()]);
+    for (const referencia of refsComCarga) {
+      if (refsComGrupo.has(referencia)) continue;
+      const idreferencia = seqgrupoPorRef.get(referencia) || '';
+      const tempo = Number(tempoPorRef.get(idreferencia) || 0);
+      if (!tempo) continue;
+      const base = planoPorRef.get(referencia) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
+      carga.ma += tempo * base.ma;
+      carga.px += tempo * base.px;
+      carga.ul += tempo * base.ul;
+      carga.qt += tempo * base.qt;
+      carga.qu += tempo * base.qu;
+      carga.sx += tempo * base.sx;
+      processoCarga += tempo * Number(processoPorRef.get(referencia) || 0);
+    }
+
     // Igual à tela: havendo medição real, grupo sem medição vale zero (não cai na planilha)
     const capacidadeDiariaTotal = grupos.reduce((total, g) => total + (capacidadeRealPorGrupo.size > 0
       ? (capacidadeRealPorGrupo.get(g.grupo) || 0)
@@ -1572,7 +1594,9 @@ router.get('/gap-mensal', auth, async (req, res) => {
     const meses = [];
     for (const chave of ['MA', 'PX', 'UL', 'QT', 'QU', 'SX']) {
       tempoAcumulado += carga[chave.toLowerCase()];
-      diasAcumulados += Number(dias[String(periodos[chave])] || 0);
+      // Dias do calendario, nao da config: o mes em curso entra so com o que falta, e os
+      // feriados de cada mes sao descontados no ano certo.
+      diasAcumulados += diasDisponiveisDoPeriodo(periodos[chave], hoje);
       const diasNecessarios = capacidadeDiariaTotal > 0 ? tempoAcumulado / capacidadeDiariaTotal : 0;
       meses.push({
         periodo: chave,
