@@ -2,6 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const { calcularPeriodosPlano } = require("../services/periodoPlanoService");
+const { diasDeFabricaRestantes } = require("../lib/diasUteis");
 
 const router = express.Router();
 
@@ -1189,8 +1190,18 @@ router.get("/dias-resumo", async (req, res) => {
       calcularDias(capacidadeDiariaTotalAnterior);
 
     // 11. Calcular dias disponíveis por período
+    //
+    // MA é o mês em CURSO: "dias que ainda faltam", um número que muda todo dia. Ele não
+    // pode sair de `capacidade_dias.json`, que é mantido à mão e envelhece dentro do mês —
+    // em 22/10/2026 o arquivo dizia 12 quando faltavam 7, e isso inflava o denominador da
+    // ocupação: outubro aparecia em 157% quando o real era 270%, e o acumulado até janeiro
+    // em 84,4% quando era 90,8%. Os demais períodos são meses inteiros e seguem na config,
+    // que é onde a operação cadastra coletiva e paradas.
+    const hojeDias = new Date();
+    const maCalculado = diasDeFabricaRestantes(hojeDias.getFullYear(), Number(periodos.MA), hojeDias);
+    const maConfig = Number(dias[String(periodos.MA)] || 0);
     const diasDisponiveis = {
-      MA: Number(dias[String(periodos.MA)] || 0),
+      MA: maCalculado,
       PX: Number(dias[String(periodos.PX)] || 0),
       UL: Number(dias[String(periodos.UL)] || 0),
       QT: Number(dias[String(periodos.QT)] || 0),
@@ -1216,6 +1227,9 @@ router.get("/dias-resumo", async (req, res) => {
         QU: Number(diasAcumulado.QU.toFixed(1)),
       },
       diasDisponiveis,
+      // De onde saiu o MA, para quem for conferir: o calendario manda, mas o que estava
+      // cadastrado continua visivel. Divergencia grande aqui e sinal de config esquecida.
+      diasMesCorrente: { mes: Number(periodos.MA), calculado: maCalculado, configurado: maConfig },
       periodos,
       // Cenario anterior: capacidade com os grupos descontinuados (Progresso, Oficina
       // Atila) somados de volta, para comparar com o atual na Visao Geral 2.
