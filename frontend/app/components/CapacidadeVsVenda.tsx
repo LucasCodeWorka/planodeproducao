@@ -47,6 +47,15 @@ export type MesCapacidadeVenda = {
   projecaoGravada?: boolean;
   /** Peças que ainda ENTRAM no estoque: plano restante nos meses reais, simulado depois. */
   producao: number;
+  /** Plano COMPLETO do mês: o que já virou OP mais o lote que falta (o `qt_lote` cheio).
+   * Diferente de `producao`, que é só o restante — este é o plano como foi lançado.
+   * Só existe nos meses de plano real (out a jan); nos projetados vem indefinido. */
+  planoCompleto?: number;
+  /** Dias de fábrica que o plano COMPLETO consome, no ritmo medido do próprio mês. */
+  planoCompletoDias?: number;
+  /** Dias do mês INTEIRO. Diferente de `diasDisponiveis`, que no mês em curso traz só o
+   * que falta. O plano completo ocupou o mês todo, então é contra este que ele se mede. */
+  diasDisponiveisMes?: number;
   capacidadePecas: number;
   diasNecessarios: number;
   diasDisponiveis: number;
@@ -248,6 +257,11 @@ export default function CapacidadeVsVenda({
   // 40 mil e ocupando 169% ao mesmo tempo.
   let necVista = 0;
   let dispVista = 0;
+  // Acumulado do PLANO COMPLETO (o lote cheio, com o que ja virou OP). Só corre enquanto
+  // houver plano lançado — de fevereiro em diante não existe plano, só projeção, então a
+  // linha para em janeiro em vez de fingir continuidade.
+  let planoDiasAcum = 0;
+  let planoDispAcum = 0;
   const linhas = meses.map((m, i) => {
     const producao = nivelar ? planoNivelado[i] : m.producao;
     const estoque = nivelar ? estoqueNivelado[i] : estoqueAtual[i];
@@ -262,8 +276,17 @@ export default function CapacidadeVsVenda({
       : (ppd > 0 ? producao / ppd : 0);
     necVista += diasNovos;
     dispVista += m.diasDisponiveis;
+    const temPlano = Number(m.planoCompleto || 0) > 0;
+    if (temPlano) {
+      planoDiasAcum += Number(m.planoCompletoDias || 0);
+      // Mês INTEIRO: o plano completo de outubro ocupou outubro todo, não só os dias que
+      // ainda faltam. Medir contra o restante daria 585% e não diria nada.
+      planoDispAcum += Number(m.diasDisponiveisMes || m.diasDisponiveis || 0);
+    }
     return {
       ...m,
+      planoOcupAcum: temPlano && planoDispAcum > 0 ? planoDiasAcum / planoDispAcum : null,
+      planoDiasAcum: temPlano ? planoDiasAcum : null,
 
       producao,
       estoque,
@@ -303,12 +326,19 @@ export default function CapacidadeVsVenda({
   // As tres curvas sao os tres pilares: o que sai (venda), o que entra (capacidade) e o
   // saldo que resulta (disponivel). O disponivel pode ficar negativo, entao o eixo precisa
   // descer abaixo de zero — e so nesse caso a linha do zero aparece.
-  const serie = (l: typeof linhas[number], i: number) => [
+  // O plano completo e a 4a serie. Ela vale `null` de fevereiro em diante — ali nao existe
+  // plano lancado, so projecao — e tudo que consome a serie precisa pular esses pontos, em
+  // vez de desenhar uma queda para zero que nao aconteceu.
+  const SERIE_NOMES = ['Venda', 'Capacidade', 'Disponível', 'Plano'];
+  const SERIE_COR = ['#f59e0b', '#94a3b8', '#4f46e5', '#7c3aed'];
+  const SERIE_COR_TEXTO = ['#b45309', '#64748b', '#4f46e5', '#6d28d9'];
+  const serie = (l: typeof linhas[number], i: number): (number | null)[] => [
     demandaTotal(l),
     l.capacidadePecas,
     disponivelTabela[i],
+    l.planoCompleto ? Number(l.planoCompleto) : null,
   ];
-  const valores = linhas.flatMap(serie);
+  const valores = linhas.flatMap(serie).filter((v): v is number => v !== null);
   const teto = Math.max(...valores, 1);
   const piso = Math.min(...valores, 0);
   // O SVG escala por largura, entao TUDO aqui e relativo a W: um texto de 12 unidades num
@@ -329,10 +359,16 @@ export default function CapacidadeVsVenda({
   const marcas = [0, 0.25, 0.5, 0.75, 1].map((f) => escalaPiso + amplitude * f);
   const x = (i: number) => L + ((W - L - R) * i) / Math.max(1, linhas.length - 1);
   const y = (v: number) => T + (H - T - B) * (1 - (v - escalaPiso) / amplitude);
-  const faixaAltura = (H - T - B) / 3;
-  const faixas = [0, 1, 2].map((indice) => {
-    const serieAtual = linhas.map((l, i) => serie(l, i)[indice]);
-    return { minimo: Math.min(...serieAtual), maximo: Math.max(...serieAtual), topo: T + indice * faixaAltura };
+  const faixaAltura = (H - T - B) / 4;
+  const faixas = [0, 1, 2, 3].map((indice) => {
+    const serieAtual = linhas
+      .map((l, i) => serie(l, i)[indice])
+      .filter((v): v is number => v !== null);
+    return {
+      minimo: serieAtual.length ? Math.min(...serieAtual) : 0,
+      maximo: serieAtual.length ? Math.max(...serieAtual) : 1,
+      topo: T + indice * faixaAltura,
+    };
   });
   const ySerie = (indice: number, valor: number) => {
     if (modoGrafico === 'comparado') return y(valor);
@@ -340,8 +376,21 @@ export default function CapacidadeVsVenda({
     const proporcao = faixa.maximo === faixa.minimo ? 0.5 : (valor - faixa.minimo) / (faixa.maximo - faixa.minimo);
     return faixa.topo + 23 + (faixaAltura - 46) * (1 - proporcao);
   };
-  const caminho = (indice: number) =>
-    linhas.map((l, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${ySerie(indice, serie(l, i)[indice]).toFixed(1)}`).join(' ');
+  // `M` a cada retomada: assim uma serie que so existe em parte do horizonte desenha o
+  // trecho que tem e para, em vez de despencar ate o eixo.
+  const caminho = (indice: number) => {
+    let novoTraco = true;
+    return linhas
+      .map((l, i) => {
+        const v = serie(l, i)[indice];
+        if (v === null) { novoTraco = true; return ''; }
+        const comando = novoTraco ? 'M' : 'L';
+        novoTraco = false;
+        return `${comando} ${x(i).toFixed(1)} ${ySerie(indice, v).toFixed(1)}`;
+      })
+      .filter(Boolean)
+      .join(' ');
+  };
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg mb-6 overflow-hidden">
@@ -548,8 +597,8 @@ export default function CapacidadeVsVenda({
             <g key={indice}>
               <rect x={L} y={faixa.topo} width={W - L - R} height={faixaAltura} fill={indice % 2 ? '#f8fafc' : '#ffffff'} />
               <line x1={L} x2={W - R} y1={faixa.topo + faixaAltura} y2={faixa.topo + faixaAltura} stroke="#e5e7eb" />
-              <text x={L - 8} y={faixa.topo + 17} textAnchor="end" fontSize="11" fontWeight="600" fill={['#b45309', '#64748b', '#4f46e5'][indice]}>
-                {['Venda', 'Capacidade', 'Disponível'][indice]}
+              <text x={L - 8} y={faixa.topo + 17} textAnchor="end" fontSize="11" fontWeight="600" fill={SERIE_COR_TEXTO[indice]}>
+                {SERIE_NOMES[indice]}
               </text>
             </g>
           ))}
@@ -589,18 +638,20 @@ export default function CapacidadeVsVenda({
           <path d={caminho(1)} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 4" />
           <path d={caminho(0)} fill="none" stroke="#f59e0b" strokeWidth="2.5" />
           <path d={caminho(2)} fill="none" stroke="#4f46e5" strokeWidth="3.5" strokeLinejoin="round" />
+          <path d={caminho(3)} fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeDasharray="2 3" />
 
           {linhas.map((l, i) => (
             <g key={l.mes}>
               {modoGrafico === 'isolado' ? serie(l, i).map((valor, indice) => (
+                valor === null ? null : (
                 <g key={indice}>
-                  <circle cx={x(i)} cy={ySerie(indice, valor)} r="4" fill="#fff" stroke={['#f59e0b', '#94a3b8', '#4f46e5'][indice]} strokeWidth="2">
-                    <title>{`${l.mes} · ${['Venda', 'Capacidade', 'Disponível'][indice]}: ${fmt(valor)} peças`}</title>
+                  <circle cx={x(i)} cy={ySerie(indice, valor)} r="4" fill="#fff" stroke={SERIE_COR[indice]} strokeWidth="2">
+                    <title>{`${l.mes} · ${SERIE_NOMES[indice]}: ${fmt(valor)} peças`}</title>
                   </circle>
-                  <text x={x(i)} y={ySerie(indice, valor) - 8} textAnchor="middle" fontSize="10" fontWeight="600" fill={['#b45309', '#64748b', '#4f46e5'][indice]} fontFamily="ui-monospace, monospace">
+                  <text x={x(i)} y={ySerie(indice, valor) - 8} textAnchor="middle" fontSize="10" fontWeight="600" fill={SERIE_COR_TEXTO[indice]} fontFamily="ui-monospace, monospace">
                     {fmt(valor)}
                   </text>
-                </g>
+                </g>)
               )) : (
                 <>
                   <text x={x(i)} y={Math.max(T - 6, y(l.capacidadePecas) - 7)} textAnchor="middle" fontSize="9.5" fill="#94a3b8" fontFamily="ui-monospace, monospace">
@@ -738,6 +789,28 @@ export default function CapacidadeVsVenda({
                   rotulo: 'Capacidade',
                   forte: true,
                   celula: (l: typeof linhas[number]) => <span className="text-gray-600">{fmt(l.capacidadePecas)}</span>,
+                },
+                {
+                  id: 'plano',
+                  rotulo: 'Plano (completo)',
+                  forte: true,
+                  dica: 'Plano como foi lançado: o que já virou OP mais o lote que falta. Só existe até janeiro — de fevereiro em diante não há plano, só projeção.',
+                  celula: (l: typeof linhas[number]) => {
+                    if (!l.planoCompleto) return <span className="text-gray-300">—</span>;
+                    return (
+                      <>
+                        <span className="font-semibold text-violet-700">{fmt(l.planoCompleto)}</span>
+                        <div className="text-[10px] font-normal text-gray-500">
+                          {l.planoCompletoDias?.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}d
+                          {l.planoOcupAcum !== null && l.planoOcupAcum !== undefined && (
+                            <span className={l.planoOcupAcum > 1 ? ' text-red-600 font-semibold' : ' text-gray-500'}>
+                              {' · '}{pct(l.planoOcupAcum)} acum.
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    );
+                  },
                 },
                 {
                   id: 'sobra',

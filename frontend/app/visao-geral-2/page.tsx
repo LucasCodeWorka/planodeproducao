@@ -1138,6 +1138,15 @@ export default function VisaoGeral2Page() {
         // `estoque_disponivel` ja conta o em-processo. Os dias do periodo ja vem da fabrica
         // inteira, entao aqui o plano tambem soma as duas continuidades.
         producao: Number(data.planoRestantePorPeriodo[p] || 0) + Number(data.elPlanoPorPeriodo[p] || 0),
+        // Plano COMPLETO: o lote cheio, incluindo o que ja virou OP. E o plano como foi
+        // lancado, nao o que sobrou dele. Os dias saem do ritmo medido do proprio mes
+        // (`pecasCarga` e a populacao a que `diasNecessarios` se refere), entao o lote
+        // cheio consome dias na mesma proporcao.
+        planoCompleto: Number(data.planoPeriodos[p]?.qtdLote || 0),
+        diasDisponiveisMes: diasDeFabricaNoMes(ano, mes),
+        planoCompletoDias: pecasCarga > 0 && diasNecessarios > 0
+          ? (diasNecessarios / fatorFalta) * (Number(data.planoPeriodos[p]?.qtdLote || 0) / pecasCarga)
+          : 0,
         // Com a falta no ritmo, os dias necessarios sobem — e como as pecas saem da razao
         // pecas/dias, elas ja caem na mesma proporcao sem multiplicar nada.
         capacidadePecas: diasNecessarios > 0 ? ((pecasCarga * diasDisponiveis) / (diasNecessarios / fatorFalta)) * idx(mes) : 0,
