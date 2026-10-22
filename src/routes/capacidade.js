@@ -73,20 +73,94 @@ function writeGrupos(data) {
   writeJson(GRUPOS_FILE, { timestamp: Date.now(), total: data.length, data });
 }
 
-function readGrupoRefs() {
+// ── mapeamento referencia -> grupo de capacidade ────────────────────────────
+//
+// Vive no BANCO (app_capacidade_grupo_refs). Antes era so o arquivo do repositorio, e o
+// disco do Render e efemero: todo mapeamento feito pela tela sumia no deploy seguinte,
+// voltando para a versao commitada (a ultima era de 11/06/2026). O arquivo continua
+// existindo como SEMENTE — serve para a primeira carga e para rodar local sem banco.
+
+const normalizarGrupoRefs = (rows) => rows
+  .map((r) => ({
+    grupo: String(r.grupo || "").trim().toUpperCase(),
+    referencia: String(r.referencia || "").trim().toUpperCase(),
+  }))
+  .filter((r) => r.grupo && r.referencia)
+  .sort((a, b) => (a.grupo + a.referencia).localeCompare(b.grupo + b.referencia));
+
+function readGrupoRefsDoArquivo() {
   const parsed = readJson(GRUPO_REFS_FILE, { data: [] });
-  const rows = Array.isArray(parsed?.data) ? parsed.data : [];
-  return rows
-    .map((r) => ({
-      grupo: String(r.grupo || "").trim().toUpperCase(),
-      referencia: String(r.referencia || "").trim().toUpperCase(),
-    }))
-    .filter((r) => r.grupo && r.referencia)
-    .sort((a, b) => (a.grupo + a.referencia).localeCompare(b.grupo + b.referencia));
+  return normalizarGrupoRefs(Array.isArray(parsed?.data) ? parsed.data : []);
 }
 
-function writeGrupoRefs(data) {
-  writeJson(GRUPO_REFS_FILE, { timestamp: Date.now(), total: data.length, data });
+// O mapeamento muda raramente e e lido em todo calculo de capacidade; sem cache seriam
+// varias idas ao banco por request.
+const grupoRefsCache = { data: null, timestamp: 0 };
+const GRUPO_REFS_TTL_MS = 60 * 1000;
+
+async function readGrupoRefs(pool) {
+  if (grupoRefsCache.data && Date.now() - grupoRefsCache.timestamp < GRUPO_REFS_TTL_MS) {
+    return grupoRefsCache.data;
+  }
+  if (!pool) return readGrupoRefsDoArquivo();
+  try {
+    const r = await pool.query("SELECT grupo, referencia FROM app_capacidade_grupo_refs");
+    const linhas = normalizarGrupoRefs(r.rows);
+    // Banco vazio (primeira subida): semeia com o arquivo para nao comecar sem nada.
+    if (linhas.length === 0) {
+      const doArquivo = readGrupoRefsDoArquivo();
+      if (doArquivo.length > 0) await writeGrupoRefs(pool, doArquivo);
+      grupoRefsCache.data = doArquivo;
+      grupoRefsCache.timestamp = Date.now();
+      return doArquivo;
+    }
+    grupoRefsCache.data = linhas;
+    grupoRefsCache.timestamp = Date.now();
+    return linhas;
+  } catch (err) {
+    // Banco fora do ar nao pode derrubar a tela de capacidade.
+    console.error("[capacidade] grupo-refs do banco falhou, usando arquivo:", err.message);
+    return readGrupoRefsDoArquivo();
+  }
+}
+
+async function writeGrupoRefs(pool, data) {
+  const linhas = normalizarGrupoRefs(data);
+  if (!pool) {
+    writeJson(GRUPO_REFS_FILE, { timestamp: Date.now(), total: linhas.length, data: linhas });
+    return linhas;
+  }
+  const c = await pool.connect();
+  try {
+    await c.query("BEGIN");
+    await c.query(`
+      CREATE TABLE IF NOT EXISTS app_capacidade_grupo_refs (
+        id            SERIAL PRIMARY KEY,
+        grupo         TEXT NOT NULL,
+        referencia    TEXT NOT NULL,
+        atualizado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+        UNIQUE (grupo, referencia)
+      )
+    `);
+    // A tela sempre manda a lista inteira, entao o jeito honesto e trocar o conteudo —
+    // assim uma referencia REMOVIDA no cadastro some mesmo.
+    await c.query("DELETE FROM app_capacidade_grupo_refs");
+    for (const r of linhas) {
+      await c.query(
+        "INSERT INTO app_capacidade_grupo_refs (grupo, referencia) VALUES ($1, $2) ON CONFLICT (grupo, referencia) DO NOTHING",
+        [r.grupo, r.referencia]
+      );
+    }
+    await c.query("COMMIT");
+  } catch (err) {
+    await c.query("ROLLBACK");
+    throw err;
+  } finally {
+    c.release();
+  }
+  grupoRefsCache.data = linhas;
+  grupoRefsCache.timestamp = Date.now();
+  return linhas;
 }
 
 function buildDefaultDias() {
@@ -308,12 +382,12 @@ router.post("/grupos", auth, (req, res) => {
   return res.status(201).json({ success: true, total: data.length, data });
 });
 
-router.get("/grupo-refs", auth, (_req, res) => {
-  const data = readGrupoRefs();
+router.get("/grupo-refs", auth, async (req, res) => {
+  const data = await readGrupoRefs(req.app.get("pool"));
   return res.json({ success: true, total: data.length, data });
 });
 
-router.post("/grupo-refs", auth, (req, res) => {
+router.post("/grupo-refs", auth, async (req, res) => {
   const rows = Array.isArray(req.body?.data) ? req.body.data : [];
   if (!rows.length) {
     return res.status(400).json({ success: false, error: "data é obrigatório" });
@@ -329,7 +403,12 @@ router.post("/grupo-refs", auth, (req, res) => {
   if (!data.length) {
     return res.status(400).json({ success: false, error: "Nenhum vínculo grupo/ref válido para salvar" });
   }
-  writeGrupoRefs(data);
+  try {
+    await writeGrupoRefs(req.app.get("pool"), data);
+  } catch (err) {
+    console.error("[capacidade/grupo-refs] gravacao falhou:", err.message);
+    return res.status(500).json({ success: false, error: "Nao foi possivel salvar o mapeamento", details: err.message });
+  }
   return res.status(201).json({ success: true, total: data.length, data });
 });
 
@@ -457,12 +536,12 @@ router.get("/tempo-debug", auth, async (req, res) => {
   }
 });
 
-router.get("/config", auth, (_req, res) => {
+router.get("/config", auth, async (req, res) => {
   return res.json({
     success: true,
     data: {
       grupos: readGrupos(),
-      grupo_refs: readGrupoRefs(),
+      grupo_refs: await readGrupoRefs(req.app.get("pool")),
       dias: readDias(),
     },
   });
@@ -582,7 +661,7 @@ router.get("/matriz", auth, async (req, res) => {
 
     // 1. Carregar todas as configurações em paralelo
     const grupos = readGrupos();
-    const grupoRefs = readGrupoRefs();
+    const grupoRefs = await readGrupoRefs(pool);
     const dias = readDias();
     const fonteCapacidade = ['planilha', 'ultimo_mes', 'media_12_meses'].includes(String(req.query.fonte_capacidade || '').toLowerCase())
       ? String(req.query.fonte_capacidade).toLowerCase()
@@ -1027,7 +1106,7 @@ router.get("/dias-resumo", async (req, res) => {
 
     // 1. Carregar configurações
     const grupos = readGrupos();
-    const grupoRefs = readGrupoRefs();
+    const grupoRefs = await readGrupoRefs(pool);
     const dias = readDias();
 
     // 2. Carregar tempos por referência
@@ -1386,7 +1465,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
     const { readCache } = require('../cache/matrizCache');
 
     const grupos = readGrupos();
-    const grupoRefs = readGrupoRefs();
+    const grupoRefs = await readGrupoRefs(pool);
     const dias = readDias();
     const nomesGrupos = new Set(grupos.map((g) => g.grupo));
 
