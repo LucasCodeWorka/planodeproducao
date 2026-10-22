@@ -154,7 +154,7 @@ export default function VisaoGeral2Page() {
   const [indiceMensalAtual, setIndiceMensalAtual] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
   const [indiceMensalAnterior, setIndiceMensalAnterior] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
   const indiceMensal = cenarioCapacidadeAnterior && indiceMensalAnterior ? indiceMensalAnterior : indiceMensalAtual;
-  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
+  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   // Cache das respostas que não mudam com o cenário (matriz, capacidade, curva ABC,
   // cortes mínimos, gravado e agenda). Preview e edição limitada carregam uma base neutra;
@@ -184,7 +184,7 @@ export default function VisaoGeral2Page() {
       // Etapa 3 (processo móvel): 6 meses de historico bastam pra media de dias de OP
       // nao ficar refem de um unico pico sazonal.
       const desdeLeadTime = new Date(hoje.getFullYear(), hoje.getMonth() - 6, hoje.getDate()).toISOString().slice(0, 10);
-      const [previewResponse, configResponse, matrixResponse, realResponse, realMesAtualResponse, curvaResponse, corteResponse, projBaseResponse, proj2027Response, planoResponse, lotesExecResponse, indicadoresOpResponse, agendaResponse, vendaMesResponse] = await Promise.all([
+      const [previewResponse, configResponse, matrixResponse, realResponse, realMesAtualResponse, curvaResponse, corteResponse, projBaseResponse, proj2027Response, planoResponse, lotesExecResponse, indicadoresOpResponse, agendaResponse, vendaMesResponse, planoMesRealResponse] = await Promise.all([
         fetchNoCache(`${API_URL}/api/projecao-permanentes/preview?anoBase=${anoBase}&anoDestino=${anoDestino}&completarMesesAbertos=true&crescimentoFabrica=0${forcarTudo ? "&refresh=true" : ""}`, { headers: authHeaders() }, 300000),
         fetchCacheado(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
         fetchCacheado(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=LIEBE&status=EM%20LINHA%2CNOVA%20COLECAO`),
@@ -217,6 +217,10 @@ export default function VisaoGeral2Page() {
         // Venda JA realizada no mes corrente, por SKU. Com ela o mes em curso deixa de ser
         // uma fatia da projecao e passa a ser o ritmo que o mes esta entregando de verdade.
         fetchCacheado(`${API_URL}/api/producao/vendas-mes-atual`, { headers: authHeaders() }),
+        // Plano lancado por MES DE VERDADE. O periodo (MA, PX...) e um rotulo rolante que
+        // mistura meses: em out/2026 o balde MA carregava setembro junto, e outubro
+        // aparecia com 300 mil planejadas em vez de 202 mil.
+        fetchCacheado(`${API_URL}/api/producao/plano-por-mes-real`, { headers: authHeaders() }),
       ]);
       const preview = await previewResponse.json();
       if (!previewResponse.ok || !preview.success) throw new Error(preview.error || 'Erro ao carregar projeção');
@@ -306,6 +310,8 @@ export default function VisaoGeral2Page() {
       // Dia de CALENDARIO, nao dia util: a venda nao para no fim de semana (domingo 18/10
       // vendeu 2.186 pecas, mais que varias quartas). O dia em curso fica de fora do ritmo
       // (as 9h ele tem quase nada e puxaria a media para baixo) e so abate do que falta.
+      const planoMesRealJson = planoMesRealResponse.ok ? await planoMesRealResponse.json() : null;
+      const planoPorMesReal = (planoMesRealJson?.data || {}) as Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>;
       const vendaMesJson = await vendaMesResponse.json();
       const vendasMesAtual = (vendaMesJson?.data || {}) as Record<string, { completo: number; parcial: number }>;
       const diasCompletosMes = Number(vendaMesJson?.diasCompletos || 0);
@@ -683,7 +689,7 @@ export default function VisaoGeral2Page() {
       const diasUteisRestantes = capacidadeDiariaTotal > 0 ? cargaRestanteMA / capacidadeDiariaTotal : 0;
       const previsaoTermino = diasUteisRestantes > 0 ? addDiasUteis(hoje, diasUteisRestantes).toISOString().slice(0, 10) : null;
 
-      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, demandaRestantePorMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
+      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, demandaRestantePorMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, planoPorMesReal, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao carregar visão macro'); }
     finally { setLoading(false); }
   }
@@ -1142,10 +1148,22 @@ export default function VisaoGeral2Page() {
         // lancado, nao o que sobrou dele. Os dias saem do ritmo medido do proprio mes
         // (`pecasCarga` e a populacao a que `diasNecessarios` se refere), entao o lote
         // cheio consome dias na mesma proporcao.
-        planoCompleto: Number(data.planoPeriodos[p]?.qtdLote || 0),
+        // Pelo MES do lote, nao pelo rotulo do periodo: o balde MA mistura meses (em
+        // out/2026 ele carregava setembro junto, e outubro aparecia com 300 mil em vez de
+        // 202 mil). Mes sem lote lancado — dezembro e janeiro — cai no plano da matriz,
+        // que e planejamento e ainda nao virou lote.
+        planoCompleto: Number(
+          data.planoPorMesReal?.[`${ano}-${String(mes).padStart(2, '0')}`]?.qtdLote
+          ?? data.planoPeriodos[p]?.qtdLote
+          ?? 0
+        ),
         diasDisponiveisMes: diasDeFabricaNoMes(ano, mes),
         planoCompletoDias: pecasCarga > 0 && diasNecessarios > 0
-          ? (diasNecessarios / fatorFalta) * (Number(data.planoPeriodos[p]?.qtdLote || 0) / pecasCarga)
+          ? (diasNecessarios / fatorFalta) * (Number(
+              data.planoPorMesReal?.[`${ano}-${String(mes).padStart(2, '0')}`]?.qtdLote
+              ?? data.planoPeriodos[p]?.qtdLote
+              ?? 0
+            ) / pecasCarga)
           : 0,
         // Com a falta no ritmo, os dias necessarios sobem — e como as pecas saem da razao
         // pecas/dias, elas ja caem na mesma proporcao sem multiplicar nada.

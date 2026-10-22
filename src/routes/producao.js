@@ -741,6 +741,65 @@ const data = { MA: null, PX: null, UL: null, QT: null, QU: null };
  * com a população que estiver usando.
  */
 /**
+ * GET /api/producao/plano-por-mes-real
+ *
+ * Plano lancado por MES DE VERDADE, lido do nome do lote.
+ *
+ * O `cd_auxiliar` (MA, PX, UL, QT...) e um rotulo rolante, nao um mes: em 22/10/2026 o
+ * balde "MA" carregava os lotes de SETEMBRO (259.465 pecas, 99% ja produzidas) junto com
+ * os de outubro (202.762). Somados davam 462 mil, e a tela mostrava outubro como se
+ * tivesse planejado 300 mil — mais que o dobro do que a fabrica faz num mes.
+ *
+ * O mes real esta no `ds_lotepv`, que comeca com "YYYY-MM" ("2026-10 OUTUBRO MA
+ * PERMANENTE"). E dele que este endpoint parte.
+ *
+ * So devolve mes que TEM lote lancado. Dezembro e janeiro ainda nao tem (o plano deles
+ * vive na matriz, como planejamento), entao nao aparecem aqui.
+ */
+router.get("/plano-por-mes-real", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const marca = String(req.query.marca || "LIEBE").trim().toUpperCase();
+    const statusList = String(req.query.status || "EM LINHA,NOVA COLECAO")
+      .split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+
+    const result = await pool.query(`
+      SELECT SUBSTRING(TRIM(p.ds_lotepv) FROM 1 FOR 7) AS mes,
+             SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qt_lote,
+             SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qt_gerouop,
+             SUM(GREATEST(COALESCE(a.qt_real, 0) - COALESCE(a.qt_finalizada, 0), 0))::FLOAT AS qt_processo,
+             COUNT(DISTINCT p.nr_lote)::INT AS lotes
+        FROM vr_pcp_loteplop a
+        JOIN pcp_lotepv p ON p.nr_lote = a.nr_lote
+       WHERE p.tp_situacao = 1
+         AND TRIM(p.ds_lotepv) ~ '^[0-9]{4}-[0-9]{2}'
+         AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint), ''))) = $1
+         AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) = ANY($2)
+       GROUP BY 1
+       ORDER BY 1
+    `, [marca, statusList]);
+
+    const data = {};
+    for (const row of result.rows) {
+      data[String(row.mes)] = {
+        qtdLote: Math.round(Number(row.qt_lote) || 0),
+        qtdGerouOp: Math.round(Number(row.qt_gerouop) || 0),
+        qtdProcesso: Math.round(Number(row.qt_processo) || 0),
+        lotes: Number(row.lotes) || 0,
+      };
+    }
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("[producao/plano-por-mes-real] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao buscar plano por mes real",
+      details: error.message,
+    });
+  }
+});
+
+/**
  * GET /api/producao/vendas-mes-atual
  * Venda ja realizada no mes corrente, por SKU, separando os dias FECHADOS do dia em curso.
  *
