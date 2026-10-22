@@ -763,28 +763,37 @@ router.get("/plano-por-mes-real", async (req, res) => {
     const statusList = String(req.query.status || "EM LINHA,NOVA COLECAO")
       .split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
 
+    // `vr_pcp_lotepl2` e o lote INTEIRO, uma linha por produto. Nao use
+    // `vr_pcp_loteplop`: aquela e lote x OP, entao so enxerga o que ja virou ordem — em
+    // 22/10/2026 ela mostrava 301 SKUs do lote 36863 contra os 814 que ele tem, e dois
+    // lotes de novembro nem apareciam. Novembro saia com 73.540 no lugar de 112.150.
     const result = await pool.query(`
       SELECT SUBSTRING(TRIM(p.ds_lotepv) FROM 1 FOR 7) AS mes,
-             SUM(COALESCE(a.qt_lote, 0))::FLOAT AS qt_lote,
-             SUM(COALESCE(a.qt_gerouop, 0))::FLOAT AS qt_gerouop,
-             SUM(GREATEST(COALESCE(a.qt_real, 0) - COALESCE(a.qt_finalizada, 0), 0))::FLOAT AS qt_processo,
-             COUNT(DISTINCT p.nr_lote)::INT AS lotes
-        FROM vr_pcp_loteplop a
-        JOIN pcp_lotepv p ON p.nr_lote = a.nr_lote
+             SUM(COALESCE(b.qt_lote, 0))::FLOAT AS qt_lote,
+             SUM(COALESCE(b.qt_gerouop, 0))::FLOAT AS qt_gerouop,
+             COUNT(DISTINCT p.nr_lote)::INT AS lotes,
+             SUM(CASE
+                   WHEN UPPER(TRIM(COALESCE(f_dic_prd_classificacao(b.cd_produto, 'DS'::text, 20::bigint), ''))) = $1
+                    AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(b.cd_produto, 'DS'::text, 27::bigint), ''))) = ANY($2)
+                   THEN COALESCE(b.qt_lote, 0) ELSE 0
+                 END)::FLOAT AS qt_lote_no_filtro
+        FROM vr_pcp_lotepl2 b
+        JOIN pcp_lotepv p ON p.nr_lote = b.nr_lote
        WHERE p.tp_situacao = 1
          AND TRIM(p.ds_lotepv) ~ '^[0-9]{4}-[0-9]{2}'
-         AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint), ''))) = $1
-         AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) = ANY($2)
        GROUP BY 1
        ORDER BY 1
     `, [marca, statusList]);
 
+    // `qtdLote` e o lote CHEIO, sem filtro de marca/status: tudo que esta no lote vai
+    // ocupar a fabrica, independente de como o produto esta classificado. O recorte da
+    // tela vai junto em `qtdLoteNoFiltro`, para quem precisar comparar populacoes.
     const data = {};
     for (const row of result.rows) {
       data[String(row.mes)] = {
         qtdLote: Math.round(Number(row.qt_lote) || 0),
         qtdGerouOp: Math.round(Number(row.qt_gerouop) || 0),
-        qtdProcesso: Math.round(Number(row.qt_processo) || 0),
+        qtdLoteNoFiltro: Math.round(Number(row.qt_lote_no_filtro) || 0),
         lotes: Number(row.lotes) || 0,
       };
     }
