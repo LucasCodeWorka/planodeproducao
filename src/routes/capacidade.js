@@ -1093,6 +1093,68 @@ router.get("/dias-resumo", async (req, res) => {
       }
     }
 
+    // 5b. Em processo POR PERIODO.
+    //
+    // A matriz so sabe o total em processo de cada SKU, sem dizer de qual periodo ele e.
+    // Por isso a carga de processo ia inteira para o MA — enquanto a tela de Capacidade x
+    // Venda ja somava as PECAS por periodo, vindas dos lotes. Os dois lados contavam
+    // coisas diferentes: novembro ganhava 38 mil pecas sem os minutos delas (ritmo subia
+    // para 12.021 pcs/dia) e outubro carregava minutos que nao eram dele (ritmo caia para
+    // 5.410). Dai novembro aparecer com quase o dobro da capacidade de janeiro, tendo
+    // menos dias. Aqui o periodo vem do proprio lote, que e quem sabe.
+    const PERIODOS_LOTE = ['MA', 'PX', 'UL', 'QT', 'QU'];
+    const processoPorRefPeriodo = new Map();
+    let processoPorPeriodoOk = false;
+    try {
+      const procResult = await pool.query(`
+        SELECT a.cd_produto::TEXT AS sku,
+               UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
+               SUM(GREATEST(COALESCE(a.qt_real, 0) - COALESCE(a.qt_finalizada, 0), 0))::FLOAT AS processo
+          FROM vr_pcp_loteplop a
+          JOIN pcp_lotepv p ON p.nr_lote = a.nr_lote
+         WHERE p.tp_situacao = 1
+           AND UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) = ANY($1::TEXT[])
+         GROUP BY 1, 2
+        HAVING SUM(GREATEST(COALESCE(a.qt_real, 0) - COALESCE(a.qt_finalizada, 0), 0)) > 0
+      `, [PERIODOS_LOTE]);
+
+      // O sku vira referencia pela propria matriz ja filtrada (marca, status, sem meia de
+      // seda), entao o recorte da populacao sai igual ao do resto do calculo.
+      const refPorSku = new Map();
+      for (const item of matrizRows) {
+        const marca = String(item?.produto?.marca || '').trim().toUpperCase();
+        const status = String(item?.produto?.status || '').trim().toUpperCase();
+        const descricao = String(item?.produto?.produto || '').trim().toUpperCase();
+        if (marca !== 'LIEBE') continue;
+        if (!['EM LINHA', 'NOVA COLECAO'].includes(status)) continue;
+        if (descricao.includes('MEIA DE SEDA')) continue;
+        const sku = String(item?.produto?.idproduto || '').trim();
+        if (sku) refPorSku.set(sku, item);
+      }
+
+      for (const row of procResult.rows) {
+        const item = refPorSku.get(String(row.sku || '').trim());
+        if (!item) continue;
+        const periodo = String(row.periodo || '').trim().toUpperCase();
+        const qtd = Number(row.processo || 0);
+        if (!qtd) continue;
+        for (const chave of [
+          String(item?.produto?.referencia || '').trim().toUpperCase(),
+          String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase(),
+        ]) {
+          if (!chave) continue;
+          const atual = processoPorRefPeriodo.get(chave) || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
+          atual[periodo] = (atual[periodo] || 0) + qtd;
+          processoPorRefPeriodo.set(chave, atual);
+        }
+      }
+      processoPorPeriodoOk = processoPorRefPeriodo.size > 0;
+    } catch (err) {
+      // Sem a abertura por periodo o calculo continua valendo, so volta ao comportamento
+      // antigo (tudo no MA). Melhor um numero conservador do que a tela em branco.
+      console.error('[capacidade/dias-resumo] em processo por periodo falhou:', err.message);
+    }
+
     // 6. Criar mapa de capacidade por grupo
     const capacidadePorGrupo = new Map();
     for (const g of grupos) {
@@ -1110,7 +1172,22 @@ router.get("/dias-resumo", async (req, res) => {
     }
 
     // 8. Calcular cargas totais
-    let cargaTotal = { processo: 0, MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
+    // `processo` guarda o total (para o resumo) e `processoPorPeriodo` a abertura que vai
+    // para os dias. Sem a abertura, tudo cai no MA, como era antes.
+    let cargaTotal = {
+      processo: 0,
+      processoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
+      MA: 0, PX: 0, UL: 0, QT: 0, QU: 0,
+    };
+    const somarProcesso = (referencia, tempo, totalDaRef) => {
+      cargaTotal.processo += tempo * totalDaRef;
+      const abertura = processoPorPeriodoOk ? processoPorRefPeriodo.get(referencia) : null;
+      if (!abertura) {
+        cargaTotal.processoPorPeriodo.MA += tempo * totalDaRef;
+        return;
+      }
+      for (const p of PERIODOS_LOTE) cargaTotal.processoPorPeriodo[p] += tempo * (abertura[p] || 0);
+    };
 
     // Mesma janela padrao da tela de Capacidade (2 meses atras, dia 1 -> hoje), para o
     // "ultimo mes fechado" ser o mesmo dos dois lados.
@@ -1138,7 +1215,7 @@ router.get("/dias-resumo", async (req, res) => {
       const primeiroGrupo = gruposDaRef[0] === row.grupo.toUpperCase();
       if (!primeiroGrupo) continue;
 
-      cargaTotal.processo += tempo * processoBase;
+      somarProcesso(referencia, tempo, processoBase);
       cargaTotal.MA += tempo * planoBase.ma;
       cargaTotal.PX += tempo * planoBase.px;
       cargaTotal.UL += tempo * planoBase.ul;
@@ -1156,7 +1233,7 @@ router.get("/dias-resumo", async (req, res) => {
       const tempo = tempoPorRef.get(idreferencia) || 0;
       if (!tempo) continue;
       const planoBase = planoPorRefMap.get(referencia) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0 };
-      cargaTotal.processo += tempo * (processoPorRefMap.get(referencia) || 0);
+      somarProcesso(referencia, tempo, processoPorRefMap.get(referencia) || 0);
       cargaTotal.MA += tempo * planoBase.ma;
       cargaTotal.PX += tempo * planoBase.px;
       cargaTotal.UL += tempo * planoBase.ul;
@@ -1168,12 +1245,14 @@ router.get("/dias-resumo", async (req, res) => {
     // Reaproveitada para o cenario atual e para o cenario anterior (grupos descontinuados
     // de volta), que dividem a MESMA carga por uma capacidade diferente.
     function calcularDias(capacidadeDiaria) {
+      // Cada periodo leva a carga do SEU em-processo, nao o MA levando a de todos.
+      const proc = cargaTotal.processoPorPeriodo;
       const diasNecessarios = {
-        MA: capacidadeDiaria > 0 ? (cargaTotal.processo + cargaTotal.MA) / capacidadeDiaria : 0,
-        PX: capacidadeDiaria > 0 ? cargaTotal.PX / capacidadeDiaria : 0,
-        UL: capacidadeDiaria > 0 ? cargaTotal.UL / capacidadeDiaria : 0,
-        QT: capacidadeDiaria > 0 ? cargaTotal.QT / capacidadeDiaria : 0,
-        QU: capacidadeDiaria > 0 ? cargaTotal.QU / capacidadeDiaria : 0,
+        MA: capacidadeDiaria > 0 ? (proc.MA + cargaTotal.MA) / capacidadeDiaria : 0,
+        PX: capacidadeDiaria > 0 ? (proc.PX + cargaTotal.PX) / capacidadeDiaria : 0,
+        UL: capacidadeDiaria > 0 ? (proc.UL + cargaTotal.UL) / capacidadeDiaria : 0,
+        QT: capacidadeDiaria > 0 ? (proc.QT + cargaTotal.QT) / capacidadeDiaria : 0,
+        QU: capacidadeDiaria > 0 ? (proc.QU + cargaTotal.QU) / capacidadeDiaria : 0,
       };
       const diasAcumulado = {
         MA: diasNecessarios.MA,
