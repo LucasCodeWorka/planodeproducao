@@ -7,7 +7,7 @@ import Sidebar from './components/Sidebar';
 import { Planejamento, ProjecoesMap, PeriodosPlano, EstoqueLojaDisponivelAggregado } from './types';
 import { getToken, authHeaders, clearToken } from './lib/auth';
 import { fetchNoCache } from './lib/api';
-import { projecaoMesPlanejamento } from './lib/projecao';
+import { definirFatorMesRestante, projecaoMesPlanejamento } from './lib/projecao';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MARCA_FIXA = 'LIEBE';
@@ -236,6 +236,9 @@ export default function Home() {
   const [filtroEmProcessoMinimo, setFiltroEmProcessoMinimo] = useState<string>('');
   // gap de dias acumulado por mês, na mesma regra da tela de Capacidade
   const [gapPorPeriodo, setGapPorPeriodo] = useState<Record<string, number>>({});
+  // Fator medido do mes em curso (ver lib/projecao). Guardado em estado so para disparar o
+  // re-render — quem o aplica e o modulo, registrado antes do setState.
+  const [fatorMesMedido, setFatorMesMedido] = useState<number | null>(null);
   // totais por continuidade que a matriz calcula, espelhados no quadro do topo
   const [totaisContinuidade, setTotaisContinuidade] = useState<{ continuidade: string; totais: GrupoTotais }[]>([]);
 
@@ -341,6 +344,7 @@ export default function Home() {
     buscarCortesMinimos();
     buscarCfgCurvas();
     buscarGapMensal();
+    buscarCurvaDoMes();
     buscarReprojecaoFechada();
     buscarTop30();
     buscarAprovadas();
@@ -515,6 +519,36 @@ export default function Home() {
       }
       setGapPorPeriodo(mapa);
     } catch { /* silencioso: sem gap o card só não mostra o indicador */ }
+  }
+
+  /**
+   * CURVA DO MES. Troca o pro-rata de calendario pela forma medida da venda.
+   *
+   * O mes carrega a venda para o fim: ao fim do dia 23 costumam ter saido 68,0% da venda,
+   * nao os 74,2% do calendario. Sem isto a projecao que ainda falta do mes corrente sai
+   * ~24% baixa — out/2026 mostrava 43.124 quando a curva diz 53.506 — e a mesma tela
+   * divergia da Visao Geral 2, que ja usa a medicao.
+   *
+   * Falha em silencio de proposito: sem a curva, tudo segue no calendario de antes.
+   */
+  async function buscarCurvaDoMes() {
+    try {
+      const res = await fetchNoCache(`${API_URL}/api/producao/vendas-mes-atual`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const curva = data?.curvaMesAcumulada;
+      if (!Array.isArray(curva) || curva.length < 28) return;
+      const hoje = new Date();
+      const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+      const dia = Math.min(hoje.getDate(), diasNoMes);
+      const decorrido = Number(curva[dia]);
+      if (!(decorrido > 0) || decorrido > 1) return;
+      const restante = 1 - decorrido;
+      // Registra ANTES do setState: assim o re-render que ele dispara ja sai com o fator
+      // novo, em vez de pintar um quadro com o valor antigo.
+      definirFatorMesRestante(restante);
+      setFatorMesMedido(restante);
+    } catch { /* silencioso: sem curva, segue o calendario */ }
   }
 
   async function buscarCfgCurvas() {
@@ -2364,6 +2398,16 @@ export default function Home() {
                               <span className="font-medium text-gray-600">Projeção</span>
                               <span className="font-mono font-semibold tabular-nums text-gray-900">{fmtN(proj)}</span>
                             </div>
+                            {/* Mes em curso: de onde saiu o corte da projecao. Sem isto o
+                                numero muda de um dia para o outro sem explicacao na tela. */}
+                            {m.periodo === 'MA' && fatorMesMedido !== null && (
+                              <div
+                                className="-mt-0.5 text-[10px] text-gray-400"
+                                title="A projeção do mês em curso entra só com o que ainda falta vender. O corte sai da curva medida da venda (21 meses de venda diária), não da proporção de dias — o mês carrega a venda para o fim, e o calendário puro subestimava o que ainda vem."
+                              >
+                                {(fatorMesMedido * 100).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}% do mês pela frente (curva medida)
+                              </div>
+                            )}
                             <div className="flex items-baseline justify-between gap-2">
                               <span className="font-medium text-gray-600">Disponível</span>
                               <span className={`font-mono font-semibold tabular-nums ${disp < 0 ? 'font-bold text-red-600' : 'text-gray-900'}`}>{fmtN(disp)}</span>

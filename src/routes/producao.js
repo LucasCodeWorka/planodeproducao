@@ -809,6 +809,92 @@ router.get("/plano-por-mes-real", async (req, res) => {
 });
 
 /**
+ * CURVA INTRA-MES DA VENDA.
+ *
+ * O mes nao vende parelho: ele carrega para o fim. Medido em 21 meses de venda diaria,
+ * quando 71% do mes passou so 64,6% da venda aconteceu — um atraso de 9%. O padrao se
+ * repete em 19 dos 21 meses, entao nao e ruido.
+ *
+ * Isso importa porque projetar o fechamento por ritmo linear ("vendeu 4.550/dia, faltam 9
+ * dias, logo faltam 40.948") subestima o mes de forma sistematica. Em out/2026 a diferenca
+ * era de 141.044 contra ~155.000.
+ *
+ * Esta funcao devolve, para uma fracao do mes ja decorrida, quanto da venda do mes
+ * costuma ter acontecido. Dai o fechamento sai por regra de tres: total = realizado /
+ * fracao_esperada.
+ *
+ * A medida e sobre a venda TOTAL do BI, nao por populacao filtrada: a forma do mes e um
+ * comportamento de calendario (quinzena, fim de mes), nao de produto. Dois anos de janela
+ * para pegar o mesmo mes duas vezes sem envelhecer demais.
+ */
+const curvaMesCache = { data: null, timestamp: 0 };
+const CURVA_MES_TTL_MS = 6 * 60 * 60 * 1000;
+
+async function fracaoVendaEsperada(pool, fracaoDecorrida) {
+  if (!(fracaoDecorrida > 0) || fracaoDecorrida >= 1) return null;
+  if (!curvaMesCache.data || Date.now() - curvaMesCache.timestamp > CURVA_MES_TTL_MS) {
+    const { rows } = await pool.query(`
+      SELECT EXTRACT(YEAR FROM v.data)::INT AS ano,
+             EXTRACT(MONTH FROM v.data)::INT AS mes,
+             EXTRACT(DAY FROM v.data)::INT AS dia,
+             SUM(v.qt_liquida)::FLOAT AS qt
+        FROM public.mv_vendas_qtd v
+       WHERE v.data >= (DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '24 months')
+         AND v.data < DATE_TRUNC('month', CURRENT_DATE)
+       GROUP BY 1, 2, 3
+    `);
+    const porMes = new Map();
+    for (const r of rows) {
+      const chave = `${r.ano}-${r.mes}`;
+      if (!porMes.has(chave)) {
+        porMes.set(chave, { dias: {}, total: 0, diasNoMes: new Date(Number(r.ano), Number(r.mes), 0).getDate() });
+      }
+      const m = porMes.get(chave);
+      m.dias[Number(r.dia)] = Number(r.qt) || 0;
+      m.total += Number(r.qt) || 0;
+    }
+    // Mes sem volume nao entra: um mes quase vazio distorce a forma media.
+    curvaMesCache.data = [...porMes.values()].filter((m) => m.total >= 1000);
+    curvaMesCache.timestamp = Date.now();
+  }
+  const amostra = curvaMesCache.data;
+  if (!amostra || amostra.length < 6) return null;
+  return { fracao: mediaAcumuladaEm(amostra, fracaoDecorrida), meses: amostra.length };
+}
+
+/** Fracao media da venda do mes ja ocorrida quando `fracaoDecorrida` do mes passou. */
+function mediaAcumuladaEm(amostra, fracaoDecorrida) {
+  let soma = 0;
+  for (const m of amostra) {
+    const corte = Math.max(1, Math.round(m.diasNoMes * fracaoDecorrida));
+    let acumulado = 0;
+    for (let d = 1; d <= corte; d += 1) acumulado += m.dias[d] || 0;
+    soma += acumulado / m.total;
+  }
+  return soma / amostra.length;
+}
+
+/**
+ * A curva inteira do mes: fracao da venda ja ocorrida ao fim de cada dia, de 1 a N.
+ *
+ * Vai junto porque cada tela corta o mes num ponto diferente — a Visao Geral 2 mede sobre
+ * os dias FECHADOS (o dia em curso esta pela metade), a tela principal trata o dia de hoje
+ * como ja decorrido. Com a curva na mao cada uma escolhe o corte sem precisar de outra
+ * rota, e as duas saem da MESMA medicao.
+ */
+async function curvaDoMes(pool, diasNoMes) {
+  if (!(diasNoMes > 0)) return null;
+  await fracaoVendaEsperada(pool, 0.5); // garante o cache carregado
+  const amostra = curvaMesCache.data;
+  if (!amostra || amostra.length < 6) return null;
+  const curva = [0];
+  for (let d = 1; d <= diasNoMes; d += 1) {
+    curva.push(Number(mediaAcumuladaEm(amostra, d / diasNoMes).toFixed(6)));
+  }
+  return curva;
+}
+
+/**
  * GET /api/producao/vendas-mes-atual
  * Venda ja realizada no mes corrente, por SKU, separando os dias FECHADOS do dia em curso.
  *
@@ -874,6 +960,11 @@ router.get("/vendas-mes-atual", async (req, res) => {
       : diasNoMes;
     const diasFaltantes = Math.max(0, diasNoMes - diasCompletos);
 
+    // Forma do mes: quanto da venda ja costuma ter acontecido quando `diasCompletos` dos
+    // `diasNoMes` passaram. O frontend projeta o fechamento com isto em vez de ritmo
+    // linear. `null` = sem historico suficiente; ali ele cai no linear de antes.
+    const curva = await fracaoVendaEsperada(pool, diasCompletos / diasNoMes);
+
     return res.json({
       success: true,
       ano,
@@ -881,6 +972,10 @@ router.get("/vendas-mes-atual", async (req, res) => {
       diasNoMes,
       diasCompletos,
       diasFaltantes,
+      fracaoVendaEsperada: curva ? Number(curva.fracao.toFixed(6)) : null,
+      curvaMesesAmostra: curva ? curva.meses : 0,
+      // Curva completa, indexada pelo dia (curva[0] = 0, curva[d] = fracao ao fim do dia d).
+      curvaMesAcumulada: await curvaDoMes(pool, diasNoMes),
       ultimaData,
       skus: Object.keys(data).length,
       data,

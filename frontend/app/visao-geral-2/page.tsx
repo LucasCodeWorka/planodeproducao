@@ -154,7 +154,7 @@ export default function VisaoGeral2Page() {
   const [indiceMensalAtual, setIndiceMensalAtual] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
   const [indiceMensalAnterior, setIndiceMensalAnterior] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
   const indiceMensal = cenarioCapacidadeAnterior && indiceMensalAnterior ? indiceMensalAnterior : indiceMensalAtual;
-  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
+  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   // Cache das respostas que não mudam com o cenário (matriz, capacidade, curva ABC,
   // cortes mínimos, gravado e agenda). Preview e edição limitada carregam uma base neutra;
@@ -184,7 +184,7 @@ export default function VisaoGeral2Page() {
       // Etapa 3 (processo móvel): 6 meses de historico bastam pra media de dias de OP
       // nao ficar refem de um unico pico sazonal.
       const desdeLeadTime = new Date(hoje.getFullYear(), hoje.getMonth() - 6, hoje.getDate()).toISOString().slice(0, 10);
-      const [previewResponse, configResponse, matrixResponse, realResponse, realMesAtualResponse, curvaResponse, corteResponse, projBaseResponse, proj2027Response, planoResponse, lotesExecResponse, indicadoresOpResponse, agendaResponse, vendaMesResponse, planoMesRealResponse] = await Promise.all([
+      const [previewResponse, configResponse, matrixResponse, realResponse, realMesAtualResponse, curvaResponse, corteResponse, projBaseResponse, proj2027Response, planoResponse, lotesExecResponse, indicadoresOpResponse, agendaResponse, vendaMesResponse, planoMesRealResponse, gapMensalResponse] = await Promise.all([
         fetchNoCache(`${API_URL}/api/projecao-permanentes/preview?anoBase=${anoBase}&anoDestino=${anoDestino}&completarMesesAbertos=true&crescimentoFabrica=0${forcarTudo ? "&refresh=true" : ""}`, { headers: authHeaders() }, 300000),
         fetchCacheado(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
         fetchCacheado(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=LIEBE&status=EM%20LINHA%2CNOVA%20COLECAO`),
@@ -221,6 +221,10 @@ export default function VisaoGeral2Page() {
         // mistura meses: em out/2026 o balde MA carregava setembro junto, e outubro
         // aparecia com 300 mil planejadas em vez de 202 mil.
         fetchCacheado(`${API_URL}/api/producao/plano-por-mes-real`, { headers: authHeaders() }),
+        // O gap em dias vem da MESMA rota que alimenta a Cobertura do Plano na tela
+        // principal. Calcular por aqui daria um numero proximo mas diferente (as duas
+        // rotas divergem ~2 dias no rateio entre grupos), e a tela voltaria a "nao bater".
+        fetchCacheado(`${API_URL}/api/capacidade/gap-mensal`, { headers: authHeaders() }),
       ]);
       const preview = await previewResponse.json();
       if (!previewResponse.ok || !preview.success) throw new Error(preview.error || 'Erro ao carregar projeção');
@@ -310,12 +314,48 @@ export default function VisaoGeral2Page() {
       // Dia de CALENDARIO, nao dia util: a venda nao para no fim de semana (domingo 18/10
       // vendeu 2.186 pecas, mais que varias quartas). O dia em curso fica de fora do ritmo
       // (as 9h ele tem quase nada e puxaria a media para baixo) e so abate do que falta.
+      //
+      // O ritmo medido NAO e extrapolado em linha reta — ver `aindaVendeDe` abaixo.
+      const gapMensalJson = gapMensalResponse.ok ? await gapMensalResponse.json() : null;
+      // Os quatro numeros vem JUNTOS de proposito: o gap, a ocupacao e os dois acumulados
+      // que os originam. Guardar so o gap e recalcular o resto na tabela foi o que fez a
+      // Ocupacao acumulada discordar dos dias — aqui `ocup`, `gap`, `nec` e `disp` sao a
+      // mesma divisao vista de quatro jeitos, e nao podem se contradizer.
+      const coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }> = {};
+      for (const m of (gapMensalJson?.meses || [])) {
+        const p = String(m?.periodo || '').trim().toUpperCase();
+        if (!p) continue;
+        const nec = Number(m?.diasNecessarios || 0);
+        const disp = Number(m?.diasDisponiveis || 0);
+        coberturaPorPeriodo[p] = { nec, disp, gap: Number(m?.gap || 0), ocup: disp > 0 ? nec / disp : null };
+      }
       const planoMesRealJson = planoMesRealResponse.ok ? await planoMesRealResponse.json() : null;
       const planoPorMesReal = (planoMesRealJson?.data || {}) as Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>;
       const vendaMesJson = await vendaMesResponse.json();
       const vendasMesAtual = (vendaMesJson?.data || {}) as Record<string, { completo: number; parcial: number }>;
       const diasCompletosMes = Number(vendaMesJson?.diasCompletos || 0);
       const diasFaltantesMes = Number(vendaMesJson?.diasFaltantes || 0);
+      // CURVA DO MES, nao ritmo linear. O mes carrega a venda para o fim: medido em 21
+      // meses, quando 71% do mes passou so 64,6% da venda aconteceu. Projetar o que falta
+      // multiplicando a media diaria pelos dias restantes subestima o fechamento de forma
+      // sistematica — em out/2026 dava 141.044 contra ~155.000 pela curva.
+      // `null` (historico curto) cai no linear de antes.
+      const fracaoVendaEsperada = Number(vendaMesJson?.fracaoVendaEsperada || 0);
+      /**
+       * Quanto uma populacao ainda deve vender no mes em curso, em pecas.
+       *
+       * Pela curva: se ate aqui costuma-se ter vendido 64,6% do mes e esta populacao ja
+       * vendeu X, o mes dela fecha em X / 0,646 — e o que falta e esse total menos o que
+       * ja saiu (fechados mais o parcial de hoje).
+       */
+      const aindaVendeDe = ({ completo, parcial }: { completo: number; parcial: number }) => {
+        if (completo <= 0) return 0;
+        if (fracaoVendaEsperada > 0 && fracaoVendaEsperada < 1) {
+          return Math.max(0, completo / fracaoVendaEsperada - completo - parcial);
+        }
+        if (diasCompletosMes <= 0 || diasFaltantesMes <= 0) return 0;
+        return Math.max(0, (completo / diasCompletosMes) * diasFaltantesMes - parcial);
+      };
       const realizadoDe = (ids: string[]) => {
         let completo = 0;
         let parcial = 0;
@@ -328,16 +368,16 @@ export default function VisaoGeral2Page() {
         return { completo, parcial };
       };
       /**
-       * Multiplicador do mes corrente para uma populacao: o que o ritmo medido ainda deve
-       * vender, dividido pela projecao cheia da mesma populacao. Sem venda medida (dia 1 do
-       * mes, carga do BI atrasada) cai no pro-rata da projecao, que e o comportamento antigo.
+       * Multiplicador do mes corrente para uma populacao: o que ela ainda deve vender (pela
+       * curva do mes), dividido pela projecao cheia da mesma populacao. Sem venda medida
+       * (dia 1 do mes, carga do BI atrasada) cai no pro-rata da projecao, que e o
+       * comportamento antigo.
        */
       const fatorRitmoMes = (ids: string[], projecaoCheia: number) => {
         if (diasCompletosMes <= 0 || diasFaltantesMes <= 0 || projecaoCheia <= 0) return fracaoMesCorrente();
         const { completo, parcial } = realizadoDe(ids);
         if (completo <= 0) return fracaoMesCorrente();
-        const aindaVende = Math.max(0, (completo / diasCompletosMes) * diasFaltantesMes - parcial);
-        return aindaVende / projecaoCheia;
+        return aindaVendeDe({ completo, parcial }) / projecaoCheia;
       };
       // Fator dos permanentes: definido como funcao preguicosa porque `items` so existe
       // depois do preview, e `vendaDoMesDe` e chamada bem mais abaixo.
@@ -461,7 +501,30 @@ export default function VisaoGeral2Page() {
         acc.UL += Number(p.ul || 0); acc.QT += Number(p.qt || 0);
         return acc;
       }, { MA: 0, PX: 0, UL: 0, QT: 0 } as Record<string, number>);
+      // Plano RESTANTE da matriz INTEIRA, todas as continuidades. E exatamente o que o card
+      // Cobertura do Plano soma na tela principal — out 24.655, nov 60.630, dez 111.910,
+      // jan 140.430 — entao as duas telas nao tem como divergir.
+      //
+      // O `planoRestantePorPeriodo` acima varre so a populacao de permanentes do preview e
+      // soma a edicao limitada por fora; quem nao caiu em nenhuma das duas sumia. Dezembro
+      // vinha 107.070 em vez de 111.910 (4.840 a menos) e janeiro 138.230 em vez de 140.430.
+      const planoMatrizPorPeriodo = ((): Record<string, number> => {
+        const acc: Record<string, number> = { MA: 0, PX: 0, UL: 0, QT: 0 };
+        for (const r of (matrix.data || []) as MatrixRow[]) {
+          const pl = r?.plano || {};
+          acc.MA += Number(pl.ma || 0);
+          acc.PX += Number(pl.px || 0);
+          acc.UL += Number(pl.ul || 0);
+          acc.QT += Number(pl.qt || 0);
+        }
+        return acc;
+      })();
       const demandaRestantePorMes: Record<string, number> = {};
+      // O mesmo mes SEM o corte do ritmo. So difere no mes em curso, onde a demanda acima e
+      // o que ainda FALTA vender (out/26: 40.948 com 7 dias pela frente) e nao o mes todo.
+      // Serve de referencia no grafico, para a queda do primeiro ponto nao parecer tombo de
+      // venda quando e so o mes estar pela metade.
+      const demandaCheiaPorMes: Record<string, number> = {};
       const origemBasePorMes: Record<string, { lancada: number; modelo: number }> = {};
       for (const mes of mesesRestantesBase) {
         let lancada = 0;
@@ -474,6 +537,12 @@ export default function VisaoGeral2Page() {
           // de quem ainda nao tem projecao no mes).
           if (projPorSku[id]?.[String(mes)] !== undefined) lancada += v; else modelo += v;
           return sum + v;
+        }, 0);
+        // `1` no fator: desliga o corte do ritmo e devolve a projecao cheia do mes.
+        demandaCheiaPorMes[String(mes)] = items.reduce((sum, item) => {
+          const id = String(item.idproduto);
+          const m3 = Number(matrixById.get(id)?.demanda?.media_vendas_3m || item.media_3m || 0);
+          return sum + vendaDoMesDe(id, m3, mes, 1);
         }, 0);
         // Chave separada da do ano destino de proposito: out/nov/dez existem nos dois anos e
         // um sobrescreveria o outro.
@@ -510,13 +579,19 @@ export default function VisaoGeral2Page() {
         return s + (v !== undefined ? Number(v) : Number(r.demanda?.media_vendas_3m || 0));
       }, 0);
       const elRealizadoMes = realizadoDe(elIds);
+      // VENDA REAL do mes em curso, ja faturada: os dias fechados mais o parcial de hoje,
+      // nas mesmas duas populacoes que a linha de venda soma (permanentes + edicao
+      // limitada). Nao e projecao nem ritmo: e o que saiu.
+      const permRealizadoMes = realizadoDe(items.map((item) => String(item.idproduto)));
+      const vendaRealMesCorrente = permRealizadoMes.completo + permRealizadoMes.parcial
+        + elRealizadoMes.completo + elRealizadoMes.parcial;
       const fatorElMes = fatorRitmoMes(elIds, elCheiaMesCorrente);
       // Valor ABSOLUTO do que a edicao limitada ainda deve vender no mes. O relatorio de
       // Capacidade x Venda le a quantidade do modelo sazonal, que e outra base — aplicar um
       // fator calculado sobre esta base ali daria um numero sem sentido. `null` = sem venda
       // medida; o relatorio cai no pro-rata antigo.
       const elRestanteMesCorrente = diasCompletosMes > 0 && diasFaltantesMes > 0 && elRealizadoMes.completo > 0
-        ? Math.max(0, (elRealizadoMes.completo / diasCompletosMes) * diasFaltantesMes - elRealizadoMes.parcial)
+        ? aindaVendeDe(elRealizadoMes)
         : null;
       const elDemandaPorMes: Record<string, number> = {};
       for (const mes of mesesRestantesBase) {
@@ -689,7 +764,7 @@ export default function VisaoGeral2Page() {
       const diasUteisRestantes = capacidadeDiariaTotal > 0 ? cargaRestanteMA / capacidadeDiariaTotal : 0;
       const previsaoTermino = diasUteisRestantes > 0 ? addDiasUteis(hoje, diasUteisRestantes).toISOString().slice(0, 10) : null;
 
-      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, demandaRestantePorMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, planoPorMesReal, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
+      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, planoMatrizPorPeriodo, demandaRestantePorMes, demandaCheiaPorMes, vendaRealMesCorrente, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, coberturaPorPeriodo, planoPorMesReal, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao carregar visão macro'); }
     finally { setLoading(false); }
   }
@@ -1122,6 +1197,19 @@ export default function VisaoGeral2Page() {
           ? Number(data.demandaRestantePorMes[String(mes)] || 0)
           : Number(data.meses[mes - 1]?.demanda || 0),
         demandaEl: ano === anoBase ? elTravado(mes) : el(mes),
+        // Mes em curso: a projecao do mes INTEIRO, permanentes mais edicao limitada. A
+        // `demanda` acima e so o que falta vender dele. Nos demais meses fica indefinida —
+        // ali as duas leituras sao a mesma coisa e a referencia nao teria o que dizer.
+        // Venda ja realizada no mes em curso. Com a `demanda` ao lado (o que ainda falta)
+        // ela fecha o mes: realizado + falta = como o mes vai terminar de verdade, que e
+        // outra coisa da projecao cheia — e justamente a diferenca que interessa ver.
+        vendaRealizada: ano === anoBase && mes === mesCorrenteBase
+          ? Number(data.vendaRealMesCorrente || 0)
+          : undefined,
+        demandaMesCheia: ano === anoBase && mes === mesCorrenteBase
+          ? Number(data.demandaCheiaPorMes?.[String(mes)] || 0)
+            + Number(elDetalheBase?.[String(mes)]?.quantidade ?? data.elDemandaPorMes[String(mes)] ?? 0)
+          : undefined,
         baseLancada: ano === anoBase
           ? Number(data.origemBasePorMes[String(mes)]?.lancada || 0)
           : Number(data.projOrigem[MES_ABREV[mes - 1]]?.lancada || 0),
@@ -1142,8 +1230,9 @@ export default function VisaoGeral2Page() {
         })(),
         // So o plano RESTANTE entra no estoque: o que ja virou OP esta em processo, e
         // `estoque_disponivel` ja conta o em-processo. Os dias do periodo ja vem da fabrica
-        // inteira, entao aqui o plano tambem soma as duas continuidades.
-        producao: Number(data.planoRestantePorPeriodo[p] || 0) + Number(data.elPlanoPorPeriodo[p] || 0),
+        // inteira, entao o plano aqui e o da matriz INTEIRA — as duas permanentes mais a
+        // edicao limitada —, o mesmo total do card da tela principal.
+        producao: Number(data.planoMatrizPorPeriodo?.[p] || 0),
         // Plano COMPLETO: o lote cheio, incluindo o que ja virou OP. E o plano como foi
         // lancado, nao o que sobrou dele. Os dias saem do ritmo medido do proprio mes
         // (`pecasCarga` e a populacao a que `diasNecessarios` se refere), entao o lote
@@ -1159,13 +1248,20 @@ export default function VisaoGeral2Page() {
         // justamente o que mistura os meses.
         planoCompleto: Math.max(
           Number(data.planoPorMesReal?.[`${ano}-${String(mes).padStart(2, '0')}`]?.qtdLote || 0),
-          Number(data.planoRestantePorPeriodo[p] || 0) + Number(data.elPlanoPorPeriodo[p] || 0),
+          Number(data.planoMatrizPorPeriodo?.[p] || 0),
         ),
         diasDisponiveisMes: diasDeFabricaNoMes(ano, mes),
+        // Cobertura em DIAS, da mesma fonte do card da tela principal: necessarios e
+        // disponiveis somados desde o primeiro mes, o gap entre eles e a ocupacao que a
+        // divisao dos dois da. Positivo no gap = falta dia de fabrica.
+        necAcumPlano: data.coberturaPorPeriodo?.[p]?.nec,
+        dispAcumPlano: data.coberturaPorPeriodo?.[p]?.disp,
+        gapAcumPlano: data.coberturaPorPeriodo?.[p]?.gap,
+        ocupAcumPlano: data.coberturaPorPeriodo?.[p]?.ocup ?? undefined,
         planoCompletoDias: pecasCarga > 0 && diasNecessarios > 0
           ? (diasNecessarios / fatorFalta) * (Math.max(
               Number(data.planoPorMesReal?.[`${ano}-${String(mes).padStart(2, '0')}`]?.qtdLote || 0),
-              Number(data.planoRestantePorPeriodo[p] || 0) + Number(data.elPlanoPorPeriodo[p] || 0),
+              Number(data.planoMatrizPorPeriodo?.[p] || 0),
             ) / pecasCarga)
           : 0,
         // Com a falta no ritmo, os dias necessarios sobem — e como as pecas saem da razao

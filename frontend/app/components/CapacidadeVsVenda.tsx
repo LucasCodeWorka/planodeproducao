@@ -28,6 +28,13 @@ export type MesCapacidadeVenda = {
   demanda: number;
   /** Projeção de edição limitada, do histórico de coleções. */
   demandaEl?: number;
+  /** Mês em curso: projeção do mês INTEIRO (permanentes + EL). A `demanda` acima é só o
+   * que falta vender dele, então o primeiro ponto do gráfico desaba sem que a venda tenha
+   * caído — este é o número que diz onde ele estaria com o mês cheio. */
+  demandaMesCheia?: number;
+  /** Mês em curso: venda REAL já faturada. Não é projeção — é o que saiu. Com a `demanda`
+   * ao lado fecha o mês: realizado + falta = como ele vai terminar de fato. */
+  vendaRealizada?: number;
   /** Mesma projeção aberta por canal. Edição limitada vem separada do histórico. */
   demandaFabrica?: number;
   demandaLojas?: number;
@@ -56,6 +63,16 @@ export type MesCapacidadeVenda = {
   /** Dias do mês INTEIRO. Diferente de `diasDisponiveis`, que no mês em curso traz só o
    * que falta. O plano completo ocupou o mês todo, então é contra este que ele se mede. */
   diasDisponiveisMes?: number;
+  /** Gap ACUMULADO em dias (necessários − disponíveis), vindo da mesma rota que alimenta
+   * a Cobertura do Plano. Positivo = faltam dias. Só nos meses de plano real. */
+  gapAcumPlano?: number;
+  /** Ocupação acumulada da MESMA conta do `gapAcumPlano`: necessários ÷ disponíveis, os
+   * dois acumulados. Vem pronta da rota, não é recalculada aqui, pra não divergir dela. */
+  ocupAcumPlano?: number;
+  /** As duas parcelas que originam o gap e a ocupação, para abrir no subnível: dias de
+   * fábrica que a carga pede e dias que o calendário oferece, ambos acumulados. */
+  necAcumPlano?: number;
+  dispAcumPlano?: number;
   capacidadePecas: number;
   diasNecessarios: number;
   diasDisponiveis: number;
@@ -145,7 +162,7 @@ export default function CapacidadeVsVenda({
     venda: false,
     'venda-perm': false,
     'venda-el': false,
-    ocupAcum: false,
+    plano: false,
     pendente: false,
     disponivel: false,
     info: false,
@@ -334,6 +351,32 @@ export default function CapacidadeVsVenda({
     valores.push(anterior + sobraTabela(l, i));
     return valores;
   }, []);
+  // DISPONIVEL PELO PLANO.
+  //
+  // A linha `Disponível fim do mês` responde "e se a fabrica rodar cheia": nos meses livres
+  // ela produz ate o teto, e o plano lancado entra so como piso. So que o plano REAL e bem
+  // menor que a capacidade — novembro tem 134.835 de capacidade contra 60.390 de plano — e
+  // esse buraco so se fecha se a fabrica puxar trabalho para frente. Esta linha mostra o
+  // outro lado: o disponivel se sair exatamente o que esta lancado, nada alem.
+  //
+  // Mesma base e mesma demanda da linha de cima; a UNICA troca e capacidade -> plano.
+  // Assim a diferenca entre as duas linhas e exatamente o quanto se depende de puxar.
+  //
+  // So o plano RESTANTE entra: o que ja virou OP esta em processo e ja esta contado no
+  // estoque de abertura. No mes em curso soma-se o em-processo, que e o que ainda vai
+  // pingar. Para em janeiro — de fevereiro em diante nao existe plano, so projecao.
+  const disponivelPlano = linhas.reduce<(number | null)[]>((valores, l, i) => {
+    if (!l.planoCompleto) {
+      valores.push(null);
+      return valores;
+    }
+    const anterior = i === 0
+      ? (referenciaOutubro?.disponivel ?? aberturaEstoque - carteiraProjetada[0])
+      : (valores[i - 1] ?? disponivelTabela[i - 1]);
+    const entra = l.producaoAtual + (l.mesCorrente ? emProcessoAtual : 0);
+    valores.push(anterior + entra - demandaTotal(l));
+    return valores;
+  }, []);
   const desvioMeta = disponivelTabela[disponivelTabela.length - 1] - metaEstoqueFinal;
   const menorDisponivel = Math.min(...disponivelTabela);
   const primeiroProjetado = linhas.findIndex((l) => !l.travado);
@@ -341,18 +384,27 @@ export default function CapacidadeVsVenda({
   // As tres curvas sao os tres pilares: o que sai (venda), o que entra (capacidade) e o
   // saldo que resulta (disponivel). O disponivel pode ficar negativo, entao o eixo precisa
   // descer abaixo de zero — e so nesse caso a linha do zero aparece.
-  // O plano completo e a 4a serie. Ela vale `null` de fevereiro em diante — ali nao existe
-  // plano lancado, so projecao — e tudo que consome a serie precisa pular esses pontos, em
-  // vez de desenhar uma queda para zero que nao aconteceu.
-  const SERIE_NOMES = ['Venda', 'Capacidade', 'Disponível', 'Plano'];
-  const SERIE_COR = ['#f59e0b', '#94a3b8', '#4f46e5', '#7c3aed'];
-  const SERIE_COR_TEXTO = ['#b45309', '#64748b', '#4f46e5', '#6d28d9'];
+  // O plano completo vale `null` de fevereiro em diante — ali nao existe plano lancado, so
+  // projecao — e tudo que consome a serie precisa pular esses pontos, em vez de desenhar
+  // uma queda para zero que nao aconteceu.
+  // A ordem aqui e a ordem das FAIXAS, de cima para baixo. O plano fica entre a venda e a
+  // capacidade de proposito: a leitura e "quanto vai sair, quanto esta lancado, quanto a
+  // fabrica aguenta" — o plano e a ponte entre os dois, e ler isso exige os tres juntos.
+  const SERIE_NOMES = ['Venda', 'Plano', 'Capacidade', 'Disponível'];
+  const SERIE_COR = ['#f59e0b', '#7c3aed', '#94a3b8', '#4f46e5'];
+  const SERIE_COR_TEXTO = ['#b45309', '#6d28d9', '#64748b', '#4f46e5'];
   const serie = (l: typeof linhas[number], i: number): (number | null)[] => [
     demandaTotal(l),
+    l.planoCompleto ? Number(l.planoCompleto) : null,
     l.capacidadePecas,
     disponivelTabela[i],
-    l.planoCompleto ? Number(l.planoCompleto) : null,
   ];
+  // Pelo NOME, nao pelo numero: os `caminho(1)`, `caminho(3)` espalhados pelo SVG ja
+  // apontavam para a serie errada so de reordenar a lista acima.
+  const iVenda = SERIE_NOMES.indexOf('Venda');
+  const iPlano = SERIE_NOMES.indexOf('Plano');
+  const iCapacidade = SERIE_NOMES.indexOf('Capacidade');
+  const iDisponivel = SERIE_NOMES.indexOf('Disponível');
   const valores = linhas.flatMap(serie).filter((v): v is number => v !== null);
   const teto = Math.max(...valores, 1);
   const piso = Math.min(...valores, 0);
@@ -375,10 +427,30 @@ export default function CapacidadeVsVenda({
   const x = (i: number) => L + ((W - L - R) * i) / Math.max(1, linhas.length - 1);
   const y = (v: number) => T + (H - T - B) * (1 - (v - escalaPiso) / amplitude);
   const faixaAltura = (H - T - B) / 4;
+  // Referencias do mes em curso: so existem no mes corrente e so na faixa da Venda.
+  // Venda ja realizada no mes em curso, e como o mes vai FECHAR (realizado + o que falta).
+  // O fechamento e o numero a comparar com a projecao cheia: e a mesma pergunta, uma pelo
+  // modelo e outra pelo ritmo medido.
+  const vendaRealRef = linhas[0]?.mesCorrente && Number(linhas[0].vendaRealizada || 0) > 0
+    ? Number(linhas[0].vendaRealizada)
+    : null;
+  const fechamentoRef = vendaRealRef !== null ? vendaRealRef + demandaTotal(linhas[0]) : null;
+  // Projecao do mes CHEIO: onde o primeiro ponto estaria se o mes nao estivesse pela
+  // metade. Sem ela a curva parece desabar em out/26 sem que a venda tenha caido. Precisa
+  // de um segundo mes para ter para onde apontar, e so vale a pena quando o cheio e mesmo
+  // maior que o restante — no comeco do mes os dois praticamente coincidem.
+  const mesCheioRef = linhas.length > 1 && linhas[0]?.mesCorrente
+    && Number(linhas[0].demandaMesCheia || 0) > demandaTotal(linhas[0]) * 1.02
+    ? Number(linhas[0].demandaMesCheia)
+    : null;
   const faixas = [0, 1, 2, 3].map((indice) => {
     const serieAtual = linhas
       .map((l, i) => serie(l, i)[indice])
       .filter((v): v is number => v !== null);
+    // O vendido e o fechamento NAO entram na escala: vivem no rodape, em altura fixa.
+    // O mes cheio entra, porque ele e desenhado na curva — fora da escala, cairia fora do
+    // quadro sempre que passasse do pico da venda projetada.
+    if (indice === iVenda && mesCheioRef !== null) serieAtual.push(mesCheioRef);
     return {
       minimo: serieAtual.length ? Math.min(...serieAtual) : 0,
       maximo: serieAtual.length ? Math.max(...serieAtual) : 1,
@@ -643,17 +715,73 @@ export default function CapacidadeVsVenda({
             </g>
           )}
 
+          {/* Area cinza sob a CAPACIDADE, no modo comparado: e o tamanho da fabrica, o
+              fundo contra o qual as outras linhas se leem. */}
           {modoGrafico === 'comparado' && <path
-            d={`${caminho(1)} L ${x(linhas.length - 1).toFixed(1)} ${y(escalaPiso)} L ${x(0).toFixed(1)} ${y(escalaPiso)} Z`}
+            d={`${caminho(iCapacidade)} L ${x(linhas.length - 1).toFixed(1)} ${y(escalaPiso)} L ${x(0).toFixed(1)} ${y(escalaPiso)} Z`}
             fill="#f1f5f9"
           />}
           {modoGrafico === 'comparado' && escalaPiso < 0 && (
             <line x1={L} x2={W - R} y1={y(0)} y2={y(0)} stroke="#cbd5e1" strokeWidth="1.5" />
           )}
-          <path d={caminho(1)} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 4" />
-          <path d={caminho(0)} fill="none" stroke="#f59e0b" strokeWidth="2.5" />
-          <path d={caminho(2)} fill="none" stroke="#4f46e5" strokeWidth="3.5" strokeLinejoin="round" />
-          <path d={caminho(3)} fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeDasharray="2 3" />
+          {/* Ordem de DESENHO, nao de faixa: a capacidade vai por baixo (tracejada, de
+              fundo) e o plano por cima, para nao sumir sob o disponivel no modo comparado. */}
+          <path d={caminho(iCapacidade)} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 4" />
+          <path d={caminho(iVenda)} fill="none" stroke="#f59e0b" strokeWidth="2.5" />
+          <path d={caminho(iDisponivel)} fill="none" stroke="#4f46e5" strokeWidth="3.5" strokeLinejoin="round" />
+          <path d={caminho(iPlano)} fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeDasharray="2 3" />
+
+          {/* MES CHEIO: o circulo vazado marca onde o primeiro ponto estaria com o mes
+              inteiro, e o tracejado liga ele ao ponto real embaixo e ao mes seguinte — a
+              curva que a venda teria se outubro ja tivesse fechado. Sem rotulo de proposito:
+              o numero esta na legenda do rodape, e escrever de novo aqui foi o que encheu
+              este canto de texto sobreposto. */}
+          {modoGrafico === 'isolado' && mesCheioRef !== null && (
+            <g opacity="0.5">
+              <line
+                x1={x(0)} x2={x(0)}
+                y1={ySerie(iVenda, mesCheioRef)} y2={ySerie(iVenda, demandaTotal(linhas[0]))}
+                stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 3"
+              />
+              <line
+                x1={x(0)} x2={x(1)}
+                y1={ySerie(iVenda, mesCheioRef)} y2={ySerie(iVenda, demandaTotal(linhas[1]))}
+                stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 3"
+              />
+              <circle cx={x(0)} cy={ySerie(iVenda, mesCheioRef)} r="3.5" fill="#fff" stroke="#f59e0b" strokeWidth="1.5">
+                <title>{`${linhas[0].mes} · projeção do mês cheio: ${fmt(mesCheioRef)} peças. A curva mostra ${fmt(demandaTotal(linhas[0]))}, que é só o que ainda falta vender.`}</title>
+              </circle>
+            </g>
+          )}
+
+          {/* MES EM CURSO, no rodape da faixa de Venda.
+              Separada da curva laranja de proposito: as duas nao precisam conversar. A
+              curva responde "quanto ainda falta vender"; esta legenda responde "como o mes
+              esta indo". Misturar as duas na mesma escala foi o que empilhou quatro
+              rotulos num espaco de 55px e deixou tudo ilegivel.
+              O lugar e o respiro de 23px que `ySerie` ja reserva embaixo de cada faixa —
+              nenhuma curva desce ate ali, entao nada colide. */}
+          {modoGrafico === 'isolado' && vendaRealRef !== null && faixas[iVenda] && (() => {
+            const yBase = faixas[iVenda].topo + faixaAltura - 7;
+            const cheio = Number(linhas[0]?.demandaMesCheia || 0);
+            const dif = cheio > 0 && fechamentoRef !== null ? fechamentoRef / cheio - 1 : null;
+            return (
+              <g>
+                <line x1={L + 4} x2={L + 20} y1={yBase - 3} y2={yBase - 3} stroke="#111827" strokeWidth="2.5" />
+                <text x={L + 26} y={yBase} fontSize="9.5" fill="#374151" fontFamily="ui-monospace, monospace">
+                  <tspan fontWeight="700" fill="#111827">{fmt(vendaRealRef)}</tspan>
+                  <tspan> vendidos em {linhas[0].mes} · fecha em </tspan>
+                  <tspan fontWeight="700" fill="#111827">{fmt(fechamentoRef ?? 0)}</tspan>
+                  {cheio > 0 && <tspan> · projetado {fmt(cheio)}</tspan>}
+                  {dif !== null && (
+                    <tspan fontWeight="700" fill={dif < 0 ? '#dc2626' : '#059669'}>
+                      {` (${dif > 0 ? '+' : ''}${(dif * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)`}
+                    </tspan>
+                  )}
+                </text>
+              </g>
+            );
+          })()}
 
           {linhas.map((l, i) => (
             <g key={l.mes}>
@@ -663,10 +791,12 @@ export default function CapacidadeVsVenda({
                   <circle cx={x(i)} cy={ySerie(indice, valor)} r="4" fill="#fff" stroke={SERIE_COR[indice]} strokeWidth="2">
                     <title>{`${l.mes} · ${SERIE_NOMES[indice]}: ${fmt(valor)} peças`}</title>
                   </circle>
-                  {/* O primeiro ponto ancora a esquerda: centralizado, um numero de 6
-                      digitos invade o rotulo da faixa e vira "72.602" no lugar de
-                      "202.602". */}
-                  <text x={i === 0 ? x(i) - 10 : x(i)} y={ySerie(indice, valor) - 8} textAnchor={i === 0 ? 'start' : 'middle'} fontSize="10" fontWeight="600" fill={SERIE_COR_TEXTO[indice]} fontFamily="ui-monospace, monospace">
+                  {/* O primeiro ponto escreve para a DIREITA do marcador. Centralizado, um
+                      numero de 6 digitos passa da borda e vira "72.602" no lugar de
+                      "202.602"; ancorado em x(0)-10 ele cobria o marcador e encostava no
+                      rotulo da faixa ("Plano142.782"). x(0) e exatamente a margem L, entao
+                      nao ha espaco a esquerda — o lugar livre e depois do ponto. */}
+                  <text x={i === 0 ? x(i) + 8 : x(i)} y={ySerie(indice, valor) - 8} textAnchor={i === 0 ? 'start' : 'middle'} fontSize="10" fontWeight="600" fill={SERIE_COR_TEXTO[indice]} fontFamily="ui-monospace, monospace">
                     {fmt(valor)}
                   </text>
                 </g>)
@@ -724,6 +854,50 @@ export default function CapacidadeVsVenda({
                       {fmt(demandaTotal(l))}
                     </span>
                   ),
+                },
+                {
+                  id: 'venda-real',
+                  rotulo: 'já vendido (real)',
+                  pai: 'venda',
+                  dica: 'Venda REAL já faturada no mês em curso — não é projeção, é o que saiu do estoque. A linha de cima mostra só o que ainda FALTA vender, por isso o primeiro mês parece baixo.',
+                  celula: (l: typeof linhas[number]) => {
+                    const v = l.vendaRealizada;
+                    if (!v) return <span className="text-gray-300">—</span>;
+                    return <span className="font-semibold tabular-nums text-gray-900">{fmt(v)}</span>;
+                  },
+                },
+                {
+                  id: 'venda-fecha',
+                  rotulo: 'fecha o mês em',
+                  pai: 'venda',
+                  dica: 'Como o mês termina de verdade: o já vendido mais o que ainda falta, no ritmo medido. Comparar com a projeção cheia logo abaixo diz se o mês está vendendo acima ou abaixo do projetado.',
+                  celula: (l: typeof linhas[number]) => {
+                    if (!l.vendaRealizada) return <span className="text-gray-300">—</span>;
+                    const fecha = Number(l.vendaRealizada) + demandaTotal(l);
+                    const cheio = Number(l.demandaMesCheia || 0);
+                    const dif = cheio > 0 ? fecha / cheio - 1 : 0;
+                    return (
+                      <>
+                        <span className="font-semibold tabular-nums text-gray-900">{fmt(fecha)}</span>
+                        {cheio > 0 && (
+                          <div className={`text-[10px] font-semibold ${dif < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {dif > 0 ? '+' : ''}{(dif * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% vs projeção
+                          </div>
+                        )}
+                      </>
+                    );
+                  },
+                },
+                {
+                  id: 'venda-cheia',
+                  rotulo: 'projeção do mês cheio',
+                  pai: 'venda',
+                  dica: 'O que o modelo projetava para o mês INTEIRO, antes de cortar pelos dias que já passaram. É o número contra o qual o fechamento se compara.',
+                  celula: (l: typeof linhas[number]) => {
+                    const v = l.demandaMesCheia;
+                    if (!v) return <span className="text-gray-300">—</span>;
+                    return <span className="tabular-nums text-amber-700">{fmt(v)}</span>;
+                  },
                 },
                 {
                   id: 'venda-fabrica',
@@ -812,16 +986,89 @@ export default function CapacidadeVsVenda({
                   id: 'plano',
                   rotulo: 'Plano (completo)',
                   forte: true,
-                  dica: 'Plano como foi lançado: o que já virou OP mais o lote que falta, pelo mês do próprio lote. Os dias são do plano INTEIRO do mês, não do que ainda falta produzir — por isso um mês pode caber no plano e mesmo assim estourar, se a fábrica estiver atrasada. Só existe até janeiro: de fevereiro em diante não há plano, só projeção.',
+                  expansivel: true,
+                  dica: 'Plano como foi lançado: o que já virou OP mais o lote que falta, pelo mês do próprio lote. Embaixo, a ocupação ACUMULADA e o gap em dias — os mesmos números da Cobertura do Plano na tela principal, vindos da mesma conta: dias necessários somados desde o primeiro mês contra os dias de fábrica somados. 207% em outubro é a carga que resta contra os dias que restam; janeiro em 92% é o conjunto, já carregando o atraso de outubro. Só existe até janeiro: de fevereiro em diante não há plano, só projeção.',
                   celula: (l: typeof linhas[number]) => {
                     if (!l.planoCompleto) return <span className="text-gray-300">—</span>;
-                    // So o numero. Os dias saiam aqui embaixo ("20,7d de 21d" e o
-                    // acumulado), mas diziam respeito ao plano INTEIRO do mes enquanto a
-                    // ocupacao ao lado fala do que falta — duas perguntas diferentes na
-                    // mesma tela, e isso confundia mais do que informava. Os campos
-                    // continuam calculados (`planoCompletoDias`, `planoDiasAcum`,
-                    // `planoDispAcum`) para quando acharmos a forma certa de mostrar.
-                    return <span className="font-semibold text-violet-700">{fmt(l.planoCompleto)}</span>;
+                    // Abaixo do numero, o GAP ACUMULADO em dias — o mesmo +6,45d / -5,09d
+                    // que a Cobertura do Plano mostra na tela principal, e vindo da mesma
+                    // rota (`/api/capacidade/gap-mensal`) de proposito: calcular por aqui
+                    // daria um numero proximo mas diferente, e a tela voltaria a "nao
+                    // bater". Tentamos antes mostrar os dias do plano do mes ("20,7d de
+                    // 21d"), mas aquilo falava do mes INTEIRO enquanto a ocupacao ao lado
+                    // fala do que FALTA — duas perguntas na mesma celula. Os campos
+                    // (`planoCompletoDias`, `planoDiasAcum`, `planoDispAcum`) seguem
+                    // calculados, so nao sao exibidos.
+                    const gap = l.gapAcumPlano;
+                    const ocup = l.ocupAcumPlano;
+                    return (
+                      <>
+                        <span className="font-semibold text-violet-700">{fmt(l.planoCompleto)}</span>
+                        {gap !== undefined && gap !== null && (
+                          <div
+                            title="Ocupação e gap ACUMULADOS desde o primeiro mês: dias necessários contra dias de fábrica. Acima de 100% a carga não cabe e transborda para o mês seguinte. Mesmos números da Cobertura do Plano."
+                            className="font-mono text-[10px] font-bold tabular-nums"
+                          >
+                            {ocup !== undefined && ocup !== null && (
+                              <span className={ocup > 1 ? 'text-red-600' : ocup >= 0.85 ? 'text-emerald-600' : 'text-amber-600'}>
+                                {pct(ocup)}
+                              </span>
+                            )}
+                            {ocup !== undefined && ocup !== null && <span className="text-gray-300"> · </span>}
+                            <span className={gap > 0 ? 'text-red-600' : 'text-emerald-600'}>
+                              {gap > 0 ? '+' : ''}{gap.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}d
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  },
+                },
+                {
+                  id: 'planoResto',
+                  rotulo: 'restante (ainda sem OP)',
+                  pai: 'plano',
+                  dica: 'A parte do plano que ainda nao virou OP — e o que de fato ainda vai ENTRAR no estoque, e por isso o numero que a linha Producao usa. O resto do plano ja esta em processo e ja esta contado no estoque. Em percentual: quanto do plano do mes ainda esta por lancar.',
+                  celula: (l: typeof linhas[number]) => {
+                    if (!l.planoCompleto) return <span className="text-gray-300">—</span>;
+                    const resto = l.producaoAtual;
+                    const fatia = l.planoCompleto > 0 ? resto / l.planoCompleto : 0;
+                    return (
+                      <>
+                        <span className="tabular-nums text-violet-600">{fmt(resto)}</span>
+                        <div className="text-[10px] text-gray-400">{pct(fatia)} do plano</div>
+                      </>
+                    );
+                  },
+                },
+                {
+                  id: 'planoNec',
+                  rotulo: 'dias necessários (acum.)',
+                  pai: 'plano',
+                  dica: 'Dias de fábrica que a carga acumulada pede, desde o primeiro mês do horizonte. Sai do tempo de processo da carga dividido pela capacidade diária da fábrica.',
+                  celula: (l: typeof linhas[number]) => {
+                    const v = l.necAcumPlano;
+                    if (v === undefined || v === null) return <span className="text-gray-300">—</span>;
+                    return (
+                      <span className="tabular-nums text-gray-600">
+                        {v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}d
+                      </span>
+                    );
+                  },
+                },
+                {
+                  id: 'planoDisp',
+                  rotulo: 'dias de fábrica (acum.)',
+                  pai: 'plano',
+                  dica: 'Dias que o calendário oferece, acumulados. O mês em curso entra só com o que FALTA dele (outubro/26 entra com 6, não com 21) — é por isso que o primeiro mês aparece tão carregado.',
+                  celula: (l: typeof linhas[number]) => {
+                    const v = l.dispAcumPlano;
+                    if (v === undefined || v === null) return <span className="text-gray-300">—</span>;
+                    return (
+                      <span className="tabular-nums text-gray-600">
+                        {v.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}d
+                      </span>
+                    );
                   },
                 },
                 {
@@ -853,69 +1100,40 @@ export default function CapacidadeVsVenda({
                   expansivel: true,
                   celula: () => <span className="text-gray-300">·</span>,
                 },
+                // A Producao planejada saia aqui (o nivelado do mes, com o recorte
+                // "24.655 plano + 120.077 em processo" no mes corrente). Saiu a pedido: a
+                // leitura de quanto o plano entrega agora esta na linha do Plano e no
+                // Disponível só com o plano, sem precisar de uma terceira versao do mesmo
+                // numero. `producao` e `producaoAtual` seguem no calculo — o nivelamento,
+                // o grafico e o disponivel dependem deles.
                 {
-                  id: 'producao',
-                  rotulo: 'Produção planejada',
+                  id: 'dispPlano',
+                  rotulo: 'Disponível só com o plano',
                   pai: 'info',
-                  celula: (l: typeof linhas[number]) => (
-                    <>
-                      <span className="text-indigo-700 font-semibold">
-                        {fmt(l.producao + (l.mesCorrente ? emProcessoAtual : 0))}
-                      </span>
-                      {l.mesCorrente && emProcessoAtual > 0 && (
-                        <div className="text-[10px] font-normal text-gray-500">
-                          {fmt(l.producao)} plano + {fmt(emProcessoAtual)} em processo
-                        </div>
-                      )}
-                      {nivelar && Math.abs(l.producao - l.producaoAtual) >= 1 && (
-                        <div className={`text-[10px] font-normal ${l.producao > l.producaoAtual ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {l.producao > l.producaoAtual ? '+' : ''}{fmt(l.producao - l.producaoAtual)}
-                        </div>
-                      )}
-                    </>
-                  ),
-                },
-                {
-                  id: 'ocupAcum',
-                  rotulo: 'Ocupação acumulada',
-                  pai: 'info',
-                  expansivel: true,
-                  celula: (l: typeof linhas[number]) => (
-                    <>
-                      <span className={`font-bold ${l.ocupacaoAcum > 1 ? 'text-red-700' : l.ocupacaoAcum >= 0.85 ? 'text-emerald-700' : 'text-amber-700'}`}>
-                        {pct(l.ocupacaoAcum)}
-                      </span>
-                      <div
-                        className="text-[10px] font-normal text-gray-400"
-                        title="Gap ACUMULADO desde o primeiro mes do horizonte, nao do mes. Negativo = capacidade sobrando no conjunto."
-                      >
-                        {l.gapAcum > 0 ? '+' : ''}{l.gapAcum.toFixed(1).replace('.', ',')}d acum.
-                      </div>
-                    </>
-                  ),
-                },
-                {
-                  id: 'ocupMes',
-                  rotulo: 'no mês isolado',
-                  pai: 'ocupAcum',
+                  dica: 'O Disponível de cima assume a fábrica rodando CHEIA — nos meses livres ela produz até o teto, e o plano entra só como piso. Esta linha assume o contrário: sai exatamente o que está lançado, nada é puxado para frente. Mesma base e mesma venda; a única troca é capacidade por plano, então a diferença entre as duas linhas é o quanto se depende de puxar trabalho. Só vai até janeiro, que é até onde existe plano.',
                   celula: (l: typeof linhas[number]) => {
-                    if (l.diasDisponiveis <= 0) return <span className="text-gray-500">—</span>;
-                    // Sobra DO MES, nao acumulada: e o numero que cabe dentro do mes, e por
-                    // isso o unico comparavel com os dias disponiveis dele.
-                    const sobra = l.diasDisponiveis * (1 - l.ocupacao);
+                    const v = disponivelPlano[linhas.indexOf(l)];
+                    if (v === null || v === undefined) return <span className="text-gray-300">—</span>;
+                    const delta = v - disponivelTabela[linhas.indexOf(l)];
                     return (
                       <>
-                        <span className={l.ocupacao > 1 ? 'text-red-700' : l.ocupacao > limiteOcupacao ? 'text-amber-700' : 'text-gray-500'}>
-                          {pct(l.ocupacao)}
-                        </span>
-                        <div className="text-[10px] text-gray-400">
-                          {sobra >= 0 ? 'sobra ' : 'falta '}
-                          {Math.abs(sobra).toFixed(1).replace('.', ',')}d de {l.diasDisponiveis}
-                        </div>
+                        <span className={`font-semibold ${v < 0 ? 'text-red-700' : 'text-violet-700'}`}>{fmt(v)}</span>
+                        {Math.abs(delta) >= 1 && (
+                          <div className="text-[10px] font-normal text-gray-400">
+                            {delta > 0 ? '+' : '−'}{fmt(Math.abs(delta))} vs capacidade
+                          </div>
+                        )}
                       </>
                     );
                   },
                 },
+                // A Ocupacao acumulada saia aqui (222% / +7,3d acum. em outubro) e discordava
+                // da propria linha do Plano logo acima (207% / +6,45d): uma vinha da conta
+                // interna deste componente, a outra da rota que alimenta a Cobertura do
+                // Plano. Dois numeros para a mesma pergunta na mesma tela. Fica so o do
+                // Plano, que e o que bate com a tela principal. Os campos `ocupacaoAcum`,
+                // `gapAcum` e `ocupacao` seguem calculados — o nivelamento e a faixa de
+                // resumo usam eles.
                 {
                   id: 'fisico',
                   rotulo: 'Estoque (s/ abater pedidos)',
@@ -977,14 +1195,19 @@ export default function CapacidadeVsVenda({
                 const ehFilho = nivel > 0;
                 const expansivel = 'expansivel' in linha;
                 const aberto = expansivel ? abertos[linha.id] !== false : false;
+                // A `dica` das linhas estava sendo escrita e nunca exibida — a explicacao
+                // do Plano (completo) existia no codigo e nao chegava na tela. Vai no
+                // rotulo, com `cursor-help` para o tracejado avisar que tem texto ali.
+                const dica = 'dica' in linha ? (linha.dica as string) : undefined;
                 return (
                   <tr key={linha.id} className={`border-t border-gray-100 ${idx % 2 === 1 ? 'bg-gray-50' : ''}`}>
                     <td
+                      title={dica}
                       className={`sticky left-0 z-10 px-4 py-3 text-left whitespace-nowrap ${
                         idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'
                       } ${'forte' in linha ? 'font-semibold text-gray-800' : 'text-gray-600'} ${
                         ehFilho ? `py-2 text-xs font-normal text-gray-500 ${nivel === 1 ? 'pl-9' : 'pl-16'}` : ''
-                      }`}
+                      } ${dica ? 'cursor-help decoration-dotted underline-offset-4 [text-decoration-line:underline]' : ''}`}
                     >
                       {expansivel ? (
                         <button

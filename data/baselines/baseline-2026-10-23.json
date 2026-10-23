@@ -1,0 +1,142 @@
+{
+  "capturadoEm": "2026-10-23",
+  "commit": "0adf317080ffe3c6760d76741c88b3910d6a304a",
+  "porQue": "Numeros conferidos e aprovados pelo usuario. Serve de referencia: se um destes mudar sem que a mudanca tenha sido pedida, tem regressao.",
+  "coberturaPlano": {
+    "MA": {
+      "mes": 10,
+      "diasNecessarios": 12.24,
+      "diasDisponiveis": 6,
+      "gap": 6.24,
+      "ocupacaoAcum": 2.04
+    },
+    "PX": {
+      "mes": 11,
+      "diasNecessarios": 24.97,
+      "diasDisponiveis": 25,
+      "gap": -0.03,
+      "ocupacaoAcum": 0.9988
+    },
+    "UL": {
+      "mes": 12,
+      "diasNecessarios": 40.07,
+      "diasDisponiveis": 43,
+      "gap": -2.93,
+      "ocupacaoAcum": 0.9319
+    },
+    "QT": {
+      "mes": 1,
+      "diasNecessarios": 57.37,
+      "diasDisponiveis": 63,
+      "gap": -5.63,
+      "ocupacaoAcum": 0.9106
+    },
+    "QU": {
+      "mes": 2,
+      "diasNecessarios": 59.83,
+      "diasDisponiveis": 81,
+      "gap": -21.17,
+      "ocupacaoAcum": 0.7386
+    },
+    "SX": {
+      "mes": 3,
+      "diasNecessarios": 59.83,
+      "diasDisponiveis": 102,
+      "gap": -42.17,
+      "ocupacaoAcum": 0.5866
+    }
+  },
+  "capacidadeDiariaTotal": 57395.72,
+  "planoRestanteMatriz": {
+    "ma": 24303,
+    "px": 58132,
+    "ul": 109880,
+    "qt": 140430
+  },
+  "planoOriginalMatriz": {
+    "ma": 299883,
+    "px": 108412,
+    "ul": 111320,
+    "qt": 140430
+  },
+  "planoPorMesDoLote": {
+    "2026-09": {
+      "qtdLote": 164411,
+      "qtdGerouOp": 161136
+    },
+    "2026-10": {
+      "qtdLote": 142782,
+      "qtdGerouOp": 121504
+    },
+    "2026-11": {
+      "qtdLote": 112352,
+      "qtdGerouOp": 52620
+    },
+    "2026-12": {
+      "qtdLote": 110030,
+      "qtdGerouOp": 1440
+    },
+    "2027-01": {
+      "qtdLote": 140630,
+      "qtdGerouOp": 0
+    },
+    "2027-02": {
+      "qtdLote": 17600,
+      "qtdGerouOp": 0
+    },
+    "2027-03": {
+      "qtdLote": 22120,
+      "qtdGerouOp": 0
+    },
+    "2027-04": {
+      "qtdLote": 2380,
+      "qtdGerouOp": 0
+    }
+  },
+  "vendaMesCorrente": {
+    "diasNoMes": 31,
+    "diasCompletos": 22,
+    "diasFaltantes": 9,
+    "ultimaData": "2026-10-23 00:00:00",
+    "realizadoCompleto": 117225,
+    "realizadoParcial": 629,
+    "fracaoVendaEsperada": 0.645793,
+    "curvaMesesAmostra": 21,
+    "fechaEmPelaCurva": 181521,
+    "fechaEmPeloLinear": 165181
+  },
+  "curvaMesAcumulada": [
+    0,
+    0.02107,
+    0.050141,
+    0.073351,
+    0.100434,
+    0.122793,
+    0.143653,
+    0.17047,
+    0.197722,
+    0.226573,
+    0.257958,
+    0.292526,
+    0.327912,
+    0.363028,
+    0.402756,
+    0.436796,
+    0.45628,
+    0.48536,
+    0.518471,
+    0.546295,
+    0.577002,
+    0.61012,
+    0.645793,
+    0.679807,
+    0.71581,
+    0.743185,
+    0.775756,
+    0.811203,
+    0.854165,
+    0.896751,
+    0.941967,
+    1
+  ]
+}
