@@ -147,7 +147,7 @@ export default function VisaoGeral2Page() {
   // diaria do dias-resumo se cancela na conta da tabela.
   const [indiceMensalAtual, setIndiceMensalAtual] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
   const indiceMensal = indiceMensalAtual;
-  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
+  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; diasCompletosMes: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   // Cache das respostas que não mudam com o cenário (matriz, capacidade, curva ABC,
   // cortes mínimos, gravado e agenda). Preview e edição limitada carregam uma base neutra;
@@ -337,17 +337,26 @@ export default function VisaoGeral2Page() {
       /**
        * Quanto uma populacao ainda deve vender no mes em curso, em pecas.
        *
-       * Pela curva: se ate aqui costuma-se ter vendido 64,6% do mes e esta populacao ja
-       * vendeu X, o mes dela fecha em X / 0,646 — e o que falta e esse total menos o que
-       * ja saiu (fechados mais o parcial de hoje).
+       * Pela curva: se ao fim do dia 22 costuma-se ter vendido 64,6% do mes e esta
+       * populacao vendeu X nesses 22 dias, o mes dela fecha em X / 0,646 — e o que falta
+       * e esse total menos o X.
+       *
+       * O CORTE E O FIM DO ULTIMO DIA FECHADO, nao "agora". O parcial de hoje NAO e
+       * abatido de proposito: se fosse, o numero cairia a cada carga do BI e a tela
+       * mostraria um valor diferente de manha e a tarde, sem nada ter sido decidido no
+       * meio. Quem planeja precisa de um numero que so se mexa quando o dia virar.
+       *
+       * O preco: a venda de hoje (2.728 pecas em 23/10/2026) ja saiu do estoque mas ainda
+       * conta como "a vender" ate o dia fechar. E menos de 1% do estoque, e some sozinho
+       * na virada — barato perto de ter o numero mudando debaixo de quem esta olhando.
        */
-      const aindaVendeDe = ({ completo, parcial }: { completo: number; parcial: number }) => {
+      const aindaVendeDe = ({ completo }: { completo: number; parcial: number }) => {
         if (completo <= 0) return 0;
         if (fracaoVendaEsperada > 0 && fracaoVendaEsperada < 1) {
-          return Math.max(0, completo / fracaoVendaEsperada - completo - parcial);
+          return Math.max(0, completo / fracaoVendaEsperada - completo);
         }
         if (diasCompletosMes <= 0 || diasFaltantesMes <= 0) return 0;
-        return Math.max(0, (completo / diasCompletosMes) * diasFaltantesMes - parcial);
+        return Math.max(0, (completo / diasCompletosMes) * diasFaltantesMes);
       };
       const realizadoDe = (ids: string[]) => {
         let completo = 0;
@@ -572,12 +581,15 @@ export default function VisaoGeral2Page() {
         return s + (v !== undefined ? Number(v) : Number(r.demanda?.media_vendas_3m || 0));
       }, 0);
       const elRealizadoMes = realizadoDe(elIds);
-      // VENDA REAL do mes em curso, ja faturada: os dias fechados mais o parcial de hoje,
-      // nas mesmas duas populacoes que a linha de venda soma (permanentes + edicao
-      // limitada). Nao e projecao nem ritmo: e o que saiu.
+      // VENDA REAL do mes em curso, nas mesmas duas populacoes que a linha de venda soma
+      // (permanentes + edicao limitada). Nao e projecao: e o que saiu.
+      //
+      // So os dias FECHADOS, pelo mesmo motivo de `aindaVendeDe`: com o parcial de hoje
+      // dentro, este numero subiria durante o dia enquanto o "falta vender" desceria, e o
+      // "fecha em" — que e a soma dos dois — andaria sozinho. Os tres ficam parados ate o
+      // dia virar.
       const permRealizadoMes = realizadoDe(items.map((item) => String(item.idproduto)));
-      const vendaRealMesCorrente = permRealizadoMes.completo + permRealizadoMes.parcial
-        + elRealizadoMes.completo + elRealizadoMes.parcial;
+      const vendaRealMesCorrente = permRealizadoMes.completo + elRealizadoMes.completo;
       const fatorElMes = fatorRitmoMes(elIds, elCheiaMesCorrente);
       // Valor ABSOLUTO do que a edicao limitada ainda deve vender no mes. O relatorio de
       // Capacidade x Venda le a quantidade do modelo sazonal, que e outra base — aplicar um
@@ -757,7 +769,7 @@ export default function VisaoGeral2Page() {
       const diasUteisRestantes = capacidadeDiariaTotal > 0 ? cargaRestanteMA / capacidadeDiariaTotal : 0;
       const previsaoTermino = diasUteisRestantes > 0 ? addDiasUteis(hoje, diasUteisRestantes).toISOString().slice(0, 10) : null;
 
-      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, planoMatrizPorPeriodo, demandaRestantePorMes, demandaCheiaPorMes, vendaRealMesCorrente, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, coberturaPorPeriodo, planoPorMesReal, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
+      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, planoMatrizPorPeriodo, demandaRestantePorMes, demandaCheiaPorMes, vendaRealMesCorrente, diasCompletosMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, coberturaPorPeriodo, planoPorMesReal, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao carregar visão macro'); }
     finally { setLoading(false); }
   }
@@ -1185,6 +1197,9 @@ export default function VisaoGeral2Page() {
         // outra coisa da projecao cheia — e justamente a diferenca que interessa ver.
         vendaRealizada: ano === anoBase && mes === mesCorrenteBase
           ? Number(data.vendaRealMesCorrente || 0)
+          : undefined,
+        vendaRealizadaAteDia: ano === anoBase && mes === mesCorrenteBase
+          ? Number(data.diasCompletosMes || 0)
           : undefined,
         demandaMesCheia: ano === anoBase && mes === mesCorrenteBase
           ? Number(data.demandaCheiaPorMes?.[String(mes)] || 0)

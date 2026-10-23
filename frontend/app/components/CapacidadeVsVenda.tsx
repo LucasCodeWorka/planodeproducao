@@ -32,9 +32,13 @@ export type MesCapacidadeVenda = {
    * que falta vender dele, então o primeiro ponto do gráfico desaba sem que a venda tenha
    * caído — este é o número que diz onde ele estaria com o mês cheio. */
   demandaMesCheia?: number;
-  /** Mês em curso: venda REAL já faturada. Não é projeção — é o que saiu. Com a `demanda`
-   * ao lado fecha o mês: realizado + falta = como ele vai terminar de fato. */
+  /** Mês em curso: venda REAL já faturada nos dias FECHADOS. Não é projeção — é o que
+   * saiu. Com a `demanda` ao lado fecha o mês: realizado + falta = como ele termina.
+   * O dia em curso fica de fora: senão os três números andariam durante o dia. */
   vendaRealizada?: number;
+  /** Até que dia do mês o `vendaRealizada` vai. Entra no rótulo para o número parado não
+   * parecer desatualizado. */
+  vendaRealizadaAteDia?: number;
   /** Mesma projeção aberta por canal. Edição limitada vem separada do histórico. */
   demandaFabrica?: number;
   demandaLojas?: number;
@@ -751,7 +755,11 @@ export default function CapacidadeVsVenda({
                 <line x1={L + 4} x2={L + 20} y1={yBase - 3} y2={yBase - 3} stroke="#111827" strokeWidth="2.5" />
                 <text x={L + 26} y={yBase} fontSize="9.5" fill="#374151" fontFamily="ui-monospace, monospace">
                   <tspan fontWeight="700" fill="#111827">{fmt(vendaRealRef)}</tspan>
-                  <tspan> vendidos em {linhas[0].mes} · fecha em </tspan>
+                  <tspan>
+                    {linhas[0].vendaRealizadaAteDia
+                      ? ` vendidos até ${linhas[0].vendaRealizadaAteDia}/${linhas[0].mes.slice(0, 3)} · fecha em `
+                      : ` vendidos em ${linhas[0].mes} · fecha em `}
+                  </tspan>
                   <tspan fontWeight="700" fill="#111827">{fmt(fechamentoRef ?? 0)}</tspan>
                   {cheio > 0 && <tspan> · projetado {fmt(cheio)}</tspan>}
                   {dif !== null && (
@@ -840,7 +848,7 @@ export default function CapacidadeVsVenda({
                   id: 'venda-real',
                   rotulo: 'já vendido (real)',
                   pai: 'venda',
-                  dica: 'Venda REAL já faturada no mês em curso — não é projeção, é o que saiu do estoque. A linha de cima mostra só o que ainda FALTA vender, por isso o primeiro mês parece baixo.',
+                  dica: 'Venda REAL já faturada no mês em curso, contando só os dias FECHADOS — não é projeção, é o que saiu do estoque. O dia de hoje fica de fora de propósito: com ele dentro, este número e o "falta vender" mudariam a cada carga do BI, e a tela mostraria valores diferentes de manhã e à tarde sem nada ter sido decidido. Tudo vira junto quando o dia fecha.',
                   celula: (l: typeof linhas[number]) => {
                     const v = l.vendaRealizada;
                     if (!v) return <span className="text-gray-300">—</span>;
