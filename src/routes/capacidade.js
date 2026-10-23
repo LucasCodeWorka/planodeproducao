@@ -163,6 +163,101 @@ async function writeGrupoRefs(pool, data) {
   return linhas;
 }
 
+const PERIODOS_LOTE = ["MA", "PX", "UL", "QT", "QU"];
+
+/**
+ * Em processo por REFERENCIA e por PERIODO do plano.
+ *
+ * A matriz so sabe o total em processo de cada SKU, sem dizer a que periodo ele pertence.
+ * Por isso a carga de processo ia inteira para o MA, enquanto as PECAS ja eram
+ * distribuidas — e os dois lados contavam populacoes diferentes.
+ *
+ * O periodo sai do MES DO LOTE (`ds_lotepv` comeca com "YYYY-MM"), nao do `cd_auxiliar`:
+ * aquele rotulo e rolante e mistura meses (em out/2026 o balde MA carregava setembro).
+ * Mes anterior ao corrente cai no MA, porque e trabalho atrasado sendo feito agora.
+ */
+// As duas rotas de capacidade pedem a mesma abertura no mesmo request da tela; sem cache
+// a consulta roda duas vezes e o gap-mensal passava de 100s.
+const processoPeriodoCache = { data: null, timestamp: 0 };
+const PROCESSO_PERIODO_TTL_MS = 60 * 1000;
+
+async function carregarProcessoPorRefPeriodo(pool, matrizRows, periodos, hoje = new Date()) {
+  if (processoPeriodoCache.data && Date.now() - processoPeriodoCache.timestamp < PROCESSO_PERIODO_TTL_MS) {
+    return processoPeriodoCache.data;
+  }
+  const mapa = new Map();
+  if (!pool) return { mapa, ok: false };
+
+  // mes (1-12) -> periodo do plano, pela propria tabela de periodos ja calculada
+  const periodoDoMes = new Map();
+  for (const p of PERIODOS_LOTE) {
+    const mes = Number(periodos?.[p] || 0);
+    if (mes) periodoDoMes.set(mes, p);
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT a.cd_produto::TEXT AS sku,
+             SUBSTRING(TRIM(p.ds_lotepv) FROM 1 FOR 7) AS mes_lote,
+             SUM(GREATEST(COALESCE(a.qt_real, 0) - COALESCE(a.qt_finalizada, 0), 0))::FLOAT AS processo
+        FROM vr_pcp_loteplop a
+        JOIN pcp_lotepv p ON p.nr_lote = a.nr_lote
+       WHERE p.tp_situacao = 1
+         AND TRIM(p.ds_lotepv) ~ '^[0-9]{4}-[0-9]{2}'
+       GROUP BY 1, 2
+      HAVING SUM(GREATEST(COALESCE(a.qt_real, 0) - COALESCE(a.qt_finalizada, 0), 0)) > 0
+    `);
+
+    // Mesma populacao do resto do calculo: marca, status e sem meia de seda.
+    const itemPorSku = new Map();
+    for (const item of matrizRows) {
+      const marca = String(item?.produto?.marca || "").trim().toUpperCase();
+      const status = String(item?.produto?.status || "").trim().toUpperCase();
+      const descricao = String(item?.produto?.produto || "").trim().toUpperCase();
+      if (marca !== "LIEBE") continue;
+      if (!["EM LINHA", "NOVA COLECAO"].includes(status)) continue;
+      if (descricao.includes("MEIA DE SEDA")) continue;
+      const sku = String(item?.produto?.idproduto || "").trim();
+      if (sku) itemPorSku.set(sku, item);
+    }
+
+    const anoHoje = hoje.getFullYear();
+    const mesHoje = hoje.getMonth() + 1;
+    for (const row of result.rows) {
+      const item = itemPorSku.get(String(row.sku || "").trim());
+      if (!item) continue;
+      const qtd = Number(row.processo || 0);
+      if (!qtd) continue;
+
+      const [anoLote, mesLote] = String(row.mes_lote || "").split("-").map(Number);
+      if (!anoLote || !mesLote) continue;
+      // Lote de mes ja passado: o trabalho esta sendo feito AGORA, entao pesa no mes corrente.
+      const atrasado = anoLote < anoHoje || (anoLote === anoHoje && mesLote < mesHoje);
+      const periodo = atrasado ? "MA" : periodoDoMes.get(mesLote);
+      if (!periodo) continue;
+
+      for (const chave of [
+        String(item?.produto?.referencia || "").trim().toUpperCase(),
+        String(item?.produto?.cd_seqgrupo || "").trim().toUpperCase(),
+      ]) {
+        if (!chave) continue;
+        const atual = mapa.get(chave) || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
+        atual[periodo] = (atual[periodo] || 0) + qtd;
+        mapa.set(chave, atual);
+      }
+    }
+    const saida = { mapa, ok: mapa.size > 0 };
+    processoPeriodoCache.data = saida;
+    processoPeriodoCache.timestamp = Date.now();
+    return saida;
+  } catch (err) {
+    // Sem a abertura o calculo segue valendo, so volta ao comportamento antigo (tudo no
+    // MA). Melhor um numero conservador do que a tela em branco.
+    console.error("[capacidade] em processo por periodo falhou:", err.message);
+    return { mapa, ok: false };
+  }
+}
+
 function buildDefaultDias() {
   return {
     "1": 22, "2": 20, "3": 22, "4": 22, "5": 22, "6": 22,
@@ -1172,67 +1267,11 @@ router.get("/dias-resumo", async (req, res) => {
       }
     }
 
-    // 5b. Em processo POR PERIODO.
-    //
-    // A matriz so sabe o total em processo de cada SKU, sem dizer de qual periodo ele e.
-    // Por isso a carga de processo ia inteira para o MA — enquanto a tela de Capacidade x
-    // Venda ja somava as PECAS por periodo, vindas dos lotes. Os dois lados contavam
-    // coisas diferentes: novembro ganhava 38 mil pecas sem os minutos delas (ritmo subia
-    // para 12.021 pcs/dia) e outubro carregava minutos que nao eram dele (ritmo caia para
-    // 5.410). Dai novembro aparecer com quase o dobro da capacidade de janeiro, tendo
-    // menos dias. Aqui o periodo vem do proprio lote, que e quem sabe.
-    const PERIODOS_LOTE = ['MA', 'PX', 'UL', 'QT', 'QU'];
-    const processoPorRefPeriodo = new Map();
-    let processoPorPeriodoOk = false;
-    try {
-      const procResult = await pool.query(`
-        SELECT a.cd_produto::TEXT AS sku,
-               UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) AS periodo,
-               SUM(GREATEST(COALESCE(a.qt_real, 0) - COALESCE(a.qt_finalizada, 0), 0))::FLOAT AS processo
-          FROM vr_pcp_loteplop a
-          JOIN pcp_lotepv p ON p.nr_lote = a.nr_lote
-         WHERE p.tp_situacao = 1
-           AND UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) = ANY($1::TEXT[])
-         GROUP BY 1, 2
-        HAVING SUM(GREATEST(COALESCE(a.qt_real, 0) - COALESCE(a.qt_finalizada, 0), 0)) > 0
-      `, [PERIODOS_LOTE]);
-
-      // O sku vira referencia pela propria matriz ja filtrada (marca, status, sem meia de
-      // seda), entao o recorte da populacao sai igual ao do resto do calculo.
-      const refPorSku = new Map();
-      for (const item of matrizRows) {
-        const marca = String(item?.produto?.marca || '').trim().toUpperCase();
-        const status = String(item?.produto?.status || '').trim().toUpperCase();
-        const descricao = String(item?.produto?.produto || '').trim().toUpperCase();
-        if (marca !== 'LIEBE') continue;
-        if (!['EM LINHA', 'NOVA COLECAO'].includes(status)) continue;
-        if (descricao.includes('MEIA DE SEDA')) continue;
-        const sku = String(item?.produto?.idproduto || '').trim();
-        if (sku) refPorSku.set(sku, item);
-      }
-
-      for (const row of procResult.rows) {
-        const item = refPorSku.get(String(row.sku || '').trim());
-        if (!item) continue;
-        const periodo = String(row.periodo || '').trim().toUpperCase();
-        const qtd = Number(row.processo || 0);
-        if (!qtd) continue;
-        for (const chave of [
-          String(item?.produto?.referencia || '').trim().toUpperCase(),
-          String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase(),
-        ]) {
-          if (!chave) continue;
-          const atual = processoPorRefPeriodo.get(chave) || { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
-          atual[periodo] = (atual[periodo] || 0) + qtd;
-          processoPorRefPeriodo.set(chave, atual);
-        }
-      }
-      processoPorPeriodoOk = processoPorRefPeriodo.size > 0;
-    } catch (err) {
-      // Sem a abertura por periodo o calculo continua valendo, so volta ao comportamento
-      // antigo (tudo no MA). Melhor um numero conservador do que a tela em branco.
-      console.error('[capacidade/dias-resumo] em processo por periodo falhou:', err.message);
-    }
+    // 5b. Em processo POR PERIODO, pelo mes do lote. Sem isto a carga de processo ia
+    // inteira para o MA enquanto as PECAS ja eram distribuidas, e os dois lados contavam
+    // coisas diferentes: novembro ganhava pecas sem os minutos delas.
+    const { mapa: processoPorRefPeriodo, ok: processoPorPeriodoOk } =
+      await carregarProcessoPorRefPeriodo(pool, matrizRows, periodos);
 
     // 6. Criar mapa de capacidade por grupo
     const capacidadePorGrupo = new Map();
@@ -1536,9 +1575,26 @@ router.get('/gap-mensal', auth, async (req, res) => {
       gruposPorRef.set(row.referencia, atual);
     }
 
+    const periodos = calcularPeriodosPlano(hoje).meses;
+
+    // Em processo aberto por periodo, pelo mes do lote. Sem isto a carga de processo ia
+    // inteira para o inicio do horizonte (ver `tempoAcumulado` abaixo), e outubro
+    // carregava sozinho os minutos de novembro: 4,9 dias de diferenca contra o
+    // dias-resumo, que ja distribuia.
+    const { mapa: processoPorRefPeriodo, ok: processoPorPeriodoOk } =
+      await carregarProcessoPorRefPeriodo(pool, matrizRows, periodos, hoje);
+
     // carga por mês, com rateio quando a referência pertence a mais de um grupo
     const carga = { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
+    const cargaProcesso = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
     let processoCarga = 0;
+    const somarProcessoGap = (referencia, tempo, totalDaRef, rateio) => {
+      const total = tempo * totalDaRef * rateio;
+      processoCarga += total;
+      const abertura = processoPorPeriodoOk ? processoPorRefPeriodo.get(referencia) : null;
+      if (!abertura) { cargaProcesso.MA += total; return; }
+      for (const p of PERIODOS_LOTE) cargaProcesso[p] += tempo * (abertura[p] || 0) * rateio;
+    };
     for (const row of grupoRefs) {
       if (!nomesGrupos.has(row.grupo)) continue;
       const idreferencia = seqgrupoPorRef.get(row.referencia) || '';
@@ -1557,7 +1613,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
       carga.qt += tempo * base.qt * rateio;
       carga.qu += tempo * base.qu * rateio;
       carga.sx += tempo * base.sx * rateio;
-      processoCarga += tempo * Number(processoPorRef.get(row.referencia) || 0) * rateio;
+      somarProcessoGap(row.referencia, tempo, Number(processoPorRef.get(row.referencia) || 0), rateio);
     }
 
     // Referencia sem grupo de capacidade TAMBEM ocupa a fabrica. O laco acima so percorre
@@ -1579,7 +1635,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
       carga.qt += tempo * base.qt;
       carga.qu += tempo * base.qu;
       carga.sx += tempo * base.sx;
-      processoCarga += tempo * Number(processoPorRef.get(referencia) || 0);
+      somarProcessoGap(referencia, tempo, Number(processoPorRef.get(referencia) || 0), 1);
     }
 
     // Igual à tela: havendo medição real, grupo sem medição vale zero (não cai na planilha)
@@ -1587,13 +1643,13 @@ router.get('/gap-mensal', auth, async (req, res) => {
       ? (capacidadeRealPorGrupo.get(g.grupo) || 0)
       : Number(g.capacidade_diaria || 0)), 0);
 
-    const periodos = calcularPeriodosPlano(hoje).meses;
 
-    let tempoAcumulado = processoCarga;
+    // Cada periodo leva a carga do SEU em-processo, em vez de tudo cair no inicio.
+    let tempoAcumulado = 0;
     let diasAcumulados = 0;
     const meses = [];
     for (const chave of ['MA', 'PX', 'UL', 'QT', 'QU', 'SX']) {
-      tempoAcumulado += carga[chave.toLowerCase()];
+      tempoAcumulado += carga[chave.toLowerCase()] + (cargaProcesso[chave] || 0);
       // Dias do calendario, nao da config: o mes em curso entra so com o que falta, e os
       // feriados de cada mes sao descontados no ano certo.
       diasAcumulados += diasDisponiveisDoPeriodo(periodos[chave], hoje);
