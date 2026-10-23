@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { History, Search, SlidersHorizontal, TrendingUp } from 'lucide-react';
+import { Factory, Search, SlidersHorizontal, TrendingUp } from 'lucide-react';
 import { DIAS_FIXOS_POR_MES } from '../lib/feriados';
 import AnaliseProjecaoModal from './AnaliseProjecaoModal';
 
@@ -97,14 +97,8 @@ type Props = {
   metaEstoqueFinal?: number;
   /** Teto de ocupacao (0-1). Limita o plano nos dois modos de nivelamento. */
   limiteOcupacao?: number;
-  /** true = `meses` já veio calculado com a capacidade do cenário anterior (grupos
-   * descontinuados somados de volta). Só controla o rótulo do botão; quem decide qual
-   * capacidade entra em `meses` é a página, não este componente. */
-  cenarioCapacidadeAnterior?: boolean;
-  onToggleCenarioCapacidadeAnterior?: () => void;
+  /** Capacidade diária da fábrica hoje, só para exibição. */
   capacidadeDiariaAtual?: number;
-  capacidadeDiariaAnterior?: number;
-  gruposDesativados?: string[];
   /** Crescimento da fabrica ao ano (0-1). A pagina recompoe a projecao; aqui so o seletor. */
   cenarioFabrica?: number;
   onCenarioFabrica?: (c: number) => void;
@@ -135,11 +129,7 @@ export default function CapacidadeVsVenda({
   emProcessoAtual,
   metaEstoqueFinal = 100000,
   limiteOcupacao = 0.9,
-  cenarioCapacidadeAnterior = false,
-  onToggleCenarioCapacidadeAnterior,
   capacidadeDiariaAtual,
-  capacidadeDiariaAnterior,
-  gruposDesativados = [],
   cenarioFabrica,
   onCenarioFabrica,
 }: Props) {
@@ -522,28 +512,19 @@ export default function CapacidadeVsVenda({
               ))}
             </div>
           )}
-          {onToggleCenarioCapacidadeAnterior && (
-            <button
-              onClick={onToggleCenarioCapacidadeAnterior}
-              title={
-                gruposDesativados.length
-                  ? `Compara com a capacidade de antes de desativar: ${gruposDesativados.join(', ')}`
-                  : 'Compara com a capacidade de antes dos grupos descontinuados'
-              }
-              className={`inline-flex items-center gap-1.5 rounded border px-3 py-2 text-xs font-semibold transition-colors ${
-                cenarioCapacidadeAnterior
-                  ? 'border-amber-300 bg-amber-50 text-amber-800'
-                  : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
-              }`}
+          {/* Capacidade da fabrica, so leitura. Aqui existia um botao que alternava para a
+              "capacidade anterior" — a de antes de desativar Progresso e Oficina Atila —
+              e que vinha LIGADO por padrao. Aquele cenario nao existe mais: a fabrica de
+              hoje e a fabrica, e a tela mostra so ela. */}
+          {Number(capacidadeDiariaAtual) > 0 && (
+            <span
+              title="Capacidade diária medida da fábrica, dos grupos ativos. É a base da capacidade em peças de cada mês."
+              className="inline-flex items-center gap-1.5 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600"
             >
-              <History size={14} />
-              {cenarioCapacidadeAnterior ? 'Capacidade anterior' : 'Capacidade atual'}
-              {Number(capacidadeDiariaAtual) > 0 && Number(capacidadeDiariaAnterior) > 0 && (
-                <span className="font-normal text-[11px] opacity-75">
-                  ({fmt(cenarioCapacidadeAnterior ? capacidadeDiariaAnterior! : capacidadeDiariaAtual!)}/dia)
-                </span>
-              )}
-            </button>
+              <Factory size={14} />
+              Capacidade atual
+              <span className="font-normal text-[11px] opacity-75">({fmt(capacidadeDiariaAtual!)}/dia)</span>
+            </span>
           )}
           <button
             onClick={() => setMostrarAjustes((v) => !v)}

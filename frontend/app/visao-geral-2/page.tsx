@@ -119,14 +119,7 @@ export default function VisaoGeral2Page() {
   // painel some sem derrubar o resto da pagina.
   const [resumoDias, setResumoDias] = useState<(ResumoDiasCapacidade & {
     periodos?: Record<string, number>;
-    capacidadeDiariaAnterior?: number;
-    diasNecessariosAnterior?: Partial<Record<string, number>>;
-    gruposDesativados?: string[];
   }) | null>(null);
-  // Cenario anterior: soma de volta os grupos descontinuados (Progresso, Oficina Atila) na
-  // capacidade diaria, pra comparar com a reducao atual. So troca o numero de capacidade;
-  // o resto da conta (carga, demanda) e identico nos dois cenarios.
-  const [cenarioCapacidadeAnterior, setCenarioCapacidadeAnterior] = useState(true);
   // Projecao de edicao limitada do ano destino, vinda do historico de colecoes. Fica fora do
   // `rawData` porque vem de outro endpoint e nao deve segurar o carregamento da tela: se
   // falhar, a tabela mostra so o permanente, que e o comportamento antigo.
@@ -148,12 +141,12 @@ export default function VisaoGeral2Page() {
   // Perfil sazonal da produtividade diaria, por mes do calendario. Sem ele a capacidade
   // do ultimo mes fechado vale para os 15 meses do horizonte, e a variacao real de 14%
   // entre o melhor e o pior mes some.
-  // Dois indices: o atual (so grupos ativos) e o anterior (todos os locais do ERP, como era
-  // antes de desativar Progresso e Oficina Atila). E o `nivel` daqui que define a capacidade
-  // em pecas — a capacidade diaria do dias-resumo se cancela na conta da tabela.
+  // So o indice ATUAL, dos grupos ativos. Existia tambem um "anterior" (todos os locais do
+  // ERP, como era antes de desativar Progresso e Oficina Atila) para um cenario comparativo
+  // que nao existe mais. E o `nivel` daqui que define a capacidade em pecas — a capacidade
+  // diaria do dias-resumo se cancela na conta da tabela.
   const [indiceMensalAtual, setIndiceMensalAtual] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
-  const [indiceMensalAnterior, setIndiceMensalAnterior] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
-  const indiceMensal = cenarioCapacidadeAnterior && indiceMensalAnterior ? indiceMensalAnterior : indiceMensalAtual;
+  const indiceMensal = indiceMensalAtual;
   const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   // Cache das respostas que não mudam com o cenário (matriz, capacidade, curva ABC,
@@ -801,9 +794,7 @@ export default function VisaoGeral2Page() {
         return null;
       }
     };
-    const [atual, anterior] = await Promise.all([buscar(''), buscar('?cenario=anterior')]);
-    setIndiceMensalAtual(atual);
-    setIndiceMensalAnterior(anterior);
+    setIndiceMensalAtual(await buscar(''));
   }
 
   async function carregarEdicaoLimitada(forcar = false) {
@@ -846,27 +837,16 @@ export default function VisaoGeral2Page() {
         diasNecessarios: p.diasNecessarios || {},
         diasDisponiveis: p.diasDisponiveis || {},
         periodos: p.periodos || {},
-        capacidadeDiariaAnterior: Number(p.capacidadeDiariaAnterior || 0),
-        diasNecessariosAnterior: p.diasNecessariosAnterior || {},
-        gruposDesativados: p.gruposDesativados || [],
       });
     } catch (e) {
       setResumoDias(null);
       setError(`Capacidade não carregou (${e instanceof Error ? e.message : 'erro'}): a tabela Capacidade x Venda fica oculta. Clique em Atualizar.`);
     }
   }
-  // Troca capacidadeDiaria/diasNecessarios pela variante "anterior" quando o cenario esta
-  // ligado. Um unico ponto de troca: todo o resto da tela (meses, resumoContinuo,
-  // relatorioCapacidade) le so `resumoDiasEfetivo` e nao sabe que existe um cenario.
-  const resumoDiasEfetivo = useMemo(() => {
-    if (!resumoDias) return resumoDias;
-    if (!cenarioCapacidadeAnterior) return resumoDias;
-    return {
-      ...resumoDias,
-      capacidadeDiaria: resumoDias.capacidadeDiariaAnterior ?? resumoDias.capacidadeDiaria,
-      diasNecessarios: resumoDias.diasNecessariosAnterior ?? resumoDias.diasNecessarios,
-    };
-  }, [resumoDias, cenarioCapacidadeAnterior]);
+  // Aqui havia a troca para a variante "anterior" da capacidade (antes de desativar
+  // Progresso e Oficina Atila), que vinha LIGADA por padrao. O cenario foi removido: vale
+  // sempre a capacidade atual. O apelido fica porque toda a tela le por ele.
+  const resumoDiasEfetivo = resumoDias;
   // O estado corrente de estoque é reconstruído do zero a cada cálculo: ele é consumido
   // dentro do laço, então reaproveitar o do cálculo anterior partiria de números já gastos.
   const coberturaPorCurva = useMemo<Record<Curva, number>>(() => ({
@@ -1682,11 +1662,7 @@ export default function VisaoGeral2Page() {
           aberturaEstoque={relatorioCapacidade.abertura}
           pedidosPendentes={relatorioCapacidade.pedidosPendentes}
           emProcessoAtual={data.posicao.emProcesso}
-          cenarioCapacidadeAnterior={cenarioCapacidadeAnterior}
-          onToggleCenarioCapacidadeAnterior={() => setCenarioCapacidadeAnterior((v) => !v)}
           capacidadeDiariaAtual={resumoDias?.capacidadeDiaria}
-          capacidadeDiariaAnterior={resumoDias?.capacidadeDiariaAnterior}
-          gruposDesativados={resumoDias?.gruposDesativados}
           cenarioFabrica={cenarioFabrica}
           onCenarioFabrica={setCenarioFabrica}
         />
