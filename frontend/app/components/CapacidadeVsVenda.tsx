@@ -285,8 +285,8 @@ export default function CapacidadeVsVenda({
     }
     return {
       ...m,
-      planoOcupAcum: temPlano && planoDispAcum > 0 ? planoDiasAcum / planoDispAcum : null,
       planoDiasAcum: temPlano ? planoDiasAcum : null,
+      planoDispAcum: temPlano ? planoDispAcum : null,
 
       producao,
       estoque,
@@ -797,20 +797,28 @@ export default function CapacidadeVsVenda({
                   id: 'plano',
                   rotulo: 'Plano (completo)',
                   forte: true,
-                  dica: 'Plano como foi lançado: o que já virou OP mais o lote que falta. Só existe até janeiro — de fevereiro em diante não há plano, só projeção.',
+                  dica: 'Plano como foi lançado: o que já virou OP mais o lote que falta, pelo mês do próprio lote. Os dias são do plano INTEIRO do mês, não do que ainda falta produzir — por isso um mês pode caber no plano e mesmo assim estourar, se a fábrica estiver atrasada. Só existe até janeiro: de fevereiro em diante não há plano, só projeção.',
                   celula: (l: typeof linhas[number]) => {
                     if (!l.planoCompleto) return <span className="text-gray-300">—</span>;
+                    const d1 = (v: number | null | undefined) =>
+                      Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+                    // Dias puros, sem percentual. O percentual aqui responde "o plano coube
+                    // no mes?", mas e lido como "quanto a fabrica esta carregada" — e aí
+                    // briga com a ocupacao real, que conta o atraso. Outubro tinha plano de
+                    // 19,6 dias num mes de 21 (cabia) e ao mesmo tempo 13,4 dias de trabalho
+                    // restante para 7 dias de mes (nao cabe). Os dois sao verdade; o
+                    // percentual so confundia qual deles estava na tela.
                     return (
                       <>
                         <span className="font-semibold text-violet-700">{fmt(l.planoCompleto)}</span>
                         <div className="text-[10px] font-normal text-gray-500">
-                          {l.planoCompletoDias?.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}d
-                          {l.planoOcupAcum !== null && l.planoOcupAcum !== undefined && (
-                            <span className={l.planoOcupAcum > 1 ? ' text-red-600 font-semibold' : ' text-gray-500'}>
-                              {' · '}{pct(l.planoOcupAcum)} acum.
-                            </span>
-                          )}
+                          {d1(l.planoCompletoDias)}d de {d1(l.diasDisponiveisMes)}d
                         </div>
+                        {l.planoDiasAcum !== null && l.planoDiasAcum !== undefined && (
+                          <div className="text-[10px] font-normal text-gray-400">
+                            acum. {d1(l.planoDiasAcum)}d de {d1(l.planoDispAcum)}d
+                          </div>
+                        )}
                       </>
                     );
                   },
