@@ -230,18 +230,33 @@ export default function CapacidadeVsVenda({
     let dispAcum = 0;
     return meses.map((m) => {
       dispAcum += m.diasDisponiveis;
-      // Meses do plano ja lancado ficam exatamente como estao. O que ja virou OP esta
-      // contado no estoque e continua ocupando capacidade por meio dos dias necessarios.
-      if (m.travado) {
-        necAcum += m.diasNecessarios;
-        return m.producao;
-      }
       const diasPeloMes = m.diasDisponiveis * tetoDoModo;
       const diasPeloAcumulado = limitarAcumulado
         ? Math.max(0, dispAcum * tetoDoModo - necAcum)
         : Infinity;
       const dias = Math.min(diasPeloMes, diasPeloAcumulado);
       const peloTeto = m.capacidadePecas * (dias / (m.diasDisponiveis || 1));
+
+      // Mes em curso: ja esta rodando, entao nem o teto o levanta — o que vai sair dele e
+      // o plano que esta na rua.
+      if (m.mesCorrente) {
+        necAcum += m.diasNecessarios;
+        return m.producao;
+      }
+      // Demais meses do plano lancado: o plano e PISO, nao teto. A fabrica puxa trabalho
+      // para frente quando sobra capacidade, e faz isso de verdade — em out/2026 ja havia
+      // 53 mil pecas do lote de NOVEMBRO em processo. Fixar no plano fazia o disponivel
+      // despencar num mes que na pratica nao despenca: novembro mostrava -69 mil de sobra
+      // com 134 mil de capacidade ociosa ao lado.
+      if (m.travado) {
+        if (peloTeto <= m.producao) {
+          necAcum += m.diasNecessarios;
+          return m.producao;
+        }
+        // Produzindo acima do plano, os dias sobem na mesma proporcao.
+        necAcum += m.diasNecessarios * (m.producao > 0 ? peloTeto / m.producao : 1);
+        return peloTeto;
+      }
       necAcum += dias;
       return peloTeto;
     });
