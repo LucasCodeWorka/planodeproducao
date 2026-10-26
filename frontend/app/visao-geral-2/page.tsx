@@ -1121,13 +1121,18 @@ export default function VisaoGeral2Page() {
     //    DEPOIS da falta — quem nao veio nao produziu. Os 7,36% ja estao integralmente
     //    dentro do numero. Descontar mais 3% por cima cobrava a mesma perda duas vezes.
     //
-    //    Efeito: capacidade em pecas +3,1% e dias necessarios -3%. Novembro/2026 sai de
-    //    136.878 para 141.112 pecas.
+    //    Efeito: capacidade em pecas +3,1% e dias necessarios -3% nos meses de plano REAL.
     //
     //    Se um dia a capacidade passar a vir de `minutos_disponiveis` (jornada bruta) em
     //    vez de `tempo_produzido_min`, aqui volta a precisar de desconto — e o numero
     //    certo seria os 7,36% medidos, nao 3%.
     const PERDA_FALTAS = 0;
+    //    Nos meses PROJETADOS a reserva continua. Nao e falta: e margem para a incerteza
+    //    da simulacao. Ali a carga nao e medida — o mix sai do modelo de reposicao, que
+    //    escolhe o que repor e tende a puxar peca leve, inflando as unidades. Nos meses
+    //    com plano lancado a carga e o lote de verdade, com os tempos de verdade, e nao
+    //    ha o que reservar.
+    const PERDA_FALTAS_PROJETADO = 0.03;
     const AMORTECIMENTO_INDICE = 0.5;
     const capDiariaAtual = Number(resumoDiasEfetivo.capacidadeDiaria || 0);
     const nivelNovo = Number(indiceMensal?.nivel || 0);
@@ -1139,6 +1144,7 @@ export default function VisaoGeral2Page() {
     // MAIS dias. Se so as pecas caissem, a ocupacao leria "sobrou dia" quando o que houve
     // foi a fabrica render menos nos dias que teve.
     const fatorFalta = 1 - PERDA_FALTAS;
+    const fatorFaltaProjetado = 1 - PERDA_FALTAS_PROJETADO;
     // Fator de capacidade SEM a falta: nivel corrigido x sazonalidade amortecida.
     const idx = (mes: number) => {
       const bruto = Number(indiceMensal?.data?.[String(mes)] ?? 1) || 1;
@@ -1334,8 +1340,8 @@ export default function VisaoGeral2Page() {
           return { demandaFabrica: c.fabrica, demandaLojas: c.lojas, demandaLojasPermanentes: c.lojasPermanentes, demandaLojasEdicaoLimitada: c.lojasEdicaoLimitada };
         })(),
         producao: m.producao + demandaEl,
-        capacidadePecas: m.capacidadePecas * idx(mes) * fatorFalta,
-        diasNecessarios: (diasPerm + (pecasPorDia > 0 ? demandaEl / pecasPorDia : 0)) / fatorFalta,
+        capacidadePecas: m.capacidadePecas * idx(mes) * fatorFaltaProjetado,
+        diasNecessarios: (diasPerm + (pecasPorDia > 0 ? demandaEl / pecasPorDia : 0)) / fatorFaltaProjetado,
         diasDisponiveis: m.diasDisponiveis,
         pendenteBaixa: baixaDe(data.anoDestino, mes),
         pendenteSaldo: (saldoPendente = Math.max(0, saldoPendente - baixaDe(data.anoDestino, mes))),
