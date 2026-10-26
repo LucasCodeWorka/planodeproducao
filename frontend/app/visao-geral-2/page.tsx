@@ -153,14 +153,32 @@ export default function VisaoGeral2Page() {
   // cortes mínimos, gravado e agenda). Preview e edição limitada carregam uma base neutra;
   // o cenário inteiro é recomposto em memória.
   const cacheIndependenteRef = useRef<Record<string, { ok: boolean; dados: unknown }>>({});
-  async function fetchCacheado(url: string, options?: RequestInit) {
+  // 300s, nao os 120s padrao do fetchNoCache. Estas chamadas correm no MESMO Promise.all
+  // do preview, que tem orcamento de 300s e segura banco e CPU enquanto roda — dar a elas
+  // metade do prazo fazia a `lotes-execucao-matriz` (62s sozinha, bem mais sob disputa)
+  // estourar e derrubar a tela com "Tempo esgotado apos 120000ms".
+  async function fetchCacheado(url: string, options?: RequestInit, timeoutMs = 300000) {
     const existente = cacheIndependenteRef.current[url];
     if (existente) return { ok: existente.ok, json: async () => existente.dados };
-    const r = await fetchNoCache(url, options);
+    const r = await fetchNoCache(url, options, timeoutMs);
     const ok = r.ok;
     const dados = await r.json().catch(() => null);
     cacheIndependenteRef.current[url] = { ok, dados };
     return { ok, json: async () => dados };
+  }
+
+  /**
+   * Para o que e COMPLEMENTO, nao base: se falhar ou estourar, devolve vazio em vez de
+   * rejeitar. Sem isto uma chamada opcional lenta derruba o Promise.all inteiro e a tela
+   * inteira some — foi o que aconteceu em 26/10/2026. O consumidor de cada uma ja trata
+   * ausencia (`?.ok ? ... : null`), entao o custo e so o indicador que ela alimenta.
+   */
+  async function fetchOpcional(url: string, options?: RequestInit, timeoutMs = 300000) {
+    try {
+      return await fetchCacheado(url, options, timeoutMs);
+    } catch {
+      return { ok: false, json: async () => null };
+    }
   }
 
   async function carregar(forcarTudo = false) {
@@ -209,15 +227,15 @@ export default function VisaoGeral2Page() {
         fetchCacheado(`${API_URL}/api/producao/agenda-estoque`, { headers: authHeaders() }),
         // Venda JA realizada no mes corrente, por SKU. Com ela o mes em curso deixa de ser
         // uma fatia da projecao e passa a ser o ritmo que o mes esta entregando de verdade.
-        fetchCacheado(`${API_URL}/api/producao/vendas-mes-atual`, { headers: authHeaders() }),
+        fetchOpcional(`${API_URL}/api/producao/vendas-mes-atual`, { headers: authHeaders() }),
         // Plano lancado por MES DE VERDADE. O periodo (MA, PX...) e um rotulo rolante que
         // mistura meses: em out/2026 o balde MA carregava setembro junto, e outubro
         // aparecia com 300 mil planejadas em vez de 202 mil.
-        fetchCacheado(`${API_URL}/api/producao/plano-por-mes-real`, { headers: authHeaders() }),
+        fetchOpcional(`${API_URL}/api/producao/plano-por-mes-real`, { headers: authHeaders() }),
         // O gap em dias vem da MESMA rota que alimenta a Cobertura do Plano na tela
         // principal. Calcular por aqui daria um numero proximo mas diferente (as duas
         // rotas divergem ~2 dias no rateio entre grupos), e a tela voltaria a "nao bater".
-        fetchCacheado(`${API_URL}/api/capacidade/gap-mensal`, { headers: authHeaders() }),
+        fetchOpcional(`${API_URL}/api/capacidade/gap-mensal`, { headers: authHeaders() }),
       ]);
       const preview = await previewResponse.json();
       if (!previewResponse.ok || !preview.success) throw new Error(preview.error || 'Erro ao carregar projeção');
@@ -324,7 +342,7 @@ export default function VisaoGeral2Page() {
       }
       const planoMesRealJson = planoMesRealResponse.ok ? await planoMesRealResponse.json() : null;
       const planoPorMesReal = (planoMesRealJson?.data || {}) as Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>;
-      const vendaMesJson = await vendaMesResponse.json();
+      const vendaMesJson = vendaMesResponse.ok ? await vendaMesResponse.json() : null;
       const vendasMesAtual = (vendaMesJson?.data || {}) as Record<string, { completo: number; parcial: number }>;
       const diasCompletosMes = Number(vendaMesJson?.diasCompletos || 0);
       const diasFaltantesMes = Number(vendaMesJson?.diasFaltantes || 0);
@@ -1088,21 +1106,37 @@ export default function VisaoGeral2Page() {
     // O divisor do indice sao dias TRABALHADOS, nao dias do calendario — se fosse
     // calendario, dezembro levaria o desconto da coletiva aqui e de novo nos dias
     // disponiveis. Dezembro em 0,906 e o ritmo mais lento nos dias que ele de fato rodou.
-    // 3) PERDA POR FALTA. Decisao da operacao, nao do dado — por isso vive aqui e nao no
-    //    endpoint. Vale saber, para quem for mexer: o nivel acima ja e minuto PRODUZIDO
-    //    por dia trabalhado, e quem faltou nao produziu, entao parte da falta ja esta no
-    //    numero. Estes 3% sao a reserva por cima disso.
-    const PERDA_FALTAS = 0.03;
+    // 3) PERDA POR FALTA — ZERADA em 26/10/2026, era 0,03. Era dupla contagem.
+    //
+    //    `pcp_cache_eficiencia_dia` tem as quatro colunas que fecham a conta:
+    //      minutos_disponiveis  = qt_pessoas x jornada
+    //      desconto_min         = o que as faltas tiraram
+    //      tempo_produzido_min  = o que de fato saiu
+    //      eficiencia_percentual = produzido / (disponivel - desconto)
+    //
+    //    A formula confere em 3.154 das 3.603 linhas de 2026 (87,5%), e o desconto por
+    //    falta medido no ano e de 7,36% (de 5,0% em out a 11,0% em mai).
+    //
+    //    O ponto: a nossa capacidade parte do `tempo_produzido_min`, que e o que saiu
+    //    DEPOIS da falta — quem nao veio nao produziu. Os 7,36% ja estao integralmente
+    //    dentro do numero. Descontar mais 3% por cima cobrava a mesma perda duas vezes.
+    //
+    //    Efeito: capacidade em pecas +3,1% e dias necessarios -3%. Novembro/2026 sai de
+    //    136.878 para 141.112 pecas.
+    //
+    //    Se um dia a capacidade passar a vir de `minutos_disponiveis` (jornada bruta) em
+    //    vez de `tempo_produzido_min`, aqui volta a precisar de desconto — e o numero
+    //    certo seria os 7,36% medidos, nao 3%.
+    const PERDA_FALTAS = 0;
     const AMORTECIMENTO_INDICE = 0.5;
     const capDiariaAtual = Number(resumoDiasEfetivo.capacidadeDiaria || 0);
     const nivelNovo = Number(indiceMensal?.nivel || 0);
     const fatorNivel = capDiariaAtual > 0 && nivelNovo > 0 ? nivelNovo / capDiariaAtual : 1;
-    // A falta entra no RITMO, nao nas pecas: o dia existe, quem nao veio foi a pessoa.
-    // Na pratica sao duas coisas ao mesmo tempo, e as duas precisam andar juntas senao a
-    // tabela se contradiz:
-    //   - a capacidade em pecas do mes cai 3%
-    //   - a mesma carga passa a precisar de 3% MAIS dias (ritmo menor, trabalho igual)
-    // Se so as pecas caissem, a ocupacao leria 97% — "sobrou dia" — quando o que houve
+    // Com PERDA_FALTAS em zero isto vale 1 e nao mexe em nada. O mecanismo fica porque a
+    // falta, se um dia voltar a ser descontada, entra no RITMO e nao nas pecas — o dia
+    // existe, quem nao veio foi a pessoa. E as duas pontas precisam andar juntas, senao a
+    // tabela se contradiz: a capacidade em pecas cai e a mesma carga passa a precisar de
+    // MAIS dias. Se so as pecas caissem, a ocupacao leria "sobrou dia" quando o que houve
     // foi a fabrica render menos nos dias que teve.
     const fatorFalta = 1 - PERDA_FALTAS;
     // Fator de capacidade SEM a falta: nivel corrigido x sazonalidade amortecida.
