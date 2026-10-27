@@ -306,50 +306,52 @@ router.post("/prices/mp", requireAdmin, async (req, res) => {
   try {
     const productCodes = Array.from(new Set((Array.isArray(req.body?.productCodes) ? req.body.productCodes : [])
       .map((code) => String(code || "").trim())
-      .filter(Boolean))).slice(0, 500);
+      .filter(Boolean)));
     if (!productCodes.length) {
       return res.status(400).json({ success: false, error: "Informe productCodes." });
     }
 
     const accessToken = await getTotvsToken();
-    const costsBody = buildCostsBody(productCodes);
-    console.log("[TOTVS] Buscando custos para", productCodes.length, "MPs. Body:", JSON.stringify(costsBody, null, 2));
+    const flattened = {};
+    let rawCount = 0;
+    const batchSize = 500;
+    for (let start = 0; start < productCodes.length; start += batchSize) {
+      const batch = productCodes.slice(start, start + batchSize);
+      const costsBody = buildCostsBody(batch);
+      console.log("[TOTVS] Buscando custos para lote", Math.floor(start / batchSize) + 1, "de", Math.ceil(productCodes.length / batchSize), "- MPs:", batch.length);
 
-    const response = await fetch(`${cleanBaseUrl()}/api/totvsmoda/product/v2/costs/search`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(costsBody),
-    });
-    const text = await response.text();
-    let payload = {};
-    try {
-      payload = text ? JSON.parse(text) : {};
-    } catch (_err) {
-      payload = {};
-    }
-
-    console.log("[TOTVS] Resposta costs:", response.status, "- items:", asArray(payload).length);
-    if (asArray(payload).length > 0) {
-      console.log("[TOTVS] Exemplo primeiro item:", JSON.stringify(asArray(payload)[0], null, 2));
-    }
-
-    if (!response.ok) {
-      return res.status(response.status).json({
-        success: false,
-        error: `TOTVS costs ${response.status}: ${formatTotvsError(payload, text || "falha na consulta")}`,
+      const response = await fetch(`${cleanBaseUrl()}/api/totvsmoda/product/v2/costs/search`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(costsBody),
       });
-    }
+      const text = await response.text();
+      let payload = {};
+      try {
+        payload = text ? JSON.parse(text) : {};
+      } catch (_err) {
+        payload = {};
+      }
 
-    const flattened = flattenCostOptions(payload);
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: `TOTVS costs lote ${Math.floor(start / batchSize) + 1} (${response.status}): ${formatTotvsError(payload, text || "falha na consulta")}`,
+        });
+      }
+
+      rawCount += asArray(payload).length;
+      Object.assign(flattened, flattenCostOptions(payload));
+    }
     console.log("[TOTVS] Custos processados:", Object.keys(flattened).length, "MPs com custo");
 
     return res.json({
       success: true,
       data: flattened,
-      rawCount: asArray(payload).length,
+      rawCount,
     });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });

@@ -20,7 +20,7 @@ const API_URL = (() => {
 const MARCA_FIXA = 'LIEBE';
 const STATUS_FIXO = 'EM LINHA,NOVA COLECAO';
 const PERIODOS = ['MA', 'PX', 'UL', 'QT', 'QU'] as const;
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;
 const FOLGA_ORCAMENTO_PERCENTUAL = 0.05;
 const FOLGA_ORCAMENTO_MINIMA = 250;
 
@@ -704,18 +704,28 @@ export default function OrcamentoMpPage() {
     }
     setLoadingPrices(true);
     try {
-      const response = await fetchNoCache(`${API_URL}/api/totvs-moda/prices/mp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ productCodes }),
-      }, 180000);
-      const payload = await response.json();
-      const data = response.ok && payload?.success && payload.data ? payload.data as Record<string, PriceOption[]> : {};
+      // A rota publicada ja limitou a entrada aos primeiros 500 codigos.
+      // Enviar lotes aqui protege o calculo mesmo antes de atualizar o backend.
+      const data: Record<string, PriceOption[]> = {};
+      for (let inicio = 0; inicio < productCodes.length; inicio += 500) {
+        const lote = productCodes.slice(inicio, inicio + 500);
+        const response = await fetchNoCache(`${API_URL}/api/totvs-moda/prices/mp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ productCodes: lote }),
+        }, 180000);
+        const payload = await response.json();
+        if (!response.ok || !payload?.success || !payload.data) {
+          throw new Error(apiErrorMessage(payload, `Erro ao buscar custos do lote ${Math.floor(inicio / 500) + 1}`));
+        }
+        const ausentes = lote.filter((codigo) => !(codigo in payload.data));
+        if (ausentes.length) {
+          throw new Error(`Custos incompletos no lote ${Math.floor(inicio / 500) + 1}: ${ausentes.length} MPs sem resposta (ex.: ${ausentes.slice(0, 5).join(', ')})`);
+        }
+        Object.assign(data, payload.data as Record<string, PriceOption[]>);
+      }
       setPriceOptionsByMp(data);
       return data;
-    } catch {
-      setPriceOptionsByMp({});
-      return {};
     } finally {
       setProgress(100);
       setLoadingPrices(false);
