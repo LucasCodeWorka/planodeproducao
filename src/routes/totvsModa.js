@@ -314,26 +314,33 @@ router.post("/prices/mp", requireAdmin, async (req, res) => {
     const accessToken = await getTotvsToken();
     const flattened = {};
     let rawCount = 0;
-    const batchSize = 500;
+    const batchSize = 250;
     for (let start = 0; start < productCodes.length; start += batchSize) {
       const batch = productCodes.slice(start, start + batchSize);
       const costsBody = buildCostsBody(batch);
       console.log("[TOTVS] Buscando custos para lote", Math.floor(start / batchSize) + 1, "de", Math.ceil(productCodes.length / batchSize), "- MPs:", batch.length);
 
-      const response = await fetch(`${cleanBaseUrl()}/api/totvsmoda/product/v2/costs/search`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(costsBody),
-      });
-      const text = await response.text();
-      let payload = {};
-      try {
-        payload = text ? JSON.parse(text) : {};
-      } catch (_err) {
-        payload = {};
+      let response;
+      let text;
+      let payload;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        response = await fetch(`${cleanBaseUrl()}/api/totvsmoda/product/v2/costs/search`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(costsBody),
+        });
+        text = await response.text();
+        try {
+          payload = text ? JSON.parse(text) : {};
+        } catch (_err) {
+          payload = {};
+        }
+        if (response.ok || ![429, 502, 503, 504].includes(response.status) || attempt === 2) break;
+        console.warn("[TOTVS] Falha temporaria no lote de custos:", response.status, "tentativa", attempt + 1);
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
       }
 
       if (!response.ok) {

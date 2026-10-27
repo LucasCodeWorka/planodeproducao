@@ -8,7 +8,8 @@ process.env.TOTVS_MODA_CLIENT_SECRET = "teste-local";
 
 const originalFetch = global.fetch;
 let costBatches = [];
-let failSecondBatch = false;
+let secondBatchFailure = "none";
+let secondBatchAttempts = 0;
 
 global.fetch = async (url, options) => {
   if (String(url).includes("/authorization/v2/token")) {
@@ -17,7 +18,10 @@ global.fetch = async (url, options) => {
   if (String(url).includes("/costs/search")) {
     const codes = JSON.parse(options.body).filter.productCodeList;
     costBatches.push(codes);
-    if (failSecondBatch && costBatches.length === 2) {
+    if (Number(codes[0]) === 1000251) secondBatchAttempts++;
+    if (Number(codes[0]) === 1000251 &&
+        (secondBatchFailure === "always" ||
+         (secondBatchFailure === "once" && secondBatchAttempts === 1))) {
       return new Response(JSON.stringify({ error: "falha simulada" }), { status: 502 });
     }
     return new Response(JSON.stringify(codes.map((productCode) => ({
@@ -64,15 +68,24 @@ async function main() {
     assert.equal(ok.body.success, true);
     assert.equal(Object.keys(ok.body.data).length, 501);
     assert.equal(ok.body.rawCount, 501);
-    assert.deepEqual(costBatches.map((batch) => batch.length), [500, 1]);
+    assert.deepEqual(costBatches.map((batch) => batch.length), [250, 250, 1]);
 
     costBatches = [];
-    failSecondBatch = true;
+    secondBatchAttempts = 0;
+    secondBatchFailure = "once";
+    const recovered = await request(server, codes);
+    assert.equal(recovered.status, 200);
+    assert.equal(Object.keys(recovered.body.data).length, 501);
+    assert.deepEqual(costBatches.map((batch) => batch.length), [250, 250, 250, 1]);
+
+    costBatches = [];
+    secondBatchAttempts = 0;
+    secondBatchFailure = "always";
     const failed = await request(server, codes);
     assert.equal(failed.status, 502);
     assert.equal(failed.body.success, false);
-    assert.deepEqual(costBatches.map((batch) => batch.length), [500, 1]);
-    console.log("Preços em lotes: 501 códigos retornados; erro no segundo lote não gera resposta parcial.");
+    assert.deepEqual(costBatches.map((batch) => batch.length), [250, 250, 250, 250]);
+    console.log("Precos em lotes: 501 codigos; 502 temporario recuperado; falha persistente nao gera resposta parcial.");
   } finally {
     await new Promise((resolve) => server.close(resolve));
     global.fetch = originalFetch;

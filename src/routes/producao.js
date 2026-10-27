@@ -617,7 +617,7 @@ router.post("/plano-original", async (req, res) => {
       data[id][periodo] = Number(row.plano_original || 0);
     }
 
-    return res.status(200).json({ success: true, data, detalhes });
+    return res.status(200).json({ success: true, data });
   } catch (error) {
     return res.status(500).json({
       success: false,
