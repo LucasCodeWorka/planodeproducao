@@ -114,3 +114,24 @@ Nunca confirmar exclusao, gravacao ou inclusao automaticamente.
 3. Registrar screenshots e comportamento.
 4. Para qualquer teste de `F5`, `F3` ou `F8`, pedir autorizacao explicita antes
    e combinar qual item de teste sera usado.
+
+## Consulta e correcao validadas em 26/10/2026
+
+- `python .agents\\totvs_agent_minimo\\main.py abrir-fluxo FCPFM003` abre a
+  sessao, confirma o login e abre o componente. O fluxo tambem foi testado
+  depois de encerrar completamente a aplicacao.
+- Para localizar um codigo, clique na seta curva da barra do componente para
+  inicializar a grade. Digite o codigo na celula `Codigo*` da linha vazia e
+  clique na lupa. Confirme codigo, descricao e operador/data antes de editar.
+  Clicar na lupa com a grade ja preenchida pode consultar o item selecionado e
+  mostrar aviso de manutencoes pendentes, mesmo sem uma edicao deliberada.
+- Para corrigir descricao, preencha `Despesa item *` e `Descricao auxiliar`,
+  confira visualmente os trechos alterados, pressione `F3` e confirme
+  `Gravacao efetuada com sucesso` e o novo horario do operador.
+- Reinicialize a grade, consulte novamente o codigo e confira a persistencia.
+  O espelho `vr_fcp_despesaitem` pode demorar a refletir a mudanca. Em 26/10,
+  ainda exibia as descricoes antigas de 1470 e 1472 as 14:50, apos a
+  confirmacao pela interface; nao presumir sincronizacao no minuto 45.
+- O caractere `/` exige `Ctrl+Alt+Q` no layout detectado por `VkKeyScan`.
+  `va_core/input.py` agora envia os modificadores; sem eles, o cliente remoto
+  grava `Q`. Isso foi reproduzido antes da correcao dos itens 1470 e 1472.

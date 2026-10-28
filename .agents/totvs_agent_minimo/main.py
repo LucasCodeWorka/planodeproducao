@@ -252,6 +252,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("status", help="Mostra o estado atual da sessao TOTVS.")
     sub.add_parser(
+        "garantir-sessao",
+        help="Testa o caminho auxiliar de abertura/login sem abrir componente.",
+    )
+    sub.add_parser(
         "abrir-sistema",
         help="Abre/loga o TOTVS e deixa no ponto de digitar componente.",
     )
@@ -325,6 +329,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "status":
         print(orch.status())
+        return 0
+    if args.cmd == "garantir-sessao":
+        from va_core import session
+
+        _janela, resultado = session.garantir_sessao()
+        print(resultado)
         return 0
     if args.cmd == "abrir-sistema":
         print(orch.login_ate_campo_componente())

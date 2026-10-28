@@ -294,7 +294,11 @@ export default function CapacidadePage() {
         fetchNoCache(`${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/producao/matriz?limit=5000&prefer_cache=true&marca=${encodeURIComponent(MARCA_FIXA)}&status=${encodeURIComponent(STATUS_FIXO)}&fonte_capacidade=${fonteCapacidade}`),
         fetchNoCache(`${API_URL}/api/projecoes`, { headers: authHeaders() }),
-        fetchNoCache(`${API_URL}/api/simulacoes?source=file`, { headers: authHeaders() }),
+        // Sem `source=file`: as simulacoes vivem no BANCO. O `source=file` fazia esta tela ler
+        // `data/analises_plano.json`, que parou em marco/2026 — enquanto a Sugestao de Plano
+        // grava no Postgres. Por isso o seletor de "Simulação aprovada" so oferecia a
+        // "Sugestão Plano UL · 12/03/2026" e nenhuma simulacao nova aparecia aqui.
+        fetchNoCache(`${API_URL}/api/simulacoes?limit=50`, { headers: authHeaders() }),
         fetchNoCache(`${API_URL}/api/capacidade/real?de=${realDe}&ate=${realAte}`, { headers: authHeaders() }),
       ]);
       const pConfig = await rConfig.json();

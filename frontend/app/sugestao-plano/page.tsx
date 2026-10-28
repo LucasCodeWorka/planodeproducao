@@ -125,6 +125,9 @@ type Row = {
   planoSugerido: number;
   planoBaseSemOpMin: number;
   planoAntesCapacidade: number;
+  // Peças que a etapa de ocupação por capacidade acrescentou além da necessidade. Fica
+  // separado para o teto de antecipação valer só sobre o acréscimo.
+  extraCapacidade?: number;
   deltaPlano: number;
   dispPos: number;
   coberturaPos: number;
@@ -296,6 +299,17 @@ type MpViabilidade = {
 
 type MpStatus = 'OK' | 'PRODUTIVEL' | 'BLOQUEADO' | 'SOLICITAR_COMPRA' | 'NA';
 type GrupoCapacidadeConfig = { grupo: string; tipo: string; capacidade_diaria: number };
+// Gap acumulado por periodo, da MESMA rota que alimenta a Cobertura do Plano da tela
+// principal e a tabela Capacidade x Venda da Visao Geral. `diasNecessarios` e
+// `diasDisponiveis` ja vem ACUMULADOS desde o primeiro periodo, e `diasNecessarios` ja
+// inclui o processo e todo o plano lancado (edicao limitada junto).
+type GapMes = { periodo: string; mes: number; tempoAcumulado: number; diasNecessarios: number; diasDisponiveis: number; gap: number };
+type GapMensal = { capacidadeDiariaTotal: number; processoCarga: number; meses: GapMes[] };
+// Capacidade MEDIDA por grupo (minutos trabalhados / dias com movimento, ultimos 3 meses).
+// E a mesma base da Visao Geral. Existe porque `capacidade_grupos.json` esta com codigo de
+// referencia de produto no lugar de minutos — a soma dele da 7.671.414 min/dia, contra
+// 55.433 medidos, e a proporcao entre grupos fica proporcional a numero de referencia.
+type GrupoReal = { grupo: string; minutosTrabalhados?: number; diasComMovimento?: number };
 type GrupoRefConfig = { grupo: string; referencia: string };
 type TempoRefConfig = { idreferencia: string; referencia_padrao?: string; tempo_segundos: number };
 type ReprojecaoPreview = {
@@ -426,6 +440,8 @@ export default function SugestaoPlanoPage() {
   const [salvarSomenteReducao, setSalvarSomenteReducao] = useState(false);
   const [atenderNegativos, setAtenderNegativos] = useState(false);
   const [capacidadeGrupos, setCapacidadeGrupos] = useState<GrupoCapacidadeConfig[]>([]);
+  const [gapMensal, setGapMensal] = useState<GapMensal | null>(null);
+  const [capacidadeRealGrupos, setCapacidadeRealGrupos] = useState<GrupoReal[]>([]);
   const [capacidadeGrupoRefs, setCapacidadeGrupoRefs] = useState<GrupoRefConfig[]>([]);
   const [capacidadeDias, setCapacidadeDias] = useState<Record<string, number>>({});
   const [capacidadeTemposRef, setCapacidadeTemposRef] = useState<TempoRefConfig[]>([]);
@@ -658,12 +674,33 @@ export default function SugestaoPlanoPage() {
           const medirFetchSettled = (label: string, url: string, init?: RequestInit) =>
             medirFetch(label, url, init);
 
-          const [capConfigResult, capTemposResult, reprojResult, curvaResult] = await Promise.allSettled([
+          // `de`/`ate` do capacidade/real: os 3 meses fechados anteriores ao corrente, a
+          // mesma janela que a Visao Geral usa para medir a capacidade diaria dos grupos.
+          const hojeCap = new Date();
+          const isoMesCap = (delta: number) => {
+            const d = new Date(hojeCap.getFullYear(), hojeCap.getMonth() + delta, 1);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+          };
+          const [capConfigResult, capTemposResult, reprojResult, curvaResult, gapResult, capRealResult] = await Promise.allSettled([
             medirFetchSettled('capacidade-config', `${API_URL}/api/capacidade/config`, { headers: authHeaders() }),
             medirFetchSettled('capacidade-tempos-ref', `${API_URL}/api/capacidade/tempos-ref`, { headers: authHeaders() }),
             medirFetchSettled('reprojecao-fechada', `${API_URL}/api/projecoes/reprojecao-fechada`, { headers: authHeaders() }),
             medirFetchSettled('curva-abc-referencias', `${API_URL}/api/analises/curva-abc-referencias`, { headers: authHeaders() }),
+            medirFetchSettled('capacidade-gap-mensal', `${API_URL}/api/capacidade/gap-mensal`, { headers: authHeaders() }),
+            medirFetchSettled('capacidade-real', `${API_URL}/api/capacidade/real?de=${isoMesCap(-3)}&ate=${isoMesCap(0)}`, { headers: authHeaders() }),
           ]);
+
+          if (gapResult.status === 'fulfilled' && gapResult.value.ok) {
+            const pGap = await gapResult.value.json();
+            setGapMensal(Array.isArray(pGap?.meses)
+              ? { capacidadeDiariaTotal: Number(pGap.capacidadeDiariaTotal || 0), processoCarga: Number(pGap.processoCarga || 0), meses: pGap.meses as GapMes[] }
+              : null);
+          }
+
+          if (capRealResult.status === 'fulfilled' && capRealResult.value.ok) {
+            const pReal = await capRealResult.value.json();
+            setCapacidadeRealGrupos(Array.isArray(pReal?.data) ? pReal.data : []);
+          }
 
           if (capConfigResult.status === 'fulfilled' && capConfigResult.value.ok) {
             const pCapConfig = await capConfigResult.value.json();
@@ -848,10 +885,34 @@ export default function SugestaoPlanoPage() {
     const mesSX = mesSeguinte(mesQU);
     // Agora todos os períodos (MA, PX, UL, QT, QU, SX) usam OP mínima e capacidade
     const alvoComOpMinECapacidade = true;
+    // Capacidade por grupo, MEDIDA no ERP (minutos trabalhados / dias com movimento nos 3
+    // meses fechados) — a mesma base da Visao Geral.
+    //
+    // Nao da para usar `capacidade_grupos.json` aqui: ele esta com codigo de referencia de
+    // produto no lugar de minutos (a soma da 7.671.414 contra 55.433 medidos), entao o peso
+    // de cada grupo sai proporcional a numero de referencia. Na pratica MOTIVACAO ficava com
+    // 1/5 do que aguenta e PAULO BRUNO com o dobro — o plano ia para a oficina errada.
+    //
+    // E tem um efeito pior, que so apareceu quando o orcamento passou a ser medido: um grupo
+    // que nao produz mais (EXCELENCIA, sem nenhum movimento nos 3 meses) continuava com peso
+    // no cadastro e puxava parte da carga de 24 referencias de sutia. Como o orcamento dele e
+    // zero, a conta proporcional travava em zero e NENHUMA peca subia. Com a medida ele sai do
+    // rateio sozinho e a carga vai para quem de fato costura.
+    const medidaPorGrupo = new Map<string, number>();
+    for (const g of capacidadeRealGrupos) {
+      const key = normRef(g.grupo || '');
+      const dias = Number(g.diasComMovimento || 0);
+      if (!key || !(dias > 0)) continue;
+      medidaPorGrupo.set(key, Number(g.minutosTrabalhados || 0) / dias);
+    }
+    const temMedida = medidaPorGrupo.size > 0;
     const capacidadeDiariaByGrupo = new Map<string, number>();
     capacidadeGrupos.forEach((g) => {
       const key = normRef(g.grupo);
-      if (key) capacidadeDiariaByGrupo.set(key, Number(g.capacidade_diaria || 0));
+      if (!key) return;
+      // Sem medida carregada (offline, erro na rota) cai no cadastro: pior, mas a tela nao
+      // para. Com medida, grupo sem movimento fica em zero de proposito.
+      capacidadeDiariaByGrupo.set(key, temMedida ? Number(medidaPorGrupo.get(key) || 0) : Number(g.capacidade_diaria || 0));
     });
     const gruposByReferencia = new Map<string, string[]>();
     capacidadeGrupoRefs.forEach((r) => {
@@ -862,6 +923,60 @@ export default function SugestaoPlanoPage() {
       if (!cur.includes(grupo)) cur.push(grupo);
       gruposByReferencia.set(ref, cur);
     });
+
+    // ── Fallback por TIPO de produto ──────────────────────────────────────────────
+    // 17 referencias permanentes nao estao em `capacidade_grupo_refs.json` — quase todas da
+    // linha IDEAL, que nunca foi cadastrada. Sem grupo elas ficam FORA do teto de % e recebem
+    // a necessidade cheia: 96.464 minutos de carga que a fabrica vai ter que fazer sem nunca
+    // terem sido orcados. As duas maiores (123606 e 123019) sao as mesmas que ja apareceram
+    // sem grupo na analise de novembro, entao o buraco nao e novo.
+    //
+    // A heranca e pelo `grupo` do produto (SUTIA, CALCA, CAMISOLA...), que e o que de fato
+    // determina onde a peca pode ser costurada — os proprios grupos de capacidade trazem isso
+    // no nome (SU, CA, SO). Nao da para herdar por LINHA: todas as faltantes sao IDEAL e
+    // nenhuma referencia IDEAL esta mapeada, entao nao existe de quem herdar.
+    //
+    // Entram so os grupos DOMINANTES do tipo (pelo menos metade da frequencia do mais comum),
+    // senao um SUTIA herdaria os 15 grupos que ja costuraram algum sutia alguma vez, inclusive
+    // excecoes. Grupo desativado herdado nao faz mal: ele tem capacidade medida zero e sai do
+    // rateio sozinho.
+    const tipoPorReferencia = new Map<string, string>();
+    for (const item of dadosBase) {
+      const ref = normRef(item.produto?.referencia || '');
+      const tipo = normRef((item.produto as unknown as Record<string, string> | undefined)?.grupo || '');
+      if (ref && tipo && !tipoPorReferencia.has(ref)) tipoPorReferencia.set(ref, tipo);
+    }
+    const contagemPorTipo = new Map<string, Map<string, number>>();
+    gruposByReferencia.forEach((grupos, ref) => {
+      const tipo = tipoPorReferencia.get(ref);
+      if (!tipo) return;
+      const cont = contagemPorTipo.get(tipo) || new Map<string, number>();
+      grupos.forEach((g) => cont.set(g, (cont.get(g) || 0) + 1));
+      contagemPorTipo.set(tipo, cont);
+    });
+    const gruposDominantesPorTipo = new Map<string, string[]>();
+    contagemPorTipo.forEach((cont, tipo) => {
+      let maior = 0;
+      cont.forEach((n) => { if (n > maior) maior = n; });
+      if (!(maior > 0)) return;
+      const dominantes: string[] = [];
+      cont.forEach((n, g) => { if (n >= maior * 0.5) dominantes.push(g); });
+      gruposDominantesPorTipo.set(tipo, dominantes);
+    });
+    // Quem herdou, para a tela poder dizer que o numero veio de palpite e nao de cadastro.
+    const referenciasHerdaramGrupo = new Set<string>();
+    const gruposDaReferencia = (ref: string): string[] => {
+      const proprio = gruposByReferencia.get(ref);
+      if (proprio && proprio.length) return proprio;
+      const tipo = tipoPorReferencia.get(ref);
+      const herdado = tipo ? gruposDominantesPorTipo.get(tipo) : undefined;
+      if (herdado && herdado.length) {
+        referenciasHerdaramGrupo.add(ref);
+        return herdado;
+      }
+      return [];
+    };
+
     const tempoByIdRef = new Map<string, number>();
     capacidadeTemposRef.forEach((t) => {
       const key = String(t.idreferencia || '').trim();
@@ -921,7 +1036,7 @@ export default function SugestaoPlanoPage() {
       const bloquearMeioLoteCurvaATamanho = curvaRef === 'A' && TAMANHOS_GRANDES_CORTE_CHEIO.has(tamanhoNorm);
       // Cobertura alvo baseada na curva ABC configurada
       const cobAlvoBase = getCoberturaMinPorCurva(curvaRef, cfg);
-      const gruposRef = gruposByReferencia.get(refNorm) || [];
+      const gruposRef = gruposDaReferencia(refNorm);
       const somaCapGrupos = gruposRef.reduce((acc, grupo) => acc + Math.max(0, Number(capacidadeDiariaByGrupo.get(grupo) || 0)), 0);
       const grupoRateios = gruposRef.map((grupo) => {
         const cap = Math.max(0, Number(capacidadeDiariaByGrupo.get(grupo) || 0));
@@ -1302,6 +1417,44 @@ export default function SugestaoPlanoPage() {
     const somaCapCadastro = capacidadeGrupos.reduce((acc, g) => acc + Math.max(0, Number(g.capacidade_diaria || 0)), 0);
     const fatorBaseCap = somaCapCadastro > 0 ? CAPACIDADE_DIARIA_ALVO / somaCapCadastro : 1;
 
+    // So os grupos que a tela conhece entram no rateio do orcamento, senao a soma das fatias
+    // passa de 1. Grupo sem medida nos 3 meses fica com fatia zero de proposito: capacidade
+    // que a fabrica nao tem nao pode receber plano.
+    const somaMedidaConhecida = capacidadeGrupos.reduce((acc, g) => acc + Math.max(0, Number(medidaPorGrupo.get(normRef(g.grupo)) || 0)), 0);
+
+    // ORCAMENTO ACUMULADO. A conta vem da `gap-mensal`, a mesma rota da Cobertura do Plano e
+    // da tabela Capacidade x Venda — assim esta tela para de ter uma opiniao propria sobre
+    // dias e capacidade e passa a ler a mesma que o PCP ja confere na Visao Geral.
+    //
+    // Antes: `capDiaria x dias DO MES ALVO x pct`. Isso trata fevereiro como se a fabrica
+    // comecasse limpa nele, quando outubro esta a 270% e dezembro e janeiro a 100% — o que
+    // nao coube transborda e come o mes seguinte.
+    //
+    // Agora: a folga e `pct x dias de fabrica ACUMULADOS - dias necessarios ACUMULADOS`.
+    // `diasNecessarios` da rota ja inclui o processo e TODO o plano lancado, edicao limitada
+    // junto — por isso aqui NAO se desconta a reserva de EL outra vez, ela ja esta dentro.
+    // O que se devolve e so o plano de permanentes do proprio periodo alvo, que esta prestes
+    // a ser substituido pela sugestao: sem isso ele seria contado como comprometido e como
+    // sugerido ao mesmo tempo.
+    const gapAlvo = gapMensal?.meses?.find((x) => x.periodo === periodoAlvo) || null;
+    const capDiariaGap = Number(gapMensal?.capacidadeDiariaTotal || 0);
+    let orcamentoAcumuladoTotal: number | null = null;
+    if (modoEmissao === 'CAPACIDADE' && gapAlvo && capDiariaGap > 0) {
+      const planoCampoAlvo = periodoAlvo === 'PX' ? 'px'
+        : periodoAlvo === 'UL' ? 'ul' : periodoAlvo === 'QT' ? 'qt' : periodoAlvo === 'QU' ? 'qu' : 'sx';
+      let cargaPermAlvo = 0;
+      for (const item of dadosBase) {
+        const cont = String(item.produto?.continuidade || '').trim().toUpperCase();
+        if (cont === 'EDICAO LIMITADA' || cont === 'EDIÇÃO LIMITADA') continue;
+        const qtd = Number((item.plano as unknown as Record<string, number> | undefined)?.[planoCampoAlvo] || 0);
+        const tempo = Number(tempoByIdRef.get(String(item.produto?.cd_seqgrupo || '')) || 0);
+        if (qtd > 0 && tempo > 0) cargaPermAlvo += qtd * tempo;
+      }
+      const necComprometido = gapAlvo.diasNecessarios - cargaPermAlvo / capDiariaGap;
+      const folgaDias = gapAlvo.diasDisponiveis * (pctCapacidade / 100) - necComprometido;
+      orcamentoAcumuladoTotal = Math.max(0, folgaDias * capDiariaGap);
+    }
+
     // Reserva de edicao limitada. Essas linhas sao excluidas do universo da tela (ver o filtro
     // de continuidade em baseRows), entao a carga delas NUNCA entra no calculo de capacidade —
     // mas o lote existe e ocupa a fabrica de verdade. Por isso vira reserva, descontada do
@@ -1322,7 +1475,7 @@ export default function SugestaoPlanoPage() {
         if (!(qtd > 0)) continue;
         const tempo = Number(tempoByIdRef.get(String(item.produto?.cd_seqgrupo || '')) || 0);
         if (!(tempo > 0)) continue;
-        const gruposRes = gruposByReferencia.get(normRef(item.produto?.referencia || '')) || [];
+        const gruposRes = gruposDaReferencia(normRef(item.produto?.referencia || ''));
         const somaRes = gruposRes.reduce((acc, g) => acc + Math.max(0, Number(capacidadeDiariaByGrupo.get(g) || 0)), 0);
         if (!(somaRes > 0)) continue;
         for (const g of gruposRes) {
@@ -1337,6 +1490,15 @@ export default function SugestaoPlanoPage() {
       const capDiaria = Number(grupo.capacidade_diaria || 0);
 
       if (modoEmissao === 'CAPACIDADE') {
+        if (orcamentoAcumuladoTotal !== null && temMedida) {
+          // Fatia do grupo no orcamento acumulado, pela capacidade medida dele. A reserva de
+          // edicao limitada NAO entra aqui: ela ja esta dentro dos dias necessarios da rota.
+          const fatia = Math.max(0, Number(medidaPorGrupo.get(grupoKey) || 0)) / somaMedidaConhecida;
+          extraCargaPorGrupo.set(grupoKey, orcamentoAcumuladoTotal * fatia);
+          return;
+        }
+        // Sem a rota (offline, erro) ou sem medida: cai no comportamento antigo, mes isolado
+        // e cadastro. Pior, mas previsivel — melhor que emitir plano zerado sem avisar.
         const orcamento = capDiaria * fatorBaseCap * diasAlvoCap * (pctCapacidade / 100);
         extraCargaPorGrupo.set(grupoKey, Math.max(0, orcamento - Number(reservaPorGrupo.get(grupoKey) || 0)));
         return;
@@ -1541,10 +1703,168 @@ export default function SugestaoPlanoPage() {
       });
     }
 
+    // ── Modo CAPACIDADE: OCUPAR a sobra do orcamento ──────────────────────────────
+    // Ate aqui o motor so sabia CORTAR: ele calcula a necessidade (bottom-up, cobertura
+    // minima por curva) e, se ela nao couber, reduz. Quando a necessidade e MENOR que o
+    // teto — que e o caso de fevereiro, 66.685 pecas contra orcamento de ~117.800 — nada
+    // acontece e o plano sai na necessidade. Mas "plano por capacidade a 90%" quer o
+    // contrario: usar a fabrica que esta parada, antecipando producao.
+    //
+    // Entao aqui a sobra vira cobertura. Cada SKU pode subir ate a cobertura MAXIMA da sua
+    // curva (a mesma do cadastro, onde a linha IDEAL ja tem regra propria), em lotes
+    // inteiros, nunca em quantidade quebrada. A ordem e por risco: quem tem menos cobertura
+    // depois do plano recebe primeiro, e entre iguais vale a curva (A antes de D).
+    //
+    // Round-robin de um lote por vez, e nao "enche o primeiro e passa para o proximo":
+    // senao os primeiros SKUs da fila comiam o orcamento inteiro e o resto da fabrica
+    // continuava parada. O limite de rodadas e so trava de seguranca.
+    if (modoEmissao === 'CAPACIDADE') {
+      const aplicar = (row: Row, extra: number) => {
+        if (!(extra > 0)) return;
+        // Acumula o que ESTA etapa colocou, separado do plano de necessidade: o teto de
+        // antecipacao vale sobre o acrescimo, nao sobre o plano inteiro.
+        row.extraCapacidade = Number(row.extraCapacidade || 0) + extra;
+        row.planoSugerido = Number(row.planoSugerido || 0) + extra;
+        row.deltaPlano = row.planoSugerido - row.planoAtual;
+        row.dispPos = row.dispAnterior + row.planoSugerido - row.projMes;
+        row.coberturaPos = Number(row.estoqueMin || 0) > 0 ? row.dispPos / Number(row.estoqueMin || 0) : 0;
+        row.grupoRateios.forEach((g) => {
+          const consumo = extra * Number(row.tempoRef || 0) * g.rateio;
+          extraCargaPorGrupo.set(g.grupo, Math.max(0, Number(extraCargaPorGrupo.get(g.grupo) || 0) - consumo));
+        });
+      };
+      // A cobertura MAXIMA DA CURVA nao limita aqui: quando se escolhe "por capacidade a
+      // 90%", o teto de ocupacao e que manda. Medido antes de soltar: com ela segurando, o
+      // plano parava em ~73.500 pecas, e subir a cobertura maxima da curva A de 0,5x para
+      // 1,5x rendia so 2.766 pecas — o freio era o mix, nao a politica de estoque.
+      //
+      // MAS A ANTECIPACAO E LIMITADA, e o limite e em MESES DE DEMANDA — nao em lote nem em
+      // orcamento solto. Sem esse limite acontece o seguinte: a cada passe os grupos saturados
+      // saem de cena, e nos ultimos passes sobram poucos SKUs (os de grupo ocioso) que
+      // absorvem sozinhos todo o orcamento restante. O fator fica gigante PARA ELES. Foi
+      // assim que uma bermuda de 36 pecas/mes recebeu 1.860 pecas: 35 meses de cobertura.
+      // Proporcional a demanda, sim, mas com multiplicador absurdo.
+      //
+      // O teto e o mesmo para todos: ninguem antecipa mais do que MESES_ANTECIPACAO meses da
+      // propria venda. Isso e o que "aumento proporcional" quer dizer de verdade — a fabrica
+      // anda para frente por igual, e nao escolhe algumas referencias para enterrar estoque.
+      // Se com esse teto a capacidade nao fecha em 90%, a capacidade sobra: e a resposta
+      // honesta, porque nao existe o que produzir sem fazer peca que ninguem vai vender.
+      const MESES_ANTECIPACAO = 1.5;
+      // Quanto ainda cabe neste SKU sem passar do teto, em pecas.
+      const espacoDe = (r: Row) => Math.max(0, MESES_ANTECIPACAO * Number(r.projMes || 0) - Number(r.extraCapacidade || 0));
+      //
+      // Subida PROPORCIONAL A DEMANDA do mes (`projMes`), nao por igual: assim o plano cresce
+      // mantendo o mix que a venda pede, em vez de inchar o que ninguem compra. A cada passe
+      // calcula-se o maior fator `x` que ainda cabe em TODOS os grupos (o grupo mais apertado
+      // manda), aplica-se, e repete-se com o que sobrou — grupo saturado sai de cena e quem
+      // nao depende dele continua subindo.
+      const candidatos = rowsCap.filter((r) => (
+        Number(r.tempoRef || 0) > 0 && r.grupoRateios.length > 0 && Number(r.projMes || 0) > 0
+      ));
+      let ativos = candidatos;
+      for (let passe = 0; passe < 12 && ativos.length > 0; passe += 1) {
+        // Consumo de minutos, por grupo, para cada unidade do fator x.
+        const consumoPorGrupo = new Map<string, number>();
+        for (const r of ativos) {
+          r.grupoRateios.forEach((g) => {
+            const consumo = Number(r.projMes || 0) * Number(r.tempoRef || 0) * g.rateio;
+            consumoPorGrupo.set(g.grupo, (consumoPorGrupo.get(g.grupo) || 0) + consumo);
+          });
+        }
+        let x = Number.POSITIVE_INFINITY;
+        consumoPorGrupo.forEach((consumo, g) => {
+          if (!(consumo > 0)) return;
+          x = Math.min(x, Math.max(0, Number(extraCargaPorGrupo.get(g) || 0)) / consumo);
+        });
+        if (!Number.isFinite(x) || !(x > 0)) break;
+        let aplicouAlgo = false;
+        for (const r of ativos) {
+          const bruto = Math.min(x * Number(r.projMes || 0), espacoDe(r));
+          const lote = Math.max(1, Math.round(Number(r.corteMin || 1)));
+          const extra = cfg.usar_corte_minimo ? roundDownByLot(bruto, lote) : Math.floor(bruto);
+          if (!(extra > 0)) continue;
+          aplicar(r, extra);
+          aplicouAlgo = true;
+        }
+        // Sem nenhum incremento inteiro, o residuo e menor que um lote: parar evita girar em
+        // falso. Senao, segue com quem ainda tem grupo com folga E espaco ate o teto.
+        if (!aplicouAlgo) break;
+        ativos = ativos.filter((r) => (
+          espacoDe(r) > 0 && r.grupoRateios.every((g) => Number(extraCargaPorGrupo.get(g.grupo) || 0) > 0)
+        ));
+      }
+      // Sobra final: UM lote por SKU, uma unica passada, em quem ainda tem espaco ate o teto
+      // e cabe no grupo. Antes isto eram 30 rodadas dando um lote por rodada, sem olhar o
+      // espaco do SKU — foi o que gerou 31 lotes (1.860 pecas) para uma bermuda de 36/mes.
+      // Uma passada so: o que nao couber aqui fica como capacidade ociosa, que e honesto.
+      const mopUp = candidatos.slice().sort((a, b) => Number(b.projMes || 0) - Number(a.projMes || 0));
+      for (const row of mopUp) {
+        const lote = Math.max(1, Math.round(Number(row.corteMin || 1)));
+        if (!(espacoDe(row) >= lote)) continue;
+        const cabe = row.grupoRateios.every((g) => {
+          const porPeca = Number(row.tempoRef || 0) * g.rateio;
+          return !(porPeca > 0) || lote * porPeca <= Math.max(0, Number(extraCargaPorGrupo.get(g.grupo) || 0));
+        });
+        if (!cabe) continue;
+        aplicar(row, lote);
+      }
+    }
+
     logDiagnosticoChave('4-rowsCap (fim capacidade)', rowsCap);
     logTempoSugestao('calculo rows', tRows, `periodo=${periodoAlvo} fase=capacidade items=${rowsCap.length}`);
     return rowsCap;
-  }, [dadosBase, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, considerarCapacidade, filtroSuspensos, modoEmissao, pctCapacidade]);
+  }, [dadosBase, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, considerarCapacidade, filtroSuspensos, modoEmissao, pctCapacidade, gapMensal, capacidadeRealGrupos]);
+
+  // Leitura acumulada do periodo alvo, na mesma conta da tabela Capacidade x Venda: dias
+  // necessarios somados desde o primeiro periodo contra dias de fabrica somados. Serve para
+  // o PCP ver ANTES de emitir onde o plano sugerido coloca a ocupacao — e se ela respeita o
+  // teto escolhido. Sem isto o numero so aparecia depois de salvar e abrir a Visao Geral.
+  const ocupacaoAcumulada = useMemo(() => {
+    const gapAlvo = gapMensal?.meses?.find((x) => x.periodo === periodoAlvo) || null;
+    const capDia = Number(gapMensal?.capacidadeDiariaTotal || 0);
+    if (!gapAlvo || !(capDia > 0)) return null;
+    // Carga que o plano lancado do periodo ja tem de permanentes: sai da conta porque a
+    // sugestao vai substitui-la. O resto (processo, demais periodos, edicao limitada) fica.
+    let cargaPermAlvo = 0;
+    let cargaSugerida = 0;
+    for (const r of rows) {
+      const t = Number(r.tempoRef || 0);
+      if (!(t > 0)) continue;
+      cargaPermAlvo += Number(r.planoAtual || 0) * t;
+      cargaSugerida += Number(r.planoSugerido || 0) * t;
+    }
+    const necComprometido = gapAlvo.diasNecessarios - cargaPermAlvo / capDia;
+    const necDepois = necComprometido + cargaSugerida / capDia;
+    const disp = Number(gapAlvo.diasDisponiveis || 0);
+    const teto = disp * (pctCapacidade / 100);
+    // Quanto do plano ficou ACIMA da cobertura maxima da curva. Em modo CAPACIDADE a
+    // cobertura deixou de ser limite (ver a etapa de ocupacao), entao este numero e o preco
+    // da decisao: estoque acima do ideal, em peca, para a fabrica nao ficar parada.
+    let acimaCobertura = 0;
+    let skusAcima = 0;
+    for (const r of rows) {
+      const min = Number(r.estoqueMin || 0);
+      if (!(min > 0)) continue;
+      const limite = getCoberturaMaxPorCurva(r.curvaABCItem, cfg, r.linha) * min;
+      const excedente = Number(r.dispPos || 0) - limite;
+      if (excedente > 0) { acimaCobertura += excedente; skusAcima += 1; }
+    }
+    return {
+      acimaCobertura,
+      skusAcima,
+      dias: disp,
+      necAntes: necComprometido,
+      necDepois,
+      ocupAntes: disp > 0 ? necComprometido / disp : 0,
+      ocupDepois: disp > 0 ? necDepois / disp : 0,
+      teto,
+      folgaDias: teto - necDepois,
+      folgaMin: (teto - necDepois) * capDia,
+      cargaSugerida,
+      capDia,
+    };
+  }, [gapMensal, periodoAlvo, rows, pctCapacidade, cfg]);
 
   // No modo CAPACIDADE, linha sem grupo de capacidade cadastrado (grupoRateios vazio) nunca
   // passa pelas fases de corte/incremento — nenhuma das tres a enxerga (todas filtram
@@ -1553,8 +1873,16 @@ export default function SugestaoPlanoPage() {
   // sem nenhum teto. Ou seja: o "X% da capacidade" combinado na tela nao vale para elas —
   // ficam de fora do rateio, silenciosamente, e isso precisa aparecer, senao o teto parece
   // valer para 100% do plano quando na pratica nao vale.
+  // A config de capacidade chega em `/api/capacidade/config`, que leva ~23s. Enquanto ela
+  // nao chega, `capacidadeDiariaByGrupo` esta vazio, TODA referencia sai com rateio zero e
+  // a tela acusava "sem grupo cadastrado" para o plano inteiro — 105 referencias, das quais
+  // 101 estao cadastradas. Pior que o aviso falso: nesse intervalo o teto de % nao se aplica
+  // a ninguem, porque linha sem rateio nao e limitada. Entao o estado "carregando" precisa
+  // ser visivel e diferente de "nao cadastrado".
+  const capacidadeConfigCarregada = capacidadeGrupos.length > 0 && capacidadeGrupoRefs.length > 0;
   const referenciasSemGrupoCapacidade = useMemo(() => {
     if (modoEmissao !== 'CAPACIDADE' || periodoAlvo === 'MA') return [];
+    if (!capacidadeConfigCarregada) return [];
     const set = new Set<string>();
     for (const r of rows) {
       if (r.grupoRateios.length === 0 && Number(r.planoSugerido || 0) > 0) {
@@ -1562,7 +1890,7 @@ export default function SugestaoPlanoPage() {
       }
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
-  }, [rows, modoEmissao, periodoAlvo]);
+  }, [rows, modoEmissao, periodoAlvo, capacidadeConfigCarregada]);
 
   const rowsVisiveis = useMemo(() => {
     return rows.filter((r) => {
@@ -2645,6 +2973,12 @@ export default function SugestaoPlanoPage() {
                   necessidade, nao do historico) — mas o teto combinado na tela nao vale para
                   estas, e isso tem que ficar visivel, ou o "X% da capacidade" parece valer
                   para 100% do plano quando na pratica nao vale. */}
+              {modoEmissao === 'CAPACIDADE' && periodoAlvo !== 'MA' && !capacidadeConfigCarregada && (
+                <div className="w-full bg-red-50 border border-red-300 rounded-lg p-3 text-sm text-red-800">
+                  <strong>Capacidade ainda carregando — não emita agora.</strong>
+                  {' '}Sem a configuração de grupos, nenhuma linha é limitada e o teto de {pctCapacidade}% não vale para ninguém: o plano sai com a necessidade cheia, sem aviso. Espere os cartões de ocupação aparecerem.
+                </div>
+              )}
               {modoEmissao === 'CAPACIDADE' && periodoAlvo !== 'MA' && referenciasSemGrupoCapacidade.length > 0 && (
                 <div className="w-full bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
                   <strong>{referenciasSemGrupoCapacidade.length} referência{referenciasSemGrupoCapacidade.length > 1 ? 's' : ''} sem grupo de capacidade cadastrado</strong>
@@ -3310,6 +3644,69 @@ export default function SugestaoPlanoPage() {
                       <div className="text-[11px] text-gray-500">
                         SKUs com corte mínimo dividido por 2 para respeitar cobertura máxima por curva ABC (A=1x, B=1.5x, C=3x)
                       </div>
+                    </div>
+                  </div>
+                )}
+                {ocupacaoAcumulada && (periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && (
+                  <div className="rounded-md border border-violet-200 bg-violet-50 px-3 py-2.5 mb-3">
+                    <div className="flex items-baseline justify-between flex-wrap gap-2">
+                      <div className="text-[11px] font-semibold text-violet-900 uppercase tracking-wide">
+                        Ocupação acumulada até {periodoAlvo}
+                      </div>
+                      <div
+                        className="text-[11px] text-violet-700"
+                        title="Mesma conta da Cobertura do Plano e da tabela Capacidade x Venda: dias necessários somados desde o primeiro período contra dias de fábrica somados. O que não coube num mês transborda para o seguinte."
+                      >
+                        {ocupacaoAcumulada.dias.toLocaleString('pt-BR')} dias de fábrica acumulados
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                      <div>
+                        <div className="text-[11px] text-gray-500">Já comprometido</div>
+                        <div className="text-lg font-bold text-gray-700 leading-tight">
+                          {ocupacaoAcumulada.necAntes.toFixed(2)}d
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          {(ocupacaoAcumulada.ocupAntes * 100).toFixed(1)}% · processo, períodos anteriores e edição limitada
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] text-gray-500">Com o plano sugerido</div>
+                        <div className={`text-lg font-bold leading-tight ${ocupacaoAcumulada.ocupDepois > pctCapacidade / 100 ? 'text-red-700' : 'text-emerald-700'}`}>
+                          {(ocupacaoAcumulada.ocupDepois * 100).toFixed(1)}%
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          {ocupacaoAcumulada.necDepois.toFixed(2)}d de {ocupacaoAcumulada.dias.toLocaleString('pt-BR')}d
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] text-gray-500">Teto ({pctCapacidade}%)</div>
+                        <div className="text-lg font-bold text-violet-700 leading-tight">
+                          {ocupacaoAcumulada.teto.toFixed(2)}d
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          {fmt(ocupacaoAcumulada.teto * ocupacaoAcumulada.capDia)} min
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] text-gray-500">{ocupacaoAcumulada.folgaDias >= 0 ? 'Folga até o teto' : 'Passou do teto'}</div>
+                        <div className={`text-lg font-bold leading-tight ${ocupacaoAcumulada.folgaDias >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                          {ocupacaoAcumulada.folgaDias >= 0 ? '' : '−'}{Math.abs(ocupacaoAcumulada.folgaDias).toFixed(2)}d
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          {fmt(Math.abs(ocupacaoAcumulada.folgaMin))} min
+                        </div>
+                      </div>
+                      {modoEmissao === 'CAPACIDADE' && ocupacaoAcumulada.acimaCobertura > 0 && (
+                        <div className="col-span-2 md:col-span-4 border-t border-violet-200 pt-2 mt-1">
+                          <div className="text-[11px] text-gray-500">O preço de encher a fábrica</div>
+                          <div className="text-sm text-amber-800">
+                            <strong>{fmt(ocupacaoAcumulada.acimaCobertura)} peças</strong> ficam acima da cobertura máxima da curva,
+                            em {fmt(ocupacaoAcumulada.skusAcima)} SKUs. No modo por capacidade a cobertura não limita o plano —
+                            o teto de {pctCapacidade}% é que manda, e o estoque extra é a consequência.
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

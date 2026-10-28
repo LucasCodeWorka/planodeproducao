@@ -1,0 +1,521 @@
+{
+  "fonte": ".agents/totvs_agent_minimo/data/conciliacao-fcpfm017-2026-10-15.json",
+  "plano": 500,
+  "centroCusto": 506,
+  "pai": 26081,
+  "pilotoVinculado": 11681,
+  "despesas": 41,
+  "valorCentavos": 7409339,
+  "itens": [
+    {
+      "codigo": 11683,
+      "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 VANILLA U",
+      "filtro": {
+        "texto": "52 VANILLA U",
+        "resultados": 1
+      },
+      "totalCentavos": 135630,
+      "mps": [
+        "1014668"
+      ]
+    },
+    {
+      "codigo": 11329,
+      "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 MAUVE U",
+      "filtro": {
+        "texto": "8352 MAUVE U",
+        "resultados": 1
+      },
+      "totalCentavos": 114884,
+      "mps": [
+        "1014387"
+      ]
+    },
+    {
+      "codigo": 11328,
+      "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 TRUFA U",
+      "filtro": {
+        "texto": "8352 TRUFA U",
+        "resultados": 1
+      },
+      "totalCentavos": 108858,
+      "mps": [
+        "1014403"
+      ]
+    },
+    {
+      "codigo": 11682,
+      "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 MALAGUETA U",
+      "filtro": {
+        "texto": "2 MALAGUETA",
+        "resultados": 1
+      },
+      "totalCentavos": 83880,
+      "mps": [
+        "1015569"
+      ]
+    },
+    {
+      "codigo": 11398,
+      "descricao": "REGULADOR APR 000/B - 8MM PLAST CHOCOLATE U",
+      "filtro": {
+        "texto": "ST CHOCOLATE",
+        "resultados": 1
+      },
+      "totalCentavos": 25001,
+      "mps": [
+        "1014080"
+      ]
+    },
+    {
+      "codigo": 11689,
+      "descricao": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 VANILLA U",
+      "filtro": {
+        "texto": "83 VANILLA U",
+        "resultados": 1
+      },
+      "totalCentavos": 127951,
+      "mps": [
+        "1014696"
+      ]
+    },
+    {
+      "codigo": 11144,
+      "descricao": "BJ 215.963 (PLZ) CHOCO/ESTLIEBE 46",
+      "filtro": {
+        "texto": "TLIEBE 46",
+        "resultados": 2
+      },
+      "totalCentavos": 1997810,
+      "mps": [
+        "1013926",
+        "1013927",
+        "1013928",
+        "1013929",
+        "1013930"
+      ]
+    },
+    {
+      "codigo": 11687,
+      "descricao": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 TRUFA U",
+      "filtro": {
+        "texto": "8483 TRUFA U",
+        "resultados": 1
+      },
+      "totalCentavos": 98563,
+      "mps": [
+        "1014697"
+      ]
+    },
+    {
+      "codigo": 11332,
+      "descricao": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 TRUFA U",
+      "filtro": {
+        "texto": "8482 TRUFA U",
+        "resultados": 1
+      },
+      "totalCentavos": 54634,
+      "mps": [
+        "1014568"
+      ]
+    },
+    {
+      "codigo": 1461,
+      "descricao": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 MILKSHAKE U",
+      "filtro": {
+        "texto": "3 MILKSHAKE",
+        "resultados": 1
+      },
+      "totalCentavos": 65920,
+      "mps": [
+        "1015807"
+      ]
+    },
+    {
+      "codigo": 11074,
+      "descricao": "VIES EM TECIDO MVS 2,5CM - COMPRIMENTO PRETO U",
+      "filtro": {
+        "texto": "ENTO PRETO U",
+        "resultados": 1
+      },
+      "totalCentavos": 30350,
+      "mps": [
+        "1011854"
+      ]
+    },
+    {
+      "codigo": 11146,
+      "descricao": "BJ 210.962 (PLZ) VN EST/ LIEBE 44",
+      "filtro": {
+        "texto": "LIEBE 44",
+        "resultados": 6
+      },
+      "totalCentavos": 235368,
+      "mps": [
+        "1015253"
+      ]
+    },
+    {
+      "codigo": 11034,
+      "descricao": "ELAST. PAJAU 12 MM TRUFA U",
+      "filtro": {
+        "texto": "2 MM TRUFA U",
+        "resultados": 1
+      },
+      "totalCentavos": 43582,
+      "mps": [
+        "1014362"
+      ]
+    },
+    {
+      "codigo": 11372,
+      "descricao": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR AMENDOA U",
+      "filtro": {
+        "texto": "TR AMENDOA U",
+        "resultados": 1
+      },
+      "totalCentavos": 228122,
+      "mps": [
+        "1015863"
+      ]
+    },
+    {
+      "codigo": 11145,
+      "descricao": "BJ 210.962 (PLZ) CH EST/ LIEBE 46",
+      "filtro": {
+        "texto": "LIEBE 46",
+        "resultados": 3
+      },
+      "totalCentavos": 484214,
+      "mps": [
+        "1013932",
+        "1013933",
+        "1013934",
+        "1013935"
+      ]
+    },
+    {
+      "codigo": 11202,
+      "descricao": "BOJO CASCA 811.664 ESPUMA TOUCH PREMIUM NUDE 44",
+      "filtro": {
+        "texto": "MIUM NUDE 44",
+        "resultados": 1
+      },
+      "totalCentavos": 109196,
+      "mps": [
+        "1015769",
+        "1015772"
+      ]
+    },
+    {
+      "codigo": 11039,
+      "descricao": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR SUEDE U",
+      "filtro": {
+        "texto": "ENTR SUEDE U",
+        "resultados": 1
+      },
+      "totalCentavos": 115841,
+      "mps": [
+        "1005638"
+      ]
+    },
+    {
+      "codigo": 11400,
+      "descricao": "VIES DE 2,5CM - VISCOSE M.V.S BERINGELA U",
+      "filtro": {
+        "texto": "S BERINGELA",
+        "resultados": 1
+      },
+      "totalCentavos": 37751,
+      "mps": [
+        "1016304"
+      ]
+    },
+    {
+      "codigo": 11429,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA MILKSHAKE 44",
+      "filtro": {
+        "texto": "MILKSHAKE 44",
+        "resultados": 1
+      },
+      "totalCentavos": 171120,
+      "mps": [
+        "1015598",
+        "1015599",
+        "1015600",
+        "1015601"
+      ]
+    },
+    {
+      "codigo": 11428,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA AMEIXA 44",
+      "filtro": {
+        "texto": "CA AMEIXA 44",
+        "resultados": 2
+      },
+      "totalCentavos": 120720,
+      "mps": [
+        "1015476",
+        "1015477",
+        "1015478"
+      ]
+    },
+    {
+      "codigo": 11702,
+      "descricao": "BJ 213.385 EXT CONFORT TAM 48 AMEIXA U",
+      "filtro": {
+        "texto": "48 AMEIXA U",
+        "resultados": 1
+      },
+      "totalCentavos": 128700,
+      "mps": [
+        "1016248"
+      ]
+    },
+    {
+      "codigo": 11485,
+      "descricao": "FECHO GIRATORIO 13 MM C/ LOGO CALLAS U",
+      "filtro": {
+        "texto": "OGO CALLAS U",
+        "resultados": 2
+      },
+      "totalCentavos": 25002,
+      "mps": [
+        "1014739"
+      ]
+    },
+    {
+      "codigo": 11647,
+      "descricao": "PELLE 5330 79% POLIAMIDA 21% ELASTANO VANILLA U",
+      "filtro": {
+        "texto": "NO VANILLA U",
+        "resultados": 2
+      },
+      "totalCentavos": 767324,
+      "mps": [
+        "1014645"
+      ]
+    },
+    {
+      "codigo": 11201,
+      "descricao": "BOJO CASCA 811.664 ESPUMA TOUCH PREMIUM BRANCO 44",
+      "filtro": {
+        "texto": "UM BRANCO 44",
+        "resultados": 1
+      },
+      "totalCentavos": 45460,
+      "mps": [
+        "1015764"
+      ]
+    },
+    {
+      "codigo": 11430,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA OLIVE 42",
+      "filtro": {
+        "texto": "LCA OLIVE 42",
+        "resultados": 2
+      },
+      "totalCentavos": 105480,
+      "mps": [
+        "1015511",
+        "1015512",
+        "1015513"
+      ]
+    },
+    {
+      "codigo": 11425,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA AMENDOA 44",
+      "filtro": {
+        "texto": "A AMENDOA 44",
+        "resultados": 1
+      },
+      "totalCentavos": 70320,
+      "mps": [
+        "1015437",
+        "1015438"
+      ]
+    },
+    {
+      "codigo": 11473,
+      "descricao": "MICROFIBRA SUNNY - 1758 OLIVE U",
+      "filtro": {
+        "texto": "1758 OLIVE U",
+        "resultados": 1
+      },
+      "totalCentavos": 435099,
+      "mps": [
+        "1016599"
+      ]
+    },
+    {
+      "codigo": 11370,
+      "descricao": "MICROFIBRA LUXURIUS 94516 OLIVE U",
+      "filtro": {
+        "texto": "4516 OLIVE U",
+        "resultados": 1
+      },
+      "totalCentavos": 219269,
+      "mps": [
+        "1015712"
+      ]
+    },
+    {
+      "codigo": 11203,
+      "descricao": "BOJO CASCA 811.664 ESPUMA TOUCH PREMIUM PRETO 46",
+      "filtro": {
+        "texto": "IUM PRETO 46",
+        "resultados": 1
+      },
+      "totalCentavos": 72330,
+      "mps": [
+        "1015755",
+        "1015756"
+      ]
+    },
+    {
+      "codigo": 11426,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA ROSEWOOD 42",
+      "filtro": {
+        "texto": "ROSEWOOD 42",
+        "resultados": 1
+      },
+      "totalCentavos": 70320,
+      "mps": [
+        "1015481",
+        "1015482"
+      ]
+    },
+    {
+      "codigo": 11502,
+      "descricao": "BJ 811.664 TOUCH CASCA C/ ALCA MALAGUETA 44",
+      "filtro": {
+        "texto": "OUCH CASCA C",
+        "resultados": 1
+      },
+      "totalCentavos": 35760,
+      "mps": [
+        "1016700"
+      ]
+    },
+    {
+      "codigo": 11527,
+      "descricao": "TECIDO UV 3147 CALLAS U",
+      "filtro": {
+        "texto": "147 CALLAS U",
+        "resultados": 1
+      },
+      "totalCentavos": 297259,
+      "mps": [
+        "1016696"
+      ]
+    },
+    {
+      "codigo": 11403,
+      "descricao": "MICROFIBRA ATHENA BRANCO U",
+      "filtro": {
+        "texto": "ENA BRANCO U",
+        "resultados": 1
+      },
+      "totalCentavos": 264344,
+      "mps": [
+        "1013949"
+      ]
+    },
+    {
+      "codigo": 11402,
+      "descricao": "RENDA ZG05914 ROSEWOOD U",
+      "filtro": {
+        "texto": "4 ROSEWOOD U",
+        "resultados": 1
+      },
+      "totalCentavos": 166133,
+      "mps": [
+        "1015523"
+      ]
+    },
+    {
+      "codigo": 11698,
+      "descricao": "MEIA MALHA CARDADA BACTERICIDA 2045 SUEDE U",
+      "filtro": {
+        "texto": "2045 SUEDE U",
+        "resultados": 1
+      },
+      "totalCentavos": 67638,
+      "mps": [
+        "1011780"
+      ]
+    },
+    {
+      "codigo": 11401,
+      "descricao": "RENDA ZG05914 NAVY U",
+      "filtro": {
+        "texto": "05914 NAVY U",
+        "resultados": 1
+      },
+      "totalCentavos": 83789,
+      "mps": [
+        "1011789"
+      ]
+    },
+    {
+      "codigo": 1460,
+      "descricao": "TEC DE MALHA PLUME ACABADO 158746001011 AMEIXA U",
+      "filtro": {
+        "texto": "011 AMEIXA U",
+        "resultados": 1
+      },
+      "totalCentavos": 50476,
+      "mps": [
+        "1016335"
+      ]
+    },
+    {
+      "codigo": 11665,
+      "descricao": "MALHA SIELLA 1.65 MALAGUETA U",
+      "filtro": {
+        "texto": "65 MALAGUETA",
+        "resultados": 1
+      },
+      "totalCentavos": 36633,
+      "mps": [
+        "1015717"
+      ]
+    },
+    {
+      "codigo": 11671,
+      "descricao": "MANTA CACHARREL D26MC 3MM 60% POLIURETAN CALLAS U",
+      "filtro": {
+        "texto": "TAN CALLAS U",
+        "resultados": 1
+      },
+      "totalCentavos": 28468,
+      "mps": [
+        "1014523"
+      ]
+    },
+    {
+      "codigo": 11510,
+      "descricao": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+      "filtro": {
+        "texto": "OLI LUMIAR U",
+        "resultados": 1
+      },
+      "totalCentavos": 25136,
+      "mps": [
+        "1016418"
+      ]
+    },
+    {
+      "codigo": 11405,
+      "descricao": "FIO 3 CABOS CALLAS U",
+      "filtro": {
+        "texto": "BOS CALLAS U",
+        "resultados": 1
+      },
+      "totalCentavos": 25004,
+      "mps": [
+        "1012569"
+      ]
+    }
+  ]
+}

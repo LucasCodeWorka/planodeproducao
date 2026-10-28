@@ -1,0 +1,49 @@
+{
+  "fonte": ".agents/totvs_agent_minimo/data/conciliacao-fcpfm017-2026-10-15.json",
+  "criterio": "NECESSIDADE_FUTURA_COM_FOLGA_SEM_COMPRAS_EM_ANDAMENTO",
+  "status": "PREPARADO_NAO_LANCADO",
+  "plano": 500,
+  "centroCusto": 506,
+  "despesas": 2,
+  "entradas": 3,
+  "totalCentavos": 658165,
+  "totaisPorCompetencia": {
+    "2027-01": 615050,
+    "2027-02": 43115
+  },
+  "lancamentos": [
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11103,
+      "sequenciaPlano": 26306,
+      "mps": ["1013045", "1013046", "1013047", "1013048"],
+      "valorCentavos": 535416
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11399,
+      "sequenciaPlano": 26312,
+      "mps": ["1010946", "1010947"],
+      "valorCentavos": 79634
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11399,
+      "sequenciaPlano": 26312,
+      "mps": ["1010946", "1010947"],
+      "valorCentavos": 43115
+    }
+  ]
+}

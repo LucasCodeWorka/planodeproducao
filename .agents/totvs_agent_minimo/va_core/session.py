@@ -8,7 +8,7 @@ import win32gui
 from dotenv import load_dotenv
 
 from . import input as inp
-from .capture import capture, find_window, rect
+from .capture import capture, find_window
 
 load_dotenv(Path.cwd() / ".env")
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -26,23 +26,8 @@ PRODUTO = os.getenv("VA_PRODUTO", "1")   # 1,2,3 da tela "Selecione o produto"
 APP = os.getenv("VA_APP", "Virtual Age")
 TITLE = os.getenv("VA_WINDOW_TITLE", "TOTVS Moda")
 
-# Campo "Procurar..." do menu lateral, em coordenada nativa da janela 1936x1048
+# Campo "Procurar..." do menu lateral, em coordenadas nativas da janela.
 CAMPO_BUSCA = (220, 217)
-
-# Posicoes do formulario de login em FRACAO da janela, para nao depender da
-# resolucao. Medidas na tela de login 1920x1001.
-LOGIN_FRAC = {
-    "usuario": (0.2531, 0.3368),
-    "senha":   (0.2531, 0.4246),
-    "entrar":  (0.2531, 0.5258),
-    # 2o passo: "Selecione ou digite a empresa desejada"
-    "empresa_campo": (0.2531, 0.3340),
-    "empresa_item1": (0.2531, 0.3760),
-    # 3o passo: "Selecione o produto para iniciar"
-    "produto_1": (0.4117, 0.4084),   # Virtual Store Plus
-    "produto_2": (0.4995, 0.4036),   # Virtual Store Sales
-    "produto_3": (0.5873, 0.4036),   # Personalizado Concept
-}
 
 # Cor do botao "Entrar" (teal do TOTVS). Serve para separar o passo 1 do
 # passo 2 do login: no passo da empresa esse ponto e branco.
@@ -69,12 +54,6 @@ def lancar(timeout=90):
             return h
         time.sleep(1.5)
     raise TimeoutError(f"janela {TITLE!r} nao apareceu em {timeout}s")
-
-
-def _ponto(hwnd, chave):
-    r = rect(hwnd)
-    fx, fy = LOGIN_FRAC[chave]
-    return int(r["w"] * fx), int(r["h"] * fy)
 
 
 def estado_tela(hwnd, img=None):
@@ -109,8 +88,10 @@ def estado_tela(hwnd, img=None):
     cinza = img.convert("L")
     w, h = cinza.size
 
-    menu = np.asarray(cinza.crop((int(w * 0.008), int(h * 0.030),
-                                  int(w * 0.45), int(h * 0.048))), dtype=np.int16)
+    # A barra de menu do cliente tem altura fixa. Em janelas menores, a faixa
+    # proporcional acima lia a barra de titulo e classificava o login como
+    # "logado". O texto Sistema/Arquivo fica entre y=35 e y=50.
+    menu = np.asarray(cinza.crop((10, 35, min(w, int(w * 0.45)), 50)), dtype=np.int16)
     cols = np.where((menu < 120).any(axis=0))[0]
     extensao = int(cols.max() - cols.min()) if len(cols) else 0
 
@@ -128,8 +109,9 @@ def estado_tela(hwnd, img=None):
     if colorido < 5:
         return "login_produto", f"menu={extensao}px coloridos={colorido:.1f}%"
 
-    seta = np.asarray(cinza.crop((int(w * 0.018), int(h * 0.078),
-                                  int(w * 0.041), int(h * 0.112))), dtype=np.int16)
+    # A seta fica dentro da pagina, abaixo da barra de componentes. Usar
+    # fracoes da altura capturava o texto LOGFM017 em janelas de 752 px.
+    seta = np.asarray(cinza.crop((25, 95, 60, 120)), dtype=np.int16)
     marca = float((seta < 200).mean() * 100)
     passo = "login_empresa" if marca >= 3 else "login_usuario"
     return passo, f"menu={extensao}px seta={marca:.1f}% coloridos={colorido:.1f}%"
@@ -254,51 +236,58 @@ def _esperar_estado(hwnd, alvos, timeout, intervalo=2.0):
 
 
 def logar(hwnd, timeout=60):
-    """Faz o login completo. Sao DOIS passos:
-       1) usuario + senha -> Entrar
-       2) "Selecione ou digite a empresa desejada" -> escolher a empresa
-    Idempotente: entra no passo em que a tela estiver.
-    """
+    """Faz o login por teclado e confirma cada tela antes de prosseguir."""
     est, det = estado_tela(hwnd)
     passos = []
 
     if est == "logado":
         return "ja estava logado"
     if est == "desconhecido":
-        # trava de seguranca: so digita credencial se reconhecer a tela.
-        return f"tela nao reconhecida ({det}); nao vou digitar credenciais"
+        raise RuntimeError(f"tela de login nao reconhecida ({det})")
 
     if est == "login_usuario":
-        inp.set_field(hwnd, *_ponto(hwnd, "usuario"), APP_USER)
-        time.sleep(0.4)
-        inp.set_field(hwnd, *_ponto(hwnd, "senha"), APP_PASS)
-        time.sleep(0.4)
-        inp.click(hwnd, *_ponto(hwnd, "entrar"))
+        if not APP_USER or not APP_PASS:
+            raise RuntimeError("VA_APP_USER/VA_APP_PASS nao encontrados no .env")
+        # O formulario usa posicoes praticamente fixas dentro do cliente.
+        # Fracoes da janela erravam o foco em 1382x752 e deixavam tudo vazio.
+        inp.clear_field(hwnd, 350, 345)
+        inp.type_text(hwnd, APP_USER)
+        inp.key(hwnd, "tab")
+        inp.type_text(hwnd, APP_PASS)
+        inp.key(hwnd, "enter")
         passos.append("usuario/senha enviados")
-        est, det = _esperar_estado(hwnd, ("login_empresa", "logado"), timeout)
-        if est == "login_usuario":
-            return "; ".join(passos) + " -> continuou na tela de usuario (credencial recusada?)"
+        est, det = _esperar_estado(hwnd, ("login_empresa",), timeout)
+        if est != "login_empresa":
+            raise RuntimeError(f"empresa nao apareceu apos credenciais: {est} ({det})")
 
     if est == "login_empresa":
-        # A lista ja vem aberta. Digitar o codigo filtra; o primeiro item
-        # passa a ser a empresa desejada.
-        inp.set_field(hwnd, *_ponto(hwnd, "empresa_campo"), EMPRESA)
-        time.sleep(1.2)
-        inp.click(hwnd, *_ponto(hwnd, "empresa_item1"))
+        inp.type_text(hwnd, EMPRESA)
+        inp.key(hwnd, "enter")
         passos.append(f"empresa {EMPRESA} selecionada")
-        est, det = _esperar_estado(hwnd, ("login_produto", "logado"), timeout)
+        est, det = _esperar_estado(hwnd, ("login_produto",), timeout)
+        if est != "login_produto":
+            raise RuntimeError(f"produto nao apareceu apos empresa: {est} ({det})")
 
     if est == "login_produto":
-        inp.click(hwnd, *_ponto(hwnd, f"produto_{PRODUTO}"))
-        passos.append(f"produto {PRODUTO} escolhido")
+        if str(PRODUTO) != "1":
+            raise RuntimeError(f"selecao automatica do produto {PRODUTO} nao validada")
+        inp.key(hwnd, "enter")
+        passos.append("produto padrao escolhido")
         est, det = _esperar_estado(hwnd, ("logado",), timeout)
+        if est != "logado":
+            raise RuntimeError(f"tela inicial nao apareceu: {est} ({det})")
 
     if est == "logado":
         ok, quando = esperar_pronto(hwnd)
-        passos.append(f"tela {'pintou' if ok else 'NAO pintou'} ({quando})")
+        if not ok:
+            raise RuntimeError(f"tela inicial nao ficou pronta ({quando})")
+        passos.append(f"tela pintou ({quando})")
         avisos = dispensar_avisos(hwnd)
         if avisos:
             passos.append(f"{len(avisos)} tela(s) de aviso dispensada(s)")
+        inp.click(hwnd, *CAMPO_BUSCA)
+    else:
+        raise RuntimeError(f"login nao confirmado: {est} ({det})")
     passos.append(f"estado final={est} ({det})")
     return "; ".join(passos)
 
@@ -309,7 +298,8 @@ def garantir_sessao():
     if h is None:
         h = lancar()
         return h, f"sessao iniciada; {logar(h)}"
-    if na_tela_de_login(h):
+    estado, _detalhe = estado_tela(h)
+    if estado != "logado":
         return h, logar(h)
     avisos = dispensar_avisos(h)
     extra = f"; {len(avisos)} aviso(s) dispensado(s)" if avisos else ""
@@ -323,8 +313,8 @@ if __name__ == "__main__":
     if h is None:
         h, msg = garantir_sessao()
     else:
-        est, br = estado_tela(h)
-        msg = f"estado detectado: {est} (brilho da faixa lateral={br:.0f})"
+        est, detalhe = estado_tela(h)
+        msg = f"estado detectado: {est} ({detalhe})"
     print(f"hwnd={h}  titulo Win32={win32gui.GetWindowText(h)!r} (sempre generico)")
     print(f"status: {msg}")
     img, how = capture(h, allow_foreground=False)

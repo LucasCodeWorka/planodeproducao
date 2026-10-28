@@ -1,5 +1,10 @@
 # Handoff da conversa - TOTVS Agent Minimo
 
+> Estado do orçamento atualizado até 26/10/2026:
+> [PENDENCIAS_CADASTRO_DESPESAS_2026-10-16.md](PENDENCIAS_CADASTRO_DESPESAS_2026-10-16.md).
+> O texto abaixo contém etapas históricas; consulte a última seção da nota
+> de pendências antes de retomar trabalho no TOTVS.
+
 Use este arquivo quando mover a pasta `totvs_agent_minimo` para outro projeto.
 A ideia e permitir continuar como se a conversa ainda estivesse em andamento,
 sem redescobrir as decisoes basicas.

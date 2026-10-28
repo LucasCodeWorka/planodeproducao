@@ -31,14 +31,26 @@ tarefas de agente.
 
 ## Comandos
 
+Neste projeto, a entrada recomendada para abrir um componente com seguranca e:
+
+```powershell
+python .agents\totvs_agent_minimo\main.py abrir-fluxo FCPFM003
+```
+
+`abrir-fluxo` foi testado em 26/10/2026 com a aplicacao fechada e com a
+sessao ja logada. Ele confirma cada etapa do login, limpa o campo de busca e
+abre o componente com um `Tab`. Se o login nao for confirmado, interrompe
+antes de digitar o codigo do componente. O fluxo separado `abrir-sistema`
+seguido de `abrir CODIGO` continua disponivel.
+
 Rode a partir da raiz do repositorio:
 
 ```powershell
-.\.venv\Scripts\python.exe totvs_agent_minimo\main.py status
-.\.venv\Scripts\python.exe totvs_agent_minimo\main.py abrir-sistema
-.\.venv\Scripts\python.exe totvs_agent_minimo\main.py abrir PRDFL035
-.\.venv\Scripts\python.exe totvs_agent_minimo\main.py skills
-.\.venv\Scripts\python.exe totvs_agent_minimo\main.py skill abrir-componente
+python .agents\totvs_agent_minimo\main.py status
+python .agents\totvs_agent_minimo\main.py abrir-sistema
+python .agents\totvs_agent_minimo\main.py abrir PRDFL035
+python .agents\totvs_agent_minimo\main.py skills
+python .agents\totvs_agent_minimo\main.py skill abrir-componente
 ```
 
 ## Regra pratica
@@ -61,7 +73,7 @@ As credenciais continuam fora do codigo, lidas do `.env` (`VA_APP_USER`,
 Depois de `abrir-sistema`, qualquer componente abre pelo mesmo padrao:
 
 ```powershell
-.\.venv\Scripts\python.exe totvs_agent_minimo\main.py abrir FCPFM003
+python .agents\totvs_agent_minimo\main.py abrir FCPFM003
 ```
 
 A skill apenas digita o codigo, envia um unico `Tab` e espera alguns segundos.

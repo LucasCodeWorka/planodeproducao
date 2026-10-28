@@ -22,7 +22,7 @@ const MES_VIVO_LIMIAR = 0.10;
 // Teto da correcao. No agregado quase nao muda nada (~190 pecas), mas impede que um SKU
 // isolado triplique a media de uma vez.
 const MES_VIVO_TETO = 1.5;
-const PLANO_PERIODOS_DE_PARA = ['MA', 'PX', 'UL', 'QT', 'QU'];
+const PLANO_PERIODOS_DE_PARA = ['MA', 'PX', 'UL', 'QT', 'QU', 'SX'];
 
 function isPt99Size(value) {
   return String(value || '').trim().toUpperCase() === 'PT 99';
@@ -574,7 +574,7 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
        FROM vr_pcp_lotepl2 a
        LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
        WHERE p.tp_situacao = 1
-         AND p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
+         AND p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU', 'SX')
        GROUP BY a.cd_produto, p.cd_auxiliar`,
       []
     ),
@@ -768,9 +768,9 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   for (const row of rPlano.rows) {
     const id  = Number(row.idproduto);
     const per = String(row.cd_auxiliar || '').trim().toUpperCase();
-    if (!planoMap.has(id)) planoMap.set(id, { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
-    if (!planoOriginalMap.has(id)) planoOriginalMap.set(id, { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 });
-    if (per === 'MA' || per === 'PX' || per === 'UL' || per === 'QT' || per === 'QU') {
+    if (!planoMap.has(id)) planoMap.set(id, { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 });
+    if (!planoOriginalMap.has(id)) planoOriginalMap.set(id, { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 });
+    if (per === 'MA' || per === 'PX' || per === 'UL' || per === 'QT' || per === 'QU' || per === 'SX') {
       planoMap.get(id)[per] = parseFloat(row.plano) || 0;
       planoOriginalMap.get(id)[per] = parseFloat(row.plano_original) || 0;
     }
@@ -925,6 +925,8 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     let emProcesso = 0;
     let qtPendente = 0;
     let saldoAdicional = 0;
+    let planoSX = 0;
+    let planoOriginalSX = 0;
     let planoMA = 0;
     let planoPX = 0;
     let planoUL = 0;
@@ -954,11 +956,13 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
       planoUL += (planoMap.get(idFonte)?.UL || 0) * peso;
       planoQT += (planoMap.get(idFonte)?.QT || 0) * peso;
       planoQU += (planoMap.get(idFonte)?.QU || 0) * peso;
+      planoSX += (planoMap.get(idFonte)?.SX || 0) * peso;
       planoOriginalMA += (planoOriginalMap.get(idFonte)?.MA || 0) * peso;
       planoOriginalPX += (planoOriginalMap.get(idFonte)?.PX || 0) * peso;
       planoOriginalUL += (planoOriginalMap.get(idFonte)?.UL || 0) * peso;
       planoOriginalQT += (planoOriginalMap.get(idFonte)?.QT || 0) * peso;
       planoOriginalQU += (planoOriginalMap.get(idFonte)?.QU || 0) * peso;
+      planoOriginalSX += (planoOriginalMap.get(idFonte)?.SX || 0) * peso;
     }
 
     const mediaSemestral = sumSem / 6;  // média mensal do semestre (total ÷ 6 meses)
@@ -1028,14 +1032,16 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
         px: planoPX,   // próximo mês
         ul: planoUL,   // mês seguinte
         qt: planoQT,   // quarto mês
-        qu: planoQU    // quinto mês
+        qu: planoQU,   // quinto mês
+        sx: planoSX    // sexto mês
       },
       plano_original: {
         ma: planoOriginalMA,
         px: planoOriginalPX,
         ul: planoOriginalUL,
         qt: planoOriginalQT,
-        qu: planoOriginalQU
+        qu: planoOriginalQU,
+        sx: planoOriginalSX
       },
       planejamento: {
         necessidade_total:    necessidadeTotal,
@@ -1290,7 +1296,7 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
     FROM vr_pcp_loteplop a
     LEFT JOIN pcp_lotepv p
       ON a.nr_lote = p.nr_lote
-    WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
+    WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU', 'SX')
       AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint), ''))) = UPPER(TRIM($1))
       AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) = ANY($2)
       AND UPPER(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), '')) NOT LIKE '%MEIA DE SEDA%'
@@ -1300,7 +1306,7 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
 
   const result = await pool.query(query, [marca, statusList]);
   const base = {
-    geral: { MA: null, PX: null, UL: null, QT: null, QU: null },
+    geral: { MA: null, PX: null, UL: null, QT: null, QU: null, SX: null },
     continuidade: {},
   };
 
@@ -1318,7 +1324,7 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
     base.geral[periodo].qtdFinalizada += qtdFinalizada;
 
     if (!base.continuidade[continuidade]) {
-      base.continuidade[continuidade] = { MA: null, PX: null, UL: null, QT: null, QU: null };
+      base.continuidade[continuidade] = { MA: null, PX: null, UL: null, QT: null, QU: null, SX: null };
     }
     base.continuidade[continuidade][periodo] = {
       qtdReal: qtdLote,
@@ -1327,7 +1333,7 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
     };
   }
 
-  for (const periodo of ['MA', 'PX', 'UL', 'QT', 'QU']) {
+  for (const periodo of ['MA', 'PX', 'UL', 'QT', 'QU', 'SX']) {
     const item = base.geral[periodo];
     if (item) {
       item.percentual = item.qtdReal > 0 ? (item.qtdFinalizada * 100) / item.qtdReal : null;

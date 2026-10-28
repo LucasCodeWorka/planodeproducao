@@ -147,7 +147,7 @@ export default function VisaoGeral2Page() {
   // diaria do dias-resumo se cancela na conta da tabela.
   const [indiceMensalAtual, setIndiceMensalAtual] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
   const indiceMensal = indiceMensalAtual;
-  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; diasCompletosMes: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
+  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; diasCompletosMes: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; elLancadaPorMes: Record<string, { quantidade: number; skus: number }>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   // Cache das respostas que não mudam com o cenário (matriz, capacidade, curva ABC,
   // cortes mínimos, gravado e agenda). Preview e edição limitada carregam uma base neutra;
@@ -625,6 +625,31 @@ export default function VisaoGeral2Page() {
           fatorElMes,
         ), 0);
       }
+      // EDICAO LIMITADA LANCADA no ano de destino, por mes, somada nos MESMOS SKUs da matriz
+      // que a tela principal usa.
+      //
+      // Por que isto existe: a Capacidade x Venda lia a edicao limitada do modelo de colecao
+      // (`/api/projecao-edicao-limitada`), que nunca olha `app_projecoes`. Enquanto nada
+      // estava lancado para 2027 isso era o unico jeito. Depois que o PCP passou a lancar a EL
+      // por SKU, as duas telas ficaram com fontes diferentes para a MESMA linha e deixaram de
+      // bater: em fev/2027 o modelo dizia 25.599 e o lancado era 27.385; em mar/2027 o modelo
+      // dizia 26.952 e o lancado, 19.772. E nao adianta mexer nos permanentes para fechar a
+      // conta — os SKUs ajustados estao nas duas populacoes, entao os dois lados sobem juntos
+      // e a diferenca fica igual (medido: -6.295 antes e depois do ajuste de marco).
+      //
+      // A contagem de SKUs acompanha o valor porque "lancado" nao e "maior que zero": janeiro
+      // de 2027 tem 7 pecas em 4 SKUs, que e ruido de cadastro, nao plano. So vale como
+      // lancamento quando ha um numero de SKUs compativel com uma colecao de verdade.
+      const elLancadaPorMes: Record<string, { quantidade: number; skus: number }> = {};
+      for (let mes = 1; mes <= 12; mes += 1) {
+        let quantidade = 0;
+        let skus = 0;
+        for (const r of elRows) {
+          const v = Number(proj2027PorSku[String(r.produto?.idproduto || '')]?.[String(mes)] || 0);
+          if (v > 0) { quantidade += v; skus += 1; }
+        }
+        elLancadaPorMes[String(mes)] = { quantidade, skus };
+      }
       // Composição medida no backend (producaoService: estoqueDisponivel = estoque + emProcesso):
       //   `estoque_disponivel` = estoque físico + em processo (NÃO abate pendente)
       //   `plano.ma/px/ul/qt/qu` da matriz = plano RESTANTE (lote que ainda não gerou OP)
@@ -787,7 +812,7 @@ export default function VisaoGeral2Page() {
       const diasUteisRestantes = capacidadeDiariaTotal > 0 ? cargaRestanteMA / capacidadeDiariaTotal : 0;
       const previsaoTermino = diasUteisRestantes > 0 ? addDiasUteis(hoje, diasUteisRestantes).toISOString().slice(0, 10) : null;
 
-      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, planoMatrizPorPeriodo, demandaRestantePorMes, demandaCheiaPorMes, vendaRealMesCorrente, diasCompletosMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, coberturaPorPeriodo, planoPorMesReal, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
+      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, planoMatrizPorPeriodo, demandaRestantePorMes, demandaCheiaPorMes, vendaRealMesCorrente, diasCompletosMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, elLancadaPorMes, coberturaPorPeriodo, planoPorMesReal, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao carregar visão macro'); }
     finally { setLoading(false); }
   }
@@ -1074,7 +1099,16 @@ export default function VisaoGeral2Page() {
     if (capDiaria <= 0 || !mesMA) return null;
     const anoBase = data.anoDestino - 1;
     const mesCorrenteBase = new Date().getMonth() + 1;
-    const el = (mes: number) => Number(projEdicaoLimitada?.[String(mes)] || 0);
+    // Edicao limitada do ano de destino. Lancamento por SKU GANHA do modelo de colecao: o
+    // modelo e uma estimativa sazonal, o lancamento e decisao tomada. Enquanto o mes nao tem
+    // lancamento (menos de 30 SKUs, que e ruido e nao colecao), vale o modelo, como antes.
+    // Sem isto esta tela e a principal mostram numeros diferentes para a mesma linha.
+    const EL_SKUS_MINIMO = 30;
+    const el = (mes: number) => {
+      const lancada = data.elLancadaPorMes?.[String(mes)];
+      if (lancada && lancada.skus >= EL_SKUS_MINIMO) return lancada.quantidade;
+      return Number(projEdicaoLimitada?.[String(mes)] || 0);
+    };
     // Quantidade de edicao limitada para um mes do ANO BASE (travado): usa o MESMO
     // modelo sazonal (o endpoint, chamado com anoDestino=anoBase), nao o calculo avulso
     // de elDemandaPorMes (soma de app_projecoes/media3m por SKU, sem nenhuma relacao com
@@ -1340,6 +1374,22 @@ export default function VisaoGeral2Page() {
           return { demandaFabrica: c.fabrica, demandaLojas: c.lojas, demandaLojasPermanentes: c.lojasPermanentes, demandaLojasEdicaoLimitada: c.lojasEdicaoLimitada };
         })(),
         producao: m.producao + demandaEl,
+        // PLANO LANCADO num mes que a tabela trata como projetado. A linha "Plano (completo)"
+        // so existia ate janeiro, porque os periodos fechados vao de MA a QT e fevereiro em
+        // diante era so simulacao. Mas o plano de fevereiro foi emitido (131.550 pecas em
+        // `plano-por-mes-real`, o mesmo total da matriz), e nao aparecia em lugar nenhum
+        // aqui — a tela dizia "nao ha plano" para um mes que tem plano.
+        //
+        // Vem de `planoPorMesReal`, que e indexado pelo MES DE VERDADE do lote e nao pelo
+        // rotulo do periodo (o balde MA mistura meses). `undefined` quando nao ha lote, para
+        // a linha continuar em branco nos meses que de fato so tem projecao.
+        planoCompleto: Number(data.planoPorMesReal?.[`${data.anoDestino}-${String(mes).padStart(2, '0')}`]?.qtdLote || 0) || undefined,
+        // Dias que esse plano consome, no ritmo do proprio mes: peca-por-dia sai da simulacao
+        // (producao / dias), e o plano e convertido pela mesma razao. Assim o gap do plano
+        // fica comparavel com os meses fechados, que usam a mesma ideia.
+        planoCompletoDias: pecasPorDia > 0
+          ? (Number(data.planoPorMesReal?.[`${data.anoDestino}-${String(mes).padStart(2, '0')}`]?.qtdLote || 0) / pecasPorDia) / fatorFaltaProjetado
+          : undefined,
         capacidadePecas: m.capacidadePecas * idx(mes) * fatorFaltaProjetado,
         diasNecessarios: (diasPerm + (pecasPorDia > 0 ? demandaEl / pecasPorDia : 0)) / fatorFaltaProjetado,
         diasDisponiveis: m.diasDisponiveis,

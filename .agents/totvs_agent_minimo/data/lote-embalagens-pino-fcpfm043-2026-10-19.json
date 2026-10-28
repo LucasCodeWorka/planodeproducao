@@ -1,0 +1,16 @@
+{
+  "fonte": "cadastros FCPFM003 confirmados em 19/10/2026",
+  "plano": 500,
+  "centroCusto": 506,
+  "pai": 26081,
+  "pilotoVinculado": 1470,
+  "itens": [
+    {"codigo": 1471, "descricao": "PROT.CONJ  PP 36X25 0,05 IMPRESSO NORMAL UNICA U", "filtro": {"texto": "36X25 0,05", "resultados": 1}},
+    {"codigo": 1472, "descricao": "PROT.CONJ ESP  PP 40 X 27 0,05 C/OXI UNICA U", "filtro": {"texto": "40 X 27 0,05 C/OXI", "resultados": 1}},
+    {"codigo": 1473, "descricao": "EMB 15X18+3X0,05 PP ADS IMPRES NORMAL UNICA U", "filtro": {"texto": "15X18+3X0,05 PP ADS IMPRES NORMAL UNICA U", "resultados": 1}},
+    {"codigo": 1474, "descricao": "EMB  18X37+3 X 0,05 PP  ADS IMPRES NORMA UNICA U", "filtro": {"texto": "18X37+3 X 0,05 PP  ADS IMPRES NORMA UNICA U", "resultados": 1}},
+    {"codigo": 1475, "descricao": "EMB  20X40+3 X 0,05 PP  ADS IMPRE NORMAL UNICA U", "filtro": {"texto": "20X40+3 X 0,05 PP  ADS IMPRE NORMAL UNICA U", "resultados": 1}},
+    {"codigo": 1476, "descricao": "EMBALAGEN SEM IMPRESSAO 28 X 40 3 X 0,05 UNICA U", "filtro": {"texto": "SEM IMPRESSAO 28 X 40 3 X 0,05 UNICA U", "resultados": 1}},
+    {"codigo": 1477, "descricao": "CONSUMO PINO DE NYLON  FIX PIN 20 MM UNICA U", "filtro": {"texto": "PINO DE NYLON  FIX PIN 20 MM UNICA U", "resultados": 1}}
+  ]
+}

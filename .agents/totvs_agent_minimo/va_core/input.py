@@ -96,18 +96,23 @@ def scroll(hwnd, x, y, amount):
 
 # --------------------------------------------------------------- teclado bg
 
-def _tap(hwnd, vk, hold_shift=False, ch=None):
-    if hold_shift:
-        win32gui.PostMessage(hwnd, win32con.WM_KEYDOWN, VK["shift"], _lparam_key(VK["shift"]))
+def _tap(hwnd, vk, hold_shift=False, hold_ctrl=False, hold_alt=False, ch=None):
+    modifiers = [
+        VK[name]
+        for enabled, name in ((hold_ctrl, "ctrl"), (hold_alt, "alt"), (hold_shift, "shift"))
+        if enabled
+    ]
+    for modifier in modifiers:
+        win32gui.PostMessage(hwnd, win32con.WM_KEYDOWN, modifier, _lparam_key(modifier))
         time.sleep(0.02)
     win32gui.PostMessage(hwnd, win32con.WM_KEYDOWN, vk, _lparam_key(vk))
     if ch is not None:
         win32gui.PostMessage(hwnd, win32con.WM_CHAR, ord(ch), _lparam_key(vk))
     time.sleep(0.02)
     win32gui.PostMessage(hwnd, win32con.WM_KEYUP, vk, _lparam_key(vk, True))
-    if hold_shift:
+    for modifier in reversed(modifiers):
         time.sleep(0.02)
-        win32gui.PostMessage(hwnd, win32con.WM_KEYUP, VK["shift"], _lparam_key(VK["shift"], True))
+        win32gui.PostMessage(hwnd, win32con.WM_KEYUP, modifier, _lparam_key(modifier, True))
 
 
 def type_text(hwnd, text, delay=0.05):
@@ -117,7 +122,11 @@ def type_text(hwnd, text, delay=0.05):
         if st == -1:                      # caractere fora do layout: so WM_CHAR
             win32gui.PostMessage(hwnd, win32con.WM_CHAR, ord(ch), 0)
         else:
-            _tap(hwnd, st & 0xFF, hold_shift=bool((st >> 8) & 1), ch=ch)
+            modifiers = st >> 8
+            _tap(hwnd, st & 0xFF,
+                 hold_shift=bool(modifiers & 1),
+                 hold_ctrl=bool(modifiers & 2),
+                 hold_alt=bool(modifiers & 4), ch=ch)
         time.sleep(delay)
 
 

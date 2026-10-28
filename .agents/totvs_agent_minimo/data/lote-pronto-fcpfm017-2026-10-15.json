@@ -1,0 +1,5149 @@
+{
+  "fonte": ".agents/totvs_agent_minimo/data/conciliacao-fcpfm017-2026-10-15.json",
+  "criterio": "NECESSIDADE_FUTURA_COM_FOLGA_SEM_COMPRAS_EM_ANDAMENTO",
+  "status": "PREPARADO_NAO_LANCADO",
+  "plano": 500,
+  "centroCusto": 506,
+  "despesas": 197,
+  "entradas": 513,
+  "totalCentavos": 42767169,
+  "totaisPorCompetencia": {
+    "2026-10": 655301,
+    "2026-11": 3681442,
+    "2026-12": 7580909,
+    "2027-01": 26859114,
+    "2027-02": 3990403
+  },
+  "lancamentos": [
+    {
+      "ano": 2026,
+      "mes": 10,
+      "competencia": "2026-10",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11691,
+      "sequenciaPlano": "26104",
+      "valorCentavos": 1691
+    },
+    {
+      "ano": 2026,
+      "mes": 10,
+      "competencia": "2026-10",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11181,
+      "sequenciaPlano": "26106",
+      "valorCentavos": 1460
+    },
+    {
+      "ano": 2026,
+      "mes": 10,
+      "competencia": "2026-10",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11172,
+      "sequenciaPlano": "26108",
+      "valorCentavos": 8409
+    },
+    {
+      "ano": 2026,
+      "mes": 10,
+      "competencia": "2026-10",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11129,
+      "sequenciaPlano": "26110",
+      "valorCentavos": 7898
+    },
+    {
+      "ano": 2026,
+      "mes": 10,
+      "competencia": "2026-10",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11260,
+      "sequenciaPlano": "26116",
+      "valorCentavos": 1267
+    },
+    {
+      "ano": 2026,
+      "mes": 10,
+      "competencia": "2026-10",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11666,
+      "sequenciaPlano": "26384",
+      "valorCentavos": 28241
+    },
+    {
+      "ano": 2026,
+      "mes": 10,
+      "competencia": "2026-10",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11526,
+      "sequenciaPlano": "26404",
+      "valorCentavos": 568083
+    },
+    {
+      "ano": 2026,
+      "mes": 10,
+      "competencia": "2026-10",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11124,
+      "sequenciaPlano": "26490",
+      "valorCentavos": 6588
+    },
+    {
+      "ano": 2026,
+      "mes": 10,
+      "competencia": "2026-10",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11120,
+      "sequenciaPlano": "26508",
+      "valorCentavos": 31664
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11691,
+      "sequenciaPlano": "26104",
+      "valorCentavos": 6654
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11181,
+      "sequenciaPlano": "26106",
+      "valorCentavos": 10754
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11172,
+      "sequenciaPlano": "26108",
+      "valorCentavos": 10349
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11129,
+      "sequenciaPlano": "26110",
+      "valorCentavos": 9721
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11260,
+      "sequenciaPlano": "26116",
+      "valorCentavos": 16941
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11166,
+      "sequenciaPlano": "26118",
+      "valorCentavos": 4761
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11441,
+      "sequenciaPlano": "26126",
+      "valorCentavos": 1747
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11459,
+      "sequenciaPlano": "26128",
+      "valorCentavos": 1747
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11438,
+      "sequenciaPlano": "26130",
+      "valorCentavos": 3903
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11018,
+      "sequenciaPlano": "26136",
+      "valorCentavos": 767
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11561,
+      "sequenciaPlano": "26148",
+      "valorCentavos": 761
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11460,
+      "sequenciaPlano": "26152",
+      "valorCentavos": 1861
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11442,
+      "sequenciaPlano": "26154",
+      "valorCentavos": 1861
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11471,
+      "sequenciaPlano": "26160",
+      "valorCentavos": 2810
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11562,
+      "sequenciaPlano": "26164",
+      "valorCentavos": 584
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11461,
+      "sequenciaPlano": "26166",
+      "valorCentavos": 2097
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11463,
+      "sequenciaPlano": "26190",
+      "valorCentavos": 43467
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11467,
+      "sequenciaPlano": "26196",
+      "valorCentavos": 3335
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11443,
+      "sequenciaPlano": "26204",
+      "valorCentavos": 1045
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11659,
+      "sequenciaPlano": "26206",
+      "valorCentavos": 3280
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11458,
+      "sequenciaPlano": "26208",
+      "valorCentavos": 2228
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11440,
+      "sequenciaPlano": "26210",
+      "valorCentavos": 2228
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11451,
+      "sequenciaPlano": "26230",
+      "valorCentavos": 2802
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11071,
+      "sequenciaPlano": "26246",
+      "valorCentavos": 20796
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11128,
+      "sequenciaPlano": "26268",
+      "valorCentavos": 746
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11171,
+      "sequenciaPlano": "26270",
+      "valorCentavos": 746
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11597,
+      "sequenciaPlano": "26274",
+      "valorCentavos": 4146
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11649,
+      "sequenciaPlano": "26276",
+      "valorCentavos": 4149
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11410,
+      "sequenciaPlano": "26284",
+      "valorCentavos": 30317
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11657,
+      "sequenciaPlano": "26294",
+      "valorCentavos": 2550
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11456,
+      "sequenciaPlano": "26300",
+      "valorCentavos": 5237
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11590,
+      "sequenciaPlano": "26302",
+      "valorCentavos": 4660
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11417,
+      "sequenciaPlano": "26304",
+      "valorCentavos": 54415
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11595,
+      "sequenciaPlano": "26318",
+      "valorCentavos": 5869
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11206,
+      "sequenciaPlano": "26324",
+      "valorCentavos": 12632
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11449,
+      "sequenciaPlano": "26356",
+      "valorCentavos": 3979
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11655,
+      "sequenciaPlano": "26358",
+      "valorCentavos": 3979
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11409,
+      "sequenciaPlano": "26362",
+      "valorCentavos": 13720
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11437,
+      "sequenciaPlano": "26382",
+      "valorCentavos": 4738
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11666,
+      "sequenciaPlano": "26384",
+      "valorCentavos": 1554219
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11662,
+      "sequenciaPlano": "26386",
+      "valorCentavos": 4975
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11594,
+      "sequenciaPlano": "26388",
+      "valorCentavos": 4977
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11526,
+      "sequenciaPlano": "26404",
+      "valorCentavos": 1672677
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11139,
+      "sequenciaPlano": "26450",
+      "valorCentavos": 11404
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11404,
+      "sequenciaPlano": "26458",
+      "valorCentavos": 5591
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11448,
+      "sequenciaPlano": "26466",
+      "valorCentavos": 4499
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11006,
+      "sequenciaPlano": "26470",
+      "valorCentavos": 24664
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11122,
+      "sequenciaPlano": "26472",
+      "valorCentavos": 3551
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11413,
+      "sequenciaPlano": "26478",
+      "valorCentavos": 6095
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11648,
+      "sequenciaPlano": "26488",
+      "valorCentavos": 11074
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11124,
+      "sequenciaPlano": "26490",
+      "valorCentavos": 4941
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11439,
+      "sequenciaPlano": "26498",
+      "valorCentavos": 6191
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11418,
+      "sequenciaPlano": "26506",
+      "valorCentavos": 11377
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11054,
+      "sequenciaPlano": "26602",
+      "valorCentavos": 552
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11393,
+      "sequenciaPlano": "26630",
+      "valorCentavos": 5237
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11395,
+      "sequenciaPlano": "26632",
+      "valorCentavos": 3133
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11397,
+      "sequenciaPlano": "26634",
+      "valorCentavos": 4145
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11385,
+      "sequenciaPlano": "26643",
+      "valorCentavos": 5237
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11387,
+      "sequenciaPlano": "26645",
+      "valorCentavos": 3133
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11389,
+      "sequenciaPlano": "26647",
+      "valorCentavos": 4145
+    },
+    {
+      "ano": 2026,
+      "mes": 11,
+      "competencia": "2026-11",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11423,
+      "sequenciaPlano": "26666",
+      "valorCentavos": 21243
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11691,
+      "sequenciaPlano": "26104",
+      "valorCentavos": 8192
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11181,
+      "sequenciaPlano": "26106",
+      "valorCentavos": 4312
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11172,
+      "sequenciaPlano": "26108",
+      "valorCentavos": 3512
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11129,
+      "sequenciaPlano": "26110",
+      "valorCentavos": 3299
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11260,
+      "sequenciaPlano": "26116",
+      "valorCentavos": 627
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11166,
+      "sequenciaPlano": "26118",
+      "valorCentavos": 4598
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11457,
+      "sequenciaPlano": "26120",
+      "valorCentavos": 907
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11563,
+      "sequenciaPlano": "26124",
+      "valorCentavos": 41776
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11441,
+      "sequenciaPlano": "26126",
+      "valorCentavos": 13007
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11459,
+      "sequenciaPlano": "26128",
+      "valorCentavos": 13007
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11438,
+      "sequenciaPlano": "26130",
+      "valorCentavos": 2558
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11533,
+      "sequenciaPlano": "26132",
+      "valorCentavos": 6831
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11257,
+      "sequenciaPlano": "26134",
+      "valorCentavos": 18669
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11018,
+      "sequenciaPlano": "26136",
+      "valorCentavos": 23718
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11180,
+      "sequenciaPlano": "26142",
+      "valorCentavos": 1508
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11654,
+      "sequenciaPlano": "26144",
+      "valorCentavos": 1099
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11561,
+      "sequenciaPlano": "26148",
+      "valorCentavos": 12177
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11460,
+      "sequenciaPlano": "26152",
+      "valorCentavos": 13135
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11442,
+      "sequenciaPlano": "26154",
+      "valorCentavos": 13135
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11471,
+      "sequenciaPlano": "26160",
+      "valorCentavos": 15754
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11562,
+      "sequenciaPlano": "26164",
+      "valorCentavos": 11865
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11461,
+      "sequenciaPlano": "26166",
+      "valorCentavos": 11277
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11465,
+      "sequenciaPlano": "26168",
+      "valorCentavos": 303975
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11080,
+      "sequenciaPlano": "26170",
+      "valorCentavos": 5645
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11463,
+      "sequenciaPlano": "26190",
+      "valorCentavos": 66883
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11193,
+      "sequenciaPlano": "26192",
+      "valorCentavos": 160238
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11467,
+      "sequenciaPlano": "26196",
+      "valorCentavos": 11734
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11475,
+      "sequenciaPlano": "26198",
+      "valorCentavos": 13995
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11452,
+      "sequenciaPlano": "26200",
+      "valorCentavos": 14210
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11443,
+      "sequenciaPlano": "26204",
+      "valorCentavos": 12777
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11659,
+      "sequenciaPlano": "26206",
+      "valorCentavos": 11550
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11458,
+      "sequenciaPlano": "26208",
+      "valorCentavos": 12933
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11440,
+      "sequenciaPlano": "26210",
+      "valorCentavos": 12933
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11470,
+      "sequenciaPlano": "26218",
+      "valorCentavos": 11974
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11658,
+      "sequenciaPlano": "26224",
+      "valorCentavos": 14183
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11174,
+      "sequenciaPlano": "26228",
+      "valorCentavos": 2145
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11451,
+      "sequenciaPlano": "26230",
+      "valorCentavos": 11982
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11450,
+      "sequenciaPlano": "26236",
+      "valorCentavos": 13484
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11382,
+      "sequenciaPlano": "26240",
+      "valorCentavos": 33606
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11071,
+      "sequenciaPlano": "26246",
+      "valorCentavos": 109140
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11141,
+      "sequenciaPlano": "26248",
+      "valorCentavos": 16806
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11653,
+      "sequenciaPlano": "26256",
+      "valorCentavos": 13611
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11128,
+      "sequenciaPlano": "26268",
+      "valorCentavos": 7580
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11171,
+      "sequenciaPlano": "26270",
+      "valorCentavos": 7580
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11597,
+      "sequenciaPlano": "26274",
+      "valorCentavos": 8343
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11649,
+      "sequenciaPlano": "26276",
+      "valorCentavos": 8350
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11410,
+      "sequenciaPlano": "26284",
+      "valorCentavos": 45763
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11167,
+      "sequenciaPlano": "26288",
+      "valorCentavos": 19492
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 1459,
+      "sequenciaPlano": "26292",
+      "valorCentavos": 26634
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11657,
+      "sequenciaPlano": "26294",
+      "valorCentavos": 11546
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11456,
+      "sequenciaPlano": "26300",
+      "valorCentavos": 13176
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11590,
+      "sequenciaPlano": "26302",
+      "valorCentavos": 46448
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11417,
+      "sequenciaPlano": "26304",
+      "valorCentavos": 163243
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11656,
+      "sequenciaPlano": "26316",
+      "valorCentavos": 12840
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11595,
+      "sequenciaPlano": "26318",
+      "valorCentavos": 11775
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11206,
+      "sequenciaPlano": "26324",
+      "valorCentavos": 10567
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11147,
+      "sequenciaPlano": "26340",
+      "valorCentavos": 452710
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11449,
+      "sequenciaPlano": "26356",
+      "valorCentavos": 14015
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11655,
+      "sequenciaPlano": "26358",
+      "valorCentavos": 14015
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11140,
+      "sequenciaPlano": "26360",
+      "valorCentavos": 62032
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11409,
+      "sequenciaPlano": "26362",
+      "valorCentavos": 54882
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11446,
+      "sequenciaPlano": "26372",
+      "valorCentavos": 13624
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11411,
+      "sequenciaPlano": "26380",
+      "valorCentavos": 57089
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11437,
+      "sequenciaPlano": "26382",
+      "valorCentavos": 14303
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11666,
+      "sequenciaPlano": "26384",
+      "valorCentavos": 752842
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11662,
+      "sequenciaPlano": "26386",
+      "valorCentavos": 15020
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11594,
+      "sequenciaPlano": "26388",
+      "valorCentavos": 15025
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11341,
+      "sequenciaPlano": "26390",
+      "valorCentavos": 97338
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11645,
+      "sequenciaPlano": "26400",
+      "valorCentavos": 27665
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11307,
+      "sequenciaPlano": "26402",
+      "valorCentavos": 545694
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11526,
+      "sequenciaPlano": "26404",
+      "valorCentavos": 2295018
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11469,
+      "sequenciaPlano": "26406",
+      "valorCentavos": 12461
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11661,
+      "sequenciaPlano": "26408",
+      "valorCentavos": 12461
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11660,
+      "sequenciaPlano": "26410",
+      "valorCentavos": 12481
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11468,
+      "sequenciaPlano": "26412",
+      "valorCentavos": 12461
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11132,
+      "sequenciaPlano": "26414",
+      "valorCentavos": 29380
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11560,
+      "sequenciaPlano": "26424",
+      "valorCentavos": 13160
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11138,
+      "sequenciaPlano": "26426",
+      "valorCentavos": 66655
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11308,
+      "sequenciaPlano": "26436",
+      "valorCentavos": 70313
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11133,
+      "sequenciaPlano": "26446",
+      "valorCentavos": 80138
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11139,
+      "sequenciaPlano": "26450",
+      "valorCentavos": 29337
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11404,
+      "sequenciaPlano": "26458",
+      "valorCentavos": 17249
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11454,
+      "sequenciaPlano": "26462",
+      "valorCentavos": 22794
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11466,
+      "sequenciaPlano": "26464",
+      "valorCentavos": 15175
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11448,
+      "sequenciaPlano": "26466",
+      "valorCentavos": 13667
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11006,
+      "sequenciaPlano": "26470",
+      "valorCentavos": 49210
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11122,
+      "sequenciaPlano": "26472",
+      "valorCentavos": 13530
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11413,
+      "sequenciaPlano": "26478",
+      "valorCentavos": 18286
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11648,
+      "sequenciaPlano": "26488",
+      "valorCentavos": 11144
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11124,
+      "sequenciaPlano": "26490",
+      "valorCentavos": 6588
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11439,
+      "sequenciaPlano": "26498",
+      "valorCentavos": 14107
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11641,
+      "sequenciaPlano": "26504",
+      "valorCentavos": 26311
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11418,
+      "sequenciaPlano": "26506",
+      "valorCentavos": 25597
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11528,
+      "sequenciaPlano": "26518",
+      "valorCentavos": 347214
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11303,
+      "sequenciaPlano": "26538",
+      "valorCentavos": 142322
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11054,
+      "sequenciaPlano": "26602",
+      "valorCentavos": 10118
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11383,
+      "sequenciaPlano": "26604",
+      "valorCentavos": 1916
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11068,
+      "sequenciaPlano": "26627",
+      "valorCentavos": 6167
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11393,
+      "sequenciaPlano": "26630",
+      "valorCentavos": 13835
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11394,
+      "sequenciaPlano": "26631",
+      "valorCentavos": 12485
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11395,
+      "sequenciaPlano": "26632",
+      "valorCentavos": 14185
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11396,
+      "sequenciaPlano": "26633",
+      "valorCentavos": 12485
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11397,
+      "sequenciaPlano": "26634",
+      "valorCentavos": 13209
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11385,
+      "sequenciaPlano": "26643",
+      "valorCentavos": 13835
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11386,
+      "sequenciaPlano": "26644",
+      "valorCentavos": 12485
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11387,
+      "sequenciaPlano": "26645",
+      "valorCentavos": 14185
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11388,
+      "sequenciaPlano": "26646",
+      "valorCentavos": 12485
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11389,
+      "sequenciaPlano": "26647",
+      "valorCentavos": 13209
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11420,
+      "sequenciaPlano": "26663",
+      "valorCentavos": 46275
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11421,
+      "sequenciaPlano": "26664",
+      "valorCentavos": 31116
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11422,
+      "sequenciaPlano": "26665",
+      "valorCentavos": 30416
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11423,
+      "sequenciaPlano": "26666",
+      "valorCentavos": 37662
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11424,
+      "sequenciaPlano": "26670",
+      "valorCentavos": 37324
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11427,
+      "sequenciaPlano": "26671",
+      "valorCentavos": 16410
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11143,
+      "sequenciaPlano": "26682",
+      "valorCentavos": 257422
+    },
+    {
+      "ano": 2026,
+      "mes": 12,
+      "competencia": "2026-12",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11148,
+      "sequenciaPlano": "26685",
+      "valorCentavos": 8268
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11691,
+      "sequenciaPlano": "26104",
+      "valorCentavos": 9178
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11181,
+      "sequenciaPlano": "26106",
+      "valorCentavos": 21413
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11172,
+      "sequenciaPlano": "26108",
+      "valorCentavos": 18886
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11129,
+      "sequenciaPlano": "26110",
+      "valorCentavos": 17740
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11366,
+      "sequenciaPlano": "26114",
+      "valorCentavos": 371648
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11260,
+      "sequenciaPlano": "26116",
+      "valorCentavos": 32000
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11166,
+      "sequenciaPlano": "26118",
+      "valorCentavos": 15408
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11457,
+      "sequenciaPlano": "26120",
+      "valorCentavos": 24100
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11416,
+      "sequenciaPlano": "26122",
+      "valorCentavos": 158708
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11563,
+      "sequenciaPlano": "26124",
+      "valorCentavos": 48059
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11441,
+      "sequenciaPlano": "26126",
+      "valorCentavos": 6614
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11459,
+      "sequenciaPlano": "26128",
+      "valorCentavos": 6614
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11438,
+      "sequenciaPlano": "26130",
+      "valorCentavos": 18545
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11533,
+      "sequenciaPlano": "26132",
+      "valorCentavos": 14539
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11257,
+      "sequenciaPlano": "26134",
+      "valorCentavos": 15226
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11018,
+      "sequenciaPlano": "26136",
+      "valorCentavos": 5376
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11173,
+      "sequenciaPlano": "26138",
+      "valorCentavos": 26743
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11696,
+      "sequenciaPlano": "26140",
+      "valorCentavos": 175535
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11180,
+      "sequenciaPlano": "26142",
+      "valorCentavos": 23497
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11654,
+      "sequenciaPlano": "26144",
+      "valorCentavos": 23906
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11447,
+      "sequenciaPlano": "26146",
+      "valorCentavos": 25005
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11561,
+      "sequenciaPlano": "26148",
+      "valorCentavos": 7915
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11294,
+      "sequenciaPlano": "26150",
+      "valorCentavos": 22267
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11460,
+      "sequenciaPlano": "26152",
+      "valorCentavos": 6568
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11442,
+      "sequenciaPlano": "26154",
+      "valorCentavos": 6568
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11605,
+      "sequenciaPlano": "26158",
+      "valorCentavos": 92533
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11471,
+      "sequenciaPlano": "26160",
+      "valorCentavos": 4425
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11031,
+      "sequenciaPlano": "26162",
+      "valorCentavos": 59232
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11562,
+      "sequenciaPlano": "26164",
+      "valorCentavos": 8269
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11461,
+      "sequenciaPlano": "26166",
+      "valorCentavos": 8106
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11465,
+      "sequenciaPlano": "26168",
+      "valorCentavos": 390600
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11080,
+      "sequenciaPlano": "26170",
+      "valorCentavos": 30076
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11477,
+      "sequenciaPlano": "26174",
+      "valorCentavos": 179286
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11025,
+      "sequenciaPlano": "26176",
+      "valorCentavos": 133543
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11444,
+      "sequenciaPlano": "26178",
+      "valorCentavos": 25003
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11476,
+      "sequenciaPlano": "26180",
+      "valorCentavos": 159811
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11032,
+      "sequenciaPlano": "26182",
+      "valorCentavos": 159356
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11464,
+      "sequenciaPlano": "26184",
+      "valorCentavos": 73262
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11381,
+      "sequenciaPlano": "26186",
+      "valorCentavos": 159861
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11378,
+      "sequenciaPlano": "26188",
+      "valorCentavos": 192107
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11463,
+      "sequenciaPlano": "26190",
+      "valorCentavos": 240749
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11193,
+      "sequenciaPlano": "26192",
+      "valorCentavos": 121106
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11044,
+      "sequenciaPlano": "26194",
+      "valorCentavos": 104516
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11467,
+      "sequenciaPlano": "26196",
+      "valorCentavos": 6945
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11475,
+      "sequenciaPlano": "26198",
+      "valorCentavos": 304334
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11452,
+      "sequenciaPlano": "26200",
+      "valorCentavos": 6869
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11408,
+      "sequenciaPlano": "26202",
+      "valorCentavos": 123167
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11443,
+      "sequenciaPlano": "26204",
+      "valorCentavos": 6921
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11659,
+      "sequenciaPlano": "26206",
+      "valorCentavos": 7150
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11458,
+      "sequenciaPlano": "26208",
+      "valorCentavos": 6748
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11440,
+      "sequenciaPlano": "26210",
+      "valorCentavos": 6748
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11478,
+      "sequenciaPlano": "26212",
+      "valorCentavos": 47389
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11183,
+      "sequenciaPlano": "26214",
+      "valorCentavos": 113776
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11479,
+      "sequenciaPlano": "26216",
+      "valorCentavos": 38455
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11470,
+      "sequenciaPlano": "26218",
+      "valorCentavos": 10245
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11412,
+      "sequenciaPlano": "26220",
+      "valorCentavos": 31103
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11658,
+      "sequenciaPlano": "26224",
+      "valorCentavos": 6762
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11174,
+      "sequenciaPlano": "26228",
+      "valorCentavos": 18494
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11451,
+      "sequenciaPlano": "26230",
+      "valorCentavos": 5638
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11544,
+      "sequenciaPlano": "26232",
+      "valorCentavos": 331222
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11673,
+      "sequenciaPlano": "26234",
+      "valorCentavos": 12392
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11450,
+      "sequenciaPlano": "26236",
+      "valorCentavos": 6355
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11589,
+      "sequenciaPlano": "26238",
+      "valorCentavos": 25903
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11382,
+      "sequenciaPlano": "26240",
+      "valorCentavos": 121380
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11071,
+      "sequenciaPlano": "26246",
+      "valorCentavos": 54388
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11141,
+      "sequenciaPlano": "26248",
+      "valorCentavos": 242343
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11592,
+      "sequenciaPlano": "26250",
+      "valorCentavos": 5823
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11652,
+      "sequenciaPlano": "26254",
+      "valorCentavos": 25000
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11653,
+      "sequenciaPlano": "26256",
+      "valorCentavos": 9112
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11017,
+      "sequenciaPlano": "26260",
+      "valorCentavos": 34967
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11345,
+      "sequenciaPlano": "26262",
+      "valorCentavos": 148896
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11453,
+      "sequenciaPlano": "26264",
+      "valorCentavos": 25223
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11549,
+      "sequenciaPlano": "26266",
+      "valorCentavos": 83758
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11128,
+      "sequenciaPlano": "26268",
+      "valorCentavos": 16676
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11171,
+      "sequenciaPlano": "26270",
+      "valorCentavos": 16676
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11135,
+      "sequenciaPlano": "26272",
+      "valorCentavos": 168726
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11597,
+      "sequenciaPlano": "26274",
+      "valorCentavos": 10429
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11649,
+      "sequenciaPlano": "26276",
+      "valorCentavos": 10437
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11134,
+      "sequenciaPlano": "26278",
+      "valorCentavos": 103594
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11410,
+      "sequenciaPlano": "26284",
+      "valorCentavos": 76655
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11380,
+      "sequenciaPlano": "26286",
+      "valorCentavos": 167272
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11167,
+      "sequenciaPlano": "26288",
+      "valorCentavos": 5848
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 1459,
+      "sequenciaPlano": "26292",
+      "valorCentavos": 74909
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11657,
+      "sequenciaPlano": "26294",
+      "valorCentavos": 5132
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11456,
+      "sequenciaPlano": "26300",
+      "valorCentavos": 3953
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11590,
+      "sequenciaPlano": "26302",
+      "valorCentavos": 80196
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11417,
+      "sequenciaPlano": "26304",
+      "valorCentavos": 84172
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11656,
+      "sequenciaPlano": "26316",
+      "valorCentavos": 5723
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11595,
+      "sequenciaPlano": "26318",
+      "valorCentavos": 5887
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11591,
+      "sequenciaPlano": "26320",
+      "valorCentavos": 91340
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11596,
+      "sequenciaPlano": "26322",
+      "valorCentavos": 25003
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11206,
+      "sequenciaPlano": "26324",
+      "valorCentavos": 28177
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11376,
+      "sequenciaPlano": "26326",
+      "valorCentavos": 89247
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11147,
+      "sequenciaPlano": "26340",
+      "valorCentavos": 265715
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11547,
+      "sequenciaPlano": "26344",
+      "valorCentavos": 43954
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11023,
+      "sequenciaPlano": "26348",
+      "valorCentavos": 79255
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11449,
+      "sequenciaPlano": "26356",
+      "valorCentavos": 4004
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11655,
+      "sequenciaPlano": "26358",
+      "valorCentavos": 4004
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11140,
+      "sequenciaPlano": "26360",
+      "valorCentavos": 479965
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11409,
+      "sequenciaPlano": "26362",
+      "valorCentavos": 17151
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11535,
+      "sequenciaPlano": "26364",
+      "valorCentavos": 53098
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11357,
+      "sequenciaPlano": "26366",
+      "valorCentavos": 55020
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11446,
+      "sequenciaPlano": "26372",
+      "valorCentavos": 9102
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11692,
+      "sequenciaPlano": "26374",
+      "valorCentavos": 2979
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11340,
+      "sequenciaPlano": "26376",
+      "valorCentavos": 4521
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11130,
+      "sequenciaPlano": "26378",
+      "valorCentavos": 37446
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11411,
+      "sequenciaPlano": "26380",
+      "valorCentavos": 17840
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11437,
+      "sequenciaPlano": "26382",
+      "valorCentavos": 2384
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11666,
+      "sequenciaPlano": "26384",
+      "valorCentavos": 3936122
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11662,
+      "sequenciaPlano": "26386",
+      "valorCentavos": 2503
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11594,
+      "sequenciaPlano": "26388",
+      "valorCentavos": 2504
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11341,
+      "sequenciaPlano": "26390",
+      "valorCentavos": 100349
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11491,
+      "sequenciaPlano": "26392",
+      "valorCentavos": 73124
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11375,
+      "sequenciaPlano": "26394",
+      "valorCentavos": 35342
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11534,
+      "sequenciaPlano": "26396",
+      "valorCentavos": 48117
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11645,
+      "sequenciaPlano": "26400",
+      "valorCentavos": 107455
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11307,
+      "sequenciaPlano": "26402",
+      "valorCentavos": 3668042
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11526,
+      "sequenciaPlano": "26404",
+      "valorCentavos": 533726
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11469,
+      "sequenciaPlano": "26406",
+      "valorCentavos": 9405
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11661,
+      "sequenciaPlano": "26408",
+      "valorCentavos": 9405
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11660,
+      "sequenciaPlano": "26410",
+      "valorCentavos": 9390
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11468,
+      "sequenciaPlano": "26412",
+      "valorCentavos": 9405
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11132,
+      "sequenciaPlano": "26414",
+      "valorCentavos": 621177
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11309,
+      "sequenciaPlano": "26416",
+      "valorCentavos": 1207327
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11024,
+      "sequenciaPlano": "26418",
+      "valorCentavos": 88474
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11560,
+      "sequenciaPlano": "26424",
+      "valorCentavos": 6793
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11138,
+      "sequenciaPlano": "26426",
+      "valorCentavos": 420949
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11364,
+      "sequenciaPlano": "26428",
+      "valorCentavos": 19105
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11365,
+      "sequenciaPlano": "26430",
+      "valorCentavos": 2885
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11136,
+      "sequenciaPlano": "26434",
+      "valorCentavos": 50654
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11308,
+      "sequenciaPlano": "26436",
+      "valorCentavos": 2455446
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11133,
+      "sequenciaPlano": "26446",
+      "valorCentavos": 394381
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11139,
+      "sequenciaPlano": "26450",
+      "valorCentavos": 364821
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11404,
+      "sequenciaPlano": "26458",
+      "valorCentavos": 3749
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11588,
+      "sequenciaPlano": "26460",
+      "valorCentavos": 81583
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11454,
+      "sequenciaPlano": "26462",
+      "valorCentavos": 36209
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11466,
+      "sequenciaPlano": "26464",
+      "valorCentavos": 6551
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11006,
+      "sequenciaPlano": "26470",
+      "valorCentavos": 145036
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11122,
+      "sequenciaPlano": "26472",
+      "valorCentavos": 20295
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11413,
+      "sequenciaPlano": "26478",
+      "valorCentavos": 9143
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11548,
+      "sequenciaPlano": "26482",
+      "valorCentavos": 15080
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11703,
+      "sequenciaPlano": "26484",
+      "valorCentavos": 341356
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11124,
+      "sequenciaPlano": "26490",
+      "valorCentavos": 19763
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11295,
+      "sequenciaPlano": "26492",
+      "valorCentavos": 25261
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11638,
+      "sequenciaPlano": "26494",
+      "valorCentavos": 37920
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 1454,
+      "sequenciaPlano": "26502",
+      "valorCentavos": 348
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11641,
+      "sequenciaPlano": "26504",
+      "valorCentavos": 37422
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11374,
+      "sequenciaPlano": "26512",
+      "valorCentavos": 71347
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11637,
+      "sequenciaPlano": "26514",
+      "valorCentavos": 41867
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11642,
+      "sequenciaPlano": "26516",
+      "valorCentavos": 41867
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11528,
+      "sequenciaPlano": "26518",
+      "valorCentavos": 318495
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11086,
+      "sequenciaPlano": "26536",
+      "valorCentavos": 39085
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11303,
+      "sequenciaPlano": "26538",
+      "valorCentavos": 89891
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11664,
+      "sequenciaPlano": "26576",
+      "valorCentavos": 183085
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11646,
+      "sequenciaPlano": "26580",
+      "valorCentavos": 137064
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 1457,
+      "sequenciaPlano": "26584",
+      "valorCentavos": 104420
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11377,
+      "sequenciaPlano": "26586",
+      "valorCentavos": 30328
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11054,
+      "sequenciaPlano": "26602",
+      "valorCentavos": 11305
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11383,
+      "sequenciaPlano": "26604",
+      "valorCentavos": 17682
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11290,
+      "sequenciaPlano": "26606",
+      "valorCentavos": 220360
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11690,
+      "sequenciaPlano": "26608",
+      "valorCentavos": 121015
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11291,
+      "sequenciaPlano": "26615",
+      "valorCentavos": 85201
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11710,
+      "sequenciaPlano": "26617",
+      "valorCentavos": 462871
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11068,
+      "sequenciaPlano": "26627",
+      "valorCentavos": 21942
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11392,
+      "sequenciaPlano": "26629",
+      "valorCentavos": 25279
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11394,
+      "sequenciaPlano": "26631",
+      "valorCentavos": 7510
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11395,
+      "sequenciaPlano": "26632",
+      "valorCentavos": 5123
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11396,
+      "sequenciaPlano": "26633",
+      "valorCentavos": 7510
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11397,
+      "sequenciaPlano": "26634",
+      "valorCentavos": 4867
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11384,
+      "sequenciaPlano": "26642",
+      "valorCentavos": 25279
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11386,
+      "sequenciaPlano": "26644",
+      "valorCentavos": 7510
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11387,
+      "sequenciaPlano": "26645",
+      "valorCentavos": 5123
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11388,
+      "sequenciaPlano": "26646",
+      "valorCentavos": 7510
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11389,
+      "sequenciaPlano": "26647",
+      "valorCentavos": 4867
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11390,
+      "sequenciaPlano": "26648",
+      "valorCentavos": 20322
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11487,
+      "sequenciaPlano": "26658",
+      "valorCentavos": 56180
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11420,
+      "sequenciaPlano": "26663",
+      "valorCentavos": 195653
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11421,
+      "sequenciaPlano": "26664",
+      "valorCentavos": 105846
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11422,
+      "sequenciaPlano": "26665",
+      "valorCentavos": 117755
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11423,
+      "sequenciaPlano": "26666",
+      "valorCentavos": 605591
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11424,
+      "sequenciaPlano": "26670",
+      "valorCentavos": 243841
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11427,
+      "sequenciaPlano": "26671",
+      "valorCentavos": 104967
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11431,
+      "sequenciaPlano": "26672",
+      "valorCentavos": 234471
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11143,
+      "sequenciaPlano": "26682",
+      "valorCentavos": 245283
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11148,
+      "sequenciaPlano": "26685",
+      "valorCentavos": 373364
+    },
+    {
+      "ano": 2027,
+      "mes": 1,
+      "competencia": "2027-01",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11149,
+      "sequenciaPlano": "26686",
+      "valorCentavos": 242926
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11691,
+      "sequenciaPlano": "26104",
+      "valorCentavos": 260
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11181,
+      "sequenciaPlano": "26106",
+      "valorCentavos": 219
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11172,
+      "sequenciaPlano": "26108",
+      "valorCentavos": 190
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11129,
+      "sequenciaPlano": "26110",
+      "valorCentavos": 178
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11366,
+      "sequenciaPlano": "26114",
+      "valorCentavos": 2388
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11166,
+      "sequenciaPlano": "26118",
+      "valorCentavos": 242
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11416,
+      "sequenciaPlano": "26122",
+      "valorCentavos": 37105
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11563,
+      "sequenciaPlano": "26124",
+      "valorCentavos": 19400
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11441,
+      "sequenciaPlano": "26126",
+      "valorCentavos": 3638
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11459,
+      "sequenciaPlano": "26128",
+      "valorCentavos": 3638
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11533,
+      "sequenciaPlano": "26132",
+      "valorCentavos": 5516
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11257,
+      "sequenciaPlano": "26134",
+      "valorCentavos": 4926
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11018,
+      "sequenciaPlano": "26136",
+      "valorCentavos": 1423
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11173,
+      "sequenciaPlano": "26138",
+      "valorCentavos": 1594
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11696,
+      "sequenciaPlano": "26140",
+      "valorCentavos": 4493
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11561,
+      "sequenciaPlano": "26148",
+      "valorCentavos": 4718
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11294,
+      "sequenciaPlano": "26150",
+      "valorCentavos": 2734
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11460,
+      "sequenciaPlano": "26152",
+      "valorCentavos": 3440
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11442,
+      "sequenciaPlano": "26154",
+      "valorCentavos": 3440
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11605,
+      "sequenciaPlano": "26158",
+      "valorCentavos": 16765
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11471,
+      "sequenciaPlano": "26160",
+      "valorCentavos": 2744
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11562,
+      "sequenciaPlano": "26164",
+      "valorCentavos": 4764
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11461,
+      "sequenciaPlano": "26166",
+      "valorCentavos": 3524
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11465,
+      "sequenciaPlano": "26168",
+      "valorCentavos": 163800
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11080,
+      "sequenciaPlano": "26170",
+      "valorCentavos": 158
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11477,
+      "sequenciaPlano": "26174",
+      "valorCentavos": 132271
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11025,
+      "sequenciaPlano": "26176",
+      "valorCentavos": 8482
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11476,
+      "sequenciaPlano": "26180",
+      "valorCentavos": 127147
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11464,
+      "sequenciaPlano": "26184",
+      "valorCentavos": 48338
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11193,
+      "sequenciaPlano": "26192",
+      "valorCentavos": 45414
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11467,
+      "sequenciaPlano": "26196",
+      "valorCentavos": 2993
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11475,
+      "sequenciaPlano": "26198",
+      "valorCentavos": 97406
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11452,
+      "sequenciaPlano": "26200",
+      "valorCentavos": 3925
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11408,
+      "sequenciaPlano": "26202",
+      "valorCentavos": 67854
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11443,
+      "sequenciaPlano": "26204",
+      "valorCentavos": 4259
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11659,
+      "sequenciaPlano": "26206",
+      "valorCentavos": 3025
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11458,
+      "sequenciaPlano": "26208",
+      "valorCentavos": 3093
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11440,
+      "sequenciaPlano": "26210",
+      "valorCentavos": 3093
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11478,
+      "sequenciaPlano": "26212",
+      "valorCentavos": 59441
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11183,
+      "sequenciaPlano": "26214",
+      "valorCentavos": 52216
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11479,
+      "sequenciaPlano": "26216",
+      "valorCentavos": 64592
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11470,
+      "sequenciaPlano": "26218",
+      "valorCentavos": 2881
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11412,
+      "sequenciaPlano": "26220",
+      "valorCentavos": 78826
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11658,
+      "sequenciaPlano": "26224",
+      "valorCentavos": 4057
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11174,
+      "sequenciaPlano": "26228",
+      "valorCentavos": 5651
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11451,
+      "sequenciaPlano": "26230",
+      "valorCentavos": 4581
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11544,
+      "sequenciaPlano": "26232",
+      "valorCentavos": 4320
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11673,
+      "sequenciaPlano": "26234",
+      "valorCentavos": 12617
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11450,
+      "sequenciaPlano": "26236",
+      "valorCentavos": 5163
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11589,
+      "sequenciaPlano": "26238",
+      "valorCentavos": 46261
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11382,
+      "sequenciaPlano": "26240",
+      "valorCentavos": 69656
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11071,
+      "sequenciaPlano": "26246",
+      "valorCentavos": 9186
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11141,
+      "sequenciaPlano": "26248",
+      "valorCentavos": 21337
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11592,
+      "sequenciaPlano": "26250",
+      "valorCentavos": 123502
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11694,
+      "sequenciaPlano": "26252",
+      "valorCentavos": 36708
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11653,
+      "sequenciaPlano": "26256",
+      "valorCentavos": 2278
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11549,
+      "sequenciaPlano": "26266",
+      "valorCentavos": 48734
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11597,
+      "sequenciaPlano": "26274",
+      "valorCentavos": 2086
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11649,
+      "sequenciaPlano": "26276",
+      "valorCentavos": 2087
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11410,
+      "sequenciaPlano": "26284",
+      "valorCentavos": 15159
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11167,
+      "sequenciaPlano": "26288",
+      "valorCentavos": 2924
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 1459,
+      "sequenciaPlano": "26292",
+      "valorCentavos": 47858
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11657,
+      "sequenciaPlano": "26294",
+      "valorCentavos": 5773
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11456,
+      "sequenciaPlano": "26300",
+      "valorCentavos": 2635
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11590,
+      "sequenciaPlano": "26302",
+      "valorCentavos": 15360
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11417,
+      "sequenciaPlano": "26304",
+      "valorCentavos": 19130
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11656,
+      "sequenciaPlano": "26316",
+      "valorCentavos": 6438
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11595,
+      "sequenciaPlano": "26318",
+      "valorCentavos": 1472
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11591,
+      "sequenciaPlano": "26320",
+      "valorCentavos": 42341
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11206,
+      "sequenciaPlano": "26324",
+      "valorCentavos": 1921
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11376,
+      "sequenciaPlano": "26326",
+      "valorCentavos": 46899
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11547,
+      "sequenciaPlano": "26344",
+      "valorCentavos": 45781
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11449,
+      "sequenciaPlano": "26356",
+      "valorCentavos": 3003
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11655,
+      "sequenciaPlano": "26358",
+      "valorCentavos": 3003
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11140,
+      "sequenciaPlano": "26360",
+      "valorCentavos": 18157
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11409,
+      "sequenciaPlano": "26362",
+      "valorCentavos": 13720
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11535,
+      "sequenciaPlano": "26364",
+      "valorCentavos": 41924
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11357,
+      "sequenciaPlano": "26366",
+      "valorCentavos": 33627
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11446,
+      "sequenciaPlano": "26372",
+      "valorCentavos": 2275
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11692,
+      "sequenciaPlano": "26374",
+      "valorCentavos": 22117
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11340,
+      "sequenciaPlano": "26376",
+      "valorCentavos": 77502
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11411,
+      "sequenciaPlano": "26380",
+      "valorCentavos": 14272
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11437,
+      "sequenciaPlano": "26382",
+      "valorCentavos": 3576
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11666,
+      "sequenciaPlano": "26384",
+      "valorCentavos": 4144
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11662,
+      "sequenciaPlano": "26386",
+      "valorCentavos": 2503
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11594,
+      "sequenciaPlano": "26388",
+      "valorCentavos": 2504
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11341,
+      "sequenciaPlano": "26390",
+      "valorCentavos": 40139
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11491,
+      "sequenciaPlano": "26392",
+      "valorCentavos": 200129
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11375,
+      "sequenciaPlano": "26394",
+      "valorCentavos": 51028
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11534,
+      "sequenciaPlano": "26396",
+      "valorCentavos": 27633
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11526,
+      "sequenciaPlano": "26404",
+      "valorCentavos": 192694
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11469,
+      "sequenciaPlano": "26406",
+      "valorCentavos": 3135
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11661,
+      "sequenciaPlano": "26408",
+      "valorCentavos": 3135
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11660,
+      "sequenciaPlano": "26410",
+      "valorCentavos": 3130
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11468,
+      "sequenciaPlano": "26412",
+      "valorCentavos": 3135
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11309,
+      "sequenciaPlano": "26416",
+      "valorCentavos": 7622
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11560,
+      "sequenciaPlano": "26424",
+      "valorCentavos": 5094
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11364,
+      "sequenciaPlano": "26428",
+      "valorCentavos": 24785
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11365,
+      "sequenciaPlano": "26430",
+      "valorCentavos": 36211
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11404,
+      "sequenciaPlano": "26458",
+      "valorCentavos": 4431
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11588,
+      "sequenciaPlano": "26460",
+      "valorCentavos": 38921
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11454,
+      "sequenciaPlano": "26462",
+      "valorCentavos": 9022
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11466,
+      "sequenciaPlano": "26464",
+      "valorCentavos": 3275
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11448,
+      "sequenciaPlano": "26466",
+      "valorCentavos": 6834
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11413,
+      "sequenciaPlano": "26478",
+      "valorCentavos": 1524
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11548,
+      "sequenciaPlano": "26482",
+      "valorCentavos": 30591
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11703,
+      "sequenciaPlano": "26484",
+      "valorCentavos": 208782
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11648,
+      "sequenciaPlano": "26488",
+      "valorCentavos": 2786
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11439,
+      "sequenciaPlano": "26498",
+      "valorCentavos": 4702
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 1454,
+      "sequenciaPlano": "26502",
+      "valorCentavos": 38876
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11641,
+      "sequenciaPlano": "26504",
+      "valorCentavos": 60667
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11418,
+      "sequenciaPlano": "26506",
+      "valorCentavos": 4266
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11637,
+      "sequenciaPlano": "26514",
+      "valorCentavos": 67333
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11642,
+      "sequenciaPlano": "26516",
+      "valorCentavos": 67333
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11528,
+      "sequenciaPlano": "26518",
+      "valorCentavos": 105991
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 1458,
+      "sequenciaPlano": "26530",
+      "valorCentavos": 49431
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11664,
+      "sequenciaPlano": "26576",
+      "valorCentavos": 103328
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 1453,
+      "sequenciaPlano": "26598",
+      "valorCentavos": 34629
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11054,
+      "sequenciaPlano": "26602",
+      "valorCentavos": 3702
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11383,
+      "sequenciaPlano": "26604",
+      "valorCentavos": 5819
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11690,
+      "sequenciaPlano": "26608",
+      "valorCentavos": 10386
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11710,
+      "sequenciaPlano": "26617",
+      "valorCentavos": 1144
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11068,
+      "sequenciaPlano": "26627",
+      "valorCentavos": 3124
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11391,
+      "sequenciaPlano": "26628",
+      "valorCentavos": 25000
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11393,
+      "sequenciaPlano": "26630",
+      "valorCentavos": 5929
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11394,
+      "sequenciaPlano": "26631",
+      "valorCentavos": 5006
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11395,
+      "sequenciaPlano": "26632",
+      "valorCentavos": 2561
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11396,
+      "sequenciaPlano": "26633",
+      "valorCentavos": 5006
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11397,
+      "sequenciaPlano": "26634",
+      "valorCentavos": 2781
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11385,
+      "sequenciaPlano": "26643",
+      "valorCentavos": 5929
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11386,
+      "sequenciaPlano": "26644",
+      "valorCentavos": 5006
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11387,
+      "sequenciaPlano": "26645",
+      "valorCentavos": 2561
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11388,
+      "sequenciaPlano": "26646",
+      "valorCentavos": 5006
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11389,
+      "sequenciaPlano": "26647",
+      "valorCentavos": 2781
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11390,
+      "sequenciaPlano": "26648",
+      "valorCentavos": 4681
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11420,
+      "sequenciaPlano": "26663",
+      "valorCentavos": 151512
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11421,
+      "sequenciaPlano": "26664",
+      "valorCentavos": 105278
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11422,
+      "sequenciaPlano": "26665",
+      "valorCentavos": 104229
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11424,
+      "sequenciaPlano": "26670",
+      "valorCentavos": 18263
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11427,
+      "sequenciaPlano": "26671",
+      "valorCentavos": 29823
+    },
+    {
+      "ano": 2027,
+      "mes": 2,
+      "competencia": "2027-02",
+      "plano": 500,
+      "centroCusto": 506,
+      "despesa": 11431,
+      "sequenciaPlano": "26672",
+      "valorCentavos": 53489
+    }
+  ]
+}

@@ -1,0 +1,6433 @@
+{
+  "resumo": {
+    "calculadoEm": "2026-10-27T11:20:57.996Z",
+    "meses": [
+      "2026-10",
+      "2026-11",
+      "2026-12",
+      "2027-01",
+      "2027-02"
+    ],
+    "linhasEspelho": 646,
+    "despesaCompetenciaEspelho": 646,
+    "totalTotvsCentavos": 53308901,
+    "totalLotesCentavos": 53308901,
+    "totalNecessidadeCentavos": 31186072,
+    "faltaCentavos": 6235977,
+    "excessoCentavos": 28358806,
+    "divergenciasTotvsVsLotes": 0,
+    "divergenciasTotvsVsNecessidade": 631,
+    "porCompetencia": [
+      {
+        "competencia": "2026-10",
+        "totvsCentavos": 956529,
+        "necessidadeCentavos": 569180,
+        "faltaCentavos": 288481,
+        "excessoCentavos": 675830
+      },
+      {
+        "competencia": "2026-11",
+        "totvsCentavos": 4349708,
+        "necessidadeCentavos": 2669867,
+        "faltaCentavos": 766822,
+        "excessoCentavos": 2446663
+      },
+      {
+        "competencia": "2026-12",
+        "totvsCentavos": 10310614,
+        "necessidadeCentavos": 5779581,
+        "faltaCentavos": 1390141,
+        "excessoCentavos": 5921174
+      },
+      {
+        "competencia": "2027-01",
+        "totvsCentavos": 32558394,
+        "necessidadeCentavos": 18418771,
+        "faltaCentavos": 3160399,
+        "excessoCentavos": 17300022
+      },
+      {
+        "competencia": "2027-02",
+        "totvsCentavos": 5133656,
+        "necessidadeCentavos": 3748673,
+        "faltaCentavos": 630134,
+        "excessoCentavos": 2015117
+      }
+    ]
+  },
+  "divergenciasLotes": [],
+  "divergenciasNecessidade": [
+    {
+      "id": "11526|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2295018,
+      "diferencaCentavos": 2295018
+    },
+    {
+      "id": "11666|2027-01",
+      "esperadoCentavos": 1839042,
+      "totvsCentavos": 3936122,
+      "diferencaCentavos": 2097080
+    },
+    {
+      "id": "11526|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 1672677,
+      "diferencaCentavos": 1672677
+    },
+    {
+      "id": "11144|2026-12",
+      "esperadoCentavos": 67198,
+      "totvsCentavos": 1310710,
+      "diferencaCentavos": 1243512
+    },
+    {
+      "id": "11308|2027-01",
+      "esperadoCentavos": 1264281,
+      "totvsCentavos": 2455446,
+      "diferencaCentavos": 1191165
+    },
+    {
+      "id": "11307|2027-01",
+      "esperadoCentavos": 2654901,
+      "totvsCentavos": 3668042,
+      "diferencaCentavos": 1013141
+    },
+    {
+      "id": "11309|2027-01",
+      "esperadoCentavos": 2019210,
+      "totvsCentavos": 1207327,
+      "diferencaCentavos": -811883
+    },
+    {
+      "id": "11647|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 767324,
+      "diferencaCentavos": 767324
+    },
+    {
+      "id": "11144|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 687100,
+      "diferencaCentavos": 687100
+    },
+    {
+      "id": "11526|2026-10",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 568083,
+      "diferencaCentavos": 568083
+    },
+    {
+      "id": "11710|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 462871,
+      "diferencaCentavos": 462871
+    },
+    {
+      "id": "11116|2027-01",
+      "esperadoCentavos": 392101,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -392101
+    },
+    {
+      "id": "11366|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 371648,
+      "diferencaCentavos": 371648
+    },
+    {
+      "id": "11147|2026-12",
+      "esperadoCentavos": 96940,
+      "totvsCentavos": 452710,
+      "diferencaCentavos": 355770
+    },
+    {
+      "id": "11703|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 341356,
+      "diferencaCentavos": 341356
+    },
+    {
+      "id": "11544|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 331222,
+      "diferencaCentavos": 331222
+    },
+    {
+      "id": "MP_1015838|2026-12",
+      "esperadoCentavos": 329748,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -329748
+    },
+    {
+      "id": "11103|2027-01",
+      "esperadoCentavos": 224542,
+      "totvsCentavos": 535416,
+      "diferencaCentavos": 310874
+    },
+    {
+      "id": "11475|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 304334,
+      "diferencaCentavos": 304334
+    },
+    {
+      "id": "11054|2027-01",
+      "esperadoCentavos": 312917,
+      "totvsCentavos": 11305,
+      "diferencaCentavos": -301612
+    },
+    {
+      "id": "11527|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 297259,
+      "diferencaCentavos": 297259
+    },
+    {
+      "id": "11526|2027-01",
+      "esperadoCentavos": 244064,
+      "totvsCentavos": 533726,
+      "diferencaCentavos": 289662
+    },
+    {
+      "id": "11666|2026-11",
+      "esperadoCentavos": 1264687,
+      "totvsCentavos": 1554219,
+      "diferencaCentavos": 289532
+    },
+    {
+      "id": "11423|2027-01",
+      "esperadoCentavos": 339376,
+      "totvsCentavos": 605591,
+      "diferencaCentavos": 266215
+    },
+    {
+      "id": "11147|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 265715,
+      "diferencaCentavos": 265715
+    },
+    {
+      "id": "11143|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 245283,
+      "diferencaCentavos": 245283
+    },
+    {
+      "id": "11139|2027-01",
+      "esperadoCentavos": 124742,
+      "totvsCentavos": 364821,
+      "diferencaCentavos": 240079
+    },
+    {
+      "id": "11054|2026-12",
+      "esperadoCentavos": 238873,
+      "totvsCentavos": 10118,
+      "diferencaCentavos": -228755
+    },
+    {
+      "id": "MP_1000984|2027-01",
+      "esperadoCentavos": 227223,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -227223
+    },
+    {
+      "id": "11473|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 225052,
+      "diferencaCentavos": 225052
+    },
+    {
+      "id": "11290|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 220360,
+      "diferencaCentavos": 220360
+    },
+    {
+      "id": "11140|2027-01",
+      "esperadoCentavos": 263043,
+      "totvsCentavos": 479965,
+      "diferencaCentavos": 216922
+    },
+    {
+      "id": "11307|2026-11",
+      "esperadoCentavos": 202208,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -202208
+    },
+    {
+      "id": "11491|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 200129,
+      "diferencaCentavos": 200129
+    },
+    {
+      "id": "11378|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 192107,
+      "diferencaCentavos": 192107
+    },
+    {
+      "id": "11703|2027-02",
+      "esperadoCentavos": 25888,
+      "totvsCentavos": 208782,
+      "diferencaCentavos": 182894
+    },
+    {
+      "id": "11477|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 179286,
+      "diferencaCentavos": 179286
+    },
+    {
+      "id": "11696|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 175535,
+      "diferencaCentavos": 175535
+    },
+    {
+      "id": "11403|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 174227,
+      "diferencaCentavos": 174227
+    },
+    {
+      "id": "11135|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 168726,
+      "diferencaCentavos": 168726
+    },
+    {
+      "id": "11380|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 167272,
+      "diferencaCentavos": 167272
+    },
+    {
+      "id": "11381|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 159861,
+      "diferencaCentavos": 159861
+    },
+    {
+      "id": "11476|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 159811,
+      "diferencaCentavos": 159811
+    },
+    {
+      "id": "11032|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 159356,
+      "diferencaCentavos": 159356
+    },
+    {
+      "id": "11416|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 158708,
+      "diferencaCentavos": 158708
+    },
+    {
+      "id": "11666|2026-12",
+      "esperadoCentavos": 600698,
+      "totvsCentavos": 752842,
+      "diferencaCentavos": 152144
+    },
+    {
+      "id": "11145|2026-12",
+      "esperadoCentavos": 181055,
+      "totvsCentavos": 31401,
+      "diferencaCentavos": -149654
+    },
+    {
+      "id": "11345|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 148896,
+      "diferencaCentavos": 148896
+    },
+    {
+      "id": "11143|2026-12",
+      "esperadoCentavos": 113441,
+      "totvsCentavos": 257422,
+      "diferencaCentavos": 143981
+    },
+    {
+      "id": "11528|2027-01",
+      "esperadoCentavos": 175392,
+      "totvsCentavos": 318495,
+      "diferencaCentavos": 143103
+    },
+    {
+      "id": "11420|2027-01",
+      "esperadoCentavos": 53099,
+      "totvsCentavos": 195653,
+      "diferencaCentavos": 142554
+    },
+    {
+      "id": "11303|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 142322,
+      "diferencaCentavos": 142322
+    },
+    {
+      "id": "11646|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 137064,
+      "diferencaCentavos": 137064
+    },
+    {
+      "id": "11683|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 135630,
+      "diferencaCentavos": 135630
+    },
+    {
+      "id": "11025|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 133543,
+      "diferencaCentavos": 133543
+    },
+    {
+      "id": "11689|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 127951,
+      "diferencaCentavos": 127951
+    },
+    {
+      "id": "11408|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 123167,
+      "diferencaCentavos": 123167
+    },
+    {
+      "id": "11340|2027-01",
+      "esperadoCentavos": 127257,
+      "totvsCentavos": 4521,
+      "diferencaCentavos": -122736
+    },
+    {
+      "id": "MP_5000157|2027-01",
+      "esperadoCentavos": 120704,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -120704
+    },
+    {
+      "id": "1467|2026-11",
+      "esperadoCentavos": 118885,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -118885
+    },
+    {
+      "id": "11473|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 118241,
+      "diferencaCentavos": 118241
+    },
+    {
+      "id": "11039|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 115841,
+      "diferencaCentavos": 115841
+    },
+    {
+      "id": "11329|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 114884,
+      "diferencaCentavos": 114884
+    },
+    {
+      "id": "11183|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 113776,
+      "diferencaCentavos": 113776
+    },
+    {
+      "id": "11121|2027-01",
+      "esperadoCentavos": 113587,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -113587
+    },
+    {
+      "id": "11138|2027-01",
+      "esperadoCentavos": 310230,
+      "totvsCentavos": 420949,
+      "diferencaCentavos": 110719
+    },
+    {
+      "id": "11372|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 109552,
+      "diferencaCentavos": 109552
+    },
+    {
+      "id": "11006|2027-01",
+      "esperadoCentavos": 254466,
+      "totvsCentavos": 145036,
+      "diferencaCentavos": -109430
+    },
+    {
+      "id": "11328|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 108858,
+      "diferencaCentavos": 108858
+    },
+    {
+      "id": "11044|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 104516,
+      "diferencaCentavos": 104516
+    },
+    {
+      "id": "11149|2027-01",
+      "esperadoCentavos": 140656,
+      "totvsCentavos": 242926,
+      "diferencaCentavos": 102270
+    },
+    {
+      "id": "11704|2027-01",
+      "esperadoCentavos": 99200,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -99200
+    },
+    {
+      "id": "11054|2027-02",
+      "esperadoCentavos": 102480,
+      "totvsCentavos": 3702,
+      "diferencaCentavos": -98778
+    },
+    {
+      "id": "11687|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 98563,
+      "diferencaCentavos": 98563
+    },
+    {
+      "id": "11666|2026-10",
+      "esperadoCentavos": 126338,
+      "totvsCentavos": 28241,
+      "diferencaCentavos": -98097
+    },
+    {
+      "id": "11341|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 97338,
+      "diferencaCentavos": 97338
+    },
+    {
+      "id": "11591|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 91340,
+      "diferencaCentavos": 91340
+    },
+    {
+      "id": "MP_5000157|2026-12",
+      "esperadoCentavos": 90912,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -90912
+    },
+    {
+      "id": "11403|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 90117,
+      "diferencaCentavos": 90117
+    },
+    {
+      "id": "11303|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 89891,
+      "diferencaCentavos": 89891
+    },
+    {
+      "id": "11376|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 89247,
+      "diferencaCentavos": 89247
+    },
+    {
+      "id": "11024|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 88474,
+      "diferencaCentavos": 88474
+    },
+    {
+      "id": "MP_1015838|2027-01",
+      "esperadoCentavos": 87686,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -87686
+    },
+    {
+      "id": "11424|2027-01",
+      "esperadoCentavos": 156866,
+      "totvsCentavos": 243841,
+      "diferencaCentavos": 86975
+    },
+    {
+      "id": "11291|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 85201,
+      "diferencaCentavos": 85201
+    },
+    {
+      "id": "11549|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 83758,
+      "diferencaCentavos": 83758
+    },
+    {
+      "id": "11463|2027-01",
+      "esperadoCentavos": 157068,
+      "totvsCentavos": 240749,
+      "diferencaCentavos": 83681
+    },
+    {
+      "id": "11132|2027-01",
+      "esperadoCentavos": 537597,
+      "totvsCentavos": 621177,
+      "diferencaCentavos": 83580
+    },
+    {
+      "id": "11145|2027-01",
+      "esperadoCentavos": 369503,
+      "totvsCentavos": 452813,
+      "diferencaCentavos": 83310
+    },
+    {
+      "id": "11588|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 81583,
+      "diferencaCentavos": 81583
+    },
+    {
+      "id": "11590|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 80196,
+      "diferencaCentavos": 80196
+    },
+    {
+      "id": "11023|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 79255,
+      "diferencaCentavos": 79255
+    },
+    {
+      "id": "11412|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 78826,
+      "diferencaCentavos": 78826
+    },
+    {
+      "id": "11410|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 76655,
+      "diferencaCentavos": 76655
+    },
+    {
+      "id": "11528|2026-12",
+      "esperadoCentavos": 423528,
+      "totvsCentavos": 347214,
+      "diferencaCentavos": -76314
+    },
+    {
+      "id": "11148|2027-01",
+      "esperadoCentavos": 297754,
+      "totvsCentavos": 373364,
+      "diferencaCentavos": 75610
+    },
+    {
+      "id": "11491|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 73124,
+      "diferencaCentavos": 73124
+    },
+    {
+      "id": "11374|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 71347,
+      "diferencaCentavos": 71347
+    },
+    {
+      "id": "11426|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 70320,
+      "diferencaCentavos": 70320
+    },
+    {
+      "id": "11308|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 70313,
+      "diferencaCentavos": 70313
+    },
+    {
+      "id": "11196|2026-12",
+      "esperadoCentavos": 69923,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -69923
+    },
+    {
+      "id": "11341|2027-01",
+      "esperadoCentavos": 34321,
+      "totvsCentavos": 100349,
+      "diferencaCentavos": 66028
+    },
+    {
+      "id": "11422|2027-01",
+      "esperadoCentavos": 53099,
+      "totvsCentavos": 117755,
+      "diferencaCentavos": 64656
+    },
+    {
+      "id": "11479|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 64592,
+      "diferencaCentavos": 64592
+    },
+    {
+      "id": "MP_1015838|2027-02",
+      "esperadoCentavos": 64239,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -64239
+    },
+    {
+      "id": "1462|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 63874,
+      "diferencaCentavos": 63874
+    },
+    {
+      "id": "11133|2027-01",
+      "esperadoCentavos": 331516,
+      "totvsCentavos": 394381,
+      "diferencaCentavos": 62865
+    },
+    {
+      "id": "11134|2027-01",
+      "esperadoCentavos": 41002,
+      "totvsCentavos": 103594,
+      "diferencaCentavos": 62592
+    },
+    {
+      "id": "11420|2027-02",
+      "esperadoCentavos": 213741,
+      "totvsCentavos": 151512,
+      "diferencaCentavos": -62229
+    },
+    {
+      "id": "11146|2026-11",
+      "esperadoCentavos": 62046,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -62046
+    },
+    {
+      "id": "11430|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 61987,
+      "diferencaCentavos": 61987
+    },
+    {
+      "id": "11473|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 61059,
+      "diferencaCentavos": 61059
+    },
+    {
+      "id": "11478|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 59441,
+      "diferencaCentavos": 59441
+    },
+    {
+      "id": "11031|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 59232,
+      "diferencaCentavos": 59232
+    },
+    {
+      "id": "11399|2027-01",
+      "esperadoCentavos": 136736,
+      "totvsCentavos": 79634,
+      "diferencaCentavos": -57102
+    },
+    {
+      "id": "11411|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 57089,
+      "diferencaCentavos": 57089
+    },
+    {
+      "id": "11487|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 56180,
+      "diferencaCentavos": 56180
+    },
+    {
+      "id": "11357|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 55020,
+      "diferencaCentavos": 55020
+    },
+    {
+      "id": "11409|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 54882,
+      "diferencaCentavos": 54882
+    },
+    {
+      "id": "11372|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 54776,
+      "diferencaCentavos": 54776
+    },
+    {
+      "id": "11332|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 54634,
+      "diferencaCentavos": 54634
+    },
+    {
+      "id": "11141|2027-01",
+      "esperadoCentavos": 187898,
+      "totvsCentavos": 242343,
+      "diferencaCentavos": 54445
+    },
+    {
+      "id": "11071|2027-01",
+      "esperadoCentavos": 108752,
+      "totvsCentavos": 54388,
+      "diferencaCentavos": -54364
+    },
+    {
+      "id": "11202|2027-01",
+      "esperadoCentavos": 160628,
+      "totvsCentavos": 107426,
+      "diferencaCentavos": -53202
+    },
+    {
+      "id": "11535|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 53098,
+      "diferencaCentavos": 53098
+    },
+    {
+      "id": "11421|2027-01",
+      "esperadoCentavos": 53099,
+      "totvsCentavos": 105846,
+      "diferencaCentavos": 52747
+    },
+    {
+      "id": "11183|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 52216,
+      "diferencaCentavos": 52216
+    },
+    {
+      "id": "11307|2026-12",
+      "esperadoCentavos": 597829,
+      "totvsCentavos": 545694,
+      "diferencaCentavos": -52135
+    },
+    {
+      "id": "11372|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 52104,
+      "diferencaCentavos": 52104
+    },
+    {
+      "id": "11375|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 51028,
+      "diferencaCentavos": 51028
+    },
+    {
+      "id": "11399|2026-12",
+      "esperadoCentavos": 50774,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -50774
+    },
+    {
+      "id": "11136|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 50654,
+      "diferencaCentavos": 50654
+    },
+    {
+      "id": "1457|2027-01",
+      "esperadoCentavos": 54312,
+      "totvsCentavos": 104420,
+      "diferencaCentavos": 50108
+    },
+    {
+      "id": "1458|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 49431,
+      "diferencaCentavos": 49431
+    },
+    {
+      "id": "11549|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 48734,
+      "diferencaCentavos": 48734
+    },
+    {
+      "id": "11534|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 48117,
+      "diferencaCentavos": 48117
+    },
+    {
+      "id": "11475|2027-02",
+      "esperadoCentavos": 50007,
+      "totvsCentavos": 97406,
+      "diferencaCentavos": 47399
+    },
+    {
+      "id": "11478|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 47389,
+      "diferencaCentavos": 47389
+    },
+    {
+      "id": "1474|2027-01",
+      "esperadoCentavos": 145646,
+      "totvsCentavos": 192793,
+      "diferencaCentavos": 47147
+    },
+    {
+      "id": "11376|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 46899,
+      "diferencaCentavos": 46899
+    },
+    {
+      "id": "11590|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 46448,
+      "diferencaCentavos": 46448
+    },
+    {
+      "id": "MP_5000157|2026-11",
+      "esperadoCentavos": 46433,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -46433
+    },
+    {
+      "id": "11420|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 46275,
+      "diferencaCentavos": 46275
+    },
+    {
+      "id": "11589|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 46261,
+      "diferencaCentavos": 46261
+    },
+    {
+      "id": "MP_1002831|2027-01",
+      "esperadoCentavos": 46120,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -46120
+    },
+    {
+      "id": "11682|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 45872,
+      "diferencaCentavos": 45872
+    },
+    {
+      "id": "11547|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 45781,
+      "diferencaCentavos": 45781
+    },
+    {
+      "id": "11605|2027-01",
+      "esperadoCentavos": 46758,
+      "totvsCentavos": 92533,
+      "diferencaCentavos": 45775
+    },
+    {
+      "id": "11410|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 45763,
+      "diferencaCentavos": 45763
+    },
+    {
+      "id": "11201|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 45460,
+      "diferencaCentavos": 45460
+    },
+    {
+      "id": "11431|2027-01",
+      "esperadoCentavos": 189141,
+      "totvsCentavos": 234471,
+      "diferencaCentavos": 45330
+    },
+    {
+      "id": "11592|2027-01",
+      "esperadoCentavos": 51128,
+      "totvsCentavos": 5823,
+      "diferencaCentavos": -45305
+    },
+    {
+      "id": "11146|2027-01",
+      "esperadoCentavos": 172999,
+      "totvsCentavos": 217681,
+      "diferencaCentavos": 44682
+    },
+    {
+      "id": "11547|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 43954,
+      "diferencaCentavos": 43954
+    },
+    {
+      "id": "11034|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 43582,
+      "diferencaCentavos": 43582
+    },
+    {
+      "id": "11591|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 42341,
+      "diferencaCentavos": 42341
+    },
+    {
+      "id": "11535|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 41924,
+      "diferencaCentavos": 41924
+    },
+    {
+      "id": "11645|2027-01",
+      "esperadoCentavos": 66720,
+      "totvsCentavos": 107455,
+      "diferencaCentavos": 40735
+    },
+    {
+      "id": "MP_1015856|2026-12",
+      "esperadoCentavos": 40251,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -40251
+    },
+    {
+      "id": "11353|2027-01",
+      "esperadoCentavos": 40105,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -40105
+    },
+    {
+      "id": "MP_1000984|2027-02",
+      "esperadoCentavos": 39981,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -39981
+    },
+    {
+      "id": "11588|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 38921,
+      "diferencaCentavos": 38921
+    },
+    {
+      "id": "11479|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 38455,
+      "diferencaCentavos": 38455
+    },
+    {
+      "id": "11463|2026-12",
+      "esperadoCentavos": 28776,
+      "totvsCentavos": 66883,
+      "diferencaCentavos": 38107
+    },
+    {
+      "id": "11682|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 38008,
+      "diferencaCentavos": 38008
+    },
+    {
+      "id": "11423|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 37662,
+      "diferencaCentavos": 37662
+    },
+    {
+      "id": "11071|2026-12",
+      "esperadoCentavos": 71551,
+      "totvsCentavos": 109140,
+      "diferencaCentavos": 37589
+    },
+    {
+      "id": "11424|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 37324,
+      "diferencaCentavos": 37324
+    },
+    {
+      "id": "11416|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 37105,
+      "diferencaCentavos": 37105
+    },
+    {
+      "id": "11120|2026-11",
+      "esperadoCentavos": 36783,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -36783
+    },
+    {
+      "id": "1475|2026-11",
+      "esperadoCentavos": 121078,
+      "totvsCentavos": 157693,
+      "diferencaCentavos": 36615
+    },
+    {
+      "id": "11365|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 36211,
+      "diferencaCentavos": 36211
+    },
+    {
+      "id": "11454|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 36209,
+      "diferencaCentavos": 36209
+    },
+    {
+      "id": "11201|2026-12",
+      "esperadoCentavos": 36029,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -36029
+    },
+    {
+      "id": "11141|2026-12",
+      "esperadoCentavos": 52624,
+      "totvsCentavos": 16806,
+      "diferencaCentavos": -35818
+    },
+    {
+      "id": "11375|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 35342,
+      "diferencaCentavos": 35342
+    },
+    {
+      "id": "11476|2027-02",
+      "esperadoCentavos": 92958,
+      "totvsCentavos": 127147,
+      "diferencaCentavos": 34189
+    },
+    {
+      "id": "11422|2027-02",
+      "esperadoCentavos": 138341,
+      "totvsCentavos": 104229,
+      "diferencaCentavos": -34112
+    },
+    {
+      "id": "11690|2027-01",
+      "esperadoCentavos": 87020,
+      "totvsCentavos": 121015,
+      "diferencaCentavos": 33995
+    },
+    {
+      "id": "11357|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 33627,
+      "diferencaCentavos": 33627
+    },
+    {
+      "id": "MP_1015723|2026-12",
+      "esperadoCentavos": 33465,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -33465
+    },
+    {
+      "id": "11421|2027-02",
+      "esperadoCentavos": 138341,
+      "totvsCentavos": 105278,
+      "diferencaCentavos": -33063
+    },
+    {
+      "id": "MP_1015838|2026-11",
+      "esperadoCentavos": 32651,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -32651
+    },
+    {
+      "id": "11086|2027-01",
+      "esperadoCentavos": 71284,
+      "totvsCentavos": 39085,
+      "diferencaCentavos": -32199
+    },
+    {
+      "id": "11017|2027-01",
+      "esperadoCentavos": 66085,
+      "totvsCentavos": 34967,
+      "diferencaCentavos": -31118
+    },
+    {
+      "id": "11421|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 31116,
+      "diferencaCentavos": 31116
+    },
+    {
+      "id": "11412|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 31103,
+      "diferencaCentavos": 31103
+    },
+    {
+      "id": "11473|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 30747,
+      "diferencaCentavos": 30747
+    },
+    {
+      "id": "MP_1015237|2026-11",
+      "esperadoCentavos": 30683,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -30683
+    },
+    {
+      "id": "11548|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 30591,
+      "diferencaCentavos": 30591
+    },
+    {
+      "id": "11141|2027-02",
+      "esperadoCentavos": 51756,
+      "totvsCentavos": 21337,
+      "diferencaCentavos": -30419
+    },
+    {
+      "id": "11422|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 30416,
+      "diferencaCentavos": 30416
+    },
+    {
+      "id": "11377|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 30328,
+      "diferencaCentavos": 30328
+    },
+    {
+      "id": "11410|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 30317,
+      "diferencaCentavos": 30317
+    },
+    {
+      "id": "1475|2027-01",
+      "esperadoCentavos": 177111,
+      "totvsCentavos": 146801,
+      "diferencaCentavos": -30310
+    },
+    {
+      "id": "11425|2027-02",
+      "esperadoCentavos": 13413,
+      "totvsCentavos": 43493,
+      "diferencaCentavos": 30080
+    },
+    {
+      "id": "11202|2026-11",
+      "esperadoCentavos": 28865,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -28865
+    },
+    {
+      "id": "11671|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 28468,
+      "diferencaCentavos": 28468
+    },
+    {
+      "id": "MP_1015723|2027-01",
+      "esperadoCentavos": 28373,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -28373
+    },
+    {
+      "id": "11070|2027-01",
+      "esperadoCentavos": 28326,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -28326
+    },
+    {
+      "id": "11408|2027-02",
+      "esperadoCentavos": 39613,
+      "totvsCentavos": 67854,
+      "diferencaCentavos": 28241
+    },
+    {
+      "id": "11085|2027-01",
+      "esperadoCentavos": 27817,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -27817
+    },
+    {
+      "id": "11121|2026-11",
+      "esperadoCentavos": 27704,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -27704
+    },
+    {
+      "id": "11004|2027-01",
+      "esperadoCentavos": 27680,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -27680
+    },
+    {
+      "id": "11645|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 27665,
+      "diferencaCentavos": 27665
+    },
+    {
+      "id": "11534|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 27633,
+      "diferencaCentavos": 27633
+    },
+    {
+      "id": "11428|2027-01",
+      "esperadoCentavos": 20160,
+      "totvsCentavos": 46987,
+      "diferencaCentavos": 26827
+    },
+    {
+      "id": "11173|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 26743,
+      "diferencaCentavos": 26743
+    },
+    {
+      "id": "1477|2026-11",
+      "esperadoCentavos": 49622,
+      "totvsCentavos": 76318,
+      "diferencaCentavos": 26696
+    },
+    {
+      "id": "11471|2026-12",
+      "esperadoCentavos": 42057,
+      "totvsCentavos": 15754,
+      "diferencaCentavos": -26303
+    },
+    {
+      "id": "11069|2026-10",
+      "esperadoCentavos": 26188,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -26188
+    },
+    {
+      "id": "MP_1014857|2026-10",
+      "esperadoCentavos": 26186,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -26186
+    },
+    {
+      "id": "11589|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 25903,
+      "diferencaCentavos": 25903
+    },
+    {
+      "id": "11203|2026-10",
+      "esperadoCentavos": 25538,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -25538
+    },
+    {
+      "id": "11073|2026-11",
+      "esperadoCentavos": 25475,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -25475
+    },
+    {
+      "id": "11384|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 25279,
+      "diferencaCentavos": 25279
+    },
+    {
+      "id": "11392|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 25279,
+      "diferencaCentavos": 25279
+    },
+    {
+      "id": "11295|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 25261,
+      "diferencaCentavos": 25261
+    },
+    {
+      "id": "11453|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 25223,
+      "diferencaCentavos": 25223
+    },
+    {
+      "id": "MP_5000117|2026-11",
+      "esperadoCentavos": 25165,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -25165
+    },
+    {
+      "id": "11405|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 25004,
+      "diferencaCentavos": 25004
+    },
+    {
+      "id": "11596|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 25003,
+      "diferencaCentavos": 25003
+    },
+    {
+      "id": "11485|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 25002,
+      "diferencaCentavos": 25002
+    },
+    {
+      "id": "11652|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 25000,
+      "diferencaCentavos": 25000
+    },
+    {
+      "id": "11364|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 24785,
+      "diferencaCentavos": 24785
+    },
+    {
+      "id": "11074|2027-01",
+      "esperadoCentavos": 29225,
+      "totvsCentavos": 5389,
+      "diferencaCentavos": -23836
+    },
+    {
+      "id": "1467|2026-10",
+      "esperadoCentavos": 8336,
+      "totvsCentavos": 31953,
+      "diferencaCentavos": 23617
+    },
+    {
+      "id": "11123|2026-11",
+      "esperadoCentavos": 23360,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -23360
+    },
+    {
+      "id": "11130|2027-01",
+      "esperadoCentavos": 60560,
+      "totvsCentavos": 37446,
+      "diferencaCentavos": -23114
+    },
+    {
+      "id": "1477|2026-12",
+      "esperadoCentavos": 86385,
+      "totvsCentavos": 109309,
+      "diferencaCentavos": 22924
+    },
+    {
+      "id": "11146|2026-12",
+      "esperadoCentavos": 40595,
+      "totvsCentavos": 17687,
+      "diferencaCentavos": -22908
+    },
+    {
+      "id": "11454|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 22794,
+      "diferencaCentavos": 22794
+    },
+    {
+      "id": "11294|2027-02",
+      "esperadoCentavos": 25237,
+      "totvsCentavos": 2734,
+      "diferencaCentavos": -22503
+    },
+    {
+      "id": "11132|2026-11",
+      "esperadoCentavos": 22388,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -22388
+    },
+    {
+      "id": "11294|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 22267,
+      "diferencaCentavos": 22267
+    },
+    {
+      "id": "11423|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 21243,
+      "diferencaCentavos": 21243
+    },
+    {
+      "id": "11071|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 20796,
+      "diferencaCentavos": 20796
+    },
+    {
+      "id": "MP_5000157|2026-10",
+      "esperadoCentavos": 20605,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -20605
+    },
+    {
+      "id": "MP_1016407|2026-10",
+      "esperadoCentavos": 20571,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -20571
+    },
+    {
+      "id": "11450|2027-02",
+      "esperadoCentavos": 25487,
+      "totvsCentavos": 5163,
+      "diferencaCentavos": -20324
+    },
+    {
+      "id": "11427|2027-01",
+      "esperadoCentavos": 84647,
+      "totvsCentavos": 104967,
+      "diferencaCentavos": 20320
+    },
+    {
+      "id": "1474|2026-12",
+      "esperadoCentavos": 327777,
+      "totvsCentavos": 348048,
+      "diferencaCentavos": 20271
+    },
+    {
+      "id": "MP_1015856|2026-11",
+      "esperadoCentavos": 20126,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -20126
+    },
+    {
+      "id": "MP_1015856|2027-01",
+      "esperadoCentavos": 20125,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -20125
+    },
+    {
+      "id": "11124|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 19763,
+      "diferencaCentavos": 19763
+    },
+    {
+      "id": "11121|2026-10",
+      "esperadoCentavos": 19624,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -19624
+    },
+    {
+      "id": "11167|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 19492,
+      "diferencaCentavos": 19492
+    },
+    {
+      "id": "1465|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 19388,
+      "diferencaCentavos": 19388
+    },
+    {
+      "id": "11690|2026-12",
+      "esperadoCentavos": 19377,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -19377
+    },
+    {
+      "id": "11132|2026-12",
+      "esperadoCentavos": 48520,
+      "totvsCentavos": 29380,
+      "diferencaCentavos": -19140
+    },
+    {
+      "id": "11364|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 19105,
+      "diferencaCentavos": 19105
+    },
+    {
+      "id": "11140|2026-12",
+      "esperadoCentavos": 80961,
+      "totvsCentavos": 62032,
+      "diferencaCentavos": -18929
+    },
+    {
+      "id": "11074|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 18366,
+      "diferencaCentavos": 18366
+    },
+    {
+      "id": "11120|2026-10",
+      "esperadoCentavos": 13305,
+      "totvsCentavos": 31664,
+      "diferencaCentavos": 18359
+    },
+    {
+      "id": "11411|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 17840,
+      "diferencaCentavos": 17840
+    },
+    {
+      "id": "11202|2026-12",
+      "esperadoCentavos": 19543,
+      "totvsCentavos": 1770,
+      "diferencaCentavos": -17773
+    },
+    {
+      "id": "11637|2027-01",
+      "esperadoCentavos": 24267,
+      "totvsCentavos": 41867,
+      "diferencaCentavos": 17600
+    },
+    {
+      "id": "11642|2027-01",
+      "esperadoCentavos": 24267,
+      "totvsCentavos": 41867,
+      "diferencaCentavos": 17600
+    },
+    {
+      "id": "11409|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 17151,
+      "diferencaCentavos": 17151
+    },
+    {
+      "id": "11260|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 16941,
+      "diferencaCentavos": 16941
+    },
+    {
+      "id": "1464|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 16925,
+      "diferencaCentavos": 16925
+    },
+    {
+      "id": "MP_1015035|2026-10",
+      "esperadoCentavos": 16667,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -16667
+    },
+    {
+      "id": "11427|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 16410,
+      "diferencaCentavos": 16410
+    },
+    {
+      "id": "MP_5000157|2027-02",
+      "esperadoCentavos": 15959,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -15959
+    },
+    {
+      "id": "1459|2026-12",
+      "esperadoCentavos": 42554,
+      "totvsCentavos": 26634,
+      "diferencaCentavos": -15920
+    },
+    {
+      "id": "11340|2027-02",
+      "esperadoCentavos": 62077,
+      "totvsCentavos": 77502,
+      "diferencaCentavos": 15425
+    },
+    {
+      "id": "11590|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 15360,
+      "diferencaCentavos": 15360
+    },
+    {
+      "id": "MP_1016422|2026-10",
+      "esperadoCentavos": 15183,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -15183
+    },
+    {
+      "id": "11466|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 15175,
+      "diferencaCentavos": 15175
+    },
+    {
+      "id": "11410|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 15159,
+      "diferencaCentavos": 15159
+    },
+    {
+      "id": "11673|2027-01",
+      "esperadoCentavos": 27544,
+      "totvsCentavos": 12392,
+      "diferencaCentavos": -15152
+    },
+    {
+      "id": "11548|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 15080,
+      "diferencaCentavos": 15080
+    },
+    {
+      "id": "11594|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 15025,
+      "diferencaCentavos": 15025
+    },
+    {
+      "id": "11662|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 15020,
+      "diferencaCentavos": 15020
+    },
+    {
+      "id": "11203|2027-01",
+      "esperadoCentavos": 57509,
+      "totvsCentavos": 72330,
+      "diferencaCentavos": 14821
+    },
+    {
+      "id": "11471|2027-01",
+      "esperadoCentavos": 19151,
+      "totvsCentavos": 4425,
+      "diferencaCentavos": -14726
+    },
+    {
+      "id": "11605|2027-02",
+      "esperadoCentavos": 31232,
+      "totvsCentavos": 16765,
+      "diferencaCentavos": -14467
+    },
+    {
+      "id": "11401|2027-01",
+      "esperadoCentavos": 98123,
+      "totvsCentavos": 83789,
+      "diferencaCentavos": -14334
+    },
+    {
+      "id": "11437|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 14303,
+      "diferencaCentavos": 14303
+    },
+    {
+      "id": "11411|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 14272,
+      "diferencaCentavos": 14272
+    },
+    {
+      "id": "11452|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 14210,
+      "diferencaCentavos": 14210
+    },
+    {
+      "id": "11658|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 14183,
+      "diferencaCentavos": 14183
+    },
+    {
+      "id": "11439|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 14107,
+      "diferencaCentavos": 14107
+    },
+    {
+      "id": "11595|2027-01",
+      "esperadoCentavos": 19985,
+      "totvsCentavos": 5887,
+      "diferencaCentavos": -14098
+    },
+    {
+      "id": "11475|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 13995,
+      "diferencaCentavos": 13995
+    },
+    {
+      "id": "1475|2026-12",
+      "esperadoCentavos": 136751,
+      "totvsCentavos": 150705,
+      "diferencaCentavos": 13954
+    },
+    {
+      "id": "11133|2026-12",
+      "esperadoCentavos": 66190,
+      "totvsCentavos": 80138,
+      "diferencaCentavos": 13948
+    },
+    {
+      "id": "11409|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 13720,
+      "diferencaCentavos": 13720
+    },
+    {
+      "id": "11409|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 13720,
+      "diferencaCentavos": 13720
+    },
+    {
+      "id": "11448|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 13667,
+      "diferencaCentavos": 13667
+    },
+    {
+      "id": "11446|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 13624,
+      "diferencaCentavos": 13624
+    },
+    {
+      "id": "11653|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 13611,
+      "diferencaCentavos": 13611
+    },
+    {
+      "id": "11450|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 13484,
+      "diferencaCentavos": 13484
+    },
+    {
+      "id": "11428|2027-02",
+      "esperadoCentavos": 40160,
+      "totvsCentavos": 53573,
+      "diferencaCentavos": 13413
+    },
+    {
+      "id": "11430|2027-02",
+      "esperadoCentavos": 30080,
+      "totvsCentavos": 43493,
+      "diferencaCentavos": 13413
+    },
+    {
+      "id": "11656|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 12840,
+      "diferencaCentavos": 12840
+    },
+    {
+      "id": "1473|2026-11",
+      "esperadoCentavos": 32199,
+      "totvsCentavos": 44926,
+      "diferencaCentavos": 12727
+    },
+    {
+      "id": "1475|2026-10",
+      "esperadoCentavos": 47922,
+      "totvsCentavos": 60516,
+      "diferencaCentavos": 12594
+    },
+    {
+      "id": "11006|2026-11",
+      "esperadoCentavos": 12178,
+      "totvsCentavos": 24664,
+      "diferencaCentavos": 12486
+    },
+    {
+      "id": "11386|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 12485,
+      "diferencaCentavos": 12485
+    },
+    {
+      "id": "11388|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 12485,
+      "diferencaCentavos": 12485
+    },
+    {
+      "id": "11394|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 12485,
+      "diferencaCentavos": 12485
+    },
+    {
+      "id": "11396|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 12485,
+      "diferencaCentavos": 12485
+    },
+    {
+      "id": "11660|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 12481,
+      "diferencaCentavos": 12481
+    },
+    {
+      "id": "11468|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 12461,
+      "diferencaCentavos": 12461
+    },
+    {
+      "id": "11469|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 12461,
+      "diferencaCentavos": 12461
+    },
+    {
+      "id": "11661|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 12461,
+      "diferencaCentavos": 12461
+    },
+    {
+      "id": "11463|2026-11",
+      "esperadoCentavos": 31362,
+      "totvsCentavos": 43467,
+      "diferencaCentavos": 12105
+    },
+    {
+      "id": "1474|2026-10",
+      "esperadoCentavos": 103994,
+      "totvsCentavos": 92147,
+      "diferencaCentavos": -11847
+    },
+    {
+      "id": "11595|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 11775,
+      "diferencaCentavos": 11775
+    },
+    {
+      "id": "11372|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 11690,
+      "diferencaCentavos": 11690
+    },
+    {
+      "id": "11385|2027-02",
+      "esperadoCentavos": 17596,
+      "totvsCentavos": 5929,
+      "diferencaCentavos": -11667
+    },
+    {
+      "id": "11393|2027-02",
+      "esperadoCentavos": 17596,
+      "totvsCentavos": 5929,
+      "diferencaCentavos": -11667
+    },
+    {
+      "id": "11657|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 11546,
+      "diferencaCentavos": 11546
+    },
+    {
+      "id": "11452|2027-02",
+      "esperadoCentavos": 15429,
+      "totvsCentavos": 3925,
+      "diferencaCentavos": -11504
+    },
+    {
+      "id": "11139|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 11404,
+      "diferencaCentavos": 11404
+    },
+    {
+      "id": "1465|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 11285,
+      "diferencaCentavos": 11285
+    },
+    {
+      "id": "11138|2026-12",
+      "esperadoCentavos": 55454,
+      "totvsCentavos": 66655,
+      "diferencaCentavos": 11201
+    },
+    {
+      "id": "11648|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 11144,
+      "diferencaCentavos": 11144
+    },
+    {
+      "id": "11648|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 11074,
+      "diferencaCentavos": 11074
+    },
+    {
+      "id": "11080|2027-01",
+      "esperadoCentavos": 19249,
+      "totvsCentavos": 30076,
+      "diferencaCentavos": 10827
+    },
+    {
+      "id": "11341|2027-02",
+      "esperadoCentavos": 50845,
+      "totvsCentavos": 40139,
+      "diferencaCentavos": -10706
+    },
+    {
+      "id": "11657|2027-02",
+      "esperadoCentavos": 16386,
+      "totvsCentavos": 5773,
+      "diferencaCentavos": -10613
+    },
+    {
+      "id": "11649|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 10437,
+      "diferencaCentavos": 10437
+    },
+    {
+      "id": "11597|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 10429,
+      "diferencaCentavos": 10429
+    },
+    {
+      "id": "1476|2027-01",
+      "esperadoCentavos": 11752,
+      "totvsCentavos": 1430,
+      "diferencaCentavos": -10322
+    },
+    {
+      "id": "MP_1016422|2026-11",
+      "esperadoCentavos": 10122,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -10122
+    },
+    {
+      "id": "11637|2027-02",
+      "esperadoCentavos": 77333,
+      "totvsCentavos": 67333,
+      "diferencaCentavos": -10000
+    },
+    {
+      "id": "11642|2027-02",
+      "esperadoCentavos": 77333,
+      "totvsCentavos": 67333,
+      "diferencaCentavos": -10000
+    },
+    {
+      "id": "1464|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 9852,
+      "diferencaCentavos": 9852
+    },
+    {
+      "id": "11206|2027-01",
+      "esperadoCentavos": 18372,
+      "totvsCentavos": 28177,
+      "diferencaCentavos": 9805
+    },
+    {
+      "id": "11438|2027-01",
+      "esperadoCentavos": 28139,
+      "totvsCentavos": 18545,
+      "diferencaCentavos": -9594
+    },
+    {
+      "id": "MP_1015723|2027-02",
+      "esperadoCentavos": 9457,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -9457
+    },
+    {
+      "id": "11468|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 9405,
+      "diferencaCentavos": 9405
+    },
+    {
+      "id": "11469|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 9405,
+      "diferencaCentavos": 9405
+    },
+    {
+      "id": "11661|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 9405,
+      "diferencaCentavos": 9405
+    },
+    {
+      "id": "11660|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 9390,
+      "diferencaCentavos": 9390
+    },
+    {
+      "id": "MP_1015723|2026-11",
+      "esperadoCentavos": 9215,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -9215
+    },
+    {
+      "id": "11471|2027-02",
+      "esperadoCentavos": 11874,
+      "totvsCentavos": 2744,
+      "diferencaCentavos": -9130
+    },
+    {
+      "id": "11653|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 9112,
+      "diferencaCentavos": 9112
+    },
+    {
+      "id": "11446|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 9102,
+      "diferencaCentavos": 9102
+    },
+    {
+      "id": "11454|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 9022,
+      "diferencaCentavos": 9022
+    },
+    {
+      "id": "11658|2027-02",
+      "esperadoCentavos": 12894,
+      "totvsCentavos": 4057,
+      "diferencaCentavos": -8837
+    },
+    {
+      "id": "11388|2027-02",
+      "esperadoCentavos": 13583,
+      "totvsCentavos": 5006,
+      "diferencaCentavos": -8577
+    },
+    {
+      "id": "11025|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 8482,
+      "diferencaCentavos": 8482
+    },
+    {
+      "id": "11172|2026-10",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 8409,
+      "diferencaCentavos": 8409
+    },
+    {
+      "id": "11649|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 8350,
+      "diferencaCentavos": 8350
+    },
+    {
+      "id": "11597|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 8343,
+      "diferencaCentavos": 8343
+    },
+    {
+      "id": "11171|2027-01",
+      "esperadoCentavos": 25018,
+      "totvsCentavos": 16676,
+      "diferencaCentavos": -8342
+    },
+    {
+      "id": "11128|2027-01",
+      "esperadoCentavos": 25015,
+      "totvsCentavos": 16676,
+      "diferencaCentavos": -8339
+    },
+    {
+      "id": "MP_1015035|2026-11",
+      "esperadoCentavos": 8333,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -8333
+    },
+    {
+      "id": "11148|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 8268,
+      "diferencaCentavos": 8268
+    },
+    {
+      "id": "11122|2027-01",
+      "esperadoCentavos": 28440,
+      "totvsCentavos": 20295,
+      "diferencaCentavos": -8145
+    },
+    {
+      "id": "11206|2026-11",
+      "esperadoCentavos": 20718,
+      "totvsCentavos": 12632,
+      "diferencaCentavos": -8086
+    },
+    {
+      "id": "11129|2026-10",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 7898,
+      "diferencaCentavos": 7898
+    },
+    {
+      "id": "1469|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 7842,
+      "diferencaCentavos": 7842
+    },
+    {
+      "id": "11456|2027-01",
+      "esperadoCentavos": 11712,
+      "totvsCentavos": 3953,
+      "diferencaCentavos": -7759
+    },
+    {
+      "id": "1476|2026-10",
+      "esperadoCentavos": 2474,
+      "totvsCentavos": 10127,
+      "diferencaCentavos": 7653
+    },
+    {
+      "id": "1473|2026-12",
+      "esperadoCentavos": 83980,
+      "totvsCentavos": 91593,
+      "diferencaCentavos": 7613
+    },
+    {
+      "id": "11128|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 7580,
+      "diferencaCentavos": 7580
+    },
+    {
+      "id": "11171|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 7580,
+      "diferencaCentavos": 7580
+    },
+    {
+      "id": "11386|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 7510,
+      "diferencaCentavos": 7510
+    },
+    {
+      "id": "11394|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 7510,
+      "diferencaCentavos": 7510
+    },
+    {
+      "id": "11396|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 7510,
+      "diferencaCentavos": 7510
+    },
+    {
+      "id": "11456|2026-12",
+      "esperadoCentavos": 5807,
+      "totvsCentavos": 13176,
+      "diferencaCentavos": 7369
+    },
+    {
+      "id": "11698|2026-12",
+      "esperadoCentavos": 12418,
+      "totvsCentavos": 5281,
+      "diferencaCentavos": -7137
+    },
+    {
+      "id": "11448|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 6834,
+      "diferencaCentavos": 6834
+    },
+    {
+      "id": "1469|2026-11",
+      "esperadoCentavos": 12612,
+      "totvsCentavos": 5881,
+      "diferencaCentavos": -6731
+    },
+    {
+      "id": "11124|2026-10",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 6588,
+      "diferencaCentavos": 6588
+    },
+    {
+      "id": "11124|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 6588,
+      "diferencaCentavos": 6588
+    },
+    {
+      "id": "11466|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 6551,
+      "diferencaCentavos": 6551
+    },
+    {
+      "id": "11592|2027-02",
+      "esperadoCentavos": 117027,
+      "totvsCentavos": 123502,
+      "diferencaCentavos": 6475
+    },
+    {
+      "id": "11656|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 6438,
+      "diferencaCentavos": 6438
+    },
+    {
+      "id": "11450|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 6355,
+      "diferencaCentavos": 6355
+    },
+    {
+      "id": "1464|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 6315,
+      "diferencaCentavos": 6315
+    },
+    {
+      "id": "11427|2027-02",
+      "esperadoCentavos": 36073,
+      "totvsCentavos": 29823,
+      "diferencaCentavos": -6250
+    },
+    {
+      "id": "1477|2026-10",
+      "esperadoCentavos": 23525,
+      "totvsCentavos": 29752,
+      "diferencaCentavos": 6227
+    },
+    {
+      "id": "1477|2027-01",
+      "esperadoCentavos": 121524,
+      "totvsCentavos": 127741,
+      "diferencaCentavos": 6217
+    },
+    {
+      "id": "11439|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 6191,
+      "diferencaCentavos": 6191
+    },
+    {
+      "id": "11068|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 6167,
+      "diferencaCentavos": 6167
+    },
+    {
+      "id": "11080|2026-12",
+      "esperadoCentavos": 11799,
+      "totvsCentavos": 5645,
+      "diferencaCentavos": -6154
+    },
+    {
+      "id": "11658|2027-01",
+      "esperadoCentavos": 12867,
+      "totvsCentavos": 6762,
+      "diferencaCentavos": -6105
+    },
+    {
+      "id": "11393|2026-12",
+      "esperadoCentavos": 7771,
+      "totvsCentavos": 13835,
+      "diferencaCentavos": 6064
+    },
+    {
+      "id": "11385|2026-12",
+      "esperadoCentavos": 7772,
+      "totvsCentavos": 13835,
+      "diferencaCentavos": 6063
+    },
+    {
+      "id": "11260|2027-01",
+      "esperadoCentavos": 25963,
+      "totvsCentavos": 32000,
+      "diferencaCentavos": 6037
+    },
+    {
+      "id": "11257|2027-01",
+      "esperadoCentavos": 9239,
+      "totvsCentavos": 15226,
+      "diferencaCentavos": 5987
+    },
+    {
+      "id": "11595|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 5869,
+      "diferencaCentavos": 5869
+    },
+    {
+      "id": "11167|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 5848,
+      "diferencaCentavos": 5848
+    },
+    {
+      "id": "11123|2026-10",
+      "esperadoCentavos": 5840,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -5840
+    },
+    {
+      "id": "11193|2026-12",
+      "esperadoCentavos": 165989,
+      "totvsCentavos": 160238,
+      "diferencaCentavos": -5751
+    },
+    {
+      "id": "11656|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 5723,
+      "diferencaCentavos": 5723
+    },
+    {
+      "id": "11399|2027-02",
+      "esperadoCentavos": 48405,
+      "totvsCentavos": 43115,
+      "diferencaCentavos": -5290
+    },
+    {
+      "id": "11385|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 5237,
+      "diferencaCentavos": 5237
+    },
+    {
+      "id": "11393|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 5237,
+      "diferencaCentavos": 5237
+    },
+    {
+      "id": "11456|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 5237,
+      "diferencaCentavos": 5237
+    },
+    {
+      "id": "11456|2027-02",
+      "esperadoCentavos": 7808,
+      "totvsCentavos": 2635,
+      "diferencaCentavos": -5173
+    },
+    {
+      "id": "MP_1016407|2026-11",
+      "esperadoCentavos": 5143,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -5143
+    },
+    {
+      "id": "11510|2026-11",
+      "esperadoCentavos": 5045,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -5045
+    },
+    {
+      "id": "MP_1015856|2027-02",
+      "esperadoCentavos": 5031,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -5031
+    },
+    {
+      "id": "11386|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 5006,
+      "diferencaCentavos": 5006
+    },
+    {
+      "id": "11394|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 5006,
+      "diferencaCentavos": 5006
+    },
+    {
+      "id": "11396|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 5006,
+      "diferencaCentavos": 5006
+    },
+    {
+      "id": "11594|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4977,
+      "diferencaCentavos": 4977
+    },
+    {
+      "id": "11662|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4975,
+      "diferencaCentavos": 4975
+    },
+    {
+      "id": "11510|2026-10",
+      "esperadoCentavos": 20182,
+      "totvsCentavos": 25136,
+      "diferencaCentavos": 4954
+    },
+    {
+      "id": "11124|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4941,
+      "diferencaCentavos": 4941
+    },
+    {
+      "id": "1469|2027-01",
+      "esperadoCentavos": 12612,
+      "totvsCentavos": 7841,
+      "diferencaCentavos": -4771
+    },
+    {
+      "id": "11437|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4738,
+      "diferencaCentavos": 4738
+    },
+    {
+      "id": "11439|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4702,
+      "diferencaCentavos": 4702
+    },
+    {
+      "id": "11431|2027-02",
+      "esperadoCentavos": 58179,
+      "totvsCentavos": 53489,
+      "diferencaCentavos": -4690
+    },
+    {
+      "id": "11590|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4660,
+      "diferencaCentavos": 4660
+    },
+    {
+      "id": "11121|2026-12",
+      "esperadoCentavos": 4617,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -4617
+    },
+    {
+      "id": "11448|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4499,
+      "diferencaCentavos": 4499
+    },
+    {
+      "id": "11696|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4493,
+      "diferencaCentavos": 4493
+    },
+    {
+      "id": "1473|2027-01",
+      "esperadoCentavos": 77279,
+      "totvsCentavos": 72792,
+      "diferencaCentavos": -4487
+    },
+    {
+      "id": "11174|2027-01",
+      "esperadoCentavos": 14028,
+      "totvsCentavos": 18494,
+      "diferencaCentavos": 4466
+    },
+    {
+      "id": "11388|2027-01",
+      "esperadoCentavos": 11842,
+      "totvsCentavos": 7510,
+      "diferencaCentavos": -4332
+    },
+    {
+      "id": "11544|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4320,
+      "diferencaCentavos": 4320
+    },
+    {
+      "id": "11595|2027-02",
+      "esperadoCentavos": 5730,
+      "totvsCentavos": 1472,
+      "diferencaCentavos": -4258
+    },
+    {
+      "id": "11654|2027-01",
+      "esperadoCentavos": 28155,
+      "totvsCentavos": 23906,
+      "diferencaCentavos": -4249
+    },
+    {
+      "id": "11659|2027-01",
+      "esperadoCentavos": 11382,
+      "totvsCentavos": 7150,
+      "diferencaCentavos": -4232
+    },
+    {
+      "id": "11467|2027-01",
+      "esperadoCentavos": 11106,
+      "totvsCentavos": 6945,
+      "diferencaCentavos": -4161
+    },
+    {
+      "id": "11139|2026-12",
+      "esperadoCentavos": 25188,
+      "totvsCentavos": 29337,
+      "diferencaCentavos": 4149
+    },
+    {
+      "id": "11649|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4149,
+      "diferencaCentavos": 4149
+    },
+    {
+      "id": "11597|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4146,
+      "diferencaCentavos": 4146
+    },
+    {
+      "id": "11389|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4145,
+      "diferencaCentavos": 4145
+    },
+    {
+      "id": "11397|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4145,
+      "diferencaCentavos": 4145
+    },
+    {
+      "id": "11074|2026-10",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 4042,
+      "diferencaCentavos": 4042
+    },
+    {
+      "id": "11638|2027-01",
+      "esperadoCentavos": 33930,
+      "totvsCentavos": 37920,
+      "diferencaCentavos": 3990
+    },
+    {
+      "id": "11657|2027-01",
+      "esperadoCentavos": 9058,
+      "totvsCentavos": 5132,
+      "diferencaCentavos": -3926
+    },
+    {
+      "id": "1469|2026-10",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3921,
+      "diferencaCentavos": 3921
+    },
+    {
+      "id": "11438|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3903,
+      "diferencaCentavos": 3903
+    },
+    {
+      "id": "11006|2026-12",
+      "esperadoCentavos": 45484,
+      "totvsCentavos": 49210,
+      "diferencaCentavos": 3726
+    },
+    {
+      "id": "11452|2027-01",
+      "esperadoCentavos": 10583,
+      "totvsCentavos": 6869,
+      "diferencaCentavos": -3714
+    },
+    {
+      "id": "11395|2027-01",
+      "esperadoCentavos": 8821,
+      "totvsCentavos": 5123,
+      "diferencaCentavos": -3698
+    },
+    {
+      "id": "11387|2027-01",
+      "esperadoCentavos": 8821,
+      "totvsCentavos": 5123,
+      "diferencaCentavos": -3698
+    },
+    {
+      "id": "11477|2027-02",
+      "esperadoCentavos": 135949,
+      "totvsCentavos": 132271,
+      "diferencaCentavos": -3678
+    },
+    {
+      "id": "11451|2027-01",
+      "esperadoCentavos": 9305,
+      "totvsCentavos": 5638,
+      "diferencaCentavos": -3667
+    },
+    {
+      "id": "1465|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3617,
+      "diferencaCentavos": 3617
+    },
+    {
+      "id": "11181|2027-01",
+      "esperadoCentavos": 17807,
+      "totvsCentavos": 21413,
+      "diferencaCentavos": 3606
+    },
+    {
+      "id": "11437|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3576,
+      "diferencaCentavos": 3576
+    },
+    {
+      "id": "11122|2026-11",
+      "esperadoCentavos": 7110,
+      "totvsCentavos": 3551,
+      "diferencaCentavos": -3559
+    },
+    {
+      "id": "11447|2027-01",
+      "esperadoCentavos": 28457,
+      "totvsCentavos": 25005,
+      "diferencaCentavos": -3452
+    },
+    {
+      "id": "11424|2027-02",
+      "esperadoCentavos": 21658,
+      "totvsCentavos": 18263,
+      "diferencaCentavos": -3395
+    },
+    {
+      "id": "11441|2027-01",
+      "esperadoCentavos": 9994,
+      "totvsCentavos": 6614,
+      "diferencaCentavos": -3380
+    },
+    {
+      "id": "11459|2027-01",
+      "esperadoCentavos": 9994,
+      "totvsCentavos": 6614,
+      "diferencaCentavos": -3380
+    },
+    {
+      "id": "11467|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3335,
+      "diferencaCentavos": 3335
+    },
+    {
+      "id": "11659|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3280,
+      "diferencaCentavos": 3280
+    },
+    {
+      "id": "11466|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3275,
+      "diferencaCentavos": 3275
+    },
+    {
+      "id": "11458|2027-01",
+      "esperadoCentavos": 9991,
+      "totvsCentavos": 6748,
+      "diferencaCentavos": -3243
+    },
+    {
+      "id": "11440|2027-01",
+      "esperadoCentavos": 9991,
+      "totvsCentavos": 6748,
+      "diferencaCentavos": -3243
+    },
+    {
+      "id": "1464|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3158,
+      "diferencaCentavos": 3158
+    },
+    {
+      "id": "11181|2026-11",
+      "esperadoCentavos": 7605,
+      "totvsCentavos": 10754,
+      "diferencaCentavos": 3149
+    },
+    {
+      "id": "11468|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3135,
+      "diferencaCentavos": 3135
+    },
+    {
+      "id": "11469|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3135,
+      "diferencaCentavos": 3135
+    },
+    {
+      "id": "11661|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3135,
+      "diferencaCentavos": 3135
+    },
+    {
+      "id": "11387|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3133,
+      "diferencaCentavos": 3133
+    },
+    {
+      "id": "11395|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3133,
+      "diferencaCentavos": 3133
+    },
+    {
+      "id": "11660|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 3130,
+      "diferencaCentavos": 3130
+    },
+    {
+      "id": "11180|2027-01",
+      "esperadoCentavos": 20376,
+      "totvsCentavos": 23497,
+      "diferencaCentavos": 3121
+    },
+    {
+      "id": "11180|2026-12",
+      "esperadoCentavos": 4627,
+      "totvsCentavos": 1508,
+      "diferencaCentavos": -3119
+    },
+    {
+      "id": "11698|2027-01",
+      "esperadoCentavos": 35590,
+      "totvsCentavos": 38604,
+      "diferencaCentavos": 3014
+    },
+    {
+      "id": "11389|2027-01",
+      "esperadoCentavos": 7852,
+      "totvsCentavos": 4867,
+      "diferencaCentavos": -2985
+    },
+    {
+      "id": "11397|2027-01",
+      "esperadoCentavos": 7852,
+      "totvsCentavos": 4867,
+      "diferencaCentavos": -2985
+    },
+    {
+      "id": "11451|2027-02",
+      "esperadoCentavos": 7561,
+      "totvsCentavos": 4581,
+      "diferencaCentavos": -2980
+    },
+    {
+      "id": "11692|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2979,
+      "diferencaCentavos": 2979
+    },
+    {
+      "id": "1472|2027-01",
+      "esperadoCentavos": 8051,
+      "totvsCentavos": 11006,
+      "diferencaCentavos": 2955
+    },
+    {
+      "id": "11692|2027-02",
+      "esperadoCentavos": 25042,
+      "totvsCentavos": 22117,
+      "diferencaCentavos": -2925
+    },
+    {
+      "id": "11167|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2924,
+      "diferencaCentavos": 2924
+    },
+    {
+      "id": "11174|2027-02",
+      "esperadoCentavos": 8573,
+      "totvsCentavos": 5651,
+      "diferencaCentavos": -2922
+    },
+    {
+      "id": "11365|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2885,
+      "diferencaCentavos": 2885
+    },
+    {
+      "id": "11471|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2810,
+      "diferencaCentavos": 2810
+    },
+    {
+      "id": "11451|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2802,
+      "diferencaCentavos": 2802
+    },
+    {
+      "id": "11467|2026-12",
+      "esperadoCentavos": 14524,
+      "totvsCentavos": 11734,
+      "diferencaCentavos": -2790
+    },
+    {
+      "id": "11648|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2786,
+      "diferencaCentavos": 2786
+    },
+    {
+      "id": "11140|2027-02",
+      "esperadoCentavos": 20910,
+      "totvsCentavos": 18157,
+      "diferencaCentavos": -2753
+    },
+    {
+      "id": "11563|2027-01",
+      "esperadoCentavos": 45316,
+      "totvsCentavos": 48059,
+      "diferencaCentavos": 2743
+    },
+    {
+      "id": "11257|2026-12",
+      "esperadoCentavos": 21379,
+      "totvsCentavos": 18669,
+      "diferencaCentavos": -2710
+    },
+    {
+      "id": "1474|2027-02",
+      "esperadoCentavos": 35435,
+      "totvsCentavos": 38138,
+      "diferencaCentavos": 2703
+    },
+    {
+      "id": "11443|2027-01",
+      "esperadoCentavos": 9570,
+      "totvsCentavos": 6921,
+      "diferencaCentavos": -2649
+    },
+    {
+      "id": "1470|2027-01",
+      "esperadoCentavos": 12206,
+      "totvsCentavos": 9563,
+      "diferencaCentavos": -2643
+    },
+    {
+      "id": "11461|2027-01",
+      "esperadoCentavos": 10682,
+      "totvsCentavos": 8106,
+      "diferencaCentavos": -2576
+    },
+    {
+      "id": "11438|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2558,
+      "diferencaCentavos": 2558
+    },
+    {
+      "id": "11074|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2553,
+      "diferencaCentavos": 2553
+    },
+    {
+      "id": "11657|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2550,
+      "diferencaCentavos": 2550
+    },
+    {
+      "id": "11594|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2504,
+      "diferencaCentavos": 2504
+    },
+    {
+      "id": "11594|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2504,
+      "diferencaCentavos": 2504
+    },
+    {
+      "id": "11662|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2503,
+      "diferencaCentavos": 2503
+    },
+    {
+      "id": "11662|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2503,
+      "diferencaCentavos": 2503
+    },
+    {
+      "id": "11133|2026-11",
+      "esperadoCentavos": 2499,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -2499
+    },
+    {
+      "id": "11366|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2388,
+      "diferencaCentavos": 2388
+    },
+    {
+      "id": "11437|2027-01",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2384,
+      "diferencaCentavos": 2384
+    },
+    {
+      "id": "1476|2026-11",
+      "esperadoCentavos": 8968,
+      "totvsCentavos": 11342,
+      "diferencaCentavos": 2374
+    },
+    {
+      "id": "1474|2026-11",
+      "esperadoCentavos": 161712,
+      "totvsCentavos": 159339,
+      "diferencaCentavos": -2373
+    },
+    {
+      "id": "11653|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2278,
+      "diferencaCentavos": 2278
+    },
+    {
+      "id": "11460|2027-01",
+      "esperadoCentavos": 8844,
+      "totvsCentavos": 6568,
+      "diferencaCentavos": -2276
+    },
+    {
+      "id": "11442|2027-01",
+      "esperadoCentavos": 8844,
+      "totvsCentavos": 6568,
+      "diferencaCentavos": -2276
+    },
+    {
+      "id": "11446|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2275,
+      "diferencaCentavos": 2275
+    },
+    {
+      "id": "11404|2027-01",
+      "esperadoCentavos": 5996,
+      "totvsCentavos": 3749,
+      "diferencaCentavos": -2247
+    },
+    {
+      "id": "1470|2026-11",
+      "esperadoCentavos": 2933,
+      "totvsCentavos": 5164,
+      "diferencaCentavos": 2231
+    },
+    {
+      "id": "11440|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2228,
+      "diferencaCentavos": 2228
+    },
+    {
+      "id": "11458|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2228,
+      "diferencaCentavos": 2228
+    },
+    {
+      "id": "11533|2027-01",
+      "esperadoCentavos": 12321,
+      "totvsCentavos": 14539,
+      "diferencaCentavos": 2218
+    },
+    {
+      "id": "11018|2027-01",
+      "esperadoCentavos": 3239,
+      "totvsCentavos": 5376,
+      "diferencaCentavos": 2137
+    },
+    {
+      "id": "1472|2026-10",
+      "esperadoCentavos": 8739,
+      "totvsCentavos": 6604,
+      "diferencaCentavos": -2135
+    },
+    {
+      "id": "11172|2026-12",
+      "esperadoCentavos": 5637,
+      "totvsCentavos": 3512,
+      "diferencaCentavos": -2125
+    },
+    {
+      "id": "11129|2026-12",
+      "esperadoCentavos": 5424,
+      "totvsCentavos": 3299,
+      "diferencaCentavos": -2125
+    },
+    {
+      "id": "11451|2026-12",
+      "esperadoCentavos": 9858,
+      "totvsCentavos": 11982,
+      "diferencaCentavos": 2124
+    },
+    {
+      "id": "11443|2027-02",
+      "esperadoCentavos": 6380,
+      "totvsCentavos": 4259,
+      "diferencaCentavos": -2121
+    },
+    {
+      "id": "11461|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2097,
+      "diferencaCentavos": 2097
+    },
+    {
+      "id": "11166|2027-01",
+      "esperadoCentavos": 13314,
+      "totvsCentavos": 15408,
+      "diferencaCentavos": 2094
+    },
+    {
+      "id": "11649|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2087,
+      "diferencaCentavos": 2087
+    },
+    {
+      "id": "11597|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 2086,
+      "diferencaCentavos": 2086
+    },
+    {
+      "id": "11443|2026-12",
+      "esperadoCentavos": 10737,
+      "totvsCentavos": 12777,
+      "diferencaCentavos": 2040
+    },
+    {
+      "id": "11404|2026-12",
+      "esperadoCentavos": 19267,
+      "totvsCentavos": 17249,
+      "diferencaCentavos": -2018
+    },
+    {
+      "id": "11526|2027-02",
+      "esperadoCentavos": 194609,
+      "totvsCentavos": 192694,
+      "diferencaCentavos": -1915
+    },
+    {
+      "id": "11691|2027-01",
+      "esperadoCentavos": 11070,
+      "totvsCentavos": 9178,
+      "diferencaCentavos": -1892
+    },
+    {
+      "id": "11442|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 1861,
+      "diferencaCentavos": 1861
+    },
+    {
+      "id": "11460|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 1861,
+      "diferencaCentavos": 1861
+    },
+    {
+      "id": "11441|2027-02",
+      "esperadoCentavos": 5497,
+      "totvsCentavos": 3638,
+      "diferencaCentavos": -1859
+    },
+    {
+      "id": "11459|2027-02",
+      "esperadoCentavos": 5497,
+      "totvsCentavos": 3638,
+      "diferencaCentavos": -1859
+    },
+    {
+      "id": "11395|2027-02",
+      "esperadoCentavos": 4410,
+      "totvsCentavos": 2561,
+      "diferencaCentavos": -1849
+    },
+    {
+      "id": "11387|2027-02",
+      "esperadoCentavos": 4410,
+      "totvsCentavos": 2561,
+      "diferencaCentavos": -1849
+    },
+    {
+      "id": "11068|2027-02",
+      "esperadoCentavos": 4942,
+      "totvsCentavos": 3124,
+      "diferencaCentavos": -1818
+    },
+    {
+      "id": "11467|2027-02",
+      "esperadoCentavos": 4787,
+      "totvsCentavos": 2993,
+      "diferencaCentavos": -1794
+    },
+    {
+      "id": "11659|2027-02",
+      "esperadoCentavos": 4816,
+      "totvsCentavos": 3025,
+      "diferencaCentavos": -1791
+    },
+    {
+      "id": "11460|2026-12",
+      "esperadoCentavos": 14923,
+      "totvsCentavos": 13135,
+      "diferencaCentavos": -1788
+    },
+    {
+      "id": "11442|2026-12",
+      "esperadoCentavos": 14923,
+      "totvsCentavos": 13135,
+      "diferencaCentavos": -1788
+    },
+    {
+      "id": "11383|2026-12",
+      "esperadoCentavos": 3696,
+      "totvsCentavos": 1916,
+      "diferencaCentavos": -1780
+    },
+    {
+      "id": "11441|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 1747,
+      "diferencaCentavos": 1747
+    },
+    {
+      "id": "11459|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 1747,
+      "diferencaCentavos": 1747
+    },
+    {
+      "id": "11691|2026-11",
+      "esperadoCentavos": 4927,
+      "totvsCentavos": 6654,
+      "diferencaCentavos": 1727
+    },
+    {
+      "id": "11068|2027-01",
+      "esperadoCentavos": 23669,
+      "totvsCentavos": 21942,
+      "diferencaCentavos": -1727
+    },
+    {
+      "id": "11533|2026-12",
+      "esperadoCentavos": 8552,
+      "totvsCentavos": 6831,
+      "diferencaCentavos": -1721
+    },
+    {
+      "id": "11389|2027-02",
+      "esperadoCentavos": 4487,
+      "totvsCentavos": 2781,
+      "diferencaCentavos": -1706
+    },
+    {
+      "id": "11397|2027-02",
+      "esperadoCentavos": 4487,
+      "totvsCentavos": 2781,
+      "diferencaCentavos": -1706
+    },
+    {
+      "id": "11122|2026-12",
+      "esperadoCentavos": 11850,
+      "totvsCentavos": 13530,
+      "diferencaCentavos": 1680
+    },
+    {
+      "id": "11172|2027-01",
+      "esperadoCentavos": 17218,
+      "totvsCentavos": 18886,
+      "diferencaCentavos": 1668
+    },
+    {
+      "id": "11173|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 1594,
+      "diferencaCentavos": 1594
+    },
+    {
+      "id": "1475|2027-02",
+      "esperadoCentavos": 1175,
+      "totvsCentavos": 2733,
+      "diferencaCentavos": 1558
+    },
+    {
+      "id": "11458|2027-02",
+      "esperadoCentavos": 4579,
+      "totvsCentavos": 3093,
+      "diferencaCentavos": -1486
+    },
+    {
+      "id": "11440|2027-02",
+      "esperadoCentavos": 4579,
+      "totvsCentavos": 3093,
+      "diferencaCentavos": -1486
+    },
+    {
+      "id": "11181|2026-10",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 1460,
+      "diferencaCentavos": 1460
+    },
+    {
+      "id": "11694|2027-02",
+      "esperadoCentavos": 35256,
+      "totvsCentavos": 36708,
+      "diferencaCentavos": 1452
+    },
+    {
+      "id": "11390|2027-02",
+      "esperadoCentavos": 6129,
+      "totvsCentavos": 4681,
+      "diferencaCentavos": -1448
+    },
+    {
+      "id": "11181|2026-12",
+      "esperadoCentavos": 5732,
+      "totvsCentavos": 4312,
+      "diferencaCentavos": -1420
+    },
+    {
+      "id": "11390|2027-01",
+      "esperadoCentavos": 21702,
+      "totvsCentavos": 20322,
+      "diferencaCentavos": -1380
+    },
+    {
+      "id": "11166|2026-12",
+      "esperadoCentavos": 5932,
+      "totvsCentavos": 4598,
+      "diferencaCentavos": -1334
+    },
+    {
+      "id": "11461|2027-02",
+      "esperadoCentavos": 4856,
+      "totvsCentavos": 3524,
+      "diferencaCentavos": -1332
+    },
+    {
+      "id": "11395|2026-12",
+      "esperadoCentavos": 12858,
+      "totvsCentavos": 14185,
+      "diferencaCentavos": 1327
+    },
+    {
+      "id": "11387|2026-12",
+      "esperadoCentavos": 12858,
+      "totvsCentavos": 14185,
+      "diferencaCentavos": 1327
+    },
+    {
+      "id": "11383|2027-01",
+      "esperadoCentavos": 16369,
+      "totvsCentavos": 17682,
+      "diferencaCentavos": 1313
+    },
+    {
+      "id": "11260|2026-10",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 1267,
+      "diferencaCentavos": 1267
+    },
+    {
+      "id": "1459|2027-01",
+      "esperadoCentavos": 73652,
+      "totvsCentavos": 74909,
+      "diferencaCentavos": 1257
+    },
+    {
+      "id": "11460|2027-02",
+      "esperadoCentavos": 4632,
+      "totvsCentavos": 3440,
+      "diferencaCentavos": -1192
+    },
+    {
+      "id": "11442|2027-02",
+      "esperadoCentavos": 4632,
+      "totvsCentavos": 3440,
+      "diferencaCentavos": -1192
+    },
+    {
+      "id": "11129|2027-01",
+      "esperadoCentavos": 16567,
+      "totvsCentavos": 17740,
+      "diferencaCentavos": 1173
+    },
+    {
+      "id": "11710|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 1144,
+      "diferencaCentavos": 1144
+    },
+    {
+      "id": "11659|2026-12",
+      "esperadoCentavos": 12663,
+      "totvsCentavos": 11550,
+      "diferencaCentavos": -1113
+    },
+    {
+      "id": "11654|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 1099,
+      "diferencaCentavos": 1099
+    },
+    {
+      "id": "11174|2026-12",
+      "esperadoCentavos": 3234,
+      "totvsCentavos": 2145,
+      "diferencaCentavos": -1089
+    },
+    {
+      "id": "11461|2026-12",
+      "esperadoCentavos": 12357,
+      "totvsCentavos": 11277,
+      "diferencaCentavos": -1080
+    },
+    {
+      "id": "11018|2026-12",
+      "esperadoCentavos": 22664,
+      "totvsCentavos": 23718,
+      "diferencaCentavos": 1054
+    },
+    {
+      "id": "11443|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 1045,
+      "diferencaCentavos": 1045
+    },
+    {
+      "id": "1472|2026-11",
+      "esperadoCentavos": 6833,
+      "totvsCentavos": 5795,
+      "diferencaCentavos": -1038
+    },
+    {
+      "id": "11018|2027-02",
+      "esperadoCentavos": 2430,
+      "totvsCentavos": 1423,
+      "diferencaCentavos": -1007
+    },
+    {
+      "id": "11441|2026-12",
+      "esperadoCentavos": 13966,
+      "totvsCentavos": 13007,
+      "diferencaCentavos": -959
+    },
+    {
+      "id": "11459|2026-12",
+      "esperadoCentavos": 13966,
+      "totvsCentavos": 13007,
+      "diferencaCentavos": -959
+    },
+    {
+      "id": "1477|2027-02",
+      "esperadoCentavos": 14446,
+      "totvsCentavos": 15380,
+      "diferencaCentavos": 934
+    },
+    {
+      "id": "11457|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 907,
+      "diferencaCentavos": 907
+    },
+    {
+      "id": "11457|2027-01",
+      "esperadoCentavos": 25004,
+      "totvsCentavos": 24100,
+      "diferencaCentavos": -904
+    },
+    {
+      "id": "11458|2026-12",
+      "esperadoCentavos": 12041,
+      "totvsCentavos": 12933,
+      "diferencaCentavos": 892
+    },
+    {
+      "id": "11440|2026-12",
+      "esperadoCentavos": 12041,
+      "totvsCentavos": 12933,
+      "diferencaCentavos": 892
+    },
+    {
+      "id": "11533|2026-11",
+      "esperadoCentavos": 846,
+      "totvsCentavos": 0,
+      "diferencaCentavos": -846
+    },
+    {
+      "id": "11533|2027-02",
+      "esperadoCentavos": 4675,
+      "totvsCentavos": 5516,
+      "diferencaCentavos": 841
+    },
+    {
+      "id": "1459|2027-02",
+      "esperadoCentavos": 47055,
+      "totvsCentavos": 47858,
+      "diferencaCentavos": 803
+    },
+    {
+      "id": "11389|2026-12",
+      "esperadoCentavos": 13993,
+      "totvsCentavos": 13209,
+      "diferencaCentavos": -784
+    },
+    {
+      "id": "11397|2026-12",
+      "esperadoCentavos": 13993,
+      "totvsCentavos": 13209,
+      "diferencaCentavos": -784
+    },
+    {
+      "id": "11018|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 767,
+      "diferencaCentavos": 767
+    },
+    {
+      "id": "11404|2027-02",
+      "esperadoCentavos": 5196,
+      "totvsCentavos": 4431,
+      "diferencaCentavos": -765
+    },
+    {
+      "id": "11128|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 746,
+      "diferencaCentavos": 746
+    },
+    {
+      "id": "11171|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 746,
+      "diferencaCentavos": 746
+    },
+    {
+      "id": "11257|2027-02",
+      "esperadoCentavos": 5646,
+      "totvsCentavos": 4926,
+      "diferencaCentavos": -720
+    },
+    {
+      "id": "11698|2027-02",
+      "esperadoCentavos": 23093,
+      "totvsCentavos": 23753,
+      "diferencaCentavos": 660
+    },
+    {
+      "id": "11260|2026-12",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 627,
+      "diferencaCentavos": 627
+    },
+    {
+      "id": "11166|2026-11",
+      "esperadoCentavos": 5365,
+      "totvsCentavos": 4761,
+      "diferencaCentavos": -604
+    },
+    {
+      "id": "11054|2026-11",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 552,
+      "diferencaCentavos": 552
+    },
+    {
+      "id": "1470|2026-12",
+      "esperadoCentavos": 7395,
+      "totvsCentavos": 7922,
+      "diferencaCentavos": 527
+    },
+    {
+      "id": "11383|2027-02",
+      "esperadoCentavos": 5386,
+      "totvsCentavos": 5819,
+      "diferencaCentavos": 433
+    },
+    {
+      "id": "11172|2026-11",
+      "esperadoCentavos": 10007,
+      "totvsCentavos": 10349,
+      "diferencaCentavos": 342
+    },
+    {
+      "id": "1470|2027-02",
+      "esperadoCentavos": 1640,
+      "totvsCentavos": 1300,
+      "diferencaCentavos": -340
+    },
+    {
+      "id": "1471|2026-10",
+      "esperadoCentavos": 1686,
+      "totvsCentavos": 2025,
+      "diferencaCentavos": 339
+    },
+    {
+      "id": "11404|2026-11",
+      "esperadoCentavos": 5916,
+      "totvsCentavos": 5591,
+      "diferencaCentavos": -325
+    },
+    {
+      "id": "11470|2026-12",
+      "esperadoCentavos": 12298,
+      "totvsCentavos": 11974,
+      "diferencaCentavos": -324
+    },
+    {
+      "id": "11690|2027-02",
+      "esperadoCentavos": 10693,
+      "totvsCentavos": 10386,
+      "diferencaCentavos": -307
+    },
+    {
+      "id": "1476|2026-12",
+      "esperadoCentavos": 1855,
+      "totvsCentavos": 2144,
+      "diferencaCentavos": 289
+    },
+    {
+      "id": "1470|2026-10",
+      "esperadoCentavos": 942,
+      "totvsCentavos": 1210,
+      "diferencaCentavos": 268
+    },
+    {
+      "id": "11206|2026-12",
+      "esperadoCentavos": 10827,
+      "totvsCentavos": 10567,
+      "diferencaCentavos": -260
+    },
+    {
+      "id": "11691|2027-02",
+      "esperadoCentavos": 0,
+      "totvsCentavos": 260,
+      "diferencaCentavos": 260
+    },
+    {
+      "id": "11470|2027-01",
+      "esperadoCentavos": 9994,
+      "totvsCentavos": 10245,
+      "diferencaCentavos": 251
+    },
+    {
+      "id": "1472|2026-12",
+      "esperadoCentavos": 1536,
+      "totvsCentavos": 1771,
+      "diferencaCentavos": 235
+    },
+    {
+      "id": "11691|2026-12",
+      "esperadoCentavos": 7958,
+      "totvsCentavos": 8192,
+      "diferencaCentavos": 234
+    },
+    {
+      "id": "1471|2026-12",
+      "esperadoCentavos": 14330,
+      "totvsCentavos": 14123,
+      "diferencaCentavos": -207
+    },
+    {
+      "id": "11193|2027-01",
+      "esperadoCentavos": 120939,
+      "totvsCentavos": 121106,
+      "diferencaCentavos": 167
+    },
+    {
+      "id": "11166|2027-02",
+      "esperadoCentavos": 395,
+      "totvsCentavos": 242,
+      "diferencaCentavos": -153
+    },
+    {
+      "id": "1473|2027-02",
+      "esperadoCentavos": 16709,
+      "totvsCentavos": 16559,
+      "diferencaCentavos": -150
+    },
+    {
+      "id": "11563|2027-02",
+      "esperadoCentavos": 19548,
+      "totvsCentavos": 19400,
+      "diferencaCentavos": -148
+    },
+    {
+      "id": "11181|2027-02",
+      "esperadoCentavos": 366,
+      "totvsCentavos": 219,
+      "diferencaCentavos": -147
+    },
+    {
+      "id": "1473|2026-10",
+      "esperadoCentavos": 4699,
+      "totvsCentavos": 4830,
+      "diferencaCentavos": 131
+    },
+    {
+      "id": "1471|2026-11",
+      "esperadoCentavos": 9062,
+      "totvsCentavos": 8931,
+      "diferencaCentavos": -131
+    },
+    {
+      "id": "11563|2026-12",
+      "esperadoCentavos": 41651,
+      "totvsCentavos": 41776,
+      "diferencaCentavos": 125
+    },
+    {
+      "id": "11172|2027-02",
+      "esperadoCentavos": 305,
+      "totvsCentavos": 190,
+      "diferencaCentavos": -115
+    },
+    {
+      "id": "11129|2027-02",
+      "esperadoCentavos": 293,
+      "totvsCentavos": 178,
+      "diferencaCentavos": -115
+    },
+    {
+      "id": "11673|2027-02",
+      "esperadoCentavos": 12520,
+      "totvsCentavos": 12617,
+      "diferencaCentavos": 97
+    },
+    {
+      "id": "11129|2026-11",
+      "esperadoCentavos": 9629,
+      "totvsCentavos": 9721,
+      "diferencaCentavos": 92
+    },
+    {
+      "id": "11562|2026-11",
+      "esperadoCentavos": 496,
+      "totvsCentavos": 584,
+      "diferencaCentavos": 88
+    },
+    {
+      "id": "11080|2027-02",
+      "esperadoCentavos": 238,
+      "totvsCentavos": 158,
+      "diferencaCentavos": -80
+    },
+    {
+      "id": "11561|2026-11",
+      "esperadoCentavos": 687,
+      "totvsCentavos": 761,
+      "diferencaCentavos": 74
+    },
+    {
+      "id": "11470|2027-02",
+      "esperadoCentavos": 2811,
+      "totvsCentavos": 2881,
+      "diferencaCentavos": 70
+    },
+    {
+      "id": "11193|2027-02",
+      "esperadoCentavos": 45352,
+      "totvsCentavos": 45414,
+      "diferencaCentavos": 62
+    },
+    {
+      "id": "11206|2027-02",
+      "esperadoCentavos": 1969,
+      "totvsCentavos": 1921,
+      "diferencaCentavos": -48
+    },
+    {
+      "id": "11562|2026-12",
+      "esperadoCentavos": 11906,
+      "totvsCentavos": 11865,
+      "diferencaCentavos": -41
+    },
+    {
+      "id": "11561|2026-12",
+      "esperadoCentavos": 12213,
+      "totvsCentavos": 12177,
+      "diferencaCentavos": -36
+    },
+    {
+      "id": "11562|2027-01",
+      "esperadoCentavos": 8298,
+      "totvsCentavos": 8269,
+      "diferencaCentavos": -29
+    },
+    {
+      "id": "11071|2027-02",
+      "esperadoCentavos": 9215,
+      "totvsCentavos": 9186,
+      "diferencaCentavos": -29
+    },
+    {
+      "id": "11561|2027-01",
+      "esperadoCentavos": 7938,
+      "totvsCentavos": 7915,
+      "diferencaCentavos": -23
+    },
+    {
+      "id": "11691|2026-10",
+      "esperadoCentavos": 1671,
+      "totvsCentavos": 1691,
+      "diferencaCentavos": 20
+    },
+    {
+      "id": "11562|2027-02",
+      "esperadoCentavos": 4780,
+      "totvsCentavos": 4764,
+      "diferencaCentavos": -16
+    },
+    {
+      "id": "11561|2027-02",
+      "esperadoCentavos": 4732,
+      "totvsCentavos": 4718,
+      "diferencaCentavos": -14
+    },
+    {
+      "id": "11444|2027-01",
+      "esperadoCentavos": 25001,
+      "totvsCentavos": 25003,
+      "diferencaCentavos": 2
+    },
+    {
+      "id": "11398|2027-01",
+      "esperadoCentavos": 25000,
+      "totvsCentavos": 25001,
+      "diferencaCentavos": 1
+    }
+  ],
+  "espelhoPorCompetencia": [
+    {
+      "id": "1467|2026-10",
+      "valorCentavos": 31953
+    },
+    {
+      "id": "1468|2026-10",
+      "valorCentavos": 28965
+    },
+    {
+      "id": "1469|2026-10",
+      "valorCentavos": 3921
+    },
+    {
+      "id": "1470|2026-10",
+      "valorCentavos": 1210
+    },
+    {
+      "id": "1471|2026-10",
+      "valorCentavos": 2025
+    },
+    {
+      "id": "1472|2026-10",
+      "valorCentavos": 6604
+    },
+    {
+      "id": "1473|2026-10",
+      "valorCentavos": 4830
+    },
+    {
+      "id": "1474|2026-10",
+      "valorCentavos": 92147
+    },
+    {
+      "id": "1475|2026-10",
+      "valorCentavos": 60516
+    },
+    {
+      "id": "1476|2026-10",
+      "valorCentavos": 10127
+    },
+    {
+      "id": "1477|2026-10",
+      "valorCentavos": 29752
+    },
+    {
+      "id": "11074|2026-10",
+      "valorCentavos": 4042
+    },
+    {
+      "id": "11120|2026-10",
+      "valorCentavos": 31664
+    },
+    {
+      "id": "11124|2026-10",
+      "valorCentavos": 6588
+    },
+    {
+      "id": "11129|2026-10",
+      "valorCentavos": 7898
+    },
+    {
+      "id": "11172|2026-10",
+      "valorCentavos": 8409
+    },
+    {
+      "id": "11181|2026-10",
+      "valorCentavos": 1460
+    },
+    {
+      "id": "11260|2026-10",
+      "valorCentavos": 1267
+    },
+    {
+      "id": "11510|2026-10",
+      "valorCentavos": 25136
+    },
+    {
+      "id": "11526|2026-10",
+      "valorCentavos": 568083
+    },
+    {
+      "id": "11666|2026-10",
+      "valorCentavos": 28241
+    },
+    {
+      "id": "11691|2026-10",
+      "valorCentavos": 1691
+    },
+    {
+      "id": "1461|2026-11",
+      "valorCentavos": 11985
+    },
+    {
+      "id": "1464|2026-11",
+      "valorCentavos": 6315
+    },
+    {
+      "id": "1469|2026-11",
+      "valorCentavos": 5881
+    },
+    {
+      "id": "1470|2026-11",
+      "valorCentavos": 5164
+    },
+    {
+      "id": "1471|2026-11",
+      "valorCentavos": 8931
+    },
+    {
+      "id": "1472|2026-11",
+      "valorCentavos": 5795
+    },
+    {
+      "id": "1473|2026-11",
+      "valorCentavos": 44926
+    },
+    {
+      "id": "1474|2026-11",
+      "valorCentavos": 159339
+    },
+    {
+      "id": "1475|2026-11",
+      "valorCentavos": 157693
+    },
+    {
+      "id": "1476|2026-11",
+      "valorCentavos": 11342
+    },
+    {
+      "id": "1477|2026-11",
+      "valorCentavos": 76318
+    },
+    {
+      "id": "11006|2026-11",
+      "valorCentavos": 24664
+    },
+    {
+      "id": "11018|2026-11",
+      "valorCentavos": 767
+    },
+    {
+      "id": "11054|2026-11",
+      "valorCentavos": 552
+    },
+    {
+      "id": "11071|2026-11",
+      "valorCentavos": 20796
+    },
+    {
+      "id": "11074|2026-11",
+      "valorCentavos": 18366
+    },
+    {
+      "id": "11122|2026-11",
+      "valorCentavos": 3551
+    },
+    {
+      "id": "11124|2026-11",
+      "valorCentavos": 4941
+    },
+    {
+      "id": "11128|2026-11",
+      "valorCentavos": 746
+    },
+    {
+      "id": "11129|2026-11",
+      "valorCentavos": 9721
+    },
+    {
+      "id": "11139|2026-11",
+      "valorCentavos": 11404
+    },
+    {
+      "id": "11166|2026-11",
+      "valorCentavos": 4761
+    },
+    {
+      "id": "11171|2026-11",
+      "valorCentavos": 746
+    },
+    {
+      "id": "11172|2026-11",
+      "valorCentavos": 10349
+    },
+    {
+      "id": "11181|2026-11",
+      "valorCentavos": 10754
+    },
+    {
+      "id": "11206|2026-11",
+      "valorCentavos": 12632
+    },
+    {
+      "id": "11260|2026-11",
+      "valorCentavos": 16941
+    },
+    {
+      "id": "11372|2026-11",
+      "valorCentavos": 52104
+    },
+    {
+      "id": "11385|2026-11",
+      "valorCentavos": 5237
+    },
+    {
+      "id": "11387|2026-11",
+      "valorCentavos": 3133
+    },
+    {
+      "id": "11389|2026-11",
+      "valorCentavos": 4145
+    },
+    {
+      "id": "11393|2026-11",
+      "valorCentavos": 5237
+    },
+    {
+      "id": "11395|2026-11",
+      "valorCentavos": 3133
+    },
+    {
+      "id": "11397|2026-11",
+      "valorCentavos": 4145
+    },
+    {
+      "id": "11400|2026-11",
+      "valorCentavos": 6566
+    },
+    {
+      "id": "11402|2026-11",
+      "valorCentavos": 37283
+    },
+    {
+      "id": "11404|2026-11",
+      "valorCentavos": 5591
+    },
+    {
+      "id": "11405|2026-11",
+      "valorCentavos": 25004
+    },
+    {
+      "id": "11409|2026-11",
+      "valorCentavos": 13720
+    },
+    {
+      "id": "11410|2026-11",
+      "valorCentavos": 30317
+    },
+    {
+      "id": "11413|2026-11",
+      "valorCentavos": 6095
+    },
+    {
+      "id": "11417|2026-11",
+      "valorCentavos": 54415
+    },
+    {
+      "id": "11418|2026-11",
+      "valorCentavos": 11377
+    },
+    {
+      "id": "11423|2026-11",
+      "valorCentavos": 21243
+    },
+    {
+      "id": "11437|2026-11",
+      "valorCentavos": 4738
+    },
+    {
+      "id": "11438|2026-11",
+      "valorCentavos": 3903
+    },
+    {
+      "id": "11439|2026-11",
+      "valorCentavos": 6191
+    },
+    {
+      "id": "11440|2026-11",
+      "valorCentavos": 2228
+    },
+    {
+      "id": "11441|2026-11",
+      "valorCentavos": 1747
+    },
+    {
+      "id": "11442|2026-11",
+      "valorCentavos": 1861
+    },
+    {
+      "id": "11443|2026-11",
+      "valorCentavos": 1045
+    },
+    {
+      "id": "11448|2026-11",
+      "valorCentavos": 4499
+    },
+    {
+      "id": "11449|2026-11",
+      "valorCentavos": 3979
+    },
+    {
+      "id": "11451|2026-11",
+      "valorCentavos": 2802
+    },
+    {
+      "id": "11456|2026-11",
+      "valorCentavos": 5237
+    },
+    {
+      "id": "11458|2026-11",
+      "valorCentavos": 2228
+    },
+    {
+      "id": "11459|2026-11",
+      "valorCentavos": 1747
+    },
+    {
+      "id": "11460|2026-11",
+      "valorCentavos": 1861
+    },
+    {
+      "id": "11461|2026-11",
+      "valorCentavos": 2097
+    },
+    {
+      "id": "11463|2026-11",
+      "valorCentavos": 43467
+    },
+    {
+      "id": "11467|2026-11",
+      "valorCentavos": 3335
+    },
+    {
+      "id": "11471|2026-11",
+      "valorCentavos": 2810
+    },
+    {
+      "id": "11473|2026-11",
+      "valorCentavos": 30747
+    },
+    {
+      "id": "11526|2026-11",
+      "valorCentavos": 1672677
+    },
+    {
+      "id": "11561|2026-11",
+      "valorCentavos": 761
+    },
+    {
+      "id": "11562|2026-11",
+      "valorCentavos": 584
+    },
+    {
+      "id": "11590|2026-11",
+      "valorCentavos": 4660
+    },
+    {
+      "id": "11594|2026-11",
+      "valorCentavos": 4977
+    },
+    {
+      "id": "11595|2026-11",
+      "valorCentavos": 5869
+    },
+    {
+      "id": "11597|2026-11",
+      "valorCentavos": 4146
+    },
+    {
+      "id": "11648|2026-11",
+      "valorCentavos": 11074
+    },
+    {
+      "id": "11649|2026-11",
+      "valorCentavos": 4149
+    },
+    {
+      "id": "11655|2026-11",
+      "valorCentavos": 3979
+    },
+    {
+      "id": "11657|2026-11",
+      "valorCentavos": 2550
+    },
+    {
+      "id": "11659|2026-11",
+      "valorCentavos": 3280
+    },
+    {
+      "id": "11662|2026-11",
+      "valorCentavos": 4975
+    },
+    {
+      "id": "11666|2026-11",
+      "valorCentavos": 1554219
+    },
+    {
+      "id": "11681|2026-11",
+      "valorCentavos": 4507
+    },
+    {
+      "id": "11691|2026-11",
+      "valorCentavos": 6654
+    },
+    {
+      "id": "1459|2026-12",
+      "valorCentavos": 26634
+    },
+    {
+      "id": "1461|2026-12",
+      "valorCentavos": 17978
+    },
+    {
+      "id": "1464|2026-12",
+      "valorCentavos": 9852
+    },
+    {
+      "id": "1465|2026-12",
+      "valorCentavos": 11285
+    },
+    {
+      "id": "1469|2026-12",
+      "valorCentavos": 7842
+    },
+    {
+      "id": "1470|2026-12",
+      "valorCentavos": 7922
+    },
+    {
+      "id": "1471|2026-12",
+      "valorCentavos": 14123
+    },
+    {
+      "id": "1472|2026-12",
+      "valorCentavos": 1771
+    },
+    {
+      "id": "1473|2026-12",
+      "valorCentavos": 91593
+    },
+    {
+      "id": "1474|2026-12",
+      "valorCentavos": 348048
+    },
+    {
+      "id": "1475|2026-12",
+      "valorCentavos": 150705
+    },
+    {
+      "id": "1476|2026-12",
+      "valorCentavos": 2144
+    },
+    {
+      "id": "1477|2026-12",
+      "valorCentavos": 109309
+    },
+    {
+      "id": "11006|2026-12",
+      "valorCentavos": 49210
+    },
+    {
+      "id": "11018|2026-12",
+      "valorCentavos": 23718
+    },
+    {
+      "id": "11054|2026-12",
+      "valorCentavos": 10118
+    },
+    {
+      "id": "11068|2026-12",
+      "valorCentavos": 6167
+    },
+    {
+      "id": "11071|2026-12",
+      "valorCentavos": 109140
+    },
+    {
+      "id": "11074|2026-12",
+      "valorCentavos": 2553
+    },
+    {
+      "id": "11080|2026-12",
+      "valorCentavos": 5645
+    },
+    {
+      "id": "11122|2026-12",
+      "valorCentavos": 13530
+    },
+    {
+      "id": "11124|2026-12",
+      "valorCentavos": 6588
+    },
+    {
+      "id": "11128|2026-12",
+      "valorCentavos": 7580
+    },
+    {
+      "id": "11129|2026-12",
+      "valorCentavos": 3299
+    },
+    {
+      "id": "11132|2026-12",
+      "valorCentavos": 29380
+    },
+    {
+      "id": "11133|2026-12",
+      "valorCentavos": 80138
+    },
+    {
+      "id": "11138|2026-12",
+      "valorCentavos": 66655
+    },
+    {
+      "id": "11139|2026-12",
+      "valorCentavos": 29337
+    },
+    {
+      "id": "11140|2026-12",
+      "valorCentavos": 62032
+    },
+    {
+      "id": "11141|2026-12",
+      "valorCentavos": 16806
+    },
+    {
+      "id": "11143|2026-12",
+      "valorCentavos": 257422
+    },
+    {
+      "id": "11144|2026-12",
+      "valorCentavos": 1310710
+    },
+    {
+      "id": "11145|2026-12",
+      "valorCentavos": 31401
+    },
+    {
+      "id": "11146|2026-12",
+      "valorCentavos": 17687
+    },
+    {
+      "id": "11147|2026-12",
+      "valorCentavos": 452710
+    },
+    {
+      "id": "11148|2026-12",
+      "valorCentavos": 8268
+    },
+    {
+      "id": "11166|2026-12",
+      "valorCentavos": 4598
+    },
+    {
+      "id": "11167|2026-12",
+      "valorCentavos": 19492
+    },
+    {
+      "id": "11171|2026-12",
+      "valorCentavos": 7580
+    },
+    {
+      "id": "11172|2026-12",
+      "valorCentavos": 3512
+    },
+    {
+      "id": "11174|2026-12",
+      "valorCentavos": 2145
+    },
+    {
+      "id": "11180|2026-12",
+      "valorCentavos": 1508
+    },
+    {
+      "id": "11181|2026-12",
+      "valorCentavos": 4312
+    },
+    {
+      "id": "11193|2026-12",
+      "valorCentavos": 160238
+    },
+    {
+      "id": "11202|2026-12",
+      "valorCentavos": 1770
+    },
+    {
+      "id": "11206|2026-12",
+      "valorCentavos": 10567
+    },
+    {
+      "id": "11257|2026-12",
+      "valorCentavos": 18669
+    },
+    {
+      "id": "11260|2026-12",
+      "valorCentavos": 627
+    },
+    {
+      "id": "11303|2026-12",
+      "valorCentavos": 142322
+    },
+    {
+      "id": "11307|2026-12",
+      "valorCentavos": 545694
+    },
+    {
+      "id": "11308|2026-12",
+      "valorCentavos": 70313
+    },
+    {
+      "id": "11341|2026-12",
+      "valorCentavos": 97338
+    },
+    {
+      "id": "11372|2026-12",
+      "valorCentavos": 109552
+    },
+    {
+      "id": "11382|2026-12",
+      "valorCentavos": 33606
+    },
+    {
+      "id": "11383|2026-12",
+      "valorCentavos": 1916
+    },
+    {
+      "id": "11385|2026-12",
+      "valorCentavos": 13835
+    },
+    {
+      "id": "11386|2026-12",
+      "valorCentavos": 12485
+    },
+    {
+      "id": "11387|2026-12",
+      "valorCentavos": 14185
+    },
+    {
+      "id": "11388|2026-12",
+      "valorCentavos": 12485
+    },
+    {
+      "id": "11389|2026-12",
+      "valorCentavos": 13209
+    },
+    {
+      "id": "11393|2026-12",
+      "valorCentavos": 13835
+    },
+    {
+      "id": "11394|2026-12",
+      "valorCentavos": 12485
+    },
+    {
+      "id": "11395|2026-12",
+      "valorCentavos": 14185
+    },
+    {
+      "id": "11396|2026-12",
+      "valorCentavos": 12485
+    },
+    {
+      "id": "11397|2026-12",
+      "valorCentavos": 13209
+    },
+    {
+      "id": "11400|2026-12",
+      "valorCentavos": 19696
+    },
+    {
+      "id": "11402|2026-12",
+      "valorCentavos": 92153
+    },
+    {
+      "id": "11404|2026-12",
+      "valorCentavos": 17249
+    },
+    {
+      "id": "11409|2026-12",
+      "valorCentavos": 54882
+    },
+    {
+      "id": "11410|2026-12",
+      "valorCentavos": 45763
+    },
+    {
+      "id": "11411|2026-12",
+      "valorCentavos": 57089
+    },
+    {
+      "id": "11413|2026-12",
+      "valorCentavos": 18286
+    },
+    {
+      "id": "11417|2026-12",
+      "valorCentavos": 163243
+    },
+    {
+      "id": "11418|2026-12",
+      "valorCentavos": 25597
+    },
+    {
+      "id": "11420|2026-12",
+      "valorCentavos": 46275
+    },
+    {
+      "id": "11421|2026-12",
+      "valorCentavos": 31116
+    },
+    {
+      "id": "11422|2026-12",
+      "valorCentavos": 30416
+    },
+    {
+      "id": "11423|2026-12",
+      "valorCentavos": 37662
+    },
+    {
+      "id": "11424|2026-12",
+      "valorCentavos": 37324
+    },
+    {
+      "id": "11425|2026-12",
+      "valorCentavos": 26827
+    },
+    {
+      "id": "11427|2026-12",
+      "valorCentavos": 16410
+    },
+    {
+      "id": "11428|2026-12",
+      "valorCentavos": 20160
+    },
+    {
+      "id": "11437|2026-12",
+      "valorCentavos": 14303
+    },
+    {
+      "id": "11438|2026-12",
+      "valorCentavos": 2558
+    },
+    {
+      "id": "11439|2026-12",
+      "valorCentavos": 14107
+    },
+    {
+      "id": "11440|2026-12",
+      "valorCentavos": 12933
+    },
+    {
+      "id": "11441|2026-12",
+      "valorCentavos": 13007
+    },
+    {
+      "id": "11442|2026-12",
+      "valorCentavos": 13135
+    },
+    {
+      "id": "11443|2026-12",
+      "valorCentavos": 12777
+    },
+    {
+      "id": "11446|2026-12",
+      "valorCentavos": 13624
+    },
+    {
+      "id": "11448|2026-12",
+      "valorCentavos": 13667
+    },
+    {
+      "id": "11449|2026-12",
+      "valorCentavos": 14015
+    },
+    {
+      "id": "11450|2026-12",
+      "valorCentavos": 13484
+    },
+    {
+      "id": "11451|2026-12",
+      "valorCentavos": 11982
+    },
+    {
+      "id": "11452|2026-12",
+      "valorCentavos": 14210
+    },
+    {
+      "id": "11454|2026-12",
+      "valorCentavos": 22794
+    },
+    {
+      "id": "11456|2026-12",
+      "valorCentavos": 13176
+    },
+    {
+      "id": "11457|2026-12",
+      "valorCentavos": 907
+    },
+    {
+      "id": "11458|2026-12",
+      "valorCentavos": 12933
+    },
+    {
+      "id": "11459|2026-12",
+      "valorCentavos": 13007
+    },
+    {
+      "id": "11460|2026-12",
+      "valorCentavos": 13135
+    },
+    {
+      "id": "11461|2026-12",
+      "valorCentavos": 11277
+    },
+    {
+      "id": "11463|2026-12",
+      "valorCentavos": 66883
+    },
+    {
+      "id": "11465|2026-12",
+      "valorCentavos": 303975
+    },
+    {
+      "id": "11466|2026-12",
+      "valorCentavos": 15175
+    },
+    {
+      "id": "11467|2026-12",
+      "valorCentavos": 11734
+    },
+    {
+      "id": "11468|2026-12",
+      "valorCentavos": 12461
+    },
+    {
+      "id": "11469|2026-12",
+      "valorCentavos": 12461
+    },
+    {
+      "id": "11470|2026-12",
+      "valorCentavos": 11974
+    },
+    {
+      "id": "11471|2026-12",
+      "valorCentavos": 15754
+    },
+    {
+      "id": "11473|2026-12",
+      "valorCentavos": 225052
+    },
+    {
+      "id": "11475|2026-12",
+      "valorCentavos": 13995
+    },
+    {
+      "id": "11526|2026-12",
+      "valorCentavos": 2295018
+    },
+    {
+      "id": "11528|2026-12",
+      "valorCentavos": 347214
+    },
+    {
+      "id": "11533|2026-12",
+      "valorCentavos": 6831
+    },
+    {
+      "id": "11560|2026-12",
+      "valorCentavos": 13160
+    },
+    {
+      "id": "11561|2026-12",
+      "valorCentavos": 12177
+    },
+    {
+      "id": "11562|2026-12",
+      "valorCentavos": 11865
+    },
+    {
+      "id": "11563|2026-12",
+      "valorCentavos": 41776
+    },
+    {
+      "id": "11590|2026-12",
+      "valorCentavos": 46448
+    },
+    {
+      "id": "11594|2026-12",
+      "valorCentavos": 15025
+    },
+    {
+      "id": "11595|2026-12",
+      "valorCentavos": 11775
+    },
+    {
+      "id": "11597|2026-12",
+      "valorCentavos": 8343
+    },
+    {
+      "id": "11641|2026-12",
+      "valorCentavos": 26311
+    },
+    {
+      "id": "11645|2026-12",
+      "valorCentavos": 27665
+    },
+    {
+      "id": "11648|2026-12",
+      "valorCentavos": 11144
+    },
+    {
+      "id": "11649|2026-12",
+      "valorCentavos": 8350
+    },
+    {
+      "id": "11653|2026-12",
+      "valorCentavos": 13611
+    },
+    {
+      "id": "11654|2026-12",
+      "valorCentavos": 1099
+    },
+    {
+      "id": "11655|2026-12",
+      "valorCentavos": 14015
+    },
+    {
+      "id": "11656|2026-12",
+      "valorCentavos": 12840
+    },
+    {
+      "id": "11657|2026-12",
+      "valorCentavos": 11546
+    },
+    {
+      "id": "11658|2026-12",
+      "valorCentavos": 14183
+    },
+    {
+      "id": "11659|2026-12",
+      "valorCentavos": 11550
+    },
+    {
+      "id": "11660|2026-12",
+      "valorCentavos": 12481
+    },
+    {
+      "id": "11661|2026-12",
+      "valorCentavos": 12461
+    },
+    {
+      "id": "11662|2026-12",
+      "valorCentavos": 15020
+    },
+    {
+      "id": "11666|2026-12",
+      "valorCentavos": 752842
+    },
+    {
+      "id": "11681|2026-12",
+      "valorCentavos": 42811
+    },
+    {
+      "id": "11691|2026-12",
+      "valorCentavos": 8192
+    },
+    {
+      "id": "11698|2026-12",
+      "valorCentavos": 5281
+    },
+    {
+      "id": "11702|2026-12",
+      "valorCentavos": 51480
+    },
+    {
+      "id": "1454|2027-01",
+      "valorCentavos": 348
+    },
+    {
+      "id": "1457|2027-01",
+      "valorCentavos": 104420
+    },
+    {
+      "id": "1459|2027-01",
+      "valorCentavos": 74909
+    },
+    {
+      "id": "1461|2027-01",
+      "valorCentavos": 29964
+    },
+    {
+      "id": "1462|2027-01",
+      "valorCentavos": 63874
+    },
+    {
+      "id": "1464|2027-01",
+      "valorCentavos": 16925
+    },
+    {
+      "id": "1465|2027-01",
+      "valorCentavos": 19388
+    },
+    {
+      "id": "1469|2027-01",
+      "valorCentavos": 7841
+    },
+    {
+      "id": "1470|2027-01",
+      "valorCentavos": 9563
+    },
+    {
+      "id": "1472|2027-01",
+      "valorCentavos": 11006
+    },
+    {
+      "id": "1473|2027-01",
+      "valorCentavos": 72792
+    },
+    {
+      "id": "1474|2027-01",
+      "valorCentavos": 192793
+    },
+    {
+      "id": "1475|2027-01",
+      "valorCentavos": 146801
+    },
+    {
+      "id": "1476|2027-01",
+      "valorCentavos": 1430
+    },
+    {
+      "id": "1477|2027-01",
+      "valorCentavos": 127741
+    },
+    {
+      "id": "11006|2027-01",
+      "valorCentavos": 145036
+    },
+    {
+      "id": "11017|2027-01",
+      "valorCentavos": 34967
+    },
+    {
+      "id": "11018|2027-01",
+      "valorCentavos": 5376
+    },
+    {
+      "id": "11023|2027-01",
+      "valorCentavos": 79255
+    },
+    {
+      "id": "11024|2027-01",
+      "valorCentavos": 88474
+    },
+    {
+      "id": "11025|2027-01",
+      "valorCentavos": 133543
+    },
+    {
+      "id": "11031|2027-01",
+      "valorCentavos": 59232
+    },
+    {
+      "id": "11032|2027-01",
+      "valorCentavos": 159356
+    },
+    {
+      "id": "11034|2027-01",
+      "valorCentavos": 43582
+    },
+    {
+      "id": "11044|2027-01",
+      "valorCentavos": 104516
+    },
+    {
+      "id": "11054|2027-01",
+      "valorCentavos": 11305
+    },
+    {
+      "id": "11068|2027-01",
+      "valorCentavos": 21942
+    },
+    {
+      "id": "11071|2027-01",
+      "valorCentavos": 54388
+    },
+    {
+      "id": "11074|2027-01",
+      "valorCentavos": 5389
+    },
+    {
+      "id": "11080|2027-01",
+      "valorCentavos": 30076
+    },
+    {
+      "id": "11086|2027-01",
+      "valorCentavos": 39085
+    },
+    {
+      "id": "11103|2027-01",
+      "valorCentavos": 535416
+    },
+    {
+      "id": "11122|2027-01",
+      "valorCentavos": 20295
+    },
+    {
+      "id": "11124|2027-01",
+      "valorCentavos": 19763
+    },
+    {
+      "id": "11128|2027-01",
+      "valorCentavos": 16676
+    },
+    {
+      "id": "11129|2027-01",
+      "valorCentavos": 17740
+    },
+    {
+      "id": "11130|2027-01",
+      "valorCentavos": 37446
+    },
+    {
+      "id": "11132|2027-01",
+      "valorCentavos": 621177
+    },
+    {
+      "id": "11133|2027-01",
+      "valorCentavos": 394381
+    },
+    {
+      "id": "11134|2027-01",
+      "valorCentavos": 103594
+    },
+    {
+      "id": "11135|2027-01",
+      "valorCentavos": 168726
+    },
+    {
+      "id": "11136|2027-01",
+      "valorCentavos": 50654
+    },
+    {
+      "id": "11138|2027-01",
+      "valorCentavos": 420949
+    },
+    {
+      "id": "11139|2027-01",
+      "valorCentavos": 364821
+    },
+    {
+      "id": "11140|2027-01",
+      "valorCentavos": 479965
+    },
+    {
+      "id": "11141|2027-01",
+      "valorCentavos": 242343
+    },
+    {
+      "id": "11143|2027-01",
+      "valorCentavos": 245283
+    },
+    {
+      "id": "11144|2027-01",
+      "valorCentavos": 687100
+    },
+    {
+      "id": "11145|2027-01",
+      "valorCentavos": 452813
+    },
+    {
+      "id": "11146|2027-01",
+      "valorCentavos": 217681
+    },
+    {
+      "id": "11147|2027-01",
+      "valorCentavos": 265715
+    },
+    {
+      "id": "11148|2027-01",
+      "valorCentavos": 373364
+    },
+    {
+      "id": "11149|2027-01",
+      "valorCentavos": 242926
+    },
+    {
+      "id": "11166|2027-01",
+      "valorCentavos": 15408
+    },
+    {
+      "id": "11167|2027-01",
+      "valorCentavos": 5848
+    },
+    {
+      "id": "11171|2027-01",
+      "valorCentavos": 16676
+    },
+    {
+      "id": "11172|2027-01",
+      "valorCentavos": 18886
+    },
+    {
+      "id": "11173|2027-01",
+      "valorCentavos": 26743
+    },
+    {
+      "id": "11174|2027-01",
+      "valorCentavos": 18494
+    },
+    {
+      "id": "11180|2027-01",
+      "valorCentavos": 23497
+    },
+    {
+      "id": "11181|2027-01",
+      "valorCentavos": 21413
+    },
+    {
+      "id": "11183|2027-01",
+      "valorCentavos": 113776
+    },
+    {
+      "id": "11193|2027-01",
+      "valorCentavos": 121106
+    },
+    {
+      "id": "11201|2027-01",
+      "valorCentavos": 45460
+    },
+    {
+      "id": "11202|2027-01",
+      "valorCentavos": 107426
+    },
+    {
+      "id": "11203|2027-01",
+      "valorCentavos": 72330
+    },
+    {
+      "id": "11206|2027-01",
+      "valorCentavos": 28177
+    },
+    {
+      "id": "11257|2027-01",
+      "valorCentavos": 15226
+    },
+    {
+      "id": "11260|2027-01",
+      "valorCentavos": 32000
+    },
+    {
+      "id": "11290|2027-01",
+      "valorCentavos": 220360
+    },
+    {
+      "id": "11291|2027-01",
+      "valorCentavos": 85201
+    },
+    {
+      "id": "11294|2027-01",
+      "valorCentavos": 22267
+    },
+    {
+      "id": "11295|2027-01",
+      "valorCentavos": 25261
+    },
+    {
+      "id": "11303|2027-01",
+      "valorCentavos": 89891
+    },
+    {
+      "id": "11307|2027-01",
+      "valorCentavos": 3668042
+    },
+    {
+      "id": "11308|2027-01",
+      "valorCentavos": 2455446
+    },
+    {
+      "id": "11309|2027-01",
+      "valorCentavos": 1207327
+    },
+    {
+      "id": "11328|2027-01",
+      "valorCentavos": 108858
+    },
+    {
+      "id": "11329|2027-01",
+      "valorCentavos": 114884
+    },
+    {
+      "id": "11332|2027-01",
+      "valorCentavos": 54634
+    },
+    {
+      "id": "11340|2027-01",
+      "valorCentavos": 4521
+    },
+    {
+      "id": "11341|2027-01",
+      "valorCentavos": 100349
+    },
+    {
+      "id": "11345|2027-01",
+      "valorCentavos": 148896
+    },
+    {
+      "id": "11357|2027-01",
+      "valorCentavos": 55020
+    },
+    {
+      "id": "11364|2027-01",
+      "valorCentavos": 19105
+    },
+    {
+      "id": "11365|2027-01",
+      "valorCentavos": 2885
+    },
+    {
+      "id": "11366|2027-01",
+      "valorCentavos": 371648
+    },
+    {
+      "id": "11370|2027-01",
+      "valorCentavos": 63524
+    },
+    {
+      "id": "11372|2027-01",
+      "valorCentavos": 54776
+    },
+    {
+      "id": "11374|2027-01",
+      "valorCentavos": 71347
+    },
+    {
+      "id": "11375|2027-01",
+      "valorCentavos": 35342
+    },
+    {
+      "id": "11376|2027-01",
+      "valorCentavos": 89247
+    },
+    {
+      "id": "11377|2027-01",
+      "valorCentavos": 30328
+    },
+    {
+      "id": "11378|2027-01",
+      "valorCentavos": 192107
+    },
+    {
+      "id": "11380|2027-01",
+      "valorCentavos": 167272
+    },
+    {
+      "id": "11381|2027-01",
+      "valorCentavos": 159861
+    },
+    {
+      "id": "11382|2027-01",
+      "valorCentavos": 121380
+    },
+    {
+      "id": "11383|2027-01",
+      "valorCentavos": 17682
+    },
+    {
+      "id": "11384|2027-01",
+      "valorCentavos": 25279
+    },
+    {
+      "id": "11386|2027-01",
+      "valorCentavos": 7510
+    },
+    {
+      "id": "11387|2027-01",
+      "valorCentavos": 5123
+    },
+    {
+      "id": "11388|2027-01",
+      "valorCentavos": 7510
+    },
+    {
+      "id": "11389|2027-01",
+      "valorCentavos": 4867
+    },
+    {
+      "id": "11390|2027-01",
+      "valorCentavos": 20322
+    },
+    {
+      "id": "11392|2027-01",
+      "valorCentavos": 25279
+    },
+    {
+      "id": "11394|2027-01",
+      "valorCentavos": 7510
+    },
+    {
+      "id": "11395|2027-01",
+      "valorCentavos": 5123
+    },
+    {
+      "id": "11396|2027-01",
+      "valorCentavos": 7510
+    },
+    {
+      "id": "11397|2027-01",
+      "valorCentavos": 4867
+    },
+    {
+      "id": "11398|2027-01",
+      "valorCentavos": 25001
+    },
+    {
+      "id": "11399|2027-01",
+      "valorCentavos": 79634
+    },
+    {
+      "id": "11400|2027-01",
+      "valorCentavos": 9848
+    },
+    {
+      "id": "11401|2027-01",
+      "valorCentavos": 83789
+    },
+    {
+      "id": "11403|2027-01",
+      "valorCentavos": 90117
+    },
+    {
+      "id": "11404|2027-01",
+      "valorCentavos": 3749
+    },
+    {
+      "id": "11408|2027-01",
+      "valorCentavos": 123167
+    },
+    {
+      "id": "11409|2027-01",
+      "valorCentavos": 17151
+    },
+    {
+      "id": "11410|2027-01",
+      "valorCentavos": 76655
+    },
+    {
+      "id": "11411|2027-01",
+      "valorCentavos": 17840
+    },
+    {
+      "id": "11412|2027-01",
+      "valorCentavos": 31103
+    },
+    {
+      "id": "11413|2027-01",
+      "valorCentavos": 9143
+    },
+    {
+      "id": "11416|2027-01",
+      "valorCentavos": 158708
+    },
+    {
+      "id": "11417|2027-01",
+      "valorCentavos": 84172
+    },
+    {
+      "id": "11420|2027-01",
+      "valorCentavos": 195653
+    },
+    {
+      "id": "11421|2027-01",
+      "valorCentavos": 105846
+    },
+    {
+      "id": "11422|2027-01",
+      "valorCentavos": 117755
+    },
+    {
+      "id": "11423|2027-01",
+      "valorCentavos": 605591
+    },
+    {
+      "id": "11424|2027-01",
+      "valorCentavos": 243841
+    },
+    {
+      "id": "11426|2027-01",
+      "valorCentavos": 70320
+    },
+    {
+      "id": "11427|2027-01",
+      "valorCentavos": 104967
+    },
+    {
+      "id": "11428|2027-01",
+      "valorCentavos": 46987
+    },
+    {
+      "id": "11429|2027-01",
+      "valorCentavos": 130960
+    },
+    {
+      "id": "11430|2027-01",
+      "valorCentavos": 61987
+    },
+    {
+      "id": "11431|2027-01",
+      "valorCentavos": 234471
+    },
+    {
+      "id": "11437|2027-01",
+      "valorCentavos": 2384
+    },
+    {
+      "id": "11438|2027-01",
+      "valorCentavos": 18545
+    },
+    {
+      "id": "11440|2027-01",
+      "valorCentavos": 6748
+    },
+    {
+      "id": "11441|2027-01",
+      "valorCentavos": 6614
+    },
+    {
+      "id": "11442|2027-01",
+      "valorCentavos": 6568
+    },
+    {
+      "id": "11443|2027-01",
+      "valorCentavos": 6921
+    },
+    {
+      "id": "11444|2027-01",
+      "valorCentavos": 25003
+    },
+    {
+      "id": "11446|2027-01",
+      "valorCentavos": 9102
+    },
+    {
+      "id": "11447|2027-01",
+      "valorCentavos": 25005
+    },
+    {
+      "id": "11449|2027-01",
+      "valorCentavos": 4004
+    },
+    {
+      "id": "11450|2027-01",
+      "valorCentavos": 6355
+    },
+    {
+      "id": "11451|2027-01",
+      "valorCentavos": 5638
+    },
+    {
+      "id": "11452|2027-01",
+      "valorCentavos": 6869
+    },
+    {
+      "id": "11453|2027-01",
+      "valorCentavos": 25223
+    },
+    {
+      "id": "11454|2027-01",
+      "valorCentavos": 36209
+    },
+    {
+      "id": "11456|2027-01",
+      "valorCentavos": 3953
+    },
+    {
+      "id": "11457|2027-01",
+      "valorCentavos": 24100
+    },
+    {
+      "id": "11458|2027-01",
+      "valorCentavos": 6748
+    },
+    {
+      "id": "11459|2027-01",
+      "valorCentavos": 6614
+    },
+    {
+      "id": "11460|2027-01",
+      "valorCentavos": 6568
+    },
+    {
+      "id": "11461|2027-01",
+      "valorCentavos": 8106
+    },
+    {
+      "id": "11463|2027-01",
+      "valorCentavos": 240749
+    },
+    {
+      "id": "11464|2027-01",
+      "valorCentavos": 73262
+    },
+    {
+      "id": "11465|2027-01",
+      "valorCentavos": 390600
+    },
+    {
+      "id": "11466|2027-01",
+      "valorCentavos": 6551
+    },
+    {
+      "id": "11467|2027-01",
+      "valorCentavos": 6945
+    },
+    {
+      "id": "11468|2027-01",
+      "valorCentavos": 9405
+    },
+    {
+      "id": "11469|2027-01",
+      "valorCentavos": 9405
+    },
+    {
+      "id": "11470|2027-01",
+      "valorCentavos": 10245
+    },
+    {
+      "id": "11471|2027-01",
+      "valorCentavos": 4425
+    },
+    {
+      "id": "11473|2027-01",
+      "valorCentavos": 118241
+    },
+    {
+      "id": "11475|2027-01",
+      "valorCentavos": 304334
+    },
+    {
+      "id": "11476|2027-01",
+      "valorCentavos": 159811
+    },
+    {
+      "id": "11477|2027-01",
+      "valorCentavos": 179286
+    },
+    {
+      "id": "11478|2027-01",
+      "valorCentavos": 47389
+    },
+    {
+      "id": "11479|2027-01",
+      "valorCentavos": 38455
+    },
+    {
+      "id": "11485|2027-01",
+      "valorCentavos": 25002
+    },
+    {
+      "id": "11487|2027-01",
+      "valorCentavos": 56180
+    },
+    {
+      "id": "11491|2027-01",
+      "valorCentavos": 73124
+    },
+    {
+      "id": "11502|2027-01",
+      "valorCentavos": 35760
+    },
+    {
+      "id": "11526|2027-01",
+      "valorCentavos": 533726
+    },
+    {
+      "id": "11527|2027-01",
+      "valorCentavos": 297259
+    },
+    {
+      "id": "11528|2027-01",
+      "valorCentavos": 318495
+    },
+    {
+      "id": "11533|2027-01",
+      "valorCentavos": 14539
+    },
+    {
+      "id": "11534|2027-01",
+      "valorCentavos": 48117
+    },
+    {
+      "id": "11535|2027-01",
+      "valorCentavos": 53098
+    },
+    {
+      "id": "11544|2027-01",
+      "valorCentavos": 331222
+    },
+    {
+      "id": "11547|2027-01",
+      "valorCentavos": 43954
+    },
+    {
+      "id": "11548|2027-01",
+      "valorCentavos": 15080
+    },
+    {
+      "id": "11549|2027-01",
+      "valorCentavos": 83758
+    },
+    {
+      "id": "11560|2027-01",
+      "valorCentavos": 6793
+    },
+    {
+      "id": "11561|2027-01",
+      "valorCentavos": 7915
+    },
+    {
+      "id": "11562|2027-01",
+      "valorCentavos": 8269
+    },
+    {
+      "id": "11563|2027-01",
+      "valorCentavos": 48059
+    },
+    {
+      "id": "11588|2027-01",
+      "valorCentavos": 81583
+    },
+    {
+      "id": "11589|2027-01",
+      "valorCentavos": 25903
+    },
+    {
+      "id": "11590|2027-01",
+      "valorCentavos": 80196
+    },
+    {
+      "id": "11591|2027-01",
+      "valorCentavos": 91340
+    },
+    {
+      "id": "11592|2027-01",
+      "valorCentavos": 5823
+    },
+    {
+      "id": "11594|2027-01",
+      "valorCentavos": 2504
+    },
+    {
+      "id": "11595|2027-01",
+      "valorCentavos": 5887
+    },
+    {
+      "id": "11596|2027-01",
+      "valorCentavos": 25003
+    },
+    {
+      "id": "11597|2027-01",
+      "valorCentavos": 10429
+    },
+    {
+      "id": "11605|2027-01",
+      "valorCentavos": 92533
+    },
+    {
+      "id": "11637|2027-01",
+      "valorCentavos": 41867
+    },
+    {
+      "id": "11638|2027-01",
+      "valorCentavos": 37920
+    },
+    {
+      "id": "11641|2027-01",
+      "valorCentavos": 37422
+    },
+    {
+      "id": "11642|2027-01",
+      "valorCentavos": 41867
+    },
+    {
+      "id": "11645|2027-01",
+      "valorCentavos": 107455
+    },
+    {
+      "id": "11646|2027-01",
+      "valorCentavos": 137064
+    },
+    {
+      "id": "11647|2027-01",
+      "valorCentavos": 767324
+    },
+    {
+      "id": "11649|2027-01",
+      "valorCentavos": 10437
+    },
+    {
+      "id": "11652|2027-01",
+      "valorCentavos": 25000
+    },
+    {
+      "id": "11653|2027-01",
+      "valorCentavos": 9112
+    },
+    {
+      "id": "11654|2027-01",
+      "valorCentavos": 23906
+    },
+    {
+      "id": "11655|2027-01",
+      "valorCentavos": 4004
+    },
+    {
+      "id": "11656|2027-01",
+      "valorCentavos": 5723
+    },
+    {
+      "id": "11657|2027-01",
+      "valorCentavos": 5132
+    },
+    {
+      "id": "11658|2027-01",
+      "valorCentavos": 6762
+    },
+    {
+      "id": "11659|2027-01",
+      "valorCentavos": 7150
+    },
+    {
+      "id": "11660|2027-01",
+      "valorCentavos": 9390
+    },
+    {
+      "id": "11661|2027-01",
+      "valorCentavos": 9405
+    },
+    {
+      "id": "11662|2027-01",
+      "valorCentavos": 2503
+    },
+    {
+      "id": "11664|2027-01",
+      "valorCentavos": 183085
+    },
+    {
+      "id": "11666|2027-01",
+      "valorCentavos": 3936122
+    },
+    {
+      "id": "11671|2027-01",
+      "valorCentavos": 28468
+    },
+    {
+      "id": "11673|2027-01",
+      "valorCentavos": 12392
+    },
+    {
+      "id": "11681|2027-01",
+      "valorCentavos": 74356
+    },
+    {
+      "id": "11682|2027-01",
+      "valorCentavos": 38008
+    },
+    {
+      "id": "11683|2027-01",
+      "valorCentavos": 135630
+    },
+    {
+      "id": "11687|2027-01",
+      "valorCentavos": 98563
+    },
+    {
+      "id": "11689|2027-01",
+      "valorCentavos": 127951
+    },
+    {
+      "id": "11690|2027-01",
+      "valorCentavos": 121015
+    },
+    {
+      "id": "11691|2027-01",
+      "valorCentavos": 9178
+    },
+    {
+      "id": "11692|2027-01",
+      "valorCentavos": 2979
+    },
+    {
+      "id": "11696|2027-01",
+      "valorCentavos": 175535
+    },
+    {
+      "id": "11698|2027-01",
+      "valorCentavos": 38604
+    },
+    {
+      "id": "11702|2027-01",
+      "valorCentavos": 51480
+    },
+    {
+      "id": "11703|2027-01",
+      "valorCentavos": 341356
+    },
+    {
+      "id": "11710|2027-01",
+      "valorCentavos": 462871
+    },
+    {
+      "id": "1453|2027-02",
+      "valorCentavos": 34629
+    },
+    {
+      "id": "1454|2027-02",
+      "valorCentavos": 38876
+    },
+    {
+      "id": "1458|2027-02",
+      "valorCentavos": 49431
+    },
+    {
+      "id": "1459|2027-02",
+      "valorCentavos": 47858
+    },
+    {
+      "id": "1460|2027-02",
+      "valorCentavos": 50476
+    },
+    {
+      "id": "1461|2027-02",
+      "valorCentavos": 5993
+    },
+    {
+      "id": "1463|2027-02",
+      "valorCentavos": 45740
+    },
+    {
+      "id": "1464|2027-02",
+      "valorCentavos": 3158
+    },
+    {
+      "id": "1465|2027-02",
+      "valorCentavos": 3617
+    },
+    {
+      "id": "1466|2027-02",
+      "valorCentavos": 32781
+    },
+    {
+      "id": "1470|2027-02",
+      "valorCentavos": 1300
+    },
+    {
+      "id": "1473|2027-02",
+      "valorCentavos": 16559
+    },
+    {
+      "id": "1474|2027-02",
+      "valorCentavos": 38138
+    },
+    {
+      "id": "1475|2027-02",
+      "valorCentavos": 2733
+    },
+    {
+      "id": "1477|2027-02",
+      "valorCentavos": 15380
+    },
+    {
+      "id": "11018|2027-02",
+      "valorCentavos": 1423
+    },
+    {
+      "id": "11025|2027-02",
+      "valorCentavos": 8482
+    },
+    {
+      "id": "11039|2027-02",
+      "valorCentavos": 115841
+    },
+    {
+      "id": "11054|2027-02",
+      "valorCentavos": 3702
+    },
+    {
+      "id": "11068|2027-02",
+      "valorCentavos": 3124
+    },
+    {
+      "id": "11071|2027-02",
+      "valorCentavos": 9186
+    },
+    {
+      "id": "11080|2027-02",
+      "valorCentavos": 158
+    },
+    {
+      "id": "11129|2027-02",
+      "valorCentavos": 178
+    },
+    {
+      "id": "11140|2027-02",
+      "valorCentavos": 18157
+    },
+    {
+      "id": "11141|2027-02",
+      "valorCentavos": 21337
+    },
+    {
+      "id": "11166|2027-02",
+      "valorCentavos": 242
+    },
+    {
+      "id": "11167|2027-02",
+      "valorCentavos": 2924
+    },
+    {
+      "id": "11172|2027-02",
+      "valorCentavos": 190
+    },
+    {
+      "id": "11173|2027-02",
+      "valorCentavos": 1594
+    },
+    {
+      "id": "11174|2027-02",
+      "valorCentavos": 5651
+    },
+    {
+      "id": "11181|2027-02",
+      "valorCentavos": 219
+    },
+    {
+      "id": "11183|2027-02",
+      "valorCentavos": 52216
+    },
+    {
+      "id": "11193|2027-02",
+      "valorCentavos": 45414
+    },
+    {
+      "id": "11206|2027-02",
+      "valorCentavos": 1921
+    },
+    {
+      "id": "11257|2027-02",
+      "valorCentavos": 4926
+    },
+    {
+      "id": "11294|2027-02",
+      "valorCentavos": 2734
+    },
+    {
+      "id": "11309|2027-02",
+      "valorCentavos": 7622
+    },
+    {
+      "id": "11340|2027-02",
+      "valorCentavos": 77502
+    },
+    {
+      "id": "11341|2027-02",
+      "valorCentavos": 40139
+    },
+    {
+      "id": "11357|2027-02",
+      "valorCentavos": 33627
+    },
+    {
+      "id": "11364|2027-02",
+      "valorCentavos": 24785
+    },
+    {
+      "id": "11365|2027-02",
+      "valorCentavos": 36211
+    },
+    {
+      "id": "11366|2027-02",
+      "valorCentavos": 2388
+    },
+    {
+      "id": "11370|2027-02",
+      "valorCentavos": 155745
+    },
+    {
+      "id": "11372|2027-02",
+      "valorCentavos": 11690
+    },
+    {
+      "id": "11375|2027-02",
+      "valorCentavos": 51028
+    },
+    {
+      "id": "11376|2027-02",
+      "valorCentavos": 46899
+    },
+    {
+      "id": "11382|2027-02",
+      "valorCentavos": 69656
+    },
+    {
+      "id": "11383|2027-02",
+      "valorCentavos": 5819
+    },
+    {
+      "id": "11385|2027-02",
+      "valorCentavos": 5929
+    },
+    {
+      "id": "11386|2027-02",
+      "valorCentavos": 5006
+    },
+    {
+      "id": "11387|2027-02",
+      "valorCentavos": 2561
+    },
+    {
+      "id": "11388|2027-02",
+      "valorCentavos": 5006
+    },
+    {
+      "id": "11389|2027-02",
+      "valorCentavos": 2781
+    },
+    {
+      "id": "11390|2027-02",
+      "valorCentavos": 4681
+    },
+    {
+      "id": "11391|2027-02",
+      "valorCentavos": 25000
+    },
+    {
+      "id": "11393|2027-02",
+      "valorCentavos": 5929
+    },
+    {
+      "id": "11394|2027-02",
+      "valorCentavos": 5006
+    },
+    {
+      "id": "11395|2027-02",
+      "valorCentavos": 2561
+    },
+    {
+      "id": "11396|2027-02",
+      "valorCentavos": 5006
+    },
+    {
+      "id": "11397|2027-02",
+      "valorCentavos": 2781
+    },
+    {
+      "id": "11399|2027-02",
+      "valorCentavos": 43115
+    },
+    {
+      "id": "11400|2027-02",
+      "valorCentavos": 1641
+    },
+    {
+      "id": "11402|2027-02",
+      "valorCentavos": 36697
+    },
+    {
+      "id": "11403|2027-02",
+      "valorCentavos": 174227
+    },
+    {
+      "id": "11404|2027-02",
+      "valorCentavos": 4431
+    },
+    {
+      "id": "11408|2027-02",
+      "valorCentavos": 67854
+    },
+    {
+      "id": "11409|2027-02",
+      "valorCentavos": 13720
+    },
+    {
+      "id": "11410|2027-02",
+      "valorCentavos": 15159
+    },
+    {
+      "id": "11411|2027-02",
+      "valorCentavos": 14272
+    },
+    {
+      "id": "11412|2027-02",
+      "valorCentavos": 78826
+    },
+    {
+      "id": "11413|2027-02",
+      "valorCentavos": 1524
+    },
+    {
+      "id": "11416|2027-02",
+      "valorCentavos": 37105
+    },
+    {
+      "id": "11417|2027-02",
+      "valorCentavos": 19130
+    },
+    {
+      "id": "11418|2027-02",
+      "valorCentavos": 4266
+    },
+    {
+      "id": "11420|2027-02",
+      "valorCentavos": 151512
+    },
+    {
+      "id": "11421|2027-02",
+      "valorCentavos": 105278
+    },
+    {
+      "id": "11422|2027-02",
+      "valorCentavos": 104229
+    },
+    {
+      "id": "11424|2027-02",
+      "valorCentavos": 18263
+    },
+    {
+      "id": "11425|2027-02",
+      "valorCentavos": 43493
+    },
+    {
+      "id": "11427|2027-02",
+      "valorCentavos": 29823
+    },
+    {
+      "id": "11428|2027-02",
+      "valorCentavos": 53573
+    },
+    {
+      "id": "11429|2027-02",
+      "valorCentavos": 40160
+    },
+    {
+      "id": "11430|2027-02",
+      "valorCentavos": 43493
+    },
+    {
+      "id": "11431|2027-02",
+      "valorCentavos": 53489
+    },
+    {
+      "id": "11437|2027-02",
+      "valorCentavos": 3576
+    },
+    {
+      "id": "11439|2027-02",
+      "valorCentavos": 4702
+    },
+    {
+      "id": "11440|2027-02",
+      "valorCentavos": 3093
+    },
+    {
+      "id": "11441|2027-02",
+      "valorCentavos": 3638
+    },
+    {
+      "id": "11442|2027-02",
+      "valorCentavos": 3440
+    },
+    {
+      "id": "11443|2027-02",
+      "valorCentavos": 4259
+    },
+    {
+      "id": "11446|2027-02",
+      "valorCentavos": 2275
+    },
+    {
+      "id": "11448|2027-02",
+      "valorCentavos": 6834
+    },
+    {
+      "id": "11449|2027-02",
+      "valorCentavos": 3003
+    },
+    {
+      "id": "11450|2027-02",
+      "valorCentavos": 5163
+    },
+    {
+      "id": "11451|2027-02",
+      "valorCentavos": 4581
+    },
+    {
+      "id": "11452|2027-02",
+      "valorCentavos": 3925
+    },
+    {
+      "id": "11454|2027-02",
+      "valorCentavos": 9022
+    },
+    {
+      "id": "11456|2027-02",
+      "valorCentavos": 2635
+    },
+    {
+      "id": "11458|2027-02",
+      "valorCentavos": 3093
+    },
+    {
+      "id": "11459|2027-02",
+      "valorCentavos": 3638
+    },
+    {
+      "id": "11460|2027-02",
+      "valorCentavos": 3440
+    },
+    {
+      "id": "11461|2027-02",
+      "valorCentavos": 3524
+    },
+    {
+      "id": "11464|2027-02",
+      "valorCentavos": 48338
+    },
+    {
+      "id": "11465|2027-02",
+      "valorCentavos": 163800
+    },
+    {
+      "id": "11466|2027-02",
+      "valorCentavos": 3275
+    },
+    {
+      "id": "11467|2027-02",
+      "valorCentavos": 2993
+    },
+    {
+      "id": "11468|2027-02",
+      "valorCentavos": 3135
+    },
+    {
+      "id": "11469|2027-02",
+      "valorCentavos": 3135
+    },
+    {
+      "id": "11470|2027-02",
+      "valorCentavos": 2881
+    },
+    {
+      "id": "11471|2027-02",
+      "valorCentavos": 2744
+    },
+    {
+      "id": "11473|2027-02",
+      "valorCentavos": 61059
+    },
+    {
+      "id": "11475|2027-02",
+      "valorCentavos": 97406
+    },
+    {
+      "id": "11476|2027-02",
+      "valorCentavos": 127147
+    },
+    {
+      "id": "11477|2027-02",
+      "valorCentavos": 132271
+    },
+    {
+      "id": "11478|2027-02",
+      "valorCentavos": 59441
+    },
+    {
+      "id": "11479|2027-02",
+      "valorCentavos": 64592
+    },
+    {
+      "id": "11491|2027-02",
+      "valorCentavos": 200129
+    },
+    {
+      "id": "11526|2027-02",
+      "valorCentavos": 192694
+    },
+    {
+      "id": "11528|2027-02",
+      "valorCentavos": 105991
+    },
+    {
+      "id": "11533|2027-02",
+      "valorCentavos": 5516
+    },
+    {
+      "id": "11534|2027-02",
+      "valorCentavos": 27633
+    },
+    {
+      "id": "11535|2027-02",
+      "valorCentavos": 41924
+    },
+    {
+      "id": "11544|2027-02",
+      "valorCentavos": 4320
+    },
+    {
+      "id": "11547|2027-02",
+      "valorCentavos": 45781
+    },
+    {
+      "id": "11548|2027-02",
+      "valorCentavos": 30591
+    },
+    {
+      "id": "11549|2027-02",
+      "valorCentavos": 48734
+    },
+    {
+      "id": "11560|2027-02",
+      "valorCentavos": 5094
+    },
+    {
+      "id": "11561|2027-02",
+      "valorCentavos": 4718
+    },
+    {
+      "id": "11562|2027-02",
+      "valorCentavos": 4764
+    },
+    {
+      "id": "11563|2027-02",
+      "valorCentavos": 19400
+    },
+    {
+      "id": "11588|2027-02",
+      "valorCentavos": 38921
+    },
+    {
+      "id": "11589|2027-02",
+      "valorCentavos": 46261
+    },
+    {
+      "id": "11590|2027-02",
+      "valorCentavos": 15360
+    },
+    {
+      "id": "11591|2027-02",
+      "valorCentavos": 42341
+    },
+    {
+      "id": "11592|2027-02",
+      "valorCentavos": 123502
+    },
+    {
+      "id": "11594|2027-02",
+      "valorCentavos": 2504
+    },
+    {
+      "id": "11595|2027-02",
+      "valorCentavos": 1472
+    },
+    {
+      "id": "11597|2027-02",
+      "valorCentavos": 2086
+    },
+    {
+      "id": "11605|2027-02",
+      "valorCentavos": 16765
+    },
+    {
+      "id": "11637|2027-02",
+      "valorCentavos": 67333
+    },
+    {
+      "id": "11641|2027-02",
+      "valorCentavos": 60667
+    },
+    {
+      "id": "11642|2027-02",
+      "valorCentavos": 67333
+    },
+    {
+      "id": "11648|2027-02",
+      "valorCentavos": 2786
+    },
+    {
+      "id": "11649|2027-02",
+      "valorCentavos": 2087
+    },
+    {
+      "id": "11653|2027-02",
+      "valorCentavos": 2278
+    },
+    {
+      "id": "11655|2027-02",
+      "valorCentavos": 3003
+    },
+    {
+      "id": "11656|2027-02",
+      "valorCentavos": 6438
+    },
+    {
+      "id": "11657|2027-02",
+      "valorCentavos": 5773
+    },
+    {
+      "id": "11658|2027-02",
+      "valorCentavos": 4057
+    },
+    {
+      "id": "11659|2027-02",
+      "valorCentavos": 3025
+    },
+    {
+      "id": "11660|2027-02",
+      "valorCentavos": 3130
+    },
+    {
+      "id": "11661|2027-02",
+      "valorCentavos": 3135
+    },
+    {
+      "id": "11662|2027-02",
+      "valorCentavos": 2503
+    },
+    {
+      "id": "11664|2027-02",
+      "valorCentavos": 103328
+    },
+    {
+      "id": "11665|2027-02",
+      "valorCentavos": 36633
+    },
+    {
+      "id": "11666|2027-02",
+      "valorCentavos": 4144
+    },
+    {
+      "id": "11673|2027-02",
+      "valorCentavos": 12617
+    },
+    {
+      "id": "11681|2027-02",
+      "valorCentavos": 14646
+    },
+    {
+      "id": "11682|2027-02",
+      "valorCentavos": 45872
+    },
+    {
+      "id": "11690|2027-02",
+      "valorCentavos": 10386
+    },
+    {
+      "id": "11691|2027-02",
+      "valorCentavos": 260
+    },
+    {
+      "id": "11692|2027-02",
+      "valorCentavos": 22117
+    },
+    {
+      "id": "11694|2027-02",
+      "valorCentavos": 36708
+    },
+    {
+      "id": "11696|2027-02",
+      "valorCentavos": 4493
+    },
+    {
+      "id": "11698|2027-02",
+      "valorCentavos": 23753
+    },
+    {
+      "id": "11702|2027-02",
+      "valorCentavos": 25740
+    },
+    {
+      "id": "11703|2027-02",
+      "valorCentavos": 208782
+    },
+    {
+      "id": "11710|2027-02",
+      "valorCentavos": 1144
+    }
+  ]
+}

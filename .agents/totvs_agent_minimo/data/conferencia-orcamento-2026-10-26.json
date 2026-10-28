@@ -1,0 +1,8731 @@
+{
+  "resumo": {
+    "calculadoEm": "2026-10-26T20:07:30.695Z",
+    "meses": [
+      "2026-10",
+      "2026-11",
+      "2026-12",
+      "2027-01",
+      "2027-02"
+    ],
+    "mps": 1393,
+    "mpsComValor": 640,
+    "necessidadeCentavos": 30998435,
+    "lancadoHistoricoCentavos": 53308901,
+    "diferencaCentavos": -22310466,
+    "despesasComNecessidade": 170,
+    "mpsSemDespesa": [
+      {
+        "mp": "1015723",
+        "totalCentavos": 80510
+      },
+      {
+        "mp": "1015856",
+        "totalCentavos": 85533
+      },
+      {
+        "mp": "1000984",
+        "totalCentavos": 267204
+      },
+      {
+        "mp": "1002831",
+        "totalCentavos": 46120
+      },
+      {
+        "mp": "5000157",
+        "totalCentavos": 294004
+      },
+      {
+        "mp": "1015035",
+        "totalCentavos": 25000
+      },
+      {
+        "mp": "1015838",
+        "totalCentavos": 514324
+      },
+      {
+        "mp": "1014857",
+        "totalCentavos": 26186
+      },
+      {
+        "mp": "1016407",
+        "totalCentavos": 25571
+      },
+      {
+        "mp": "1016422",
+        "totalCentavos": 25183
+      }
+    ],
+    "despesasForaPlano": [
+      {
+        "despesa": 11116,
+        "mps": [
+          "1013503"
+        ],
+        "totalCentavos": 392101
+      },
+      {
+        "despesa": 11704,
+        "mps": [
+          "1000994"
+        ],
+        "totalCentavos": 99200
+      },
+      {
+        "despesa": 11070,
+        "mps": [
+          "1011733"
+        ],
+        "totalCentavos": 28326
+      },
+      {
+        "despesa": 11123,
+        "mps": [
+          "1015239"
+        ],
+        "totalCentavos": 25840
+      },
+      {
+        "despesa": 11069,
+        "mps": [
+          "1015290"
+        ],
+        "totalCentavos": 26188
+      }
+    ],
+    "mpsSemPreco": [],
+    "competenciasDiferentes": 621,
+    "lotes": [
+      {
+        "arquivo": "lote-pronto-fcpfm017-2026-10-15.json",
+        "entradas": 513,
+        "totalCentavos": 42767169
+      },
+      {
+        "arquivo": "lote-oito-fcpfm017-2026-10-16.json",
+        "entradas": 16,
+        "totalCentavos": 299338
+      },
+      {
+        "arquivo": "lote-42-fcpfm017-pronto-2026-10-16.json",
+        "entradas": 78,
+        "totalCentavos": 7545659
+      },
+      {
+        "arquivo": "lote-duas-duplicadas-fcpfm017-2026-10-19.json",
+        "entradas": 3,
+        "totalCentavos": 658165
+      },
+      {
+        "arquivo": "lote-embalagens-pino-fcpfm017-2026-10-19.json",
+        "entradas": 36,
+        "totalCentavos": 2038570
+      }
+    ]
+  },
+  "diferencas": [
+    {
+      "despesa": "11526",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2295018,
+      "diferencaCentavos": -2295018
+    },
+    {
+      "despesa": "11666",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 1839042,
+      "lancadoCentavos": 3936122,
+      "diferencaCentavos": -2097080
+    },
+    {
+      "despesa": "11526",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 1672677,
+      "diferencaCentavos": -1672677
+    },
+    {
+      "despesa": "11144",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 67198,
+      "lancadoCentavos": 1310710,
+      "diferencaCentavos": -1243512
+    },
+    {
+      "despesa": "11308",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 1264281,
+      "lancadoCentavos": 2455446,
+      "diferencaCentavos": -1191165
+    },
+    {
+      "despesa": "11307",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 2654901,
+      "lancadoCentavos": 3668042,
+      "diferencaCentavos": -1013141
+    },
+    {
+      "despesa": "11309",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 2045423,
+      "lancadoCentavos": 1207327,
+      "diferencaCentavos": 838096
+    },
+    {
+      "despesa": "11647",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 767324,
+      "diferencaCentavos": -767324
+    },
+    {
+      "despesa": "11144",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 687100,
+      "diferencaCentavos": -687100
+    },
+    {
+      "despesa": "11526",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 568083,
+      "diferencaCentavos": -568083
+    },
+    {
+      "despesa": "11710",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 462871,
+      "diferencaCentavos": -462871
+    },
+    {
+      "despesa": "11116",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 392101,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 392101
+    },
+    {
+      "despesa": "11366",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 371648,
+      "diferencaCentavos": -371648
+    },
+    {
+      "despesa": "11147",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 96940,
+      "lancadoCentavos": 452710,
+      "diferencaCentavos": -355770
+    },
+    {
+      "despesa": "11703",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 341356,
+      "diferencaCentavos": -341356
+    },
+    {
+      "despesa": "11544",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 331222,
+      "diferencaCentavos": -331222
+    },
+    {
+      "despesa": "MP_1015838",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 329748,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 329748
+    },
+    {
+      "despesa": "11103",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 224542,
+      "lancadoCentavos": 535416,
+      "diferencaCentavos": -310874
+    },
+    {
+      "despesa": "11475",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 304334,
+      "diferencaCentavos": -304334
+    },
+    {
+      "despesa": "11054",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 312917,
+      "lancadoCentavos": 11305,
+      "diferencaCentavos": 301612
+    },
+    {
+      "despesa": "11527",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 297259,
+      "diferencaCentavos": -297259
+    },
+    {
+      "despesa": "11526",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 244064,
+      "lancadoCentavos": 533726,
+      "diferencaCentavos": -289662
+    },
+    {
+      "despesa": "11666",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 1264687,
+      "lancadoCentavos": 1554219,
+      "diferencaCentavos": -289532
+    },
+    {
+      "despesa": "11423",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 339376,
+      "lancadoCentavos": 605591,
+      "diferencaCentavos": -266215
+    },
+    {
+      "despesa": "11147",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 265715,
+      "diferencaCentavos": -265715
+    },
+    {
+      "despesa": "11143",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 245283,
+      "diferencaCentavos": -245283
+    },
+    {
+      "despesa": "11139",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 124742,
+      "lancadoCentavos": 364821,
+      "diferencaCentavos": -240079
+    },
+    {
+      "despesa": "MP_1000984",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 227223,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 227223
+    },
+    {
+      "despesa": "11473",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 225052,
+      "diferencaCentavos": -225052
+    },
+    {
+      "despesa": "11054",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 234961,
+      "lancadoCentavos": 10118,
+      "diferencaCentavos": 224843
+    },
+    {
+      "despesa": "11290",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 220360,
+      "diferencaCentavos": -220360
+    },
+    {
+      "despesa": "11140",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 263043,
+      "lancadoCentavos": 479965,
+      "diferencaCentavos": -216922
+    },
+    {
+      "despesa": "11307",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 202208,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 202208
+    },
+    {
+      "despesa": "11491",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 200129,
+      "diferencaCentavos": -200129
+    },
+    {
+      "despesa": "11378",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 192107,
+      "diferencaCentavos": -192107
+    },
+    {
+      "despesa": "11703",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 25888,
+      "lancadoCentavos": 208782,
+      "diferencaCentavos": -182894
+    },
+    {
+      "despesa": "11477",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 179286,
+      "diferencaCentavos": -179286
+    },
+    {
+      "despesa": "11696",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 175535,
+      "diferencaCentavos": -175535
+    },
+    {
+      "despesa": "11403",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 174227,
+      "diferencaCentavos": -174227
+    },
+    {
+      "despesa": "11135",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 168726,
+      "diferencaCentavos": -168726
+    },
+    {
+      "despesa": "11380",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 167272,
+      "diferencaCentavos": -167272
+    },
+    {
+      "despesa": "11381",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 159861,
+      "diferencaCentavos": -159861
+    },
+    {
+      "despesa": "11476",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 159811,
+      "diferencaCentavos": -159811
+    },
+    {
+      "despesa": "11032",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 159356,
+      "diferencaCentavos": -159356
+    },
+    {
+      "despesa": "11416",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 158708,
+      "diferencaCentavos": -158708
+    },
+    {
+      "despesa": "11666",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 600698,
+      "lancadoCentavos": 752842,
+      "diferencaCentavos": -152144
+    },
+    {
+      "despesa": "11145",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 181055,
+      "lancadoCentavos": 31401,
+      "diferencaCentavos": 149654
+    },
+    {
+      "despesa": "11345",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 148896,
+      "diferencaCentavos": -148896
+    },
+    {
+      "despesa": "11143",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 113441,
+      "lancadoCentavos": 257422,
+      "diferencaCentavos": -143981
+    },
+    {
+      "despesa": "11528",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 175392,
+      "lancadoCentavos": 318495,
+      "diferencaCentavos": -143103
+    },
+    {
+      "despesa": "11420",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 53099,
+      "lancadoCentavos": 195653,
+      "diferencaCentavos": -142554
+    },
+    {
+      "despesa": "11303",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 142322,
+      "diferencaCentavos": -142322
+    },
+    {
+      "despesa": "11646",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 137064,
+      "diferencaCentavos": -137064
+    },
+    {
+      "despesa": "11683",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 135630,
+      "diferencaCentavos": -135630
+    },
+    {
+      "despesa": "11025",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 133543,
+      "diferencaCentavos": -133543
+    },
+    {
+      "despesa": "11689",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 127951,
+      "diferencaCentavos": -127951
+    },
+    {
+      "despesa": "11408",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 123167,
+      "diferencaCentavos": -123167
+    },
+    {
+      "despesa": "11340",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 127257,
+      "lancadoCentavos": 4521,
+      "diferencaCentavos": 122736
+    },
+    {
+      "despesa": "MP_5000157",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 120727,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 120727
+    },
+    {
+      "despesa": "1467",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 118885,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 118885
+    },
+    {
+      "despesa": "11473",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 118241,
+      "diferencaCentavos": -118241
+    },
+    {
+      "despesa": "11039",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 115841,
+      "diferencaCentavos": -115841
+    },
+    {
+      "despesa": "11329",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 114884,
+      "diferencaCentavos": -114884
+    },
+    {
+      "despesa": "11183",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 113776,
+      "diferencaCentavos": -113776
+    },
+    {
+      "despesa": "11121",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 113587,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 113587
+    },
+    {
+      "despesa": "11138",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 310230,
+      "lancadoCentavos": 420949,
+      "diferencaCentavos": -110719
+    },
+    {
+      "despesa": "11372",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 109552,
+      "diferencaCentavos": -109552
+    },
+    {
+      "despesa": "11006",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 254466,
+      "lancadoCentavos": 145036,
+      "diferencaCentavos": 109430
+    },
+    {
+      "despesa": "11328",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 108858,
+      "diferencaCentavos": -108858
+    },
+    {
+      "despesa": "11044",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 104516,
+      "diferencaCentavos": -104516
+    },
+    {
+      "despesa": "11149",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 140656,
+      "lancadoCentavos": 242926,
+      "diferencaCentavos": -102270
+    },
+    {
+      "despesa": "11704",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 99200,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 99200
+    },
+    {
+      "despesa": "11054",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 102480,
+      "lancadoCentavos": 3702,
+      "diferencaCentavos": 98778
+    },
+    {
+      "despesa": "11687",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 98563,
+      "diferencaCentavos": -98563
+    },
+    {
+      "despesa": "11341",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 97338,
+      "diferencaCentavos": -97338
+    },
+    {
+      "despesa": "MP_5000157",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 91675,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 91675
+    },
+    {
+      "despesa": "11591",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 91340,
+      "diferencaCentavos": -91340
+    },
+    {
+      "despesa": "11403",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 90117,
+      "diferencaCentavos": -90117
+    },
+    {
+      "despesa": "11303",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 89891,
+      "diferencaCentavos": -89891
+    },
+    {
+      "despesa": "11376",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 89247,
+      "diferencaCentavos": -89247
+    },
+    {
+      "despesa": "11024",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 88474,
+      "diferencaCentavos": -88474
+    },
+    {
+      "despesa": "MP_1015838",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 87686,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 87686
+    },
+    {
+      "despesa": "11424",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 156866,
+      "lancadoCentavos": 243841,
+      "diferencaCentavos": -86975
+    },
+    {
+      "despesa": "11291",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 85201,
+      "diferencaCentavos": -85201
+    },
+    {
+      "despesa": "11549",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 83758,
+      "diferencaCentavos": -83758
+    },
+    {
+      "despesa": "11463",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 157068,
+      "lancadoCentavos": 240749,
+      "diferencaCentavos": -83681
+    },
+    {
+      "despesa": "11132",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 537597,
+      "lancadoCentavos": 621177,
+      "diferencaCentavos": -83580
+    },
+    {
+      "despesa": "11145",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 369503,
+      "lancadoCentavos": 452813,
+      "diferencaCentavos": -83310
+    },
+    {
+      "despesa": "11588",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 81583,
+      "diferencaCentavos": -81583
+    },
+    {
+      "despesa": "11590",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 80196,
+      "diferencaCentavos": -80196
+    },
+    {
+      "despesa": "11023",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 79255,
+      "diferencaCentavos": -79255
+    },
+    {
+      "despesa": "11412",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 78826,
+      "diferencaCentavos": -78826
+    },
+    {
+      "despesa": "11410",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 76655,
+      "diferencaCentavos": -76655
+    },
+    {
+      "despesa": "11528",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 423528,
+      "lancadoCentavos": 347214,
+      "diferencaCentavos": 76314
+    },
+    {
+      "despesa": "11148",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 297754,
+      "lancadoCentavos": 373364,
+      "diferencaCentavos": -75610
+    },
+    {
+      "despesa": "11491",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 73124,
+      "diferencaCentavos": -73124
+    },
+    {
+      "despesa": "11374",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 71347,
+      "diferencaCentavos": -71347
+    },
+    {
+      "despesa": "11426",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 70320,
+      "diferencaCentavos": -70320
+    },
+    {
+      "despesa": "11308",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 70313,
+      "diferencaCentavos": -70313
+    },
+    {
+      "despesa": "11196",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 69923,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 69923
+    },
+    {
+      "despesa": "11341",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 34321,
+      "lancadoCentavos": 100349,
+      "diferencaCentavos": -66028
+    },
+    {
+      "despesa": "11422",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 53099,
+      "lancadoCentavos": 117755,
+      "diferencaCentavos": -64656
+    },
+    {
+      "despesa": "11479",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 64592,
+      "diferencaCentavos": -64592
+    },
+    {
+      "despesa": "MP_1015838",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 64239,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 64239
+    },
+    {
+      "despesa": "1462",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 63874,
+      "diferencaCentavos": -63874
+    },
+    {
+      "despesa": "11133",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 331516,
+      "lancadoCentavos": 394381,
+      "diferencaCentavos": -62865
+    },
+    {
+      "despesa": "11134",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 41002,
+      "lancadoCentavos": 103594,
+      "diferencaCentavos": -62592
+    },
+    {
+      "despesa": "11420",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 213741,
+      "lancadoCentavos": 151512,
+      "diferencaCentavos": 62229
+    },
+    {
+      "despesa": "11146",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 62046,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 62046
+    },
+    {
+      "despesa": "11430",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 61987,
+      "diferencaCentavos": -61987
+    },
+    {
+      "despesa": "11473",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 61059,
+      "diferencaCentavos": -61059
+    },
+    {
+      "despesa": "11478",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 59441,
+      "diferencaCentavos": -59441
+    },
+    {
+      "despesa": "11031",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 59232,
+      "diferencaCentavos": -59232
+    },
+    {
+      "despesa": "11411",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 57089,
+      "diferencaCentavos": -57089
+    },
+    {
+      "despesa": "11399",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 136111,
+      "lancadoCentavos": 79634,
+      "diferencaCentavos": 56477
+    },
+    {
+      "despesa": "11487",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 56180,
+      "diferencaCentavos": -56180
+    },
+    {
+      "despesa": "11357",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 55020,
+      "diferencaCentavos": -55020
+    },
+    {
+      "despesa": "11605",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 37576,
+      "lancadoCentavos": 92533,
+      "diferencaCentavos": -54957
+    },
+    {
+      "despesa": "11409",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 54882,
+      "diferencaCentavos": -54882
+    },
+    {
+      "despesa": "11372",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 54776,
+      "diferencaCentavos": -54776
+    },
+    {
+      "despesa": "11332",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 54634,
+      "diferencaCentavos": -54634
+    },
+    {
+      "despesa": "11141",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 187898,
+      "lancadoCentavos": 242343,
+      "diferencaCentavos": -54445
+    },
+    {
+      "despesa": "11071",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 108752,
+      "lancadoCentavos": 54388,
+      "diferencaCentavos": 54364
+    },
+    {
+      "despesa": "11202",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 160628,
+      "lancadoCentavos": 107426,
+      "diferencaCentavos": 53202
+    },
+    {
+      "despesa": "11535",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 53098,
+      "diferencaCentavos": -53098
+    },
+    {
+      "despesa": "11421",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 53099,
+      "lancadoCentavos": 105846,
+      "diferencaCentavos": -52747
+    },
+    {
+      "despesa": "11183",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 52216,
+      "diferencaCentavos": -52216
+    },
+    {
+      "despesa": "11307",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 597829,
+      "lancadoCentavos": 545694,
+      "diferencaCentavos": 52135
+    },
+    {
+      "despesa": "11372",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 52104,
+      "diferencaCentavos": -52104
+    },
+    {
+      "despesa": "11375",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 51028,
+      "diferencaCentavos": -51028
+    },
+    {
+      "despesa": "11136",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 50654,
+      "diferencaCentavos": -50654
+    },
+    {
+      "despesa": "11399",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 50120,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 50120
+    },
+    {
+      "despesa": "1457",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 54312,
+      "lancadoCentavos": 104420,
+      "diferencaCentavos": -50108
+    },
+    {
+      "despesa": "1458",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 49431,
+      "diferencaCentavos": -49431
+    },
+    {
+      "despesa": "11549",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 48734,
+      "diferencaCentavos": -48734
+    },
+    {
+      "despesa": "11534",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 48117,
+      "diferencaCentavos": -48117
+    },
+    {
+      "despesa": "11475",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 50007,
+      "lancadoCentavos": 97406,
+      "diferencaCentavos": -47399
+    },
+    {
+      "despesa": "11478",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 47389,
+      "diferencaCentavos": -47389
+    },
+    {
+      "despesa": "1474",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 145646,
+      "lancadoCentavos": 192793,
+      "diferencaCentavos": -47147
+    },
+    {
+      "despesa": "11376",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 46899,
+      "diferencaCentavos": -46899
+    },
+    {
+      "despesa": "11590",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 46448,
+      "diferencaCentavos": -46448
+    },
+    {
+      "despesa": "11420",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 46275,
+      "diferencaCentavos": -46275
+    },
+    {
+      "despesa": "11589",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 46261,
+      "diferencaCentavos": -46261
+    },
+    {
+      "despesa": "MP_1002831",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 46120,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 46120
+    },
+    {
+      "despesa": "11682",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 45872,
+      "diferencaCentavos": -45872
+    },
+    {
+      "despesa": "11547",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 45781,
+      "diferencaCentavos": -45781
+    },
+    {
+      "despesa": "11410",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 45763,
+      "diferencaCentavos": -45763
+    },
+    {
+      "despesa": "11201",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 45460,
+      "diferencaCentavos": -45460
+    },
+    {
+      "despesa": "11431",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 189141,
+      "lancadoCentavos": 234471,
+      "diferencaCentavos": -45330
+    },
+    {
+      "despesa": "MP_5000157",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 45105,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 45105
+    },
+    {
+      "despesa": "11146",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 172999,
+      "lancadoCentavos": 217681,
+      "diferencaCentavos": -44682
+    },
+    {
+      "despesa": "11547",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 43954,
+      "diferencaCentavos": -43954
+    },
+    {
+      "despesa": "11034",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 43582,
+      "diferencaCentavos": -43582
+    },
+    {
+      "despesa": "11591",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 42341,
+      "diferencaCentavos": -42341
+    },
+    {
+      "despesa": "11535",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 41924,
+      "diferencaCentavos": -41924
+    },
+    {
+      "despesa": "11645",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 66720,
+      "lancadoCentavos": 107455,
+      "diferencaCentavos": -40735
+    },
+    {
+      "despesa": "MP_1015856",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 40251,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 40251
+    },
+    {
+      "despesa": "11353",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 40105,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 40105
+    },
+    {
+      "despesa": "MP_1000984",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 39981,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 39981
+    },
+    {
+      "despesa": "1475",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 118370,
+      "lancadoCentavos": 157693,
+      "diferencaCentavos": -39323
+    },
+    {
+      "despesa": "11588",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 38921,
+      "diferencaCentavos": -38921
+    },
+    {
+      "despesa": "11479",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 38455,
+      "diferencaCentavos": -38455
+    },
+    {
+      "despesa": "11463",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 28776,
+      "lancadoCentavos": 66883,
+      "diferencaCentavos": -38107
+    },
+    {
+      "despesa": "11682",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 38008,
+      "diferencaCentavos": -38008
+    },
+    {
+      "despesa": "11423",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 37662,
+      "diferencaCentavos": -37662
+    },
+    {
+      "despesa": "11071",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 71551,
+      "lancadoCentavos": 109140,
+      "diferencaCentavos": -37589
+    },
+    {
+      "despesa": "11424",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 37324,
+      "diferencaCentavos": -37324
+    },
+    {
+      "despesa": "11416",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 37105,
+      "diferencaCentavos": -37105
+    },
+    {
+      "despesa": "11365",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 36211,
+      "diferencaCentavos": -36211
+    },
+    {
+      "despesa": "11454",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 36209,
+      "diferencaCentavos": -36209
+    },
+    {
+      "despesa": "11201",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 36029,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 36029
+    },
+    {
+      "despesa": "11141",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 52624,
+      "lancadoCentavos": 16806,
+      "diferencaCentavos": 35818
+    },
+    {
+      "despesa": "11375",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 35342,
+      "diferencaCentavos": -35342
+    },
+    {
+      "despesa": "11476",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 92958,
+      "lancadoCentavos": 127147,
+      "diferencaCentavos": -34189
+    },
+    {
+      "despesa": "11422",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 138341,
+      "lancadoCentavos": 104229,
+      "diferencaCentavos": 34112
+    },
+    {
+      "despesa": "11690",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 87020,
+      "lancadoCentavos": 121015,
+      "diferencaCentavos": -33995
+    },
+    {
+      "despesa": "11357",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 33627,
+      "diferencaCentavos": -33627
+    },
+    {
+      "despesa": "MP_1015723",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 33465,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 33465
+    },
+    {
+      "despesa": "11421",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 138341,
+      "lancadoCentavos": 105278,
+      "diferencaCentavos": 33063
+    },
+    {
+      "despesa": "MP_1015838",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 32651,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 32651
+    },
+    {
+      "despesa": "11086",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 71284,
+      "lancadoCentavos": 39085,
+      "diferencaCentavos": 32199
+    },
+    {
+      "despesa": "11017",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 66085,
+      "lancadoCentavos": 34967,
+      "diferencaCentavos": 31118
+    },
+    {
+      "despesa": "11421",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 31116,
+      "diferencaCentavos": -31116
+    },
+    {
+      "despesa": "11412",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 31103,
+      "diferencaCentavos": -31103
+    },
+    {
+      "despesa": "11473",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 30747,
+      "diferencaCentavos": -30747
+    },
+    {
+      "despesa": "11548",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 30591,
+      "diferencaCentavos": -30591
+    },
+    {
+      "despesa": "11141",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 51756,
+      "lancadoCentavos": 21337,
+      "diferencaCentavos": 30419
+    },
+    {
+      "despesa": "11422",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 30416,
+      "diferencaCentavos": -30416
+    },
+    {
+      "despesa": "1475",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 177163,
+      "lancadoCentavos": 146801,
+      "diferencaCentavos": 30362
+    },
+    {
+      "despesa": "11377",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 30328,
+      "diferencaCentavos": -30328
+    },
+    {
+      "despesa": "11410",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 30317,
+      "diferencaCentavos": -30317
+    },
+    {
+      "despesa": "11425",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 13413,
+      "lancadoCentavos": 43493,
+      "diferencaCentavos": -30080
+    },
+    {
+      "despesa": "11202",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 28865,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 28865
+    },
+    {
+      "despesa": "11671",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 28468,
+      "diferencaCentavos": -28468
+    },
+    {
+      "despesa": "11592",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 34270,
+      "lancadoCentavos": 5823,
+      "diferencaCentavos": 28447
+    },
+    {
+      "despesa": "MP_1015723",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 28373,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 28373
+    },
+    {
+      "despesa": "11070",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 28326,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 28326
+    },
+    {
+      "despesa": "11408",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 39613,
+      "lancadoCentavos": 67854,
+      "diferencaCentavos": -28241
+    },
+    {
+      "despesa": "11085",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 27817,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 27817
+    },
+    {
+      "despesa": "11121",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 27704,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 27704
+    },
+    {
+      "despesa": "11004",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 27680,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 27680
+    },
+    {
+      "despesa": "11645",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 27665,
+      "diferencaCentavos": -27665
+    },
+    {
+      "despesa": "11534",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 27633,
+      "diferencaCentavos": -27633
+    },
+    {
+      "despesa": "1477",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 48834,
+      "lancadoCentavos": 76318,
+      "diferencaCentavos": -27484
+    },
+    {
+      "despesa": "11428",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 20160,
+      "lancadoCentavos": 46987,
+      "diferencaCentavos": -26827
+    },
+    {
+      "despesa": "11173",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 26743,
+      "diferencaCentavos": -26743
+    },
+    {
+      "despesa": "11471",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 42057,
+      "lancadoCentavos": 15754,
+      "diferencaCentavos": 26303
+    },
+    {
+      "despesa": "11069",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 26188,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 26188
+    },
+    {
+      "despesa": "MP_1014857",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 26186,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 26186
+    },
+    {
+      "despesa": "11589",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 25903,
+      "diferencaCentavos": -25903
+    },
+    {
+      "despesa": "11123",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 25840,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 25840
+    },
+    {
+      "despesa": "MP_1016407",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 25571,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 25571
+    },
+    {
+      "despesa": "11203",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 25538,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 25538
+    },
+    {
+      "despesa": "11392",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 25279,
+      "diferencaCentavos": -25279
+    },
+    {
+      "despesa": "11384",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 25279,
+      "diferencaCentavos": -25279
+    },
+    {
+      "despesa": "11295",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 25261,
+      "diferencaCentavos": -25261
+    },
+    {
+      "despesa": "11453",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 25223,
+      "diferencaCentavos": -25223
+    },
+    {
+      "despesa": "MP_1016422",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 25183,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 25183
+    },
+    {
+      "despesa": "11405",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 25004,
+      "diferencaCentavos": -25004
+    },
+    {
+      "despesa": "11596",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 25003,
+      "diferencaCentavos": -25003
+    },
+    {
+      "despesa": "11485",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 25002,
+      "diferencaCentavos": -25002
+    },
+    {
+      "despesa": "MP_1015035",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 25000,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 25000
+    },
+    {
+      "despesa": "11652",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 25000,
+      "diferencaCentavos": -25000
+    },
+    {
+      "despesa": "11364",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 24785,
+      "diferencaCentavos": -24785
+    },
+    {
+      "despesa": "11074",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 29225,
+      "lancadoCentavos": 5389,
+      "diferencaCentavos": 23836
+    },
+    {
+      "despesa": "1467",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 8336,
+      "lancadoCentavos": 31953,
+      "diferencaCentavos": -23617
+    },
+    {
+      "despesa": "11605",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 40238,
+      "lancadoCentavos": 16765,
+      "diferencaCentavos": 23473
+    },
+    {
+      "despesa": "11130",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 60560,
+      "lancadoCentavos": 37446,
+      "diferencaCentavos": 23114
+    },
+    {
+      "despesa": "11146",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 40595,
+      "lancadoCentavos": 17687,
+      "diferencaCentavos": 22908
+    },
+    {
+      "despesa": "11454",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 22794,
+      "diferencaCentavos": -22794
+    },
+    {
+      "despesa": "11294",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 25237,
+      "lancadoCentavos": 2734,
+      "diferencaCentavos": 22503
+    },
+    {
+      "despesa": "11132",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 22388,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 22388
+    },
+    {
+      "despesa": "11294",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 22267,
+      "diferencaCentavos": -22267
+    },
+    {
+      "despesa": "1477",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 87176,
+      "lancadoCentavos": 109309,
+      "diferencaCentavos": -22133
+    },
+    {
+      "despesa": "11423",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 21243,
+      "diferencaCentavos": -21243
+    },
+    {
+      "despesa": "11071",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 20796,
+      "diferencaCentavos": -20796
+    },
+    {
+      "despesa": "MP_5000157",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 20534,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 20534
+    },
+    {
+      "despesa": "11450",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 25487,
+      "lancadoCentavos": 5163,
+      "diferencaCentavos": 20324
+    },
+    {
+      "despesa": "11427",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 84647,
+      "lancadoCentavos": 104967,
+      "diferencaCentavos": -20320
+    },
+    {
+      "despesa": "1474",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 327777,
+      "lancadoCentavos": 348048,
+      "diferencaCentavos": -20271
+    },
+    {
+      "despesa": "MP_1015856",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 20126,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 20126
+    },
+    {
+      "despesa": "MP_1015856",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 20125,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 20125
+    },
+    {
+      "despesa": "11124",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 19763,
+      "diferencaCentavos": -19763
+    },
+    {
+      "despesa": "11121",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 19624,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 19624
+    },
+    {
+      "despesa": "11167",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 19492,
+      "diferencaCentavos": -19492
+    },
+    {
+      "despesa": "1465",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 19388,
+      "diferencaCentavos": -19388
+    },
+    {
+      "despesa": "11690",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 19376,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 19376
+    },
+    {
+      "despesa": "11132",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 48520,
+      "lancadoCentavos": 29380,
+      "diferencaCentavos": 19140
+    },
+    {
+      "despesa": "11364",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 19105,
+      "diferencaCentavos": -19105
+    },
+    {
+      "despesa": "11140",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 80961,
+      "lancadoCentavos": 62032,
+      "diferencaCentavos": 18929
+    },
+    {
+      "despesa": "11074",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 18366,
+      "diferencaCentavos": -18366
+    },
+    {
+      "despesa": "11411",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 17840,
+      "diferencaCentavos": -17840
+    },
+    {
+      "despesa": "11202",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 19543,
+      "lancadoCentavos": 1770,
+      "diferencaCentavos": 17773
+    },
+    {
+      "despesa": "11637",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 24267,
+      "lancadoCentavos": 41867,
+      "diferencaCentavos": -17600
+    },
+    {
+      "despesa": "11642",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 24267,
+      "lancadoCentavos": 41867,
+      "diferencaCentavos": -17600
+    },
+    {
+      "despesa": "11666",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 45484,
+      "lancadoCentavos": 28241,
+      "diferencaCentavos": 17243
+    },
+    {
+      "despesa": "11409",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 17151,
+      "diferencaCentavos": -17151
+    },
+    {
+      "despesa": "11260",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 16941,
+      "diferencaCentavos": -16941
+    },
+    {
+      "despesa": "1464",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 16925,
+      "diferencaCentavos": -16925
+    },
+    {
+      "despesa": "11427",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 16410,
+      "diferencaCentavos": -16410
+    },
+    {
+      "despesa": "MP_5000157",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 15963,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 15963
+    },
+    {
+      "despesa": "11340",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 62077,
+      "lancadoCentavos": 77502,
+      "diferencaCentavos": -15425
+    },
+    {
+      "despesa": "11590",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 15360,
+      "diferencaCentavos": -15360
+    },
+    {
+      "despesa": "11466",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 15175,
+      "diferencaCentavos": -15175
+    },
+    {
+      "despesa": "11410",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 15159,
+      "diferencaCentavos": -15159
+    },
+    {
+      "despesa": "11548",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 15080,
+      "diferencaCentavos": -15080
+    },
+    {
+      "despesa": "11594",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 15025,
+      "diferencaCentavos": -15025
+    },
+    {
+      "despesa": "11662",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 15020,
+      "diferencaCentavos": -15020
+    },
+    {
+      "despesa": "11203",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 57509,
+      "lancadoCentavos": 72330,
+      "diferencaCentavos": -14821
+    },
+    {
+      "despesa": "11471",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 19151,
+      "lancadoCentavos": 4425,
+      "diferencaCentavos": 14726
+    },
+    {
+      "despesa": "11401",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 98123,
+      "lancadoCentavos": 83789,
+      "diferencaCentavos": 14334
+    },
+    {
+      "despesa": "11437",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 14303,
+      "diferencaCentavos": -14303
+    },
+    {
+      "despesa": "11411",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 14272,
+      "diferencaCentavos": -14272
+    },
+    {
+      "despesa": "11452",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 14210,
+      "diferencaCentavos": -14210
+    },
+    {
+      "despesa": "11658",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 14183,
+      "diferencaCentavos": -14183
+    },
+    {
+      "despesa": "11439",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 14107,
+      "diferencaCentavos": -14107
+    },
+    {
+      "despesa": "11595",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 19985,
+      "lancadoCentavos": 5887,
+      "diferencaCentavos": 14098
+    },
+    {
+      "despesa": "11475",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 13995,
+      "diferencaCentavos": -13995
+    },
+    {
+      "despesa": "1459",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 40587,
+      "lancadoCentavos": 26634,
+      "diferencaCentavos": 13953
+    },
+    {
+      "despesa": "11133",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 66190,
+      "lancadoCentavos": 80138,
+      "diferencaCentavos": -13948
+    },
+    {
+      "despesa": "1475",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 136791,
+      "lancadoCentavos": 150705,
+      "diferencaCentavos": -13914
+    },
+    {
+      "despesa": "11409",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 13720,
+      "diferencaCentavos": -13720
+    },
+    {
+      "despesa": "11409",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 13720,
+      "diferencaCentavos": -13720
+    },
+    {
+      "despesa": "11448",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 13667,
+      "diferencaCentavos": -13667
+    },
+    {
+      "despesa": "11446",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 13624,
+      "diferencaCentavos": -13624
+    },
+    {
+      "despesa": "11653",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 13611,
+      "diferencaCentavos": -13611
+    },
+    {
+      "despesa": "11450",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 13484,
+      "diferencaCentavos": -13484
+    },
+    {
+      "despesa": "11428",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 40160,
+      "lancadoCentavos": 53573,
+      "diferencaCentavos": -13413
+    },
+    {
+      "despesa": "11430",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 30080,
+      "lancadoCentavos": 43493,
+      "diferencaCentavos": -13413
+    },
+    {
+      "despesa": "11656",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 12840,
+      "diferencaCentavos": -12840
+    },
+    {
+      "despesa": "1475",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 47936,
+      "lancadoCentavos": 60516,
+      "diferencaCentavos": -12580
+    },
+    {
+      "despesa": "11006",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 12178,
+      "lancadoCentavos": 24664,
+      "diferencaCentavos": -12486
+    },
+    {
+      "despesa": "11394",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 12485,
+      "diferencaCentavos": -12485
+    },
+    {
+      "despesa": "11396",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 12485,
+      "diferencaCentavos": -12485
+    },
+    {
+      "despesa": "11386",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 12485,
+      "diferencaCentavos": -12485
+    },
+    {
+      "despesa": "11388",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 12485,
+      "diferencaCentavos": -12485
+    },
+    {
+      "despesa": "11660",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 12481,
+      "diferencaCentavos": -12481
+    },
+    {
+      "despesa": "11469",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 12461,
+      "diferencaCentavos": -12461
+    },
+    {
+      "despesa": "11661",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 12461,
+      "diferencaCentavos": -12461
+    },
+    {
+      "despesa": "11468",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 12461,
+      "diferencaCentavos": -12461
+    },
+    {
+      "despesa": "1473",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 32523,
+      "lancadoCentavos": 44926,
+      "diferencaCentavos": -12403
+    },
+    {
+      "despesa": "11463",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 31362,
+      "lancadoCentavos": 43467,
+      "diferencaCentavos": -12105
+    },
+    {
+      "despesa": "11673",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 24318,
+      "lancadoCentavos": 12392,
+      "diferencaCentavos": 11926
+    },
+    {
+      "despesa": "1474",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 103994,
+      "lancadoCentavos": 92147,
+      "diferencaCentavos": 11847
+    },
+    {
+      "despesa": "11595",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 11775,
+      "diferencaCentavos": -11775
+    },
+    {
+      "despesa": "11372",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 11690,
+      "diferencaCentavos": -11690
+    },
+    {
+      "despesa": "11385",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 17596,
+      "lancadoCentavos": 5929,
+      "diferencaCentavos": 11667
+    },
+    {
+      "despesa": "11393",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 17596,
+      "lancadoCentavos": 5929,
+      "diferencaCentavos": 11667
+    },
+    {
+      "despesa": "11657",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 11546,
+      "diferencaCentavos": -11546
+    },
+    {
+      "despesa": "11452",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 15429,
+      "lancadoCentavos": 3925,
+      "diferencaCentavos": 11504
+    },
+    {
+      "despesa": "11139",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 11404,
+      "diferencaCentavos": -11404
+    },
+    {
+      "despesa": "1465",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 11285,
+      "diferencaCentavos": -11285
+    },
+    {
+      "despesa": "11138",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 55454,
+      "lancadoCentavos": 66655,
+      "diferencaCentavos": -11201
+    },
+    {
+      "despesa": "11648",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 11144,
+      "diferencaCentavos": -11144
+    },
+    {
+      "despesa": "11648",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 11074,
+      "diferencaCentavos": -11074
+    },
+    {
+      "despesa": "11080",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 19249,
+      "lancadoCentavos": 30076,
+      "diferencaCentavos": -10827
+    },
+    {
+      "despesa": "11341",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 50845,
+      "lancadoCentavos": 40139,
+      "diferencaCentavos": 10706
+    },
+    {
+      "despesa": "11657",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 16386,
+      "lancadoCentavos": 5773,
+      "diferencaCentavos": 10613
+    },
+    {
+      "despesa": "11649",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 10437,
+      "diferencaCentavos": -10437
+    },
+    {
+      "despesa": "11597",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 10429,
+      "diferencaCentavos": -10429
+    },
+    {
+      "despesa": "1476",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 11752,
+      "lancadoCentavos": 1430,
+      "diferencaCentavos": 10322
+    },
+    {
+      "despesa": "11637",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 77333,
+      "lancadoCentavos": 67333,
+      "diferencaCentavos": 10000
+    },
+    {
+      "despesa": "11642",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 77333,
+      "lancadoCentavos": 67333,
+      "diferencaCentavos": 10000
+    },
+    {
+      "despesa": "1464",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 9852,
+      "diferencaCentavos": -9852
+    },
+    {
+      "despesa": "11206",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 18372,
+      "lancadoCentavos": 28177,
+      "diferencaCentavos": -9805
+    },
+    {
+      "despesa": "11438",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 28139,
+      "lancadoCentavos": 18545,
+      "diferencaCentavos": 9594
+    },
+    {
+      "despesa": "MP_1015723",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 9457,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 9457
+    },
+    {
+      "despesa": "11469",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 9405,
+      "diferencaCentavos": -9405
+    },
+    {
+      "despesa": "11661",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 9405,
+      "diferencaCentavos": -9405
+    },
+    {
+      "despesa": "11468",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 9405,
+      "diferencaCentavos": -9405
+    },
+    {
+      "despesa": "11660",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 9390,
+      "diferencaCentavos": -9390
+    },
+    {
+      "despesa": "MP_1015723",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 9215,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 9215
+    },
+    {
+      "despesa": "11471",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 11874,
+      "lancadoCentavos": 2744,
+      "diferencaCentavos": 9130
+    },
+    {
+      "despesa": "11653",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 9112,
+      "diferencaCentavos": -9112
+    },
+    {
+      "despesa": "11446",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 9102,
+      "diferencaCentavos": -9102
+    },
+    {
+      "despesa": "11454",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 9022,
+      "diferencaCentavos": -9022
+    },
+    {
+      "despesa": "11658",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 12894,
+      "lancadoCentavos": 4057,
+      "diferencaCentavos": 8837
+    },
+    {
+      "despesa": "11388",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 13583,
+      "lancadoCentavos": 5006,
+      "diferencaCentavos": 8577
+    },
+    {
+      "despesa": "11025",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 8482,
+      "diferencaCentavos": -8482
+    },
+    {
+      "despesa": "11172",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 8409,
+      "diferencaCentavos": -8409
+    },
+    {
+      "despesa": "11649",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 8350,
+      "diferencaCentavos": -8350
+    },
+    {
+      "despesa": "11597",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 8343,
+      "diferencaCentavos": -8343
+    },
+    {
+      "despesa": "11171",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 25018,
+      "lancadoCentavos": 16676,
+      "diferencaCentavos": 8342
+    },
+    {
+      "despesa": "11128",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 25015,
+      "lancadoCentavos": 16676,
+      "diferencaCentavos": 8339
+    },
+    {
+      "despesa": "11148",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 8268,
+      "diferencaCentavos": -8268
+    },
+    {
+      "despesa": "11122",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 28440,
+      "lancadoCentavos": 20295,
+      "diferencaCentavos": 8145
+    },
+    {
+      "despesa": "11206",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 20718,
+      "lancadoCentavos": 12632,
+      "diferencaCentavos": 8086
+    },
+    {
+      "despesa": "11129",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 7898,
+      "diferencaCentavos": -7898
+    },
+    {
+      "despesa": "1469",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 7842,
+      "diferencaCentavos": -7842
+    },
+    {
+      "despesa": "11456",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 11712,
+      "lancadoCentavos": 3953,
+      "diferencaCentavos": 7759
+    },
+    {
+      "despesa": "1476",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 2474,
+      "lancadoCentavos": 10127,
+      "diferencaCentavos": -7653
+    },
+    {
+      "despesa": "11128",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 7580,
+      "diferencaCentavos": -7580
+    },
+    {
+      "despesa": "11171",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 7580,
+      "diferencaCentavos": -7580
+    },
+    {
+      "despesa": "11394",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 7510,
+      "diferencaCentavos": -7510
+    },
+    {
+      "despesa": "11396",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 7510,
+      "diferencaCentavos": -7510
+    },
+    {
+      "despesa": "11386",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 7510,
+      "diferencaCentavos": -7510
+    },
+    {
+      "despesa": "11456",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 5807,
+      "lancadoCentavos": 13176,
+      "diferencaCentavos": -7369
+    },
+    {
+      "despesa": "11698",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 12418,
+      "lancadoCentavos": 5281,
+      "diferencaCentavos": 7137
+    },
+    {
+      "despesa": "11448",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 6834,
+      "diferencaCentavos": -6834
+    },
+    {
+      "despesa": "1473",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 84786,
+      "lancadoCentavos": 91593,
+      "diferencaCentavos": -6807
+    },
+    {
+      "despesa": "1469",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 12612,
+      "lancadoCentavos": 5881,
+      "diferencaCentavos": 6731
+    },
+    {
+      "despesa": "11124",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 6588,
+      "diferencaCentavos": -6588
+    },
+    {
+      "despesa": "11124",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 6588,
+      "diferencaCentavos": -6588
+    },
+    {
+      "despesa": "11466",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 6551,
+      "diferencaCentavos": -6551
+    },
+    {
+      "despesa": "11656",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 6438,
+      "diferencaCentavos": -6438
+    },
+    {
+      "despesa": "11450",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 6355,
+      "diferencaCentavos": -6355
+    },
+    {
+      "despesa": "1464",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 6315,
+      "diferencaCentavos": -6315
+    },
+    {
+      "despesa": "1477",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 23446,
+      "lancadoCentavos": 29752,
+      "diferencaCentavos": -6306
+    },
+    {
+      "despesa": "11427",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 36073,
+      "lancadoCentavos": 29823,
+      "diferencaCentavos": 6250
+    },
+    {
+      "despesa": "1477",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 121527,
+      "lancadoCentavos": 127741,
+      "diferencaCentavos": -6214
+    },
+    {
+      "despesa": "11439",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 6191,
+      "diferencaCentavos": -6191
+    },
+    {
+      "despesa": "11068",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 6167,
+      "diferencaCentavos": -6167
+    },
+    {
+      "despesa": "11080",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 11799,
+      "lancadoCentavos": 5645,
+      "diferencaCentavos": 6154
+    },
+    {
+      "despesa": "11658",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 12867,
+      "lancadoCentavos": 6762,
+      "diferencaCentavos": 6105
+    },
+    {
+      "despesa": "11393",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 7771,
+      "lancadoCentavos": 13835,
+      "diferencaCentavos": -6064
+    },
+    {
+      "despesa": "11385",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 7772,
+      "lancadoCentavos": 13835,
+      "diferencaCentavos": -6063
+    },
+    {
+      "despesa": "11260",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 25963,
+      "lancadoCentavos": 32000,
+      "diferencaCentavos": -6037
+    },
+    {
+      "despesa": "11257",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 9239,
+      "lancadoCentavos": 15226,
+      "diferencaCentavos": -5987
+    },
+    {
+      "despesa": "11595",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 5869,
+      "diferencaCentavos": -5869
+    },
+    {
+      "despesa": "11167",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 5848,
+      "diferencaCentavos": -5848
+    },
+    {
+      "despesa": "11656",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 5723,
+      "diferencaCentavos": -5723
+    },
+    {
+      "despesa": "11399",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 48550,
+      "lancadoCentavos": 43115,
+      "diferencaCentavos": 5435
+    },
+    {
+      "despesa": "11456",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 5237,
+      "diferencaCentavos": -5237
+    },
+    {
+      "despesa": "11393",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 5237,
+      "diferencaCentavos": -5237
+    },
+    {
+      "despesa": "11385",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 5237,
+      "diferencaCentavos": -5237
+    },
+    {
+      "despesa": "11456",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 7808,
+      "lancadoCentavos": 2635,
+      "diferencaCentavos": 5173
+    },
+    {
+      "despesa": "MP_1015856",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 5031,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 5031
+    },
+    {
+      "despesa": "11394",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 5006,
+      "diferencaCentavos": -5006
+    },
+    {
+      "despesa": "11396",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 5006,
+      "diferencaCentavos": -5006
+    },
+    {
+      "despesa": "11386",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 5006,
+      "diferencaCentavos": -5006
+    },
+    {
+      "despesa": "11594",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4977,
+      "diferencaCentavos": -4977
+    },
+    {
+      "despesa": "11662",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4975,
+      "diferencaCentavos": -4975
+    },
+    {
+      "despesa": "11124",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4941,
+      "diferencaCentavos": -4941
+    },
+    {
+      "despesa": "1469",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 12612,
+      "lancadoCentavos": 7841,
+      "diferencaCentavos": 4771
+    },
+    {
+      "despesa": "11437",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4738,
+      "diferencaCentavos": -4738
+    },
+    {
+      "despesa": "11439",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4702,
+      "diferencaCentavos": -4702
+    },
+    {
+      "despesa": "11431",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 58179,
+      "lancadoCentavos": 53489,
+      "diferencaCentavos": 4690
+    },
+    {
+      "despesa": "11590",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4660,
+      "diferencaCentavos": -4660
+    },
+    {
+      "despesa": "11121",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 4617,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 4617
+    },
+    {
+      "despesa": "11448",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4499,
+      "diferencaCentavos": -4499
+    },
+    {
+      "despesa": "11696",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4493,
+      "diferencaCentavos": -4493
+    },
+    {
+      "despesa": "11174",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 14028,
+      "lancadoCentavos": 18494,
+      "diferencaCentavos": -4466
+    },
+    {
+      "despesa": "11592",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 119040,
+      "lancadoCentavos": 123502,
+      "diferencaCentavos": -4462
+    },
+    {
+      "despesa": "1473",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 77221,
+      "lancadoCentavos": 72792,
+      "diferencaCentavos": 4429
+    },
+    {
+      "despesa": "11388",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 11842,
+      "lancadoCentavos": 7510,
+      "diferencaCentavos": 4332
+    },
+    {
+      "despesa": "11544",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4320,
+      "diferencaCentavos": -4320
+    },
+    {
+      "despesa": "11595",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 5730,
+      "lancadoCentavos": 1472,
+      "diferencaCentavos": 4258
+    },
+    {
+      "despesa": "11654",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 28155,
+      "lancadoCentavos": 23906,
+      "diferencaCentavos": 4249
+    },
+    {
+      "despesa": "11659",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 11382,
+      "lancadoCentavos": 7150,
+      "diferencaCentavos": 4232
+    },
+    {
+      "despesa": "11467",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 11106,
+      "lancadoCentavos": 6945,
+      "diferencaCentavos": 4161
+    },
+    {
+      "despesa": "11139",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 25188,
+      "lancadoCentavos": 29337,
+      "diferencaCentavos": -4149
+    },
+    {
+      "despesa": "11649",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4149,
+      "diferencaCentavos": -4149
+    },
+    {
+      "despesa": "11597",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4146,
+      "diferencaCentavos": -4146
+    },
+    {
+      "despesa": "11397",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4145,
+      "diferencaCentavos": -4145
+    },
+    {
+      "despesa": "11389",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4145,
+      "diferencaCentavos": -4145
+    },
+    {
+      "despesa": "11074",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 4042,
+      "diferencaCentavos": -4042
+    },
+    {
+      "despesa": "11638",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 33930,
+      "lancadoCentavos": 37920,
+      "diferencaCentavos": -3990
+    },
+    {
+      "despesa": "11657",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 9058,
+      "lancadoCentavos": 5132,
+      "diferencaCentavos": 3926
+    },
+    {
+      "despesa": "1469",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3921,
+      "diferencaCentavos": -3921
+    },
+    {
+      "despesa": "11438",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3903,
+      "diferencaCentavos": -3903
+    },
+    {
+      "despesa": "11006",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 45484,
+      "lancadoCentavos": 49210,
+      "diferencaCentavos": -3726
+    },
+    {
+      "despesa": "11452",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 10583,
+      "lancadoCentavos": 6869,
+      "diferencaCentavos": 3714
+    },
+    {
+      "despesa": "11395",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 8821,
+      "lancadoCentavos": 5123,
+      "diferencaCentavos": 3698
+    },
+    {
+      "despesa": "11387",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 8821,
+      "lancadoCentavos": 5123,
+      "diferencaCentavos": 3698
+    },
+    {
+      "despesa": "11477",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 135949,
+      "lancadoCentavos": 132271,
+      "diferencaCentavos": 3678
+    },
+    {
+      "despesa": "11451",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 9305,
+      "lancadoCentavos": 5638,
+      "diferencaCentavos": 3667
+    },
+    {
+      "despesa": "1465",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3617,
+      "diferencaCentavos": -3617
+    },
+    {
+      "despesa": "11181",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 17807,
+      "lancadoCentavos": 21413,
+      "diferencaCentavos": -3606
+    },
+    {
+      "despesa": "11437",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3576,
+      "diferencaCentavos": -3576
+    },
+    {
+      "despesa": "11122",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 7110,
+      "lancadoCentavos": 3551,
+      "diferencaCentavos": 3559
+    },
+    {
+      "despesa": "11447",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 28457,
+      "lancadoCentavos": 25005,
+      "diferencaCentavos": 3452
+    },
+    {
+      "despesa": "11424",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 21658,
+      "lancadoCentavos": 18263,
+      "diferencaCentavos": 3395
+    },
+    {
+      "despesa": "11441",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 9994,
+      "lancadoCentavos": 6614,
+      "diferencaCentavos": 3380
+    },
+    {
+      "despesa": "11459",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 9994,
+      "lancadoCentavos": 6614,
+      "diferencaCentavos": 3380
+    },
+    {
+      "despesa": "11467",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3335,
+      "diferencaCentavos": -3335
+    },
+    {
+      "despesa": "11659",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3280,
+      "diferencaCentavos": -3280
+    },
+    {
+      "despesa": "11466",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3275,
+      "diferencaCentavos": -3275
+    },
+    {
+      "despesa": "11458",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 9991,
+      "lancadoCentavos": 6748,
+      "diferencaCentavos": 3243
+    },
+    {
+      "despesa": "11440",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 9991,
+      "lancadoCentavos": 6748,
+      "diferencaCentavos": 3243
+    },
+    {
+      "despesa": "1464",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3158,
+      "diferencaCentavos": -3158
+    },
+    {
+      "despesa": "11181",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 7605,
+      "lancadoCentavos": 10754,
+      "diferencaCentavos": -3149
+    },
+    {
+      "despesa": "11469",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3135,
+      "diferencaCentavos": -3135
+    },
+    {
+      "despesa": "11661",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3135,
+      "diferencaCentavos": -3135
+    },
+    {
+      "despesa": "11468",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3135,
+      "diferencaCentavos": -3135
+    },
+    {
+      "despesa": "11395",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3133,
+      "diferencaCentavos": -3133
+    },
+    {
+      "despesa": "11387",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3133,
+      "diferencaCentavos": -3133
+    },
+    {
+      "despesa": "11660",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 3130,
+      "diferencaCentavos": -3130
+    },
+    {
+      "despesa": "11180",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 20376,
+      "lancadoCentavos": 23497,
+      "diferencaCentavos": -3121
+    },
+    {
+      "despesa": "11180",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 4627,
+      "lancadoCentavos": 1508,
+      "diferencaCentavos": 3119
+    },
+    {
+      "despesa": "11698",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 35590,
+      "lancadoCentavos": 38604,
+      "diferencaCentavos": -3014
+    },
+    {
+      "despesa": "11389",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 7852,
+      "lancadoCentavos": 4867,
+      "diferencaCentavos": 2985
+    },
+    {
+      "despesa": "11397",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 7852,
+      "lancadoCentavos": 4867,
+      "diferencaCentavos": 2985
+    },
+    {
+      "despesa": "11451",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 7561,
+      "lancadoCentavos": 4581,
+      "diferencaCentavos": 2980
+    },
+    {
+      "despesa": "11692",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2979,
+      "diferencaCentavos": -2979
+    },
+    {
+      "despesa": "1472",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 8051,
+      "lancadoCentavos": 11006,
+      "diferencaCentavos": -2955
+    },
+    {
+      "despesa": "11167",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2924,
+      "diferencaCentavos": -2924
+    },
+    {
+      "despesa": "11174",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 8573,
+      "lancadoCentavos": 5651,
+      "diferencaCentavos": 2922
+    },
+    {
+      "despesa": "11692",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 25035,
+      "lancadoCentavos": 22117,
+      "diferencaCentavos": 2918
+    },
+    {
+      "despesa": "11365",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2885,
+      "diferencaCentavos": -2885
+    },
+    {
+      "despesa": "11193",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 163078,
+      "lancadoCentavos": 160238,
+      "diferencaCentavos": 2840
+    },
+    {
+      "despesa": "11471",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2810,
+      "diferencaCentavos": -2810
+    },
+    {
+      "despesa": "11451",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2802,
+      "diferencaCentavos": -2802
+    },
+    {
+      "despesa": "11467",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 14524,
+      "lancadoCentavos": 11734,
+      "diferencaCentavos": 2790
+    },
+    {
+      "despesa": "11648",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2786,
+      "diferencaCentavos": -2786
+    },
+    {
+      "despesa": "11140",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 20910,
+      "lancadoCentavos": 18157,
+      "diferencaCentavos": 2753
+    },
+    {
+      "despesa": "11563",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 45316,
+      "lancadoCentavos": 48059,
+      "diferencaCentavos": -2743
+    },
+    {
+      "despesa": "11257",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 21379,
+      "lancadoCentavos": 18669,
+      "diferencaCentavos": 2710
+    },
+    {
+      "despesa": "1474",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 35435,
+      "lancadoCentavos": 38138,
+      "diferencaCentavos": -2703
+    },
+    {
+      "despesa": "11443",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 9570,
+      "lancadoCentavos": 6921,
+      "diferencaCentavos": 2649
+    },
+    {
+      "despesa": "1470",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 12176,
+      "lancadoCentavos": 9563,
+      "diferencaCentavos": 2613
+    },
+    {
+      "despesa": "11461",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 10682,
+      "lancadoCentavos": 8106,
+      "diferencaCentavos": 2576
+    },
+    {
+      "despesa": "11438",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2558,
+      "diferencaCentavos": -2558
+    },
+    {
+      "despesa": "11074",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2553,
+      "diferencaCentavos": -2553
+    },
+    {
+      "despesa": "11657",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2550,
+      "diferencaCentavos": -2550
+    },
+    {
+      "despesa": "11594",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2504,
+      "diferencaCentavos": -2504
+    },
+    {
+      "despesa": "11594",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2504,
+      "diferencaCentavos": -2504
+    },
+    {
+      "despesa": "11662",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2503,
+      "diferencaCentavos": -2503
+    },
+    {
+      "despesa": "11662",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2503,
+      "diferencaCentavos": -2503
+    },
+    {
+      "despesa": "11133",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 2499,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 2499
+    },
+    {
+      "despesa": "11366",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2388,
+      "diferencaCentavos": -2388
+    },
+    {
+      "despesa": "11437",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2384,
+      "diferencaCentavos": -2384
+    },
+    {
+      "despesa": "1476",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 8968,
+      "lancadoCentavos": 11342,
+      "diferencaCentavos": -2374
+    },
+    {
+      "despesa": "1470",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 2857,
+      "lancadoCentavos": 5164,
+      "diferencaCentavos": -2307
+    },
+    {
+      "despesa": "11653",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2278,
+      "diferencaCentavos": -2278
+    },
+    {
+      "despesa": "11460",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 8844,
+      "lancadoCentavos": 6568,
+      "diferencaCentavos": 2276
+    },
+    {
+      "despesa": "11442",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 8844,
+      "lancadoCentavos": 6568,
+      "diferencaCentavos": 2276
+    },
+    {
+      "despesa": "11446",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2275,
+      "diferencaCentavos": -2275
+    },
+    {
+      "despesa": "11404",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 5996,
+      "lancadoCentavos": 3749,
+      "diferencaCentavos": 2247
+    },
+    {
+      "despesa": "11458",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2228,
+      "diferencaCentavos": -2228
+    },
+    {
+      "despesa": "11440",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2228,
+      "diferencaCentavos": -2228
+    },
+    {
+      "despesa": "11533",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 12321,
+      "lancadoCentavos": 14539,
+      "diferencaCentavos": -2218
+    },
+    {
+      "despesa": "11018",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 3239,
+      "lancadoCentavos": 5376,
+      "diferencaCentavos": -2137
+    },
+    {
+      "despesa": "1472",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 8739,
+      "lancadoCentavos": 6604,
+      "diferencaCentavos": 2135
+    },
+    {
+      "despesa": "11172",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 5637,
+      "lancadoCentavos": 3512,
+      "diferencaCentavos": 2125
+    },
+    {
+      "despesa": "11129",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 5424,
+      "lancadoCentavos": 3299,
+      "diferencaCentavos": 2125
+    },
+    {
+      "despesa": "11451",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 9858,
+      "lancadoCentavos": 11982,
+      "diferencaCentavos": -2124
+    },
+    {
+      "despesa": "11443",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 6380,
+      "lancadoCentavos": 4259,
+      "diferencaCentavos": 2121
+    },
+    {
+      "despesa": "11461",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2097,
+      "diferencaCentavos": -2097
+    },
+    {
+      "despesa": "11166",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 13314,
+      "lancadoCentavos": 15408,
+      "diferencaCentavos": -2094
+    },
+    {
+      "despesa": "11649",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2087,
+      "diferencaCentavos": -2087
+    },
+    {
+      "despesa": "11597",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 2086,
+      "diferencaCentavos": -2086
+    },
+    {
+      "despesa": "11443",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 10737,
+      "lancadoCentavos": 12777,
+      "diferencaCentavos": -2040
+    },
+    {
+      "despesa": "11404",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 19267,
+      "lancadoCentavos": 17249,
+      "diferencaCentavos": 2018
+    },
+    {
+      "despesa": "11526",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 194609,
+      "lancadoCentavos": 192694,
+      "diferencaCentavos": 1915
+    },
+    {
+      "despesa": "11691",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 11070,
+      "lancadoCentavos": 9178,
+      "diferencaCentavos": 1892
+    },
+    {
+      "despesa": "11460",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 1861,
+      "diferencaCentavos": -1861
+    },
+    {
+      "despesa": "11442",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 1861,
+      "diferencaCentavos": -1861
+    },
+    {
+      "despesa": "11441",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 5497,
+      "lancadoCentavos": 3638,
+      "diferencaCentavos": 1859
+    },
+    {
+      "despesa": "11459",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 5497,
+      "lancadoCentavos": 3638,
+      "diferencaCentavos": 1859
+    },
+    {
+      "despesa": "11395",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4410,
+      "lancadoCentavos": 2561,
+      "diferencaCentavos": 1849
+    },
+    {
+      "despesa": "11387",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4410,
+      "lancadoCentavos": 2561,
+      "diferencaCentavos": 1849
+    },
+    {
+      "despesa": "11068",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4942,
+      "lancadoCentavos": 3124,
+      "diferencaCentavos": 1818
+    },
+    {
+      "despesa": "11467",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4787,
+      "lancadoCentavos": 2993,
+      "diferencaCentavos": 1794
+    },
+    {
+      "despesa": "11659",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4816,
+      "lancadoCentavos": 3025,
+      "diferencaCentavos": 1791
+    },
+    {
+      "despesa": "11460",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 14923,
+      "lancadoCentavos": 13135,
+      "diferencaCentavos": 1788
+    },
+    {
+      "despesa": "11442",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 14923,
+      "lancadoCentavos": 13135,
+      "diferencaCentavos": 1788
+    },
+    {
+      "despesa": "11441",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 1747,
+      "diferencaCentavos": -1747
+    },
+    {
+      "despesa": "11459",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 1747,
+      "diferencaCentavos": -1747
+    },
+    {
+      "despesa": "11691",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 4927,
+      "lancadoCentavos": 6654,
+      "diferencaCentavos": -1727
+    },
+    {
+      "despesa": "11068",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 23669,
+      "lancadoCentavos": 21942,
+      "diferencaCentavos": 1727
+    },
+    {
+      "despesa": "11533",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 8552,
+      "lancadoCentavos": 6831,
+      "diferencaCentavos": 1721
+    },
+    {
+      "despesa": "11389",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4487,
+      "lancadoCentavos": 2781,
+      "diferencaCentavos": 1706
+    },
+    {
+      "despesa": "11397",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4487,
+      "lancadoCentavos": 2781,
+      "diferencaCentavos": 1706
+    },
+    {
+      "despesa": "11122",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 11850,
+      "lancadoCentavos": 13530,
+      "diferencaCentavos": -1680
+    },
+    {
+      "despesa": "11172",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 17218,
+      "lancadoCentavos": 18886,
+      "diferencaCentavos": -1668
+    },
+    {
+      "despesa": "11383",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 3514,
+      "lancadoCentavos": 1916,
+      "diferencaCentavos": 1598
+    },
+    {
+      "despesa": "11173",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 1594,
+      "diferencaCentavos": -1594
+    },
+    {
+      "despesa": "1475",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 1176,
+      "lancadoCentavos": 2733,
+      "diferencaCentavos": -1557
+    },
+    {
+      "despesa": "11458",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4579,
+      "lancadoCentavos": 3093,
+      "diferencaCentavos": 1486
+    },
+    {
+      "despesa": "11440",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4579,
+      "lancadoCentavos": 3093,
+      "diferencaCentavos": 1486
+    },
+    {
+      "despesa": "1474",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 160811,
+      "lancadoCentavos": 159339,
+      "diferencaCentavos": 1472
+    },
+    {
+      "despesa": "11181",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 1460,
+      "diferencaCentavos": -1460
+    },
+    {
+      "despesa": "11694",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 35256,
+      "lancadoCentavos": 36708,
+      "diferencaCentavos": -1452
+    },
+    {
+      "despesa": "11390",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 6129,
+      "lancadoCentavos": 4681,
+      "diferencaCentavos": 1448
+    },
+    {
+      "despesa": "11181",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 5732,
+      "lancadoCentavos": 4312,
+      "diferencaCentavos": 1420
+    },
+    {
+      "despesa": "11390",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 21702,
+      "lancadoCentavos": 20322,
+      "diferencaCentavos": 1380
+    },
+    {
+      "despesa": "11166",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 5932,
+      "lancadoCentavos": 4598,
+      "diferencaCentavos": 1334
+    },
+    {
+      "despesa": "11461",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4856,
+      "lancadoCentavos": 3524,
+      "diferencaCentavos": 1332
+    },
+    {
+      "despesa": "11395",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 12858,
+      "lancadoCentavos": 14185,
+      "diferencaCentavos": -1327
+    },
+    {
+      "despesa": "11387",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 12858,
+      "lancadoCentavos": 14185,
+      "diferencaCentavos": -1327
+    },
+    {
+      "despesa": "11260",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 1267,
+      "diferencaCentavos": -1267
+    },
+    {
+      "despesa": "11460",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4632,
+      "lancadoCentavos": 3440,
+      "diferencaCentavos": 1192
+    },
+    {
+      "despesa": "11442",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4632,
+      "lancadoCentavos": 3440,
+      "diferencaCentavos": 1192
+    },
+    {
+      "despesa": "11383",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 16503,
+      "lancadoCentavos": 17682,
+      "diferencaCentavos": -1179
+    },
+    {
+      "despesa": "11129",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 16567,
+      "lancadoCentavos": 17740,
+      "diferencaCentavos": -1173
+    },
+    {
+      "despesa": "11710",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 1144,
+      "diferencaCentavos": -1144
+    },
+    {
+      "despesa": "1459",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 73795,
+      "lancadoCentavos": 74909,
+      "diferencaCentavos": -1114
+    },
+    {
+      "despesa": "11659",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 12663,
+      "lancadoCentavos": 11550,
+      "diferencaCentavos": 1113
+    },
+    {
+      "despesa": "11673",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 13728,
+      "lancadoCentavos": 12617,
+      "diferencaCentavos": 1111
+    },
+    {
+      "despesa": "11654",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 1099,
+      "diferencaCentavos": -1099
+    },
+    {
+      "despesa": "11174",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 3234,
+      "lancadoCentavos": 2145,
+      "diferencaCentavos": 1089
+    },
+    {
+      "despesa": "11461",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 12357,
+      "lancadoCentavos": 11277,
+      "diferencaCentavos": 1080
+    },
+    {
+      "despesa": "11018",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 22664,
+      "lancadoCentavos": 23718,
+      "diferencaCentavos": -1054
+    },
+    {
+      "despesa": "11443",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 1045,
+      "diferencaCentavos": -1045
+    },
+    {
+      "despesa": "1472",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 6833,
+      "lancadoCentavos": 5795,
+      "diferencaCentavos": 1038
+    },
+    {
+      "despesa": "11018",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 2430,
+      "lancadoCentavos": 1423,
+      "diferencaCentavos": 1007
+    },
+    {
+      "despesa": "11441",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 13966,
+      "lancadoCentavos": 13007,
+      "diferencaCentavos": 959
+    },
+    {
+      "despesa": "11459",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 13966,
+      "lancadoCentavos": 13007,
+      "diferencaCentavos": 959
+    },
+    {
+      "despesa": "1477",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 14446,
+      "lancadoCentavos": 15380,
+      "diferencaCentavos": -934
+    },
+    {
+      "despesa": "11457",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 907,
+      "diferencaCentavos": -907
+    },
+    {
+      "despesa": "11457",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 25004,
+      "lancadoCentavos": 24100,
+      "diferencaCentavos": 904
+    },
+    {
+      "despesa": "11458",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 12041,
+      "lancadoCentavos": 12933,
+      "diferencaCentavos": -892
+    },
+    {
+      "despesa": "11440",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 12041,
+      "lancadoCentavos": 12933,
+      "diferencaCentavos": -892
+    },
+    {
+      "despesa": "11533",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 846,
+      "lancadoCentavos": 0,
+      "diferencaCentavos": 846
+    },
+    {
+      "despesa": "11533",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4675,
+      "lancadoCentavos": 5516,
+      "diferencaCentavos": -841
+    },
+    {
+      "despesa": "11389",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 13993,
+      "lancadoCentavos": 13209,
+      "diferencaCentavos": 784
+    },
+    {
+      "despesa": "11397",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 13993,
+      "lancadoCentavos": 13209,
+      "diferencaCentavos": 784
+    },
+    {
+      "despesa": "11018",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 767,
+      "diferencaCentavos": -767
+    },
+    {
+      "despesa": "11404",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 5196,
+      "lancadoCentavos": 4431,
+      "diferencaCentavos": 765
+    },
+    {
+      "despesa": "11128",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 746,
+      "diferencaCentavos": -746
+    },
+    {
+      "despesa": "11171",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 746,
+      "diferencaCentavos": -746
+    },
+    {
+      "despesa": "11257",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 5646,
+      "lancadoCentavos": 4926,
+      "diferencaCentavos": 720
+    },
+    {
+      "despesa": "1459",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 47147,
+      "lancadoCentavos": 47858,
+      "diferencaCentavos": -711
+    },
+    {
+      "despesa": "11698",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 23093,
+      "lancadoCentavos": 23753,
+      "diferencaCentavos": -660
+    },
+    {
+      "despesa": "11260",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 627,
+      "diferencaCentavos": -627
+    },
+    {
+      "despesa": "11166",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 5365,
+      "lancadoCentavos": 4761,
+      "diferencaCentavos": 604
+    },
+    {
+      "despesa": "11054",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 552,
+      "diferencaCentavos": -552
+    },
+    {
+      "despesa": "1470",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 7523,
+      "lancadoCentavos": 7922,
+      "diferencaCentavos": -399
+    },
+    {
+      "despesa": "11383",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 5430,
+      "lancadoCentavos": 5819,
+      "diferencaCentavos": -389
+    },
+    {
+      "despesa": "11172",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 10007,
+      "lancadoCentavos": 10349,
+      "diferencaCentavos": -342
+    },
+    {
+      "despesa": "1471",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 1686,
+      "lancadoCentavos": 2025,
+      "diferencaCentavos": -339
+    },
+    {
+      "despesa": "1470",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 1636,
+      "lancadoCentavos": 1300,
+      "diferencaCentavos": 336
+    },
+    {
+      "despesa": "11404",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 5916,
+      "lancadoCentavos": 5591,
+      "diferencaCentavos": 325
+    },
+    {
+      "despesa": "11690",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 10693,
+      "lancadoCentavos": 10386,
+      "diferencaCentavos": 307
+    },
+    {
+      "despesa": "1476",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 1855,
+      "lancadoCentavos": 2144,
+      "diferencaCentavos": -289
+    },
+    {
+      "despesa": "1470",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 925,
+      "lancadoCentavos": 1210,
+      "diferencaCentavos": -285
+    },
+    {
+      "despesa": "11206",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 10827,
+      "lancadoCentavos": 10567,
+      "diferencaCentavos": 260
+    },
+    {
+      "despesa": "11691",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 0,
+      "lancadoCentavos": 260,
+      "diferencaCentavos": -260
+    },
+    {
+      "despesa": "1472",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 1536,
+      "lancadoCentavos": 1771,
+      "diferencaCentavos": -235
+    },
+    {
+      "despesa": "11691",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 7958,
+      "lancadoCentavos": 8192,
+      "diferencaCentavos": -234
+    },
+    {
+      "despesa": "1471",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 14330,
+      "lancadoCentavos": 14123,
+      "diferencaCentavos": 207
+    },
+    {
+      "despesa": "11470",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 12136,
+      "lancadoCentavos": 11974,
+      "diferencaCentavos": 162
+    },
+    {
+      "despesa": "11166",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 395,
+      "lancadoCentavos": 242,
+      "diferencaCentavos": 153
+    },
+    {
+      "despesa": "11563",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 19548,
+      "lancadoCentavos": 19400,
+      "diferencaCentavos": 148
+    },
+    {
+      "despesa": "11181",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 366,
+      "lancadoCentavos": 219,
+      "diferencaCentavos": 147
+    },
+    {
+      "despesa": "1473",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 16697,
+      "lancadoCentavos": 16559,
+      "diferencaCentavos": 138
+    },
+    {
+      "despesa": "1471",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 9062,
+      "lancadoCentavos": 8931,
+      "diferencaCentavos": 131
+    },
+    {
+      "despesa": "11563",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 41651,
+      "lancadoCentavos": 41776,
+      "diferencaCentavos": -125
+    },
+    {
+      "despesa": "11470",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 10120,
+      "lancadoCentavos": 10245,
+      "diferencaCentavos": -125
+    },
+    {
+      "despesa": "11172",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 305,
+      "lancadoCentavos": 190,
+      "diferencaCentavos": 115
+    },
+    {
+      "despesa": "11129",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 293,
+      "lancadoCentavos": 178,
+      "diferencaCentavos": 115
+    },
+    {
+      "despesa": "11129",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 9629,
+      "lancadoCentavos": 9721,
+      "diferencaCentavos": -92
+    },
+    {
+      "despesa": "11562",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 496,
+      "lancadoCentavos": 584,
+      "diferencaCentavos": -88
+    },
+    {
+      "despesa": "11193",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 121023,
+      "lancadoCentavos": 121106,
+      "diferencaCentavos": -83
+    },
+    {
+      "despesa": "11080",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 238,
+      "lancadoCentavos": 158,
+      "diferencaCentavos": 80
+    },
+    {
+      "despesa": "11561",
+      "competencia": "2026-11",
+      "necessidadeCentavos": 687,
+      "lancadoCentavos": 761,
+      "diferencaCentavos": -74
+    },
+    {
+      "despesa": "11206",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 1968,
+      "lancadoCentavos": 1921,
+      "diferencaCentavos": 47
+    },
+    {
+      "despesa": "11510",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 25182,
+      "lancadoCentavos": 25136,
+      "diferencaCentavos": 46
+    },
+    {
+      "despesa": "11562",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 11906,
+      "lancadoCentavos": 11865,
+      "diferencaCentavos": 41
+    },
+    {
+      "despesa": "1473",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 4870,
+      "lancadoCentavos": 4830,
+      "diferencaCentavos": 40
+    },
+    {
+      "despesa": "11561",
+      "competencia": "2026-12",
+      "necessidadeCentavos": 12213,
+      "lancadoCentavos": 12177,
+      "diferencaCentavos": 36
+    },
+    {
+      "despesa": "11470",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 2846,
+      "lancadoCentavos": 2881,
+      "diferencaCentavos": -35
+    },
+    {
+      "despesa": "11193",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 45383,
+      "lancadoCentavos": 45414,
+      "diferencaCentavos": -31
+    },
+    {
+      "despesa": "11562",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 8298,
+      "lancadoCentavos": 8269,
+      "diferencaCentavos": 29
+    },
+    {
+      "despesa": "11071",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 9215,
+      "lancadoCentavos": 9186,
+      "diferencaCentavos": 29
+    },
+    {
+      "despesa": "11561",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 7938,
+      "lancadoCentavos": 7915,
+      "diferencaCentavos": 23
+    },
+    {
+      "despesa": "11691",
+      "competencia": "2026-10",
+      "necessidadeCentavos": 1671,
+      "lancadoCentavos": 1691,
+      "diferencaCentavos": -20
+    },
+    {
+      "despesa": "11562",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4780,
+      "lancadoCentavos": 4764,
+      "diferencaCentavos": 16
+    },
+    {
+      "despesa": "11561",
+      "competencia": "2027-02",
+      "necessidadeCentavos": 4732,
+      "lancadoCentavos": 4718,
+      "diferencaCentavos": 14
+    },
+    {
+      "despesa": "11444",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 25001,
+      "lancadoCentavos": 25003,
+      "diferencaCentavos": -2
+    },
+    {
+      "despesa": "11398",
+      "competencia": "2027-01",
+      "necessidadeCentavos": 25000,
+      "lancadoCentavos": 25001,
+      "diferencaCentavos": -1
+    }
+  ],
+  "necessidadePorCompetencia": [
+    {
+      "id": "1477|2026-10",
+      "valorCentavos": 23446
+    },
+    {
+      "id": "1477|2026-11",
+      "valorCentavos": 48834
+    },
+    {
+      "id": "1477|2026-12",
+      "valorCentavos": 87176
+    },
+    {
+      "id": "1477|2027-01",
+      "valorCentavos": 121527
+    },
+    {
+      "id": "1477|2027-02",
+      "valorCentavos": 14446
+    },
+    {
+      "id": "1470|2026-10",
+      "valorCentavos": 925
+    },
+    {
+      "id": "1470|2026-11",
+      "valorCentavos": 2857
+    },
+    {
+      "id": "1470|2026-12",
+      "valorCentavos": 7523
+    },
+    {
+      "id": "1470|2027-01",
+      "valorCentavos": 12176
+    },
+    {
+      "id": "1470|2027-02",
+      "valorCentavos": 1636
+    },
+    {
+      "id": "1474|2026-10",
+      "valorCentavos": 103994
+    },
+    {
+      "id": "1474|2026-11",
+      "valorCentavos": 160811
+    },
+    {
+      "id": "1474|2026-12",
+      "valorCentavos": 327777
+    },
+    {
+      "id": "1474|2027-01",
+      "valorCentavos": 145646
+    },
+    {
+      "id": "1474|2027-02",
+      "valorCentavos": 35435
+    },
+    {
+      "id": "11054|2026-12",
+      "valorCentavos": 234961
+    },
+    {
+      "id": "11054|2027-01",
+      "valorCentavos": 312917
+    },
+    {
+      "id": "11054|2027-02",
+      "valorCentavos": 102480
+    },
+    {
+      "id": "1473|2026-10",
+      "valorCentavos": 4870
+    },
+    {
+      "id": "1473|2026-11",
+      "valorCentavos": 32523
+    },
+    {
+      "id": "1473|2026-12",
+      "valorCentavos": 84786
+    },
+    {
+      "id": "1473|2027-01",
+      "valorCentavos": 77221
+    },
+    {
+      "id": "1473|2027-02",
+      "valorCentavos": 16697
+    },
+    {
+      "id": "1475|2026-10",
+      "valorCentavos": 47936
+    },
+    {
+      "id": "1475|2026-11",
+      "valorCentavos": 118370
+    },
+    {
+      "id": "1475|2026-12",
+      "valorCentavos": 136791
+    },
+    {
+      "id": "1475|2027-01",
+      "valorCentavos": 177163
+    },
+    {
+      "id": "1475|2027-02",
+      "valorCentavos": 1176
+    },
+    {
+      "id": "11383|2026-12",
+      "valorCentavos": 3514
+    },
+    {
+      "id": "11383|2027-01",
+      "valorCentavos": 16503
+    },
+    {
+      "id": "11383|2027-02",
+      "valorCentavos": 5430
+    },
+    {
+      "id": "11533|2026-11",
+      "valorCentavos": 846
+    },
+    {
+      "id": "11533|2026-12",
+      "valorCentavos": 8552
+    },
+    {
+      "id": "11533|2027-01",
+      "valorCentavos": 12321
+    },
+    {
+      "id": "11533|2027-02",
+      "valorCentavos": 4675
+    },
+    {
+      "id": "11691|2026-10",
+      "valorCentavos": 1671
+    },
+    {
+      "id": "11691|2026-11",
+      "valorCentavos": 4927
+    },
+    {
+      "id": "11691|2026-12",
+      "valorCentavos": 7958
+    },
+    {
+      "id": "11691|2027-01",
+      "valorCentavos": 11070
+    },
+    {
+      "id": "11181|2026-11",
+      "valorCentavos": 7605
+    },
+    {
+      "id": "11181|2026-12",
+      "valorCentavos": 5732
+    },
+    {
+      "id": "11181|2027-01",
+      "valorCentavos": 17807
+    },
+    {
+      "id": "11181|2027-02",
+      "valorCentavos": 366
+    },
+    {
+      "id": "11563|2026-12",
+      "valorCentavos": 41651
+    },
+    {
+      "id": "11563|2027-01",
+      "valorCentavos": 45316
+    },
+    {
+      "id": "11563|2027-02",
+      "valorCentavos": 19548
+    },
+    {
+      "id": "1472|2026-10",
+      "valorCentavos": 8739
+    },
+    {
+      "id": "1472|2026-11",
+      "valorCentavos": 6833
+    },
+    {
+      "id": "1472|2026-12",
+      "valorCentavos": 1536
+    },
+    {
+      "id": "1472|2027-01",
+      "valorCentavos": 8051
+    },
+    {
+      "id": "11172|2026-11",
+      "valorCentavos": 10007
+    },
+    {
+      "id": "11172|2026-12",
+      "valorCentavos": 5637
+    },
+    {
+      "id": "11172|2027-01",
+      "valorCentavos": 17218
+    },
+    {
+      "id": "11172|2027-02",
+      "valorCentavos": 305
+    },
+    {
+      "id": "11129|2026-11",
+      "valorCentavos": 9629
+    },
+    {
+      "id": "11129|2026-12",
+      "valorCentavos": 5424
+    },
+    {
+      "id": "11129|2027-01",
+      "valorCentavos": 16567
+    },
+    {
+      "id": "11129|2027-02",
+      "valorCentavos": 293
+    },
+    {
+      "id": "11166|2026-11",
+      "valorCentavos": 5365
+    },
+    {
+      "id": "11166|2026-12",
+      "valorCentavos": 5932
+    },
+    {
+      "id": "11166|2027-01",
+      "valorCentavos": 13314
+    },
+    {
+      "id": "11166|2027-02",
+      "valorCentavos": 395
+    },
+    {
+      "id": "11441|2026-12",
+      "valorCentavos": 13966
+    },
+    {
+      "id": "11441|2027-01",
+      "valorCentavos": 9994
+    },
+    {
+      "id": "11441|2027-02",
+      "valorCentavos": 5497
+    },
+    {
+      "id": "11459|2026-12",
+      "valorCentavos": 13966
+    },
+    {
+      "id": "11459|2027-01",
+      "valorCentavos": 9994
+    },
+    {
+      "id": "11459|2027-02",
+      "valorCentavos": 5497
+    },
+    {
+      "id": "11561|2026-11",
+      "valorCentavos": 687
+    },
+    {
+      "id": "11561|2026-12",
+      "valorCentavos": 12213
+    },
+    {
+      "id": "11561|2027-01",
+      "valorCentavos": 7938
+    },
+    {
+      "id": "11561|2027-02",
+      "valorCentavos": 4732
+    },
+    {
+      "id": "11457|2027-01",
+      "valorCentavos": 25004
+    },
+    {
+      "id": "11690|2026-12",
+      "valorCentavos": 19376
+    },
+    {
+      "id": "11690|2027-01",
+      "valorCentavos": 87020
+    },
+    {
+      "id": "11690|2027-02",
+      "valorCentavos": 10693
+    },
+    {
+      "id": "11257|2026-12",
+      "valorCentavos": 21379
+    },
+    {
+      "id": "11257|2027-01",
+      "valorCentavos": 9239
+    },
+    {
+      "id": "11257|2027-02",
+      "valorCentavos": 5646
+    },
+    {
+      "id": "11562|2026-11",
+      "valorCentavos": 496
+    },
+    {
+      "id": "11562|2026-12",
+      "valorCentavos": 11906
+    },
+    {
+      "id": "11562|2027-01",
+      "valorCentavos": 8298
+    },
+    {
+      "id": "11562|2027-02",
+      "valorCentavos": 4780
+    },
+    {
+      "id": "11465|2026-12",
+      "valorCentavos": 303975
+    },
+    {
+      "id": "11465|2027-01",
+      "valorCentavos": 390600
+    },
+    {
+      "id": "11465|2027-02",
+      "valorCentavos": 163800
+    },
+    {
+      "id": "11460|2026-12",
+      "valorCentavos": 14923
+    },
+    {
+      "id": "11460|2027-01",
+      "valorCentavos": 8844
+    },
+    {
+      "id": "11460|2027-02",
+      "valorCentavos": 4632
+    },
+    {
+      "id": "11442|2026-12",
+      "valorCentavos": 14923
+    },
+    {
+      "id": "11442|2027-01",
+      "valorCentavos": 8844
+    },
+    {
+      "id": "11442|2027-02",
+      "valorCentavos": 4632
+    },
+    {
+      "id": "11068|2027-01",
+      "valorCentavos": 23669
+    },
+    {
+      "id": "11068|2027-02",
+      "valorCentavos": 4942
+    },
+    {
+      "id": "11438|2027-01",
+      "valorCentavos": 28139
+    },
+    {
+      "id": "11180|2026-12",
+      "valorCentavos": 4627
+    },
+    {
+      "id": "11180|2027-01",
+      "valorCentavos": 20376
+    },
+    {
+      "id": "11461|2026-12",
+      "valorCentavos": 12357
+    },
+    {
+      "id": "11461|2027-01",
+      "valorCentavos": 10682
+    },
+    {
+      "id": "11461|2027-02",
+      "valorCentavos": 4856
+    },
+    {
+      "id": "11193|2026-12",
+      "valorCentavos": 163078
+    },
+    {
+      "id": "11193|2027-01",
+      "valorCentavos": 121023
+    },
+    {
+      "id": "11193|2027-02",
+      "valorCentavos": 45383
+    },
+    {
+      "id": "11018|2026-12",
+      "valorCentavos": 22664
+    },
+    {
+      "id": "11018|2027-01",
+      "valorCentavos": 3239
+    },
+    {
+      "id": "11018|2027-02",
+      "valorCentavos": 2430
+    },
+    {
+      "id": "11390|2027-01",
+      "valorCentavos": 21702
+    },
+    {
+      "id": "11390|2027-02",
+      "valorCentavos": 6129
+    },
+    {
+      "id": "11654|2027-01",
+      "valorCentavos": 28155
+    },
+    {
+      "id": "11471|2026-12",
+      "valorCentavos": 42057
+    },
+    {
+      "id": "11471|2027-01",
+      "valorCentavos": 19151
+    },
+    {
+      "id": "11471|2027-02",
+      "valorCentavos": 11874
+    },
+    {
+      "id": "11447|2027-01",
+      "valorCentavos": 28457
+    },
+    {
+      "id": "11463|2026-11",
+      "valorCentavos": 31362
+    },
+    {
+      "id": "11463|2026-12",
+      "valorCentavos": 28776
+    },
+    {
+      "id": "11463|2027-01",
+      "valorCentavos": 157068
+    },
+    {
+      "id": "11399|2026-12",
+      "valorCentavos": 50120
+    },
+    {
+      "id": "11399|2027-01",
+      "valorCentavos": 136111
+    },
+    {
+      "id": "11399|2027-02",
+      "valorCentavos": 48550
+    },
+    {
+      "id": "11467|2026-12",
+      "valorCentavos": 14524
+    },
+    {
+      "id": "11467|2027-01",
+      "valorCentavos": 11106
+    },
+    {
+      "id": "11467|2027-02",
+      "valorCentavos": 4787
+    },
+    {
+      "id": "11470|2026-12",
+      "valorCentavos": 12136
+    },
+    {
+      "id": "11470|2027-01",
+      "valorCentavos": 10120
+    },
+    {
+      "id": "11470|2027-02",
+      "valorCentavos": 2846
+    },
+    {
+      "id": "11206|2026-11",
+      "valorCentavos": 20718
+    },
+    {
+      "id": "11206|2026-12",
+      "valorCentavos": 10827
+    },
+    {
+      "id": "11206|2027-01",
+      "valorCentavos": 18372
+    },
+    {
+      "id": "11206|2027-02",
+      "valorCentavos": 1968
+    },
+    {
+      "id": "11443|2026-12",
+      "valorCentavos": 10737
+    },
+    {
+      "id": "11443|2027-01",
+      "valorCentavos": 9570
+    },
+    {
+      "id": "11443|2027-02",
+      "valorCentavos": 6380
+    },
+    {
+      "id": "11659|2026-12",
+      "valorCentavos": 12663
+    },
+    {
+      "id": "11659|2027-01",
+      "valorCentavos": 11382
+    },
+    {
+      "id": "11659|2027-02",
+      "valorCentavos": 4816
+    },
+    {
+      "id": "11080|2026-12",
+      "valorCentavos": 11799
+    },
+    {
+      "id": "11080|2027-01",
+      "valorCentavos": 19249
+    },
+    {
+      "id": "11080|2027-02",
+      "valorCentavos": 238
+    },
+    {
+      "id": "11458|2026-12",
+      "valorCentavos": 12041
+    },
+    {
+      "id": "11458|2027-01",
+      "valorCentavos": 9991
+    },
+    {
+      "id": "11458|2027-02",
+      "valorCentavos": 4579
+    },
+    {
+      "id": "11440|2026-12",
+      "valorCentavos": 12041
+    },
+    {
+      "id": "11440|2027-01",
+      "valorCentavos": 9991
+    },
+    {
+      "id": "11440|2027-02",
+      "valorCentavos": 4579
+    },
+    {
+      "id": "1476|2026-10",
+      "valorCentavos": 2474
+    },
+    {
+      "id": "1476|2026-11",
+      "valorCentavos": 8968
+    },
+    {
+      "id": "1476|2026-12",
+      "valorCentavos": 1855
+    },
+    {
+      "id": "1476|2027-01",
+      "valorCentavos": 11752
+    },
+    {
+      "id": "11382|2026-12",
+      "valorCentavos": 33606
+    },
+    {
+      "id": "11382|2027-01",
+      "valorCentavos": 121380
+    },
+    {
+      "id": "11382|2027-02",
+      "valorCentavos": 69656
+    },
+    {
+      "id": "11681|2026-11",
+      "valorCentavos": 4507
+    },
+    {
+      "id": "11681|2026-12",
+      "valorCentavos": 42811
+    },
+    {
+      "id": "11681|2027-01",
+      "valorCentavos": 74356
+    },
+    {
+      "id": "11681|2027-02",
+      "valorCentavos": 14646
+    },
+    {
+      "id": "1471|2026-10",
+      "valorCentavos": 1686
+    },
+    {
+      "id": "1471|2026-11",
+      "valorCentavos": 9062
+    },
+    {
+      "id": "1471|2026-12",
+      "valorCentavos": 14330
+    },
+    {
+      "id": "11444|2027-01",
+      "valorCentavos": 25001
+    },
+    {
+      "id": "11605|2027-01",
+      "valorCentavos": 37576
+    },
+    {
+      "id": "11605|2027-02",
+      "valorCentavos": 40238
+    },
+    {
+      "id": "11389|2026-12",
+      "valorCentavos": 13993
+    },
+    {
+      "id": "11389|2027-01",
+      "valorCentavos": 7852
+    },
+    {
+      "id": "11389|2027-02",
+      "valorCentavos": 4487
+    },
+    {
+      "id": "11397|2026-12",
+      "valorCentavos": 13993
+    },
+    {
+      "id": "11397|2027-01",
+      "valorCentavos": 7852
+    },
+    {
+      "id": "11397|2027-02",
+      "valorCentavos": 4487
+    },
+    {
+      "id": "11451|2026-12",
+      "valorCentavos": 9858
+    },
+    {
+      "id": "11451|2027-01",
+      "valorCentavos": 9305
+    },
+    {
+      "id": "11451|2027-02",
+      "valorCentavos": 7561
+    },
+    {
+      "id": "11071|2026-12",
+      "valorCentavos": 71551
+    },
+    {
+      "id": "11071|2027-01",
+      "valorCentavos": 108752
+    },
+    {
+      "id": "11071|2027-02",
+      "valorCentavos": 9215
+    },
+    {
+      "id": "11196|2026-12",
+      "valorCentavos": 69923
+    },
+    {
+      "id": "11464|2027-01",
+      "valorCentavos": 73262
+    },
+    {
+      "id": "11464|2027-02",
+      "valorCentavos": 48338
+    },
+    {
+      "id": "11592|2027-01",
+      "valorCentavos": 34270
+    },
+    {
+      "id": "11592|2027-02",
+      "valorCentavos": 119040
+    },
+    {
+      "id": "1459|2026-12",
+      "valorCentavos": 40587
+    },
+    {
+      "id": "1459|2027-01",
+      "valorCentavos": 73795
+    },
+    {
+      "id": "1459|2027-02",
+      "valorCentavos": 47147
+    },
+    {
+      "id": "11395|2026-12",
+      "valorCentavos": 12858
+    },
+    {
+      "id": "11395|2027-01",
+      "valorCentavos": 8821
+    },
+    {
+      "id": "11395|2027-02",
+      "valorCentavos": 4410
+    },
+    {
+      "id": "11387|2026-12",
+      "valorCentavos": 12858
+    },
+    {
+      "id": "11387|2027-01",
+      "valorCentavos": 8821
+    },
+    {
+      "id": "11387|2027-02",
+      "valorCentavos": 4410
+    },
+    {
+      "id": "11417|2026-11",
+      "valorCentavos": 54415
+    },
+    {
+      "id": "11417|2026-12",
+      "valorCentavos": 163243
+    },
+    {
+      "id": "11417|2027-01",
+      "valorCentavos": 84172
+    },
+    {
+      "id": "11417|2027-02",
+      "valorCentavos": 19130
+    },
+    {
+      "id": "11174|2026-12",
+      "valorCentavos": 3234
+    },
+    {
+      "id": "11174|2027-01",
+      "valorCentavos": 14028
+    },
+    {
+      "id": "11174|2027-02",
+      "valorCentavos": 8573
+    },
+    {
+      "id": "11477|2027-02",
+      "valorCentavos": 135949
+    },
+    {
+      "id": "11452|2027-01",
+      "valorCentavos": 10583
+    },
+    {
+      "id": "11452|2027-02",
+      "valorCentavos": 15429
+    },
+    {
+      "id": "11449|2026-11",
+      "valorCentavos": 3979
+    },
+    {
+      "id": "11449|2026-12",
+      "valorCentavos": 14015
+    },
+    {
+      "id": "11449|2027-01",
+      "valorCentavos": 4004
+    },
+    {
+      "id": "11449|2027-02",
+      "valorCentavos": 3003
+    },
+    {
+      "id": "11655|2026-11",
+      "valorCentavos": 3979
+    },
+    {
+      "id": "11655|2026-12",
+      "valorCentavos": 14015
+    },
+    {
+      "id": "11655|2027-01",
+      "valorCentavos": 4004
+    },
+    {
+      "id": "11655|2027-02",
+      "valorCentavos": 3003
+    },
+    {
+      "id": "11658|2027-01",
+      "valorCentavos": 12867
+    },
+    {
+      "id": "11658|2027-02",
+      "valorCentavos": 12894
+    },
+    {
+      "id": "11404|2026-11",
+      "valorCentavos": 5916
+    },
+    {
+      "id": "11404|2026-12",
+      "valorCentavos": 19267
+    },
+    {
+      "id": "11404|2027-01",
+      "valorCentavos": 5996
+    },
+    {
+      "id": "11404|2027-02",
+      "valorCentavos": 5196
+    },
+    {
+      "id": "11673|2027-01",
+      "valorCentavos": 24318
+    },
+    {
+      "id": "11673|2027-02",
+      "valorCentavos": 13728
+    },
+    {
+      "id": "11121|2026-10",
+      "valorCentavos": 19624
+    },
+    {
+      "id": "11121|2026-11",
+      "valorCentavos": 27704
+    },
+    {
+      "id": "11121|2026-12",
+      "valorCentavos": 4617
+    },
+    {
+      "id": "11121|2027-01",
+      "valorCentavos": 113587
+    },
+    {
+      "id": "11476|2027-02",
+      "valorCentavos": 92958
+    },
+    {
+      "id": "11132|2026-11",
+      "valorCentavos": 22388
+    },
+    {
+      "id": "11132|2026-12",
+      "valorCentavos": 48520
+    },
+    {
+      "id": "11132|2027-01",
+      "valorCentavos": 537597
+    },
+    {
+      "id": "11388|2027-01",
+      "valorCentavos": 11842
+    },
+    {
+      "id": "11388|2027-02",
+      "valorCentavos": 13583
+    },
+    {
+      "id": "11560|2026-12",
+      "valorCentavos": 13160
+    },
+    {
+      "id": "11560|2027-01",
+      "valorCentavos": 6793
+    },
+    {
+      "id": "11560|2027-02",
+      "valorCentavos": 5094
+    },
+    {
+      "id": "11006|2026-11",
+      "valorCentavos": 12178
+    },
+    {
+      "id": "11006|2026-12",
+      "valorCentavos": 45484
+    },
+    {
+      "id": "11006|2027-01",
+      "valorCentavos": 254466
+    },
+    {
+      "id": "11657|2027-01",
+      "valorCentavos": 9058
+    },
+    {
+      "id": "11657|2027-02",
+      "valorCentavos": 16386
+    },
+    {
+      "id": "MP_1015723|2026-11",
+      "valorCentavos": 9215
+    },
+    {
+      "id": "MP_1015723|2026-12",
+      "valorCentavos": 33465
+    },
+    {
+      "id": "MP_1015723|2027-01",
+      "valorCentavos": 28373
+    },
+    {
+      "id": "MP_1015723|2027-02",
+      "valorCentavos": 9457
+    },
+    {
+      "id": "11456|2026-12",
+      "valorCentavos": 5807
+    },
+    {
+      "id": "11456|2027-01",
+      "valorCentavos": 11712
+    },
+    {
+      "id": "11456|2027-02",
+      "valorCentavos": 7808
+    },
+    {
+      "id": "11450|2027-02",
+      "valorCentavos": 25487
+    },
+    {
+      "id": "11385|2026-12",
+      "valorCentavos": 7772
+    },
+    {
+      "id": "11385|2027-02",
+      "valorCentavos": 17596
+    },
+    {
+      "id": "11393|2026-12",
+      "valorCentavos": 7771
+    },
+    {
+      "id": "11393|2027-02",
+      "valorCentavos": 17596
+    },
+    {
+      "id": "11666|2026-10",
+      "valorCentavos": 45484
+    },
+    {
+      "id": "11666|2026-11",
+      "valorCentavos": 1264687
+    },
+    {
+      "id": "11666|2026-12",
+      "valorCentavos": 600698
+    },
+    {
+      "id": "11666|2027-01",
+      "valorCentavos": 1839042
+    },
+    {
+      "id": "11666|2027-02",
+      "valorCentavos": 4144
+    },
+    {
+      "id": "11260|2027-01",
+      "valorCentavos": 25963
+    },
+    {
+      "id": "11307|2026-11",
+      "valorCentavos": 202208
+    },
+    {
+      "id": "11307|2026-12",
+      "valorCentavos": 597829
+    },
+    {
+      "id": "11307|2027-01",
+      "valorCentavos": 2654901
+    },
+    {
+      "id": "11141|2026-12",
+      "valorCentavos": 52624
+    },
+    {
+      "id": "11141|2027-01",
+      "valorCentavos": 187898
+    },
+    {
+      "id": "11141|2027-02",
+      "valorCentavos": 51756
+    },
+    {
+      "id": "1461|2026-11",
+      "valorCentavos": 11985
+    },
+    {
+      "id": "1461|2026-12",
+      "valorCentavos": 17978
+    },
+    {
+      "id": "1461|2027-01",
+      "valorCentavos": 29964
+    },
+    {
+      "id": "1461|2027-02",
+      "valorCentavos": 5993
+    },
+    {
+      "id": "MP_1015856|2026-11",
+      "valorCentavos": 20126
+    },
+    {
+      "id": "MP_1015856|2026-12",
+      "valorCentavos": 40251
+    },
+    {
+      "id": "MP_1015856|2027-01",
+      "valorCentavos": 20125
+    },
+    {
+      "id": "MP_1015856|2027-02",
+      "valorCentavos": 5031
+    },
+    {
+      "id": "11133|2026-11",
+      "valorCentavos": 2499
+    },
+    {
+      "id": "11133|2026-12",
+      "valorCentavos": 66190
+    },
+    {
+      "id": "11133|2027-01",
+      "valorCentavos": 331516
+    },
+    {
+      "id": "11138|2026-12",
+      "valorCentavos": 55454
+    },
+    {
+      "id": "11138|2027-01",
+      "valorCentavos": 310230
+    },
+    {
+      "id": "11692|2027-02",
+      "valorCentavos": 25035
+    },
+    {
+      "id": "MP_1000984|2027-01",
+      "valorCentavos": 227223
+    },
+    {
+      "id": "MP_1000984|2027-02",
+      "valorCentavos": 39981
+    },
+    {
+      "id": "11122|2026-11",
+      "valorCentavos": 7110
+    },
+    {
+      "id": "11122|2026-12",
+      "valorCentavos": 11850
+    },
+    {
+      "id": "11122|2027-01",
+      "valorCentavos": 28440
+    },
+    {
+      "id": "11413|2026-11",
+      "valorCentavos": 6095
+    },
+    {
+      "id": "11413|2026-12",
+      "valorCentavos": 18286
+    },
+    {
+      "id": "11413|2027-01",
+      "valorCentavos": 9143
+    },
+    {
+      "id": "11413|2027-02",
+      "valorCentavos": 1524
+    },
+    {
+      "id": "11140|2026-12",
+      "valorCentavos": 80961
+    },
+    {
+      "id": "11140|2027-01",
+      "valorCentavos": 263043
+    },
+    {
+      "id": "11140|2027-02",
+      "valorCentavos": 20910
+    },
+    {
+      "id": "11398|2027-01",
+      "valorCentavos": 25000
+    },
+    {
+      "id": "11340|2027-01",
+      "valorCentavos": 127257
+    },
+    {
+      "id": "11340|2027-02",
+      "valorCentavos": 62077
+    },
+    {
+      "id": "11595|2027-01",
+      "valorCentavos": 19985
+    },
+    {
+      "id": "11595|2027-02",
+      "valorCentavos": 5730
+    },
+    {
+      "id": "11103|2027-01",
+      "valorCentavos": 224542
+    },
+    {
+      "id": "11074|2027-01",
+      "valorCentavos": 29225
+    },
+    {
+      "id": "MP_1002831|2027-01",
+      "valorCentavos": 46120
+    },
+    {
+      "id": "1454|2027-01",
+      "valorCentavos": 348
+    },
+    {
+      "id": "1454|2027-02",
+      "valorCentavos": 38876
+    },
+    {
+      "id": "11423|2027-01",
+      "valorCentavos": 339376
+    },
+    {
+      "id": "11294|2027-02",
+      "valorCentavos": 25237
+    },
+    {
+      "id": "11424|2027-01",
+      "valorCentavos": 156866
+    },
+    {
+      "id": "11424|2027-02",
+      "valorCentavos": 21658
+    },
+    {
+      "id": "11418|2026-11",
+      "valorCentavos": 11377
+    },
+    {
+      "id": "11418|2026-12",
+      "valorCentavos": 25597
+    },
+    {
+      "id": "11418|2027-02",
+      "valorCentavos": 4266
+    },
+    {
+      "id": "11391|2027-02",
+      "valorCentavos": 25000
+    },
+    {
+      "id": "11017|2027-01",
+      "valorCentavos": 66085
+    },
+    {
+      "id": "11309|2027-01",
+      "valorCentavos": 2045423
+    },
+    {
+      "id": "11309|2027-02",
+      "valorCentavos": 7622
+    },
+    {
+      "id": "11475|2027-02",
+      "valorCentavos": 50007
+    },
+    {
+      "id": "11116|2027-01",
+      "valorCentavos": 392101
+    },
+    {
+      "id": "11145|2026-12",
+      "valorCentavos": 181055
+    },
+    {
+      "id": "11145|2027-01",
+      "valorCentavos": 369503
+    },
+    {
+      "id": "11148|2027-01",
+      "valorCentavos": 297754
+    },
+    {
+      "id": "11147|2026-12",
+      "valorCentavos": 96940
+    },
+    {
+      "id": "11146|2026-11",
+      "valorCentavos": 62046
+    },
+    {
+      "id": "11146|2026-12",
+      "valorCentavos": 40595
+    },
+    {
+      "id": "11146|2027-01",
+      "valorCentavos": 172999
+    },
+    {
+      "id": "11408|2027-02",
+      "valorCentavos": 39613
+    },
+    {
+      "id": "MP_5000157|2026-10",
+      "valorCentavos": 20534
+    },
+    {
+      "id": "MP_5000157|2026-11",
+      "valorCentavos": 45105
+    },
+    {
+      "id": "MP_5000157|2026-12",
+      "valorCentavos": 91675
+    },
+    {
+      "id": "MP_5000157|2027-01",
+      "valorCentavos": 120727
+    },
+    {
+      "id": "MP_5000157|2027-02",
+      "valorCentavos": 15963
+    },
+    {
+      "id": "11431|2027-01",
+      "valorCentavos": 189141
+    },
+    {
+      "id": "11431|2027-02",
+      "valorCentavos": 58179
+    },
+    {
+      "id": "11641|2026-12",
+      "valorCentavos": 26311
+    },
+    {
+      "id": "11641|2027-01",
+      "valorCentavos": 37422
+    },
+    {
+      "id": "11641|2027-02",
+      "valorCentavos": 60667
+    },
+    {
+      "id": "11308|2027-01",
+      "valorCentavos": 1264281
+    },
+    {
+      "id": "MP_1015035|2026-10",
+      "valorCentavos": 25000
+    },
+    {
+      "id": "11694|2027-02",
+      "valorCentavos": 35256
+    },
+    {
+      "id": "11139|2026-12",
+      "valorCentavos": 25188
+    },
+    {
+      "id": "11139|2027-01",
+      "valorCentavos": 124742
+    },
+    {
+      "id": "11130|2027-01",
+      "valorCentavos": 60560
+    },
+    {
+      "id": "11202|2026-11",
+      "valorCentavos": 28865
+    },
+    {
+      "id": "11202|2026-12",
+      "valorCentavos": 19543
+    },
+    {
+      "id": "11202|2027-01",
+      "valorCentavos": 160628
+    },
+    {
+      "id": "11420|2027-01",
+      "valorCentavos": 53099
+    },
+    {
+      "id": "11420|2027-02",
+      "valorCentavos": 213741
+    },
+    {
+      "id": "11422|2027-01",
+      "valorCentavos": 53099
+    },
+    {
+      "id": "11422|2027-02",
+      "valorCentavos": 138341
+    },
+    {
+      "id": "11421|2027-01",
+      "valorCentavos": 53099
+    },
+    {
+      "id": "11421|2027-02",
+      "valorCentavos": 138341
+    },
+    {
+      "id": "11341|2027-01",
+      "valorCentavos": 34321
+    },
+    {
+      "id": "11341|2027-02",
+      "valorCentavos": 50845
+    },
+    {
+      "id": "11400|2026-11",
+      "valorCentavos": 6566
+    },
+    {
+      "id": "11400|2026-12",
+      "valorCentavos": 19696
+    },
+    {
+      "id": "11400|2027-01",
+      "valorCentavos": 9848
+    },
+    {
+      "id": "11400|2027-02",
+      "valorCentavos": 1641
+    },
+    {
+      "id": "11429|2027-01",
+      "valorCentavos": 130960
+    },
+    {
+      "id": "11429|2027-02",
+      "valorCentavos": 40160
+    },
+    {
+      "id": "1466|2027-02",
+      "valorCentavos": 32781
+    },
+    {
+      "id": "11428|2026-12",
+      "valorCentavos": 20160
+    },
+    {
+      "id": "11428|2027-01",
+      "valorCentavos": 20160
+    },
+    {
+      "id": "11428|2027-02",
+      "valorCentavos": 40160
+    },
+    {
+      "id": "11702|2026-12",
+      "valorCentavos": 51480
+    },
+    {
+      "id": "11702|2027-01",
+      "valorCentavos": 51480
+    },
+    {
+      "id": "11702|2027-02",
+      "valorCentavos": 25740
+    },
+    {
+      "id": "11528|2026-12",
+      "valorCentavos": 423528
+    },
+    {
+      "id": "11528|2027-01",
+      "valorCentavos": 175392
+    },
+    {
+      "id": "11528|2027-02",
+      "valorCentavos": 105991
+    },
+    {
+      "id": "11427|2027-01",
+      "valorCentavos": 84647
+    },
+    {
+      "id": "11427|2027-02",
+      "valorCentavos": 36073
+    },
+    {
+      "id": "11144|2026-12",
+      "valorCentavos": 67198
+    },
+    {
+      "id": "11143|2026-12",
+      "valorCentavos": 113441
+    },
+    {
+      "id": "11134|2027-01",
+      "valorCentavos": 41002
+    },
+    {
+      "id": "11425|2026-12",
+      "valorCentavos": 26827
+    },
+    {
+      "id": "11425|2027-02",
+      "valorCentavos": 13413
+    },
+    {
+      "id": "11637|2027-01",
+      "valorCentavos": 24267
+    },
+    {
+      "id": "11637|2027-02",
+      "valorCentavos": 77333
+    },
+    {
+      "id": "11642|2027-01",
+      "valorCentavos": 24267
+    },
+    {
+      "id": "11642|2027-02",
+      "valorCentavos": 77333
+    },
+    {
+      "id": "11704|2027-01",
+      "valorCentavos": 99200
+    },
+    {
+      "id": "11526|2027-01",
+      "valorCentavos": 244064
+    },
+    {
+      "id": "11526|2027-02",
+      "valorCentavos": 194609
+    },
+    {
+      "id": "11370|2027-01",
+      "valorCentavos": 63524
+    },
+    {
+      "id": "11370|2027-02",
+      "valorCentavos": 155745
+    },
+    {
+      "id": "11645|2027-01",
+      "valorCentavos": 66720
+    },
+    {
+      "id": "11638|2027-01",
+      "valorCentavos": 33930
+    },
+    {
+      "id": "11149|2027-01",
+      "valorCentavos": 140656
+    },
+    {
+      "id": "11086|2027-01",
+      "valorCentavos": 71284
+    },
+    {
+      "id": "MP_1015838|2026-11",
+      "valorCentavos": 32651
+    },
+    {
+      "id": "MP_1015838|2026-12",
+      "valorCentavos": 329748
+    },
+    {
+      "id": "MP_1015838|2027-01",
+      "valorCentavos": 87686
+    },
+    {
+      "id": "MP_1015838|2027-02",
+      "valorCentavos": 64239
+    },
+    {
+      "id": "11201|2026-12",
+      "valorCentavos": 36029
+    },
+    {
+      "id": "11502|2027-01",
+      "valorCentavos": 35760
+    },
+    {
+      "id": "11664|2027-01",
+      "valorCentavos": 183085
+    },
+    {
+      "id": "11664|2027-02",
+      "valorCentavos": 103328
+    },
+    {
+      "id": "11120|2026-10",
+      "valorCentavos": 31664
+    },
+    {
+      "id": "11070|2027-01",
+      "valorCentavos": 28326
+    },
+    {
+      "id": "1468|2026-10",
+      "valorCentavos": 28965
+    },
+    {
+      "id": "11203|2026-10",
+      "valorCentavos": 25538
+    },
+    {
+      "id": "11203|2027-01",
+      "valorCentavos": 57509
+    },
+    {
+      "id": "11430|2027-02",
+      "valorCentavos": 30080
+    },
+    {
+      "id": "1463|2027-02",
+      "valorCentavos": 45740
+    },
+    {
+      "id": "11353|2027-01",
+      "valorCentavos": 40105
+    },
+    {
+      "id": "11171|2027-01",
+      "valorCentavos": 25018
+    },
+    {
+      "id": "11128|2027-01",
+      "valorCentavos": 25015
+    },
+    {
+      "id": "11402|2026-11",
+      "valorCentavos": 37283
+    },
+    {
+      "id": "11402|2026-12",
+      "valorCentavos": 92153
+    },
+    {
+      "id": "11402|2027-02",
+      "valorCentavos": 36697
+    },
+    {
+      "id": "MP_1014857|2026-10",
+      "valorCentavos": 26186
+    },
+    {
+      "id": "11123|2026-10",
+      "valorCentavos": 25840
+    },
+    {
+      "id": "1467|2026-10",
+      "valorCentavos": 8336
+    },
+    {
+      "id": "1467|2026-11",
+      "valorCentavos": 118885
+    },
+    {
+      "id": "11069|2026-10",
+      "valorCentavos": 26188
+    },
+    {
+      "id": "11004|2027-01",
+      "valorCentavos": 27680
+    },
+    {
+      "id": "11698|2026-12",
+      "valorCentavos": 12418
+    },
+    {
+      "id": "11698|2027-01",
+      "valorCentavos": 35590
+    },
+    {
+      "id": "11698|2027-02",
+      "valorCentavos": 23093
+    },
+    {
+      "id": "11085|2027-01",
+      "valorCentavos": 27817
+    },
+    {
+      "id": "1457|2027-01",
+      "valorCentavos": 54312
+    },
+    {
+      "id": "11401|2027-01",
+      "valorCentavos": 98123
+    },
+    {
+      "id": "1460|2027-02",
+      "valorCentavos": 50476
+    },
+    {
+      "id": "1453|2027-02",
+      "valorCentavos": 34629
+    },
+    {
+      "id": "11665|2027-02",
+      "valorCentavos": 36633
+    },
+    {
+      "id": "MP_1016407|2026-10",
+      "valorCentavos": 25571
+    },
+    {
+      "id": "1469|2026-11",
+      "valorCentavos": 12612
+    },
+    {
+      "id": "1469|2027-01",
+      "valorCentavos": 12612
+    },
+    {
+      "id": "MP_1016422|2026-10",
+      "valorCentavos": 25183
+    },
+    {
+      "id": "11510|2026-10",
+      "valorCentavos": 25182
+    },
+    {
+      "id": "11703|2027-02",
+      "valorCentavos": 25888
+    }
+  ],
+  "lotesPorCompetencia": [
+    {
+      "id": "11691|2026-10",
+      "valorCentavos": 1691
+    },
+    {
+      "id": "11181|2026-10",
+      "valorCentavos": 1460
+    },
+    {
+      "id": "11172|2026-10",
+      "valorCentavos": 8409
+    },
+    {
+      "id": "11129|2026-10",
+      "valorCentavos": 7898
+    },
+    {
+      "id": "11260|2026-10",
+      "valorCentavos": 1267
+    },
+    {
+      "id": "11666|2026-10",
+      "valorCentavos": 28241
+    },
+    {
+      "id": "11526|2026-10",
+      "valorCentavos": 568083
+    },
+    {
+      "id": "11124|2026-10",
+      "valorCentavos": 6588
+    },
+    {
+      "id": "11120|2026-10",
+      "valorCentavos": 31664
+    },
+    {
+      "id": "11691|2026-11",
+      "valorCentavos": 6654
+    },
+    {
+      "id": "11181|2026-11",
+      "valorCentavos": 10754
+    },
+    {
+      "id": "11172|2026-11",
+      "valorCentavos": 10349
+    },
+    {
+      "id": "11129|2026-11",
+      "valorCentavos": 9721
+    },
+    {
+      "id": "11260|2026-11",
+      "valorCentavos": 16941
+    },
+    {
+      "id": "11166|2026-11",
+      "valorCentavos": 4761
+    },
+    {
+      "id": "11441|2026-11",
+      "valorCentavos": 1747
+    },
+    {
+      "id": "11459|2026-11",
+      "valorCentavos": 1747
+    },
+    {
+      "id": "11438|2026-11",
+      "valorCentavos": 3903
+    },
+    {
+      "id": "11018|2026-11",
+      "valorCentavos": 767
+    },
+    {
+      "id": "11561|2026-11",
+      "valorCentavos": 761
+    },
+    {
+      "id": "11460|2026-11",
+      "valorCentavos": 1861
+    },
+    {
+      "id": "11442|2026-11",
+      "valorCentavos": 1861
+    },
+    {
+      "id": "11471|2026-11",
+      "valorCentavos": 2810
+    },
+    {
+      "id": "11562|2026-11",
+      "valorCentavos": 584
+    },
+    {
+      "id": "11461|2026-11",
+      "valorCentavos": 2097
+    },
+    {
+      "id": "11463|2026-11",
+      "valorCentavos": 43467
+    },
+    {
+      "id": "11467|2026-11",
+      "valorCentavos": 3335
+    },
+    {
+      "id": "11443|2026-11",
+      "valorCentavos": 1045
+    },
+    {
+      "id": "11659|2026-11",
+      "valorCentavos": 3280
+    },
+    {
+      "id": "11458|2026-11",
+      "valorCentavos": 2228
+    },
+    {
+      "id": "11440|2026-11",
+      "valorCentavos": 2228
+    },
+    {
+      "id": "11451|2026-11",
+      "valorCentavos": 2802
+    },
+    {
+      "id": "11071|2026-11",
+      "valorCentavos": 20796
+    },
+    {
+      "id": "11128|2026-11",
+      "valorCentavos": 746
+    },
+    {
+      "id": "11171|2026-11",
+      "valorCentavos": 746
+    },
+    {
+      "id": "11597|2026-11",
+      "valorCentavos": 4146
+    },
+    {
+      "id": "11649|2026-11",
+      "valorCentavos": 4149
+    },
+    {
+      "id": "11410|2026-11",
+      "valorCentavos": 30317
+    },
+    {
+      "id": "11657|2026-11",
+      "valorCentavos": 2550
+    },
+    {
+      "id": "11456|2026-11",
+      "valorCentavos": 5237
+    },
+    {
+      "id": "11590|2026-11",
+      "valorCentavos": 4660
+    },
+    {
+      "id": "11417|2026-11",
+      "valorCentavos": 54415
+    },
+    {
+      "id": "11595|2026-11",
+      "valorCentavos": 5869
+    },
+    {
+      "id": "11206|2026-11",
+      "valorCentavos": 12632
+    },
+    {
+      "id": "11449|2026-11",
+      "valorCentavos": 3979
+    },
+    {
+      "id": "11655|2026-11",
+      "valorCentavos": 3979
+    },
+    {
+      "id": "11409|2026-11",
+      "valorCentavos": 13720
+    },
+    {
+      "id": "11437|2026-11",
+      "valorCentavos": 4738
+    },
+    {
+      "id": "11666|2026-11",
+      "valorCentavos": 1554219
+    },
+    {
+      "id": "11662|2026-11",
+      "valorCentavos": 4975
+    },
+    {
+      "id": "11594|2026-11",
+      "valorCentavos": 4977
+    },
+    {
+      "id": "11526|2026-11",
+      "valorCentavos": 1672677
+    },
+    {
+      "id": "11139|2026-11",
+      "valorCentavos": 11404
+    },
+    {
+      "id": "11404|2026-11",
+      "valorCentavos": 5591
+    },
+    {
+      "id": "11448|2026-11",
+      "valorCentavos": 4499
+    },
+    {
+      "id": "11006|2026-11",
+      "valorCentavos": 24664
+    },
+    {
+      "id": "11122|2026-11",
+      "valorCentavos": 3551
+    },
+    {
+      "id": "11413|2026-11",
+      "valorCentavos": 6095
+    },
+    {
+      "id": "11648|2026-11",
+      "valorCentavos": 11074
+    },
+    {
+      "id": "11124|2026-11",
+      "valorCentavos": 4941
+    },
+    {
+      "id": "11439|2026-11",
+      "valorCentavos": 6191
+    },
+    {
+      "id": "11418|2026-11",
+      "valorCentavos": 11377
+    },
+    {
+      "id": "11054|2026-11",
+      "valorCentavos": 552
+    },
+    {
+      "id": "11393|2026-11",
+      "valorCentavos": 5237
+    },
+    {
+      "id": "11395|2026-11",
+      "valorCentavos": 3133
+    },
+    {
+      "id": "11397|2026-11",
+      "valorCentavos": 4145
+    },
+    {
+      "id": "11385|2026-11",
+      "valorCentavos": 5237
+    },
+    {
+      "id": "11387|2026-11",
+      "valorCentavos": 3133
+    },
+    {
+      "id": "11389|2026-11",
+      "valorCentavos": 4145
+    },
+    {
+      "id": "11423|2026-11",
+      "valorCentavos": 21243
+    },
+    {
+      "id": "11691|2026-12",
+      "valorCentavos": 8192
+    },
+    {
+      "id": "11181|2026-12",
+      "valorCentavos": 4312
+    },
+    {
+      "id": "11172|2026-12",
+      "valorCentavos": 3512
+    },
+    {
+      "id": "11129|2026-12",
+      "valorCentavos": 3299
+    },
+    {
+      "id": "11260|2026-12",
+      "valorCentavos": 627
+    },
+    {
+      "id": "11166|2026-12",
+      "valorCentavos": 4598
+    },
+    {
+      "id": "11457|2026-12",
+      "valorCentavos": 907
+    },
+    {
+      "id": "11563|2026-12",
+      "valorCentavos": 41776
+    },
+    {
+      "id": "11441|2026-12",
+      "valorCentavos": 13007
+    },
+    {
+      "id": "11459|2026-12",
+      "valorCentavos": 13007
+    },
+    {
+      "id": "11438|2026-12",
+      "valorCentavos": 2558
+    },
+    {
+      "id": "11533|2026-12",
+      "valorCentavos": 6831
+    },
+    {
+      "id": "11257|2026-12",
+      "valorCentavos": 18669
+    },
+    {
+      "id": "11018|2026-12",
+      "valorCentavos": 23718
+    },
+    {
+      "id": "11180|2026-12",
+      "valorCentavos": 1508
+    },
+    {
+      "id": "11654|2026-12",
+      "valorCentavos": 1099
+    },
+    {
+      "id": "11561|2026-12",
+      "valorCentavos": 12177
+    },
+    {
+      "id": "11460|2026-12",
+      "valorCentavos": 13135
+    },
+    {
+      "id": "11442|2026-12",
+      "valorCentavos": 13135
+    },
+    {
+      "id": "11471|2026-12",
+      "valorCentavos": 15754
+    },
+    {
+      "id": "11562|2026-12",
+      "valorCentavos": 11865
+    },
+    {
+      "id": "11461|2026-12",
+      "valorCentavos": 11277
+    },
+    {
+      "id": "11465|2026-12",
+      "valorCentavos": 303975
+    },
+    {
+      "id": "11080|2026-12",
+      "valorCentavos": 5645
+    },
+    {
+      "id": "11463|2026-12",
+      "valorCentavos": 66883
+    },
+    {
+      "id": "11193|2026-12",
+      "valorCentavos": 160238
+    },
+    {
+      "id": "11467|2026-12",
+      "valorCentavos": 11734
+    },
+    {
+      "id": "11475|2026-12",
+      "valorCentavos": 13995
+    },
+    {
+      "id": "11452|2026-12",
+      "valorCentavos": 14210
+    },
+    {
+      "id": "11443|2026-12",
+      "valorCentavos": 12777
+    },
+    {
+      "id": "11659|2026-12",
+      "valorCentavos": 11550
+    },
+    {
+      "id": "11458|2026-12",
+      "valorCentavos": 12933
+    },
+    {
+      "id": "11440|2026-12",
+      "valorCentavos": 12933
+    },
+    {
+      "id": "11470|2026-12",
+      "valorCentavos": 11974
+    },
+    {
+      "id": "11658|2026-12",
+      "valorCentavos": 14183
+    },
+    {
+      "id": "11174|2026-12",
+      "valorCentavos": 2145
+    },
+    {
+      "id": "11451|2026-12",
+      "valorCentavos": 11982
+    },
+    {
+      "id": "11450|2026-12",
+      "valorCentavos": 13484
+    },
+    {
+      "id": "11382|2026-12",
+      "valorCentavos": 33606
+    },
+    {
+      "id": "11071|2026-12",
+      "valorCentavos": 109140
+    },
+    {
+      "id": "11141|2026-12",
+      "valorCentavos": 16806
+    },
+    {
+      "id": "11653|2026-12",
+      "valorCentavos": 13611
+    },
+    {
+      "id": "11128|2026-12",
+      "valorCentavos": 7580
+    },
+    {
+      "id": "11171|2026-12",
+      "valorCentavos": 7580
+    },
+    {
+      "id": "11597|2026-12",
+      "valorCentavos": 8343
+    },
+    {
+      "id": "11649|2026-12",
+      "valorCentavos": 8350
+    },
+    {
+      "id": "11410|2026-12",
+      "valorCentavos": 45763
+    },
+    {
+      "id": "11167|2026-12",
+      "valorCentavos": 19492
+    },
+    {
+      "id": "1459|2026-12",
+      "valorCentavos": 26634
+    },
+    {
+      "id": "11657|2026-12",
+      "valorCentavos": 11546
+    },
+    {
+      "id": "11456|2026-12",
+      "valorCentavos": 13176
+    },
+    {
+      "id": "11590|2026-12",
+      "valorCentavos": 46448
+    },
+    {
+      "id": "11417|2026-12",
+      "valorCentavos": 163243
+    },
+    {
+      "id": "11656|2026-12",
+      "valorCentavos": 12840
+    },
+    {
+      "id": "11595|2026-12",
+      "valorCentavos": 11775
+    },
+    {
+      "id": "11206|2026-12",
+      "valorCentavos": 10567
+    },
+    {
+      "id": "11147|2026-12",
+      "valorCentavos": 452710
+    },
+    {
+      "id": "11449|2026-12",
+      "valorCentavos": 14015
+    },
+    {
+      "id": "11655|2026-12",
+      "valorCentavos": 14015
+    },
+    {
+      "id": "11140|2026-12",
+      "valorCentavos": 62032
+    },
+    {
+      "id": "11409|2026-12",
+      "valorCentavos": 54882
+    },
+    {
+      "id": "11446|2026-12",
+      "valorCentavos": 13624
+    },
+    {
+      "id": "11411|2026-12",
+      "valorCentavos": 57089
+    },
+    {
+      "id": "11437|2026-12",
+      "valorCentavos": 14303
+    },
+    {
+      "id": "11666|2026-12",
+      "valorCentavos": 752842
+    },
+    {
+      "id": "11662|2026-12",
+      "valorCentavos": 15020
+    },
+    {
+      "id": "11594|2026-12",
+      "valorCentavos": 15025
+    },
+    {
+      "id": "11341|2026-12",
+      "valorCentavos": 97338
+    },
+    {
+      "id": "11645|2026-12",
+      "valorCentavos": 27665
+    },
+    {
+      "id": "11307|2026-12",
+      "valorCentavos": 545694
+    },
+    {
+      "id": "11526|2026-12",
+      "valorCentavos": 2295018
+    },
+    {
+      "id": "11469|2026-12",
+      "valorCentavos": 12461
+    },
+    {
+      "id": "11661|2026-12",
+      "valorCentavos": 12461
+    },
+    {
+      "id": "11660|2026-12",
+      "valorCentavos": 12481
+    },
+    {
+      "id": "11468|2026-12",
+      "valorCentavos": 12461
+    },
+    {
+      "id": "11132|2026-12",
+      "valorCentavos": 29380
+    },
+    {
+      "id": "11560|2026-12",
+      "valorCentavos": 13160
+    },
+    {
+      "id": "11138|2026-12",
+      "valorCentavos": 66655
+    },
+    {
+      "id": "11308|2026-12",
+      "valorCentavos": 70313
+    },
+    {
+      "id": "11133|2026-12",
+      "valorCentavos": 80138
+    },
+    {
+      "id": "11139|2026-12",
+      "valorCentavos": 29337
+    },
+    {
+      "id": "11404|2026-12",
+      "valorCentavos": 17249
+    },
+    {
+      "id": "11454|2026-12",
+      "valorCentavos": 22794
+    },
+    {
+      "id": "11466|2026-12",
+      "valorCentavos": 15175
+    },
+    {
+      "id": "11448|2026-12",
+      "valorCentavos": 13667
+    },
+    {
+      "id": "11006|2026-12",
+      "valorCentavos": 49210
+    },
+    {
+      "id": "11122|2026-12",
+      "valorCentavos": 13530
+    },
+    {
+      "id": "11413|2026-12",
+      "valorCentavos": 18286
+    },
+    {
+      "id": "11648|2026-12",
+      "valorCentavos": 11144
+    },
+    {
+      "id": "11124|2026-12",
+      "valorCentavos": 6588
+    },
+    {
+      "id": "11439|2026-12",
+      "valorCentavos": 14107
+    },
+    {
+      "id": "11641|2026-12",
+      "valorCentavos": 26311
+    },
+    {
+      "id": "11418|2026-12",
+      "valorCentavos": 25597
+    },
+    {
+      "id": "11528|2026-12",
+      "valorCentavos": 347214
+    },
+    {
+      "id": "11303|2026-12",
+      "valorCentavos": 142322
+    },
+    {
+      "id": "11054|2026-12",
+      "valorCentavos": 10118
+    },
+    {
+      "id": "11383|2026-12",
+      "valorCentavos": 1916
+    },
+    {
+      "id": "11068|2026-12",
+      "valorCentavos": 6167
+    },
+    {
+      "id": "11393|2026-12",
+      "valorCentavos": 13835
+    },
+    {
+      "id": "11394|2026-12",
+      "valorCentavos": 12485
+    },
+    {
+      "id": "11395|2026-12",
+      "valorCentavos": 14185
+    },
+    {
+      "id": "11396|2026-12",
+      "valorCentavos": 12485
+    },
+    {
+      "id": "11397|2026-12",
+      "valorCentavos": 13209
+    },
+    {
+      "id": "11385|2026-12",
+      "valorCentavos": 13835
+    },
+    {
+      "id": "11386|2026-12",
+      "valorCentavos": 12485
+    },
+    {
+      "id": "11387|2026-12",
+      "valorCentavos": 14185
+    },
+    {
+      "id": "11388|2026-12",
+      "valorCentavos": 12485
+    },
+    {
+      "id": "11389|2026-12",
+      "valorCentavos": 13209
+    },
+    {
+      "id": "11420|2026-12",
+      "valorCentavos": 46275
+    },
+    {
+      "id": "11421|2026-12",
+      "valorCentavos": 31116
+    },
+    {
+      "id": "11422|2026-12",
+      "valorCentavos": 30416
+    },
+    {
+      "id": "11423|2026-12",
+      "valorCentavos": 37662
+    },
+    {
+      "id": "11424|2026-12",
+      "valorCentavos": 37324
+    },
+    {
+      "id": "11427|2026-12",
+      "valorCentavos": 16410
+    },
+    {
+      "id": "11143|2026-12",
+      "valorCentavos": 257422
+    },
+    {
+      "id": "11148|2026-12",
+      "valorCentavos": 8268
+    },
+    {
+      "id": "11691|2027-01",
+      "valorCentavos": 9178
+    },
+    {
+      "id": "11181|2027-01",
+      "valorCentavos": 21413
+    },
+    {
+      "id": "11172|2027-01",
+      "valorCentavos": 18886
+    },
+    {
+      "id": "11129|2027-01",
+      "valorCentavos": 17740
+    },
+    {
+      "id": "11366|2027-01",
+      "valorCentavos": 371648
+    },
+    {
+      "id": "11260|2027-01",
+      "valorCentavos": 32000
+    },
+    {
+      "id": "11166|2027-01",
+      "valorCentavos": 15408
+    },
+    {
+      "id": "11457|2027-01",
+      "valorCentavos": 24100
+    },
+    {
+      "id": "11416|2027-01",
+      "valorCentavos": 158708
+    },
+    {
+      "id": "11563|2027-01",
+      "valorCentavos": 48059
+    },
+    {
+      "id": "11441|2027-01",
+      "valorCentavos": 6614
+    },
+    {
+      "id": "11459|2027-01",
+      "valorCentavos": 6614
+    },
+    {
+      "id": "11438|2027-01",
+      "valorCentavos": 18545
+    },
+    {
+      "id": "11533|2027-01",
+      "valorCentavos": 14539
+    },
+    {
+      "id": "11257|2027-01",
+      "valorCentavos": 15226
+    },
+    {
+      "id": "11018|2027-01",
+      "valorCentavos": 5376
+    },
+    {
+      "id": "11173|2027-01",
+      "valorCentavos": 26743
+    },
+    {
+      "id": "11696|2027-01",
+      "valorCentavos": 175535
+    },
+    {
+      "id": "11180|2027-01",
+      "valorCentavos": 23497
+    },
+    {
+      "id": "11654|2027-01",
+      "valorCentavos": 23906
+    },
+    {
+      "id": "11447|2027-01",
+      "valorCentavos": 25005
+    },
+    {
+      "id": "11561|2027-01",
+      "valorCentavos": 7915
+    },
+    {
+      "id": "11294|2027-01",
+      "valorCentavos": 22267
+    },
+    {
+      "id": "11460|2027-01",
+      "valorCentavos": 6568
+    },
+    {
+      "id": "11442|2027-01",
+      "valorCentavos": 6568
+    },
+    {
+      "id": "11605|2027-01",
+      "valorCentavos": 92533
+    },
+    {
+      "id": "11471|2027-01",
+      "valorCentavos": 4425
+    },
+    {
+      "id": "11031|2027-01",
+      "valorCentavos": 59232
+    },
+    {
+      "id": "11562|2027-01",
+      "valorCentavos": 8269
+    },
+    {
+      "id": "11461|2027-01",
+      "valorCentavos": 8106
+    },
+    {
+      "id": "11465|2027-01",
+      "valorCentavos": 390600
+    },
+    {
+      "id": "11080|2027-01",
+      "valorCentavos": 30076
+    },
+    {
+      "id": "11477|2027-01",
+      "valorCentavos": 179286
+    },
+    {
+      "id": "11025|2027-01",
+      "valorCentavos": 133543
+    },
+    {
+      "id": "11444|2027-01",
+      "valorCentavos": 25003
+    },
+    {
+      "id": "11476|2027-01",
+      "valorCentavos": 159811
+    },
+    {
+      "id": "11032|2027-01",
+      "valorCentavos": 159356
+    },
+    {
+      "id": "11464|2027-01",
+      "valorCentavos": 73262
+    },
+    {
+      "id": "11381|2027-01",
+      "valorCentavos": 159861
+    },
+    {
+      "id": "11378|2027-01",
+      "valorCentavos": 192107
+    },
+    {
+      "id": "11463|2027-01",
+      "valorCentavos": 240749
+    },
+    {
+      "id": "11193|2027-01",
+      "valorCentavos": 121106
+    },
+    {
+      "id": "11044|2027-01",
+      "valorCentavos": 104516
+    },
+    {
+      "id": "11467|2027-01",
+      "valorCentavos": 6945
+    },
+    {
+      "id": "11475|2027-01",
+      "valorCentavos": 304334
+    },
+    {
+      "id": "11452|2027-01",
+      "valorCentavos": 6869
+    },
+    {
+      "id": "11408|2027-01",
+      "valorCentavos": 123167
+    },
+    {
+      "id": "11443|2027-01",
+      "valorCentavos": 6921
+    },
+    {
+      "id": "11659|2027-01",
+      "valorCentavos": 7150
+    },
+    {
+      "id": "11458|2027-01",
+      "valorCentavos": 6748
+    },
+    {
+      "id": "11440|2027-01",
+      "valorCentavos": 6748
+    },
+    {
+      "id": "11478|2027-01",
+      "valorCentavos": 47389
+    },
+    {
+      "id": "11183|2027-01",
+      "valorCentavos": 113776
+    },
+    {
+      "id": "11479|2027-01",
+      "valorCentavos": 38455
+    },
+    {
+      "id": "11470|2027-01",
+      "valorCentavos": 10245
+    },
+    {
+      "id": "11412|2027-01",
+      "valorCentavos": 31103
+    },
+    {
+      "id": "11658|2027-01",
+      "valorCentavos": 6762
+    },
+    {
+      "id": "11174|2027-01",
+      "valorCentavos": 18494
+    },
+    {
+      "id": "11451|2027-01",
+      "valorCentavos": 5638
+    },
+    {
+      "id": "11544|2027-01",
+      "valorCentavos": 331222
+    },
+    {
+      "id": "11673|2027-01",
+      "valorCentavos": 12392
+    },
+    {
+      "id": "11450|2027-01",
+      "valorCentavos": 6355
+    },
+    {
+      "id": "11589|2027-01",
+      "valorCentavos": 25903
+    },
+    {
+      "id": "11382|2027-01",
+      "valorCentavos": 121380
+    },
+    {
+      "id": "11071|2027-01",
+      "valorCentavos": 54388
+    },
+    {
+      "id": "11141|2027-01",
+      "valorCentavos": 242343
+    },
+    {
+      "id": "11592|2027-01",
+      "valorCentavos": 5823
+    },
+    {
+      "id": "11652|2027-01",
+      "valorCentavos": 25000
+    },
+    {
+      "id": "11653|2027-01",
+      "valorCentavos": 9112
+    },
+    {
+      "id": "11017|2027-01",
+      "valorCentavos": 34967
+    },
+    {
+      "id": "11345|2027-01",
+      "valorCentavos": 148896
+    },
+    {
+      "id": "11453|2027-01",
+      "valorCentavos": 25223
+    },
+    {
+      "id": "11549|2027-01",
+      "valorCentavos": 83758
+    },
+    {
+      "id": "11128|2027-01",
+      "valorCentavos": 16676
+    },
+    {
+      "id": "11171|2027-01",
+      "valorCentavos": 16676
+    },
+    {
+      "id": "11135|2027-01",
+      "valorCentavos": 168726
+    },
+    {
+      "id": "11597|2027-01",
+      "valorCentavos": 10429
+    },
+    {
+      "id": "11649|2027-01",
+      "valorCentavos": 10437
+    },
+    {
+      "id": "11134|2027-01",
+      "valorCentavos": 103594
+    },
+    {
+      "id": "11410|2027-01",
+      "valorCentavos": 76655
+    },
+    {
+      "id": "11380|2027-01",
+      "valorCentavos": 167272
+    },
+    {
+      "id": "11167|2027-01",
+      "valorCentavos": 5848
+    },
+    {
+      "id": "1459|2027-01",
+      "valorCentavos": 74909
+    },
+    {
+      "id": "11657|2027-01",
+      "valorCentavos": 5132
+    },
+    {
+      "id": "11456|2027-01",
+      "valorCentavos": 3953
+    },
+    {
+      "id": "11590|2027-01",
+      "valorCentavos": 80196
+    },
+    {
+      "id": "11417|2027-01",
+      "valorCentavos": 84172
+    },
+    {
+      "id": "11656|2027-01",
+      "valorCentavos": 5723
+    },
+    {
+      "id": "11595|2027-01",
+      "valorCentavos": 5887
+    },
+    {
+      "id": "11591|2027-01",
+      "valorCentavos": 91340
+    },
+    {
+      "id": "11596|2027-01",
+      "valorCentavos": 25003
+    },
+    {
+      "id": "11206|2027-01",
+      "valorCentavos": 28177
+    },
+    {
+      "id": "11376|2027-01",
+      "valorCentavos": 89247
+    },
+    {
+      "id": "11147|2027-01",
+      "valorCentavos": 265715
+    },
+    {
+      "id": "11547|2027-01",
+      "valorCentavos": 43954
+    },
+    {
+      "id": "11023|2027-01",
+      "valorCentavos": 79255
+    },
+    {
+      "id": "11449|2027-01",
+      "valorCentavos": 4004
+    },
+    {
+      "id": "11655|2027-01",
+      "valorCentavos": 4004
+    },
+    {
+      "id": "11140|2027-01",
+      "valorCentavos": 479965
+    },
+    {
+      "id": "11409|2027-01",
+      "valorCentavos": 17151
+    },
+    {
+      "id": "11535|2027-01",
+      "valorCentavos": 53098
+    },
+    {
+      "id": "11357|2027-01",
+      "valorCentavos": 55020
+    },
+    {
+      "id": "11446|2027-01",
+      "valorCentavos": 9102
+    },
+    {
+      "id": "11692|2027-01",
+      "valorCentavos": 2979
+    },
+    {
+      "id": "11340|2027-01",
+      "valorCentavos": 4521
+    },
+    {
+      "id": "11130|2027-01",
+      "valorCentavos": 37446
+    },
+    {
+      "id": "11411|2027-01",
+      "valorCentavos": 17840
+    },
+    {
+      "id": "11437|2027-01",
+      "valorCentavos": 2384
+    },
+    {
+      "id": "11666|2027-01",
+      "valorCentavos": 3936122
+    },
+    {
+      "id": "11662|2027-01",
+      "valorCentavos": 2503
+    },
+    {
+      "id": "11594|2027-01",
+      "valorCentavos": 2504
+    },
+    {
+      "id": "11341|2027-01",
+      "valorCentavos": 100349
+    },
+    {
+      "id": "11491|2027-01",
+      "valorCentavos": 73124
+    },
+    {
+      "id": "11375|2027-01",
+      "valorCentavos": 35342
+    },
+    {
+      "id": "11534|2027-01",
+      "valorCentavos": 48117
+    },
+    {
+      "id": "11645|2027-01",
+      "valorCentavos": 107455
+    },
+    {
+      "id": "11307|2027-01",
+      "valorCentavos": 3668042
+    },
+    {
+      "id": "11526|2027-01",
+      "valorCentavos": 533726
+    },
+    {
+      "id": "11469|2027-01",
+      "valorCentavos": 9405
+    },
+    {
+      "id": "11661|2027-01",
+      "valorCentavos": 9405
+    },
+    {
+      "id": "11660|2027-01",
+      "valorCentavos": 9390
+    },
+    {
+      "id": "11468|2027-01",
+      "valorCentavos": 9405
+    },
+    {
+      "id": "11132|2027-01",
+      "valorCentavos": 621177
+    },
+    {
+      "id": "11309|2027-01",
+      "valorCentavos": 1207327
+    },
+    {
+      "id": "11024|2027-01",
+      "valorCentavos": 88474
+    },
+    {
+      "id": "11560|2027-01",
+      "valorCentavos": 6793
+    },
+    {
+      "id": "11138|2027-01",
+      "valorCentavos": 420949
+    },
+    {
+      "id": "11364|2027-01",
+      "valorCentavos": 19105
+    },
+    {
+      "id": "11365|2027-01",
+      "valorCentavos": 2885
+    },
+    {
+      "id": "11136|2027-01",
+      "valorCentavos": 50654
+    },
+    {
+      "id": "11308|2027-01",
+      "valorCentavos": 2455446
+    },
+    {
+      "id": "11133|2027-01",
+      "valorCentavos": 394381
+    },
+    {
+      "id": "11139|2027-01",
+      "valorCentavos": 364821
+    },
+    {
+      "id": "11404|2027-01",
+      "valorCentavos": 3749
+    },
+    {
+      "id": "11588|2027-01",
+      "valorCentavos": 81583
+    },
+    {
+      "id": "11454|2027-01",
+      "valorCentavos": 36209
+    },
+    {
+      "id": "11466|2027-01",
+      "valorCentavos": 6551
+    },
+    {
+      "id": "11006|2027-01",
+      "valorCentavos": 145036
+    },
+    {
+      "id": "11122|2027-01",
+      "valorCentavos": 20295
+    },
+    {
+      "id": "11413|2027-01",
+      "valorCentavos": 9143
+    },
+    {
+      "id": "11548|2027-01",
+      "valorCentavos": 15080
+    },
+    {
+      "id": "11703|2027-01",
+      "valorCentavos": 341356
+    },
+    {
+      "id": "11124|2027-01",
+      "valorCentavos": 19763
+    },
+    {
+      "id": "11295|2027-01",
+      "valorCentavos": 25261
+    },
+    {
+      "id": "11638|2027-01",
+      "valorCentavos": 37920
+    },
+    {
+      "id": "1454|2027-01",
+      "valorCentavos": 348
+    },
+    {
+      "id": "11641|2027-01",
+      "valorCentavos": 37422
+    },
+    {
+      "id": "11374|2027-01",
+      "valorCentavos": 71347
+    },
+    {
+      "id": "11637|2027-01",
+      "valorCentavos": 41867
+    },
+    {
+      "id": "11642|2027-01",
+      "valorCentavos": 41867
+    },
+    {
+      "id": "11528|2027-01",
+      "valorCentavos": 318495
+    },
+    {
+      "id": "11086|2027-01",
+      "valorCentavos": 39085
+    },
+    {
+      "id": "11303|2027-01",
+      "valorCentavos": 89891
+    },
+    {
+      "id": "11664|2027-01",
+      "valorCentavos": 183085
+    },
+    {
+      "id": "11646|2027-01",
+      "valorCentavos": 137064
+    },
+    {
+      "id": "1457|2027-01",
+      "valorCentavos": 104420
+    },
+    {
+      "id": "11377|2027-01",
+      "valorCentavos": 30328
+    },
+    {
+      "id": "11054|2027-01",
+      "valorCentavos": 11305
+    },
+    {
+      "id": "11383|2027-01",
+      "valorCentavos": 17682
+    },
+    {
+      "id": "11290|2027-01",
+      "valorCentavos": 220360
+    },
+    {
+      "id": "11690|2027-01",
+      "valorCentavos": 121015
+    },
+    {
+      "id": "11291|2027-01",
+      "valorCentavos": 85201
+    },
+    {
+      "id": "11710|2027-01",
+      "valorCentavos": 462871
+    },
+    {
+      "id": "11068|2027-01",
+      "valorCentavos": 21942
+    },
+    {
+      "id": "11392|2027-01",
+      "valorCentavos": 25279
+    },
+    {
+      "id": "11394|2027-01",
+      "valorCentavos": 7510
+    },
+    {
+      "id": "11395|2027-01",
+      "valorCentavos": 5123
+    },
+    {
+      "id": "11396|2027-01",
+      "valorCentavos": 7510
+    },
+    {
+      "id": "11397|2027-01",
+      "valorCentavos": 4867
+    },
+    {
+      "id": "11384|2027-01",
+      "valorCentavos": 25279
+    },
+    {
+      "id": "11386|2027-01",
+      "valorCentavos": 7510
+    },
+    {
+      "id": "11387|2027-01",
+      "valorCentavos": 5123
+    },
+    {
+      "id": "11388|2027-01",
+      "valorCentavos": 7510
+    },
+    {
+      "id": "11389|2027-01",
+      "valorCentavos": 4867
+    },
+    {
+      "id": "11390|2027-01",
+      "valorCentavos": 20322
+    },
+    {
+      "id": "11487|2027-01",
+      "valorCentavos": 56180
+    },
+    {
+      "id": "11420|2027-01",
+      "valorCentavos": 195653
+    },
+    {
+      "id": "11421|2027-01",
+      "valorCentavos": 105846
+    },
+    {
+      "id": "11422|2027-01",
+      "valorCentavos": 117755
+    },
+    {
+      "id": "11423|2027-01",
+      "valorCentavos": 605591
+    },
+    {
+      "id": "11424|2027-01",
+      "valorCentavos": 243841
+    },
+    {
+      "id": "11427|2027-01",
+      "valorCentavos": 104967
+    },
+    {
+      "id": "11431|2027-01",
+      "valorCentavos": 234471
+    },
+    {
+      "id": "11143|2027-01",
+      "valorCentavos": 245283
+    },
+    {
+      "id": "11148|2027-01",
+      "valorCentavos": 373364
+    },
+    {
+      "id": "11149|2027-01",
+      "valorCentavos": 242926
+    },
+    {
+      "id": "11691|2027-02",
+      "valorCentavos": 260
+    },
+    {
+      "id": "11181|2027-02",
+      "valorCentavos": 219
+    },
+    {
+      "id": "11172|2027-02",
+      "valorCentavos": 190
+    },
+    {
+      "id": "11129|2027-02",
+      "valorCentavos": 178
+    },
+    {
+      "id": "11366|2027-02",
+      "valorCentavos": 2388
+    },
+    {
+      "id": "11166|2027-02",
+      "valorCentavos": 242
+    },
+    {
+      "id": "11416|2027-02",
+      "valorCentavos": 37105
+    },
+    {
+      "id": "11563|2027-02",
+      "valorCentavos": 19400
+    },
+    {
+      "id": "11441|2027-02",
+      "valorCentavos": 3638
+    },
+    {
+      "id": "11459|2027-02",
+      "valorCentavos": 3638
+    },
+    {
+      "id": "11533|2027-02",
+      "valorCentavos": 5516
+    },
+    {
+      "id": "11257|2027-02",
+      "valorCentavos": 4926
+    },
+    {
+      "id": "11018|2027-02",
+      "valorCentavos": 1423
+    },
+    {
+      "id": "11173|2027-02",
+      "valorCentavos": 1594
+    },
+    {
+      "id": "11696|2027-02",
+      "valorCentavos": 4493
+    },
+    {
+      "id": "11561|2027-02",
+      "valorCentavos": 4718
+    },
+    {
+      "id": "11294|2027-02",
+      "valorCentavos": 2734
+    },
+    {
+      "id": "11460|2027-02",
+      "valorCentavos": 3440
+    },
+    {
+      "id": "11442|2027-02",
+      "valorCentavos": 3440
+    },
+    {
+      "id": "11605|2027-02",
+      "valorCentavos": 16765
+    },
+    {
+      "id": "11471|2027-02",
+      "valorCentavos": 2744
+    },
+    {
+      "id": "11562|2027-02",
+      "valorCentavos": 4764
+    },
+    {
+      "id": "11461|2027-02",
+      "valorCentavos": 3524
+    },
+    {
+      "id": "11465|2027-02",
+      "valorCentavos": 163800
+    },
+    {
+      "id": "11080|2027-02",
+      "valorCentavos": 158
+    },
+    {
+      "id": "11477|2027-02",
+      "valorCentavos": 132271
+    },
+    {
+      "id": "11025|2027-02",
+      "valorCentavos": 8482
+    },
+    {
+      "id": "11476|2027-02",
+      "valorCentavos": 127147
+    },
+    {
+      "id": "11464|2027-02",
+      "valorCentavos": 48338
+    },
+    {
+      "id": "11193|2027-02",
+      "valorCentavos": 45414
+    },
+    {
+      "id": "11467|2027-02",
+      "valorCentavos": 2993
+    },
+    {
+      "id": "11475|2027-02",
+      "valorCentavos": 97406
+    },
+    {
+      "id": "11452|2027-02",
+      "valorCentavos": 3925
+    },
+    {
+      "id": "11408|2027-02",
+      "valorCentavos": 67854
+    },
+    {
+      "id": "11443|2027-02",
+      "valorCentavos": 4259
+    },
+    {
+      "id": "11659|2027-02",
+      "valorCentavos": 3025
+    },
+    {
+      "id": "11458|2027-02",
+      "valorCentavos": 3093
+    },
+    {
+      "id": "11440|2027-02",
+      "valorCentavos": 3093
+    },
+    {
+      "id": "11478|2027-02",
+      "valorCentavos": 59441
+    },
+    {
+      "id": "11183|2027-02",
+      "valorCentavos": 52216
+    },
+    {
+      "id": "11479|2027-02",
+      "valorCentavos": 64592
+    },
+    {
+      "id": "11470|2027-02",
+      "valorCentavos": 2881
+    },
+    {
+      "id": "11412|2027-02",
+      "valorCentavos": 78826
+    },
+    {
+      "id": "11658|2027-02",
+      "valorCentavos": 4057
+    },
+    {
+      "id": "11174|2027-02",
+      "valorCentavos": 5651
+    },
+    {
+      "id": "11451|2027-02",
+      "valorCentavos": 4581
+    },
+    {
+      "id": "11544|2027-02",
+      "valorCentavos": 4320
+    },
+    {
+      "id": "11673|2027-02",
+      "valorCentavos": 12617
+    },
+    {
+      "id": "11450|2027-02",
+      "valorCentavos": 5163
+    },
+    {
+      "id": "11589|2027-02",
+      "valorCentavos": 46261
+    },
+    {
+      "id": "11382|2027-02",
+      "valorCentavos": 69656
+    },
+    {
+      "id": "11071|2027-02",
+      "valorCentavos": 9186
+    },
+    {
+      "id": "11141|2027-02",
+      "valorCentavos": 21337
+    },
+    {
+      "id": "11592|2027-02",
+      "valorCentavos": 123502
+    },
+    {
+      "id": "11694|2027-02",
+      "valorCentavos": 36708
+    },
+    {
+      "id": "11653|2027-02",
+      "valorCentavos": 2278
+    },
+    {
+      "id": "11549|2027-02",
+      "valorCentavos": 48734
+    },
+    {
+      "id": "11597|2027-02",
+      "valorCentavos": 2086
+    },
+    {
+      "id": "11649|2027-02",
+      "valorCentavos": 2087
+    },
+    {
+      "id": "11410|2027-02",
+      "valorCentavos": 15159
+    },
+    {
+      "id": "11167|2027-02",
+      "valorCentavos": 2924
+    },
+    {
+      "id": "1459|2027-02",
+      "valorCentavos": 47858
+    },
+    {
+      "id": "11657|2027-02",
+      "valorCentavos": 5773
+    },
+    {
+      "id": "11456|2027-02",
+      "valorCentavos": 2635
+    },
+    {
+      "id": "11590|2027-02",
+      "valorCentavos": 15360
+    },
+    {
+      "id": "11417|2027-02",
+      "valorCentavos": 19130
+    },
+    {
+      "id": "11656|2027-02",
+      "valorCentavos": 6438
+    },
+    {
+      "id": "11595|2027-02",
+      "valorCentavos": 1472
+    },
+    {
+      "id": "11591|2027-02",
+      "valorCentavos": 42341
+    },
+    {
+      "id": "11206|2027-02",
+      "valorCentavos": 1921
+    },
+    {
+      "id": "11376|2027-02",
+      "valorCentavos": 46899
+    },
+    {
+      "id": "11547|2027-02",
+      "valorCentavos": 45781
+    },
+    {
+      "id": "11449|2027-02",
+      "valorCentavos": 3003
+    },
+    {
+      "id": "11655|2027-02",
+      "valorCentavos": 3003
+    },
+    {
+      "id": "11140|2027-02",
+      "valorCentavos": 18157
+    },
+    {
+      "id": "11409|2027-02",
+      "valorCentavos": 13720
+    },
+    {
+      "id": "11535|2027-02",
+      "valorCentavos": 41924
+    },
+    {
+      "id": "11357|2027-02",
+      "valorCentavos": 33627
+    },
+    {
+      "id": "11446|2027-02",
+      "valorCentavos": 2275
+    },
+    {
+      "id": "11692|2027-02",
+      "valorCentavos": 22117
+    },
+    {
+      "id": "11340|2027-02",
+      "valorCentavos": 77502
+    },
+    {
+      "id": "11411|2027-02",
+      "valorCentavos": 14272
+    },
+    {
+      "id": "11437|2027-02",
+      "valorCentavos": 3576
+    },
+    {
+      "id": "11666|2027-02",
+      "valorCentavos": 4144
+    },
+    {
+      "id": "11662|2027-02",
+      "valorCentavos": 2503
+    },
+    {
+      "id": "11594|2027-02",
+      "valorCentavos": 2504
+    },
+    {
+      "id": "11341|2027-02",
+      "valorCentavos": 40139
+    },
+    {
+      "id": "11491|2027-02",
+      "valorCentavos": 200129
+    },
+    {
+      "id": "11375|2027-02",
+      "valorCentavos": 51028
+    },
+    {
+      "id": "11534|2027-02",
+      "valorCentavos": 27633
+    },
+    {
+      "id": "11526|2027-02",
+      "valorCentavos": 192694
+    },
+    {
+      "id": "11469|2027-02",
+      "valorCentavos": 3135
+    },
+    {
+      "id": "11661|2027-02",
+      "valorCentavos": 3135
+    },
+    {
+      "id": "11660|2027-02",
+      "valorCentavos": 3130
+    },
+    {
+      "id": "11468|2027-02",
+      "valorCentavos": 3135
+    },
+    {
+      "id": "11309|2027-02",
+      "valorCentavos": 7622
+    },
+    {
+      "id": "11560|2027-02",
+      "valorCentavos": 5094
+    },
+    {
+      "id": "11364|2027-02",
+      "valorCentavos": 24785
+    },
+    {
+      "id": "11365|2027-02",
+      "valorCentavos": 36211
+    },
+    {
+      "id": "11404|2027-02",
+      "valorCentavos": 4431
+    },
+    {
+      "id": "11588|2027-02",
+      "valorCentavos": 38921
+    },
+    {
+      "id": "11454|2027-02",
+      "valorCentavos": 9022
+    },
+    {
+      "id": "11466|2027-02",
+      "valorCentavos": 3275
+    },
+    {
+      "id": "11448|2027-02",
+      "valorCentavos": 6834
+    },
+    {
+      "id": "11413|2027-02",
+      "valorCentavos": 1524
+    },
+    {
+      "id": "11548|2027-02",
+      "valorCentavos": 30591
+    },
+    {
+      "id": "11703|2027-02",
+      "valorCentavos": 208782
+    },
+    {
+      "id": "11648|2027-02",
+      "valorCentavos": 2786
+    },
+    {
+      "id": "11439|2027-02",
+      "valorCentavos": 4702
+    },
+    {
+      "id": "1454|2027-02",
+      "valorCentavos": 38876
+    },
+    {
+      "id": "11641|2027-02",
+      "valorCentavos": 60667
+    },
+    {
+      "id": "11418|2027-02",
+      "valorCentavos": 4266
+    },
+    {
+      "id": "11637|2027-02",
+      "valorCentavos": 67333
+    },
+    {
+      "id": "11642|2027-02",
+      "valorCentavos": 67333
+    },
+    {
+      "id": "11528|2027-02",
+      "valorCentavos": 105991
+    },
+    {
+      "id": "1458|2027-02",
+      "valorCentavos": 49431
+    },
+    {
+      "id": "11664|2027-02",
+      "valorCentavos": 103328
+    },
+    {
+      "id": "1453|2027-02",
+      "valorCentavos": 34629
+    },
+    {
+      "id": "11054|2027-02",
+      "valorCentavos": 3702
+    },
+    {
+      "id": "11383|2027-02",
+      "valorCentavos": 5819
+    },
+    {
+      "id": "11690|2027-02",
+      "valorCentavos": 10386
+    },
+    {
+      "id": "11710|2027-02",
+      "valorCentavos": 1144
+    },
+    {
+      "id": "11068|2027-02",
+      "valorCentavos": 3124
+    },
+    {
+      "id": "11391|2027-02",
+      "valorCentavos": 25000
+    },
+    {
+      "id": "11393|2027-02",
+      "valorCentavos": 5929
+    },
+    {
+      "id": "11394|2027-02",
+      "valorCentavos": 5006
+    },
+    {
+      "id": "11395|2027-02",
+      "valorCentavos": 2561
+    },
+    {
+      "id": "11396|2027-02",
+      "valorCentavos": 5006
+    },
+    {
+      "id": "11397|2027-02",
+      "valorCentavos": 2781
+    },
+    {
+      "id": "11385|2027-02",
+      "valorCentavos": 5929
+    },
+    {
+      "id": "11386|2027-02",
+      "valorCentavos": 5006
+    },
+    {
+      "id": "11387|2027-02",
+      "valorCentavos": 2561
+    },
+    {
+      "id": "11388|2027-02",
+      "valorCentavos": 5006
+    },
+    {
+      "id": "11389|2027-02",
+      "valorCentavos": 2781
+    },
+    {
+      "id": "11390|2027-02",
+      "valorCentavos": 4681
+    },
+    {
+      "id": "11420|2027-02",
+      "valorCentavos": 151512
+    },
+    {
+      "id": "11421|2027-02",
+      "valorCentavos": 105278
+    },
+    {
+      "id": "11422|2027-02",
+      "valorCentavos": 104229
+    },
+    {
+      "id": "11424|2027-02",
+      "valorCentavos": 18263
+    },
+    {
+      "id": "11427|2027-02",
+      "valorCentavos": 29823
+    },
+    {
+      "id": "11431|2027-02",
+      "valorCentavos": 53489
+    },
+    {
+      "id": "1467|2026-10",
+      "valorCentavos": 31953
+    },
+    {
+      "id": "1468|2026-10",
+      "valorCentavos": 28965
+    },
+    {
+      "id": "1469|2026-10",
+      "valorCentavos": 3921
+    },
+    {
+      "id": "1464|2026-11",
+      "valorCentavos": 6315
+    },
+    {
+      "id": "1469|2026-11",
+      "valorCentavos": 5881
+    },
+    {
+      "id": "1464|2026-12",
+      "valorCentavos": 9852
+    },
+    {
+      "id": "1465|2026-12",
+      "valorCentavos": 11285
+    },
+    {
+      "id": "1469|2026-12",
+      "valorCentavos": 7842
+    },
+    {
+      "id": "1462|2027-01",
+      "valorCentavos": 63874
+    },
+    {
+      "id": "1464|2027-01",
+      "valorCentavos": 16925
+    },
+    {
+      "id": "1465|2027-01",
+      "valorCentavos": 19388
+    },
+    {
+      "id": "1469|2027-01",
+      "valorCentavos": 7841
+    },
+    {
+      "id": "1463|2027-02",
+      "valorCentavos": 45740
+    },
+    {
+      "id": "1464|2027-02",
+      "valorCentavos": 3158
+    },
+    {
+      "id": "1465|2027-02",
+      "valorCentavos": 3617
+    },
+    {
+      "id": "1466|2027-02",
+      "valorCentavos": 32781
+    },
+    {
+      "id": "11074|2026-10",
+      "valorCentavos": 4042
+    },
+    {
+      "id": "11510|2026-10",
+      "valorCentavos": 25136
+    },
+    {
+      "id": "1461|2026-11",
+      "valorCentavos": 11985
+    },
+    {
+      "id": "11074|2026-11",
+      "valorCentavos": 18366
+    },
+    {
+      "id": "11372|2026-11",
+      "valorCentavos": 52104
+    },
+    {
+      "id": "11400|2026-11",
+      "valorCentavos": 6566
+    },
+    {
+      "id": "11402|2026-11",
+      "valorCentavos": 37283
+    },
+    {
+      "id": "11405|2026-11",
+      "valorCentavos": 25004
+    },
+    {
+      "id": "11473|2026-11",
+      "valorCentavos": 30747
+    },
+    {
+      "id": "11681|2026-11",
+      "valorCentavos": 4507
+    },
+    {
+      "id": "1461|2026-12",
+      "valorCentavos": 17978
+    },
+    {
+      "id": "11074|2026-12",
+      "valorCentavos": 2553
+    },
+    {
+      "id": "11144|2026-12",
+      "valorCentavos": 1310710
+    },
+    {
+      "id": "11145|2026-12",
+      "valorCentavos": 31401
+    },
+    {
+      "id": "11146|2026-12",
+      "valorCentavos": 17687
+    },
+    {
+      "id": "11202|2026-12",
+      "valorCentavos": 1770
+    },
+    {
+      "id": "11372|2026-12",
+      "valorCentavos": 109552
+    },
+    {
+      "id": "11400|2026-12",
+      "valorCentavos": 19696
+    },
+    {
+      "id": "11402|2026-12",
+      "valorCentavos": 92153
+    },
+    {
+      "id": "11425|2026-12",
+      "valorCentavos": 26827
+    },
+    {
+      "id": "11428|2026-12",
+      "valorCentavos": 20160
+    },
+    {
+      "id": "11473|2026-12",
+      "valorCentavos": 225052
+    },
+    {
+      "id": "11681|2026-12",
+      "valorCentavos": 42811
+    },
+    {
+      "id": "11698|2026-12",
+      "valorCentavos": 5281
+    },
+    {
+      "id": "11702|2026-12",
+      "valorCentavos": 51480
+    },
+    {
+      "id": "1461|2027-01",
+      "valorCentavos": 29964
+    },
+    {
+      "id": "11034|2027-01",
+      "valorCentavos": 43582
+    },
+    {
+      "id": "11074|2027-01",
+      "valorCentavos": 5389
+    },
+    {
+      "id": "11144|2027-01",
+      "valorCentavos": 687100
+    },
+    {
+      "id": "11145|2027-01",
+      "valorCentavos": 452813
+    },
+    {
+      "id": "11146|2027-01",
+      "valorCentavos": 217681
+    },
+    {
+      "id": "11201|2027-01",
+      "valorCentavos": 45460
+    },
+    {
+      "id": "11202|2027-01",
+      "valorCentavos": 107426
+    },
+    {
+      "id": "11203|2027-01",
+      "valorCentavos": 72330
+    },
+    {
+      "id": "11328|2027-01",
+      "valorCentavos": 108858
+    },
+    {
+      "id": "11329|2027-01",
+      "valorCentavos": 114884
+    },
+    {
+      "id": "11332|2027-01",
+      "valorCentavos": 54634
+    },
+    {
+      "id": "11370|2027-01",
+      "valorCentavos": 63524
+    },
+    {
+      "id": "11372|2027-01",
+      "valorCentavos": 54776
+    },
+    {
+      "id": "11398|2027-01",
+      "valorCentavos": 25001
+    },
+    {
+      "id": "11400|2027-01",
+      "valorCentavos": 9848
+    },
+    {
+      "id": "11401|2027-01",
+      "valorCentavos": 83789
+    },
+    {
+      "id": "11403|2027-01",
+      "valorCentavos": 90117
+    },
+    {
+      "id": "11426|2027-01",
+      "valorCentavos": 70320
+    },
+    {
+      "id": "11428|2027-01",
+      "valorCentavos": 46987
+    },
+    {
+      "id": "11429|2027-01",
+      "valorCentavos": 130960
+    },
+    {
+      "id": "11430|2027-01",
+      "valorCentavos": 61987
+    },
+    {
+      "id": "11473|2027-01",
+      "valorCentavos": 118241
+    },
+    {
+      "id": "11485|2027-01",
+      "valorCentavos": 25002
+    },
+    {
+      "id": "11502|2027-01",
+      "valorCentavos": 35760
+    },
+    {
+      "id": "11527|2027-01",
+      "valorCentavos": 297259
+    },
+    {
+      "id": "11647|2027-01",
+      "valorCentavos": 767324
+    },
+    {
+      "id": "11671|2027-01",
+      "valorCentavos": 28468
+    },
+    {
+      "id": "11681|2027-01",
+      "valorCentavos": 74356
+    },
+    {
+      "id": "11682|2027-01",
+      "valorCentavos": 38008
+    },
+    {
+      "id": "11683|2027-01",
+      "valorCentavos": 135630
+    },
+    {
+      "id": "11687|2027-01",
+      "valorCentavos": 98563
+    },
+    {
+      "id": "11689|2027-01",
+      "valorCentavos": 127951
+    },
+    {
+      "id": "11698|2027-01",
+      "valorCentavos": 38604
+    },
+    {
+      "id": "11702|2027-01",
+      "valorCentavos": 51480
+    },
+    {
+      "id": "1460|2027-02",
+      "valorCentavos": 50476
+    },
+    {
+      "id": "1461|2027-02",
+      "valorCentavos": 5993
+    },
+    {
+      "id": "11039|2027-02",
+      "valorCentavos": 115841
+    },
+    {
+      "id": "11370|2027-02",
+      "valorCentavos": 155745
+    },
+    {
+      "id": "11372|2027-02",
+      "valorCentavos": 11690
+    },
+    {
+      "id": "11400|2027-02",
+      "valorCentavos": 1641
+    },
+    {
+      "id": "11402|2027-02",
+      "valorCentavos": 36697
+    },
+    {
+      "id": "11403|2027-02",
+      "valorCentavos": 174227
+    },
+    {
+      "id": "11425|2027-02",
+      "valorCentavos": 43493
+    },
+    {
+      "id": "11428|2027-02",
+      "valorCentavos": 53573
+    },
+    {
+      "id": "11429|2027-02",
+      "valorCentavos": 40160
+    },
+    {
+      "id": "11430|2027-02",
+      "valorCentavos": 43493
+    },
+    {
+      "id": "11473|2027-02",
+      "valorCentavos": 61059
+    },
+    {
+      "id": "11665|2027-02",
+      "valorCentavos": 36633
+    },
+    {
+      "id": "11681|2027-02",
+      "valorCentavos": 14646
+    },
+    {
+      "id": "11682|2027-02",
+      "valorCentavos": 45872
+    },
+    {
+      "id": "11698|2027-02",
+      "valorCentavos": 23753
+    },
+    {
+      "id": "11702|2027-02",
+      "valorCentavos": 25740
+    },
+    {
+      "id": "11103|2027-01",
+      "valorCentavos": 535416
+    },
+    {
+      "id": "11399|2027-01",
+      "valorCentavos": 79634
+    },
+    {
+      "id": "11399|2027-02",
+      "valorCentavos": 43115
+    },
+    {
+      "id": "1470|2026-10",
+      "valorCentavos": 1210
+    },
+    {
+      "id": "1471|2026-10",
+      "valorCentavos": 2025
+    },
+    {
+      "id": "1472|2026-10",
+      "valorCentavos": 6604
+    },
+    {
+      "id": "1473|2026-10",
+      "valorCentavos": 4830
+    },
+    {
+      "id": "1474|2026-10",
+      "valorCentavos": 92147
+    },
+    {
+      "id": "1475|2026-10",
+      "valorCentavos": 60516
+    },
+    {
+      "id": "1476|2026-10",
+      "valorCentavos": 10127
+    },
+    {
+      "id": "1477|2026-10",
+      "valorCentavos": 29752
+    },
+    {
+      "id": "1470|2026-11",
+      "valorCentavos": 5164
+    },
+    {
+      "id": "1471|2026-11",
+      "valorCentavos": 8931
+    },
+    {
+      "id": "1472|2026-11",
+      "valorCentavos": 5795
+    },
+    {
+      "id": "1473|2026-11",
+      "valorCentavos": 44926
+    },
+    {
+      "id": "1474|2026-11",
+      "valorCentavos": 159339
+    },
+    {
+      "id": "1475|2026-11",
+      "valorCentavos": 157693
+    },
+    {
+      "id": "1476|2026-11",
+      "valorCentavos": 11342
+    },
+    {
+      "id": "1477|2026-11",
+      "valorCentavos": 76318
+    },
+    {
+      "id": "1470|2026-12",
+      "valorCentavos": 7922
+    },
+    {
+      "id": "1471|2026-12",
+      "valorCentavos": 14123
+    },
+    {
+      "id": "1472|2026-12",
+      "valorCentavos": 1771
+    },
+    {
+      "id": "1473|2026-12",
+      "valorCentavos": 91593
+    },
+    {
+      "id": "1474|2026-12",
+      "valorCentavos": 348048
+    },
+    {
+      "id": "1475|2026-12",
+      "valorCentavos": 150705
+    },
+    {
+      "id": "1476|2026-12",
+      "valorCentavos": 2144
+    },
+    {
+      "id": "1477|2026-12",
+      "valorCentavos": 109309
+    },
+    {
+      "id": "1470|2027-01",
+      "valorCentavos": 9563
+    },
+    {
+      "id": "1472|2027-01",
+      "valorCentavos": 11006
+    },
+    {
+      "id": "1473|2027-01",
+      "valorCentavos": 72792
+    },
+    {
+      "id": "1474|2027-01",
+      "valorCentavos": 192793
+    },
+    {
+      "id": "1475|2027-01",
+      "valorCentavos": 146801
+    },
+    {
+      "id": "1476|2027-01",
+      "valorCentavos": 1430
+    },
+    {
+      "id": "1477|2027-01",
+      "valorCentavos": 127741
+    },
+    {
+      "id": "1470|2027-02",
+      "valorCentavos": 1300
+    },
+    {
+      "id": "1473|2027-02",
+      "valorCentavos": 16559
+    },
+    {
+      "id": "1474|2027-02",
+      "valorCentavos": 38138
+    },
+    {
+      "id": "1475|2027-02",
+      "valorCentavos": 2733
+    },
+    {
+      "id": "1477|2027-02",
+      "valorCentavos": 15380
+    }
+  ]
+}

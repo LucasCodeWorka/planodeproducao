@@ -39,10 +39,14 @@ class VaBridge:
         return f"componente {codigo.upper()} digitado; Tab enviado"
 
     def abrir_fluxo(self, codigo: str) -> str:
-        """Garante a sessao e abre o componente pela busca do menu."""
-        hwnd, sessao = session.garantir_sessao()
-        _ = hwnd
-        resultado = tools.abrir_componente(codigo.upper(), espera=8.0)
+        """Garante login confirmado e abre o componente pelo fluxo validado."""
+        hwnd = find_window(session.TITLE)
+        if hwnd is None or session.estado_tela(hwnd)[0] != "logado":
+            sessao = self.login_ate_campo_componente()
+        else:
+            inp.clear_field(hwnd, *session.CAMPO_BUSCA)
+            sessao = "sessao ja aberta e logada; campo de componente limpo"
+        resultado = self.abrir_componente(codigo.upper())
         return f"{sessao}; {resultado}"
 
     def login_ate_campo_componente(self) -> str:
@@ -62,6 +66,14 @@ class VaBridge:
         else:
             passos.append("janela ja estava aberta")
 
+        estado, detalhe = session.esperar_estado_estavel(hwnd, timeout=20)
+        if estado == "logado":
+            inp.click(hwnd, *session.CAMPO_BUSCA)
+            return "; ".join(passos + [
+                f"estado confirmado: logado ({detalhe})",
+                "campo de componente focado",
+            ])
+
         usuario = session.APP_USER
         senha = session.APP_PASS
         empresa = session.EMPRESA or "1"
@@ -73,24 +85,49 @@ class VaBridge:
             hwnd = find_window(session.TITLE)
             if hwnd is None:
                 raise RuntimeError("janela do TOTVS Moda sumiu antes do login")
-        inp.clear_field(hwnd)
+        estado, detalhe = session.estado_tela(hwnd)
+        if estado != "login_usuario":
+            raise RuntimeError(
+                f"esperava tela de usuario antes do login; estado={estado} ({detalhe})"
+            )
+        # O painel de login mantem o campo em x=133..570/y=330..375 mesmo
+        # quando a janela muda de 1382x752 para 768x525. Sem este clique,
+        # o teclado pode ficar fora do campo e o login segue vazio.
+        inp.clear_field(hwnd, 350, 345)
         inp.type_text(hwnd, usuario)
         inp.key(hwnd, "tab")
         inp.type_text(hwnd, senha)
         inp.key(hwnd, "enter")
-        time.sleep(1.0)
+        estado, detalhe = session._esperar_estado(hwnd, ("login_empresa",), timeout=45)
+        if estado != "login_empresa":
+            raise RuntimeError(
+                f"tela de empresa nao apareceu apos o login; estado={estado} ({detalhe})"
+            )
         if not win32gui.IsWindow(hwnd):
             hwnd = find_window(session.TITLE)
             if hwnd is None:
                 raise RuntimeError("janela do TOTVS Moda sumiu apos credenciais")
         inp.type_text(hwnd, empresa)
         inp.key(hwnd, "enter")
-        time.sleep(1.0)
+        estado, detalhe = session._esperar_estado(hwnd, ("login_produto",), timeout=45)
+        if estado != "login_produto":
+            raise RuntimeError(
+                f"tela de produto nao apareceu apos a empresa; estado={estado} ({detalhe})"
+            )
         if not win32gui.IsWindow(hwnd):
             hwnd = find_window(session.TITLE)
             if hwnd is None:
                 raise RuntimeError("janela do TOTVS Moda sumiu apos empresa")
+        if str(session.PRODUTO) != "1":
+            raise RuntimeError(
+                f"selecao automatica do produto {session.PRODUTO} nao validada"
+            )
         inp.key(hwnd, "enter")
+        estado, detalhe = session._esperar_estado(hwnd, ("logado",), timeout=60)
+        if estado != "logado":
+            raise RuntimeError(
+                f"tela inicial nao apareceu apos o produto; estado={estado} ({detalhe})"
+            )
         time.sleep(16.0)
         for _ in range(6):
             if not win32gui.IsWindow(hwnd):
@@ -114,7 +151,9 @@ class VaBridge:
                 + f" -> estado nao confirmado como logado (estado={estado}; "
                 f"{detalhe}); pare e verifique a tela manualmente"
             )
+        inp.click(hwnd, *session.CAMPO_BUSCA)
         passos.append(f"estado confirmado: logado ({detalhe})")
+        passos.append("campo de componente focado")
         return "; ".join(passos)
 
     def ver_tela_texto(self, nota: str = "") -> str:

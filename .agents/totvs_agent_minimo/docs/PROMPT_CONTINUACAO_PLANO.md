@@ -1,5 +1,10 @@
 # Prompt de continuacao - plano de producao/orcamento + TOTVS
 
+> Arquivo historico de 06/10/2026. O login foi validado e o orcamento foi
+> lancado posteriormente. Para retomar o estado atual, consulte
+> `PENDENCIAS_CADASTRO_DESPESAS_2026-10-16.md`, especialmente as secoes de
+> 26/10/2026.
+
 Use este prompt ao abrir uma nova conversa neste projeto.
 
 ```text

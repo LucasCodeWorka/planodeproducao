@@ -1,0 +1,1487 @@
+{
+  "totalDespesas": 1476,
+  "findings": [
+    {
+      "mp": "1011793",
+      "nomeProduto": "RENDA ZG05914 BRANCO U",
+      "comprado": 76000,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1011795",
+      "nomeProduto": "RENDA ZG05914 NUDE U",
+      "comprado": 37350,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015524",
+      "nomeProduto": "RENDA ZG05914 AMEIXA U",
+      "comprado": 35773,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015716",
+      "nomeProduto": "RENDA ZG05914 MALAGUETA U",
+      "comprado": 29631,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015818",
+      "nomeProduto": "RENDA ZG05914 OLIVE U",
+      "comprado": 28054,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015620",
+      "nomeProduto": "RENDA SEL 12528 BRANCO U",
+      "comprado": 22000,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015621",
+      "nomeProduto": "RENDA 12524KD PRETO U",
+      "comprado": 21600,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015622",
+      "nomeProduto": "RENDA 12524KD MALAGUETA U",
+      "comprado": 21600,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015623",
+      "nomeProduto": "RENDA 12524KD MILKSHAKE U",
+      "comprado": 21600,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015619",
+      "nomeProduto": "RENDA SEL 12528 MALAGUETA U",
+      "comprado": 20350,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015714",
+      "nomeProduto": "RENDAO TULLE 5541 PRETO U",
+      "comprado": 20280,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015715",
+      "nomeProduto": "RENDAO TULLE 5541 BRANCO U",
+      "comprado": 20280,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015604",
+      "nomeProduto": "RENDA SJL 12541 DUNA U",
+      "comprado": 18260,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015605",
+      "nomeProduto": "RENDA SJL 12541 OLIVE U",
+      "comprado": 18260,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015628",
+      "nomeProduto": "RENDA 12624K PRETO U",
+      "comprado": 13200,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1011790",
+      "nomeProduto": "RENDA ZG05914 CHOCOLATE U",
+      "comprado": 12450,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1016332",
+      "nomeProduto": "TEC DE MALHA PLUME ACABADO 158746001011 ROSEWOOD U",
+      "comprado": 12228.29,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11312,
+          "nome": "TEC DE MALHA PLUME ACABADO 158746001011 PRETO U",
+          "score": 0.839
+        },
+        {
+          "codigo": 11312,
+          "nome": "TEC DE MALHA PLUME ACABADO 158746001011 PRETO U",
+          "score": 0.839
+        },
+        {
+          "codigo": 1460,
+          "nome": "TEC DE MALHA PLUME ACABADO 158746001011 AMEIXA U",
+          "score": 0.83
+        },
+        {
+          "codigo": 1460,
+          "nome": "TEC DE MALHA PLUME ACABADO 158746001011 AMEIXA U",
+          "score": 0.83
+        },
+        {
+          "codigo": 11311,
+          "nome": "TEC DE MALHA PLUME ACABADO 158746001011 CONHAQUE U",
+          "score": 0.813
+        }
+      ]
+    },
+    {
+      "mp": "1015616",
+      "nomeProduto": "RENDA JL 312525 PRETO U",
+      "comprado": 12100,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015615",
+      "nomeProduto": "RENDA JL 312525 ROSEWOOD U",
+      "comprado": 12100,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1006674",
+      "nomeProduto": "TECIDO MARTINICA 5324 CHOCOLATE U",
+      "comprado": 11848.48,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015661",
+      "nomeProduto": "MICROFIBRA ATHENA MALAGUETA U",
+      "comprado": 11406.08,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015675",
+      "nomeProduto": "MICROFIBRA ATHENA DUNA U",
+      "comprado": 11406.08,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015674",
+      "nomeProduto": "MICROFIBRA ATHENA AMEIXA U",
+      "comprado": 11406.08,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015824",
+      "nomeProduto": "GLOSS SPAN MALBEC U",
+      "comprado": 10962,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015624",
+      "nomeProduto": "RENDA JL12527 DUNA U",
+      "comprado": 10000,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015625",
+      "nomeProduto": "RENDA JL12527 AMEIXA U",
+      "comprado": 10000,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015626",
+      "nomeProduto": "RENDA 12624K VANILLA U",
+      "comprado": 9900,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015850",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/300G PRETO U",
+      "comprado": 9840,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.785
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.785
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.785
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.785
+        }
+      ]
+    },
+    {
+      "mp": "1015851",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/300G BRANCO U",
+      "comprado": 9840,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015849",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/300G CHOCOLATE U",
+      "comprado": 9840,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1013608",
+      "nomeProduto": "LINHA 100% POLIESTER 5.000M POLI POLI CHOCOLATE U",
+      "comprado": 9450,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015873",
+      "nomeProduto": "TECIDO UV 3147 AMENDOA U",
+      "comprado": 8800,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1014170",
+      "nomeProduto": "RENDA FM 313 BRANCO U",
+      "comprado": 6900,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1014171",
+      "nomeProduto": "RENDA FM 313 NUDE U",
+      "comprado": 6900,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1001617",
+      "nomeProduto": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR PRETO U",
+      "comprado": 6759,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11039,
+          "nome": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR SUEDE U",
+          "score": 0.876
+        },
+        {
+          "codigo": 11039,
+          "nome": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR SUEDE U",
+          "score": 0.876
+        },
+        {
+          "codigo": 11371,
+          "nome": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR CALLAS U",
+          "score": 0.867
+        },
+        {
+          "codigo": 11371,
+          "nome": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR CALLAS U",
+          "score": 0.867
+        },
+        {
+          "codigo": 11372,
+          "nome": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR AMENDOA U",
+          "score": 0.848
+        }
+      ]
+    },
+    {
+      "mp": "1016737",
+      "nomeProduto": "TECIDO UV 3147 OLIVE U",
+      "comprado": 6400,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1016271",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/300G NUDE U",
+      "comprado": 6396,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.795
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.795
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.795
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.795
+        }
+      ]
+    },
+    {
+      "mp": "1008472",
+      "nomeProduto": "MICROFIBRA LUXURIUS 94516 NAVY U",
+      "comprado": 5992.5,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11035,
+          "nome": "MICROFIBRA LUXURIUS 94516 PRETO U",
+          "score": 0.82
+        },
+        {
+          "codigo": 11035,
+          "nome": "MICROFIBRA LUXURIUS 94516 PRETO U",
+          "score": 0.82
+        },
+        {
+          "codigo": 11370,
+          "nome": "MICROFIBRA LUXURIUS 94516 OLIVE U",
+          "score": 0.82
+        },
+        {
+          "codigo": 11370,
+          "nome": "MICROFIBRA LUXURIUS 94516 OLIVE U",
+          "score": 0.82
+        }
+      ]
+    },
+    {
+      "mp": "1012860",
+      "nomeProduto": "RENDA 110715 PEROLA U",
+      "comprado": 5750,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015344",
+      "nomeProduto": "ELAST. TATTO 18MM SUEDE U",
+      "comprado": 5560,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11183,
+          "nome": "ELAST. TATTO 10MM SUEDE U",
+          "score": 0.864
+        },
+        {
+          "codigo": 11183,
+          "nome": "ELAST. TATTO 10MM SUEDE U",
+          "score": 0.864
+        },
+        {
+          "codigo": 11185,
+          "nome": "ELAST. TATTO 13MM SUEDE U",
+          "score": 0.864
+        },
+        {
+          "codigo": 11185,
+          "nome": "ELAST. TATTO 13MM SUEDE U",
+          "score": 0.864
+        }
+      ]
+    },
+    {
+      "mp": "1015823",
+      "nomeProduto": "RENDA 171145 100%POLIAMIDA MALBEC U",
+      "comprado": 5544,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1013607",
+      "nomeProduto": "LINHA 100% POLIESTER 5.000M POLI POLI BRANCO U",
+      "comprado": 5400,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015821",
+      "nomeProduto": "RENDA FM 313 MALAGUETA U",
+      "comprado": 5290,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015820",
+      "nomeProduto": "RENDA FM 313 AMEIXA U",
+      "comprado": 5290,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015713",
+      "nomeProduto": "RENDA FM 313 OLIVE U",
+      "comprado": 5290,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015838",
+      "nomeProduto": "RENDA 12624K AMENDOA U",
+      "comprado": 0,
+      "futuro": 5143.24,
+      "candidatos": []
+    },
+    {
+      "mp": "1011453",
+      "nomeProduto": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 CALLAS U",
+      "comprado": 4650,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11335,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 NUDE U",
+          "score": 0.86
+        },
+        {
+          "codigo": 11335,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 NUDE U",
+          "score": 0.86
+        },
+        {
+          "codigo": 11689,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 VANILLA U",
+          "score": 0.854
+        },
+        {
+          "codigo": 11689,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 VANILLA U",
+          "score": 0.854
+        },
+        {
+          "codigo": 1462,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 MAUVE U",
+          "score": 0.851
+        }
+      ]
+    },
+    {
+      "mp": "1015819",
+      "nomeProduto": "RENDA ZG05914 BERINGELA U",
+      "comprado": 4648,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1016348",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G CALLAS U",
+      "comprado": 4565,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.85
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.85
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.85
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.85
+        },
+        {
+          "codigo": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "score": 0.829
+        }
+      ]
+    },
+    {
+      "mp": "1013985",
+      "nomeProduto": "LINHA 100% POLIESTER 5.000M POLI POLI NUDE U",
+      "comprado": 4050,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "5000157",
+      "nomeProduto": "FITA ADESIVA 70MM P/FECHAR CXS RLO C/1,5",
+      "comprado": 0,
+      "futuro": 2917.45,
+      "candidatos": []
+    },
+    {
+      "mp": "1013500",
+      "nomeProduto": "GLOSS SPAN PRETO U",
+      "comprado": 2900,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1013609",
+      "nomeProduto": "LINHA 100% POLIESTER 5.000M POLI POLI PRETO U",
+      "comprado": 2700,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015356",
+      "nomeProduto": "ELASTICO TUSTI 10MM AMENDOA U",
+      "comprado": 2690.6,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1000984",
+      "nomeProduto": "BJ 1900 CASCA C/ ALCA TAM 48 ESTLIEBE U",
+      "comprado": 0,
+      "futuro": 2672.04,
+      "candidatos": []
+    },
+    {
+      "mp": "1016409",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G NAVY U",
+      "comprado": 2490,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.872
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.872
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.872
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.872
+        },
+        {
+          "codigo": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "score": 0.85
+        }
+      ]
+    },
+    {
+      "mp": "1016466",
+      "nomeProduto": "ELAST MANACA BRILHOSO 13MM AMENDOA U",
+      "comprado": 2380,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11543,
+          "nome": "ELAST MANACA BRILHOSO 13MM TRUFA U",
+          "score": 0.788
+        },
+        {
+          "codigo": 11543,
+          "nome": "ELAST MANACA BRILHOSO 13MM TRUFA U",
+          "score": 0.788
+        },
+        {
+          "codigo": 11545,
+          "nome": "ELAST MANACA BRILHOSO 13MM PRETO U",
+          "score": 0.788
+        },
+        {
+          "codigo": 11545,
+          "nome": "ELAST MANACA BRILHOSO 13MM PRETO U",
+          "score": 0.788
+        }
+      ]
+    },
+    {
+      "mp": "1016341",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI CALLAS U",
+      "comprado": 2130,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.829
+        },
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.829
+        },
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.829
+        },
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.829
+        },
+        {
+          "codigo": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "score": 0.806
+        }
+      ]
+    },
+    {
+      "mp": "1001449",
+      "nomeProduto": "ELAST. PAJAU 14 MM BRANCO U",
+      "comprado": 2021.93,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015830",
+      "nomeProduto": "ELAST. TATTO 13MM AMENDOA U",
+      "comprado": 1990,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1005839",
+      "nomeProduto": "RENDA 171145 100%POLIAMIDA BRANCO U",
+      "comprado": 1980,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1016346",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G TRUFA U",
+      "comprado": 1792.8,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.861
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.861
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.861
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.861
+        },
+        {
+          "codigo": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "score": 0.84
+        }
+      ]
+    },
+    {
+      "mp": "1015870",
+      "nomeProduto": "ABOTOADOR 100MM X 05 REGULAGEM - 8758485 SUEDE U",
+      "comprado": 1750,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11684,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 SUEDE U",
+          "score": 0.782
+        },
+        {
+          "codigo": 11684,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 SUEDE U",
+          "score": 0.782
+        },
+        {
+          "codigo": 11334,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 SUEDE U",
+          "score": 0.782
+        },
+        {
+          "codigo": 11334,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 SUEDE U",
+          "score": 0.782
+        }
+      ]
+    },
+    {
+      "mp": "1015467",
+      "nomeProduto": "ELAST. MIRELA 13MM AMEIXA U",
+      "comprado": 1596,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1016408",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G MAUVE U",
+      "comprado": 1494,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11522,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALBEC U",
+          "score": 0.889
+        },
+        {
+          "codigo": 11522,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALBEC U",
+          "score": 0.889
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.886
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.886
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.861
+        }
+      ]
+    },
+    {
+      "mp": "1001451",
+      "nomeProduto": "ELAST. PAJAU 14 MM CHOCOLATE U",
+      "comprado": 1482,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1016419",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI MAUVE U",
+      "comprado": 1420,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11515,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALBEC U",
+          "score": 0.873
+        },
+        {
+          "codigo": 11515,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALBEC U",
+          "score": 0.873
+        },
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.87
+        },
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.87
+        },
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.841
+        }
+      ]
+    },
+    {
+      "mp": "1016343",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI TRUFA U",
+      "comprado": 1420,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.841
+        },
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.841
+        },
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.841
+        },
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.841
+        },
+        {
+          "codigo": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "score": 0.817
+        }
+      ]
+    },
+    {
+      "mp": "1016427",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G LOVE U",
+      "comprado": 1328,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.897
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.897
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.872
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.872
+        },
+        {
+          "codigo": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "score": 0.85
+        }
+      ]
+    },
+    {
+      "mp": "1016061",
+      "nomeProduto": "ELAST. PAJAU 12 MM MALAGUETA U",
+      "comprado": 1260,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11358,
+          "nome": "ELAST. PAJAU 14 MM MALAGUETA U",
+          "score": 0.889
+        },
+        {
+          "codigo": 11358,
+          "nome": "ELAST. PAJAU 14 MM MALAGUETA U",
+          "score": 0.889
+        }
+      ]
+    },
+    {
+      "mp": "1011998",
+      "nomeProduto": "AVIAMENTO ELAST. NILLO 16MM C/100MT AMENDOA U",
+      "comprado": 1223.6,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015442",
+      "nomeProduto": "ELAST. MIRELA 10MM AMEIXA U",
+      "comprado": 1210.6,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1001500",
+      "nomeProduto": "ELAST. PAJAU 12 MM PRETO U",
+      "comprado": 1145,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 1455,
+          "nome": "ELAST. PAJAU 14 MM PRETO U",
+          "score": 0.87
+        },
+        {
+          "codigo": 1455,
+          "nome": "ELAST. PAJAU 14 MM PRETO U",
+          "score": 0.87
+        }
+      ]
+    },
+    {
+      "mp": "1016259",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G MILKSHAKE U",
+      "comprado": 1079,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11522,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALBEC U",
+          "score": 0.824
+        },
+        {
+          "codigo": 11522,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALBEC U",
+          "score": 0.824
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.819
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.819
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.819
+        }
+      ]
+    },
+    {
+      "mp": "1016420",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI NAVY U",
+      "comprado": 1065,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.853
+        },
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.853
+        },
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.853
+        },
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.853
+        },
+        {
+          "codigo": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "score": 0.829
+        }
+      ]
+    },
+    {
+      "mp": "1001434",
+      "nomeProduto": "ELAST. JATAI 14MM PRETO U",
+      "comprado": 1044.5,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015682",
+      "nomeProduto": "ELAST. NILLO 25MM MALAGUETA U",
+      "comprado": 901.4,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1016058",
+      "nomeProduto": "ELAST. NILLO 25MM OLIVE U",
+      "comprado": 901.4,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015566",
+      "nomeProduto": "ELAST LOTUS 4MM MALAGUETA U",
+      "comprado": 890,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1015856",
+      "nomeProduto": "ELAST. TATTO 10MM AMENDOA U",
+      "comprado": 0,
+      "futuro": 855.33,
+      "candidatos": []
+    },
+    {
+      "mp": "1016254",
+      "nomeProduto": "BJ 213.385 EXT CONFORT TAM 52 AMEIXA U",
+      "comprado": 829.6,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 1463,
+          "nome": "BJ 213.385 EXT CONFORT TAM 50 AMEIXA U",
+          "score": 0.917
+        },
+        {
+          "codigo": 1463,
+          "nome": "BJ 213.385 EXT CONFORT TAM 50 AMEIXA U",
+          "score": 0.917
+        },
+        {
+          "codigo": 11702,
+          "nome": "BJ 213.385 EXT CONFORT TAM 48 AMEIXA U",
+          "score": 0.889
+        },
+        {
+          "codigo": 11702,
+          "nome": "BJ 213.385 EXT CONFORT TAM 48 AMEIXA U",
+          "score": 0.889
+        }
+      ]
+    },
+    {
+      "mp": "1015723",
+      "nomeProduto": "ELAST. JATAI 14MM AMENDOA U",
+      "comprado": 0,
+      "futuro": 805.1,
+      "candidatos": []
+    },
+    {
+      "mp": "1016191",
+      "nomeProduto": "ELAST MANACA BRILHOSO 10MM AMENDOA U",
+      "comprado": 730,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1016344",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI LOVE U",
+      "comprado": 568,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.882
+        },
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.882
+        },
+        {
+          "codigo": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "score": 0.857
+        },
+        {
+          "codigo": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "score": 0.857
+        },
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.853
+        }
+      ]
+    },
+    {
+      "mp": "1016198",
+      "nomeProduto": "ELAST MANACA BRILHOSO 10MM DUNA U",
+      "comprado": 504.43,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11535,
+          "nome": "ELAST MANACA BRILHOSO 10MM MALAGUETA U",
+          "score": 0.788
+        },
+        {
+          "codigo": 11535,
+          "nome": "ELAST MANACA BRILHOSO 10MM MALAGUETA U",
+          "score": 0.788
+        }
+      ]
+    },
+    {
+      "mp": "1016502",
+      "nomeProduto": "ELAST MANACA BRILHOSO 7MM BERINGELA U",
+      "comprado": 500,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11360,
+          "nome": "ELAST MANACA BRILHOSO 7MM NUDE U",
+          "score": 0.781
+        },
+        {
+          "codigo": 11360,
+          "nome": "ELAST MANACA BRILHOSO 7MM NUDE U",
+          "score": 0.781
+        }
+      ]
+    },
+    {
+      "mp": "1015817",
+      "nomeProduto": "TULE INVISIBLE M11TL0139CTLG BREAD 00019 U",
+      "comprado": 495,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1002831",
+      "nomeProduto": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 BRANCO U",
+      "comprado": 0,
+      "futuro": 461.2,
+      "candidatos": [
+        {
+          "codigo": 11684,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 SUEDE U",
+          "score": 0.851
+        },
+        {
+          "codigo": 11684,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 SUEDE U",
+          "score": 0.851
+        },
+        {
+          "codigo": 11332,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 TRUFA U",
+          "score": 0.851
+        },
+        {
+          "codigo": 11332,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 TRUFA U",
+          "score": 0.851
+        },
+        {
+          "codigo": 11333,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 PRETO U",
+          "score": 0.851
+        }
+      ]
+    },
+    {
+      "mp": "1006099",
+      "nomeProduto": "ELAST. NILLO 25MM SUEDE U",
+      "comprado": 450.7,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1016251",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI MILKSHAKE U",
+      "comprado": 426,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11515,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALBEC U",
+          "score": 0.8
+        },
+        {
+          "codigo": 11515,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALBEC U",
+          "score": 0.8
+        },
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.795
+        },
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.795
+        },
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.795
+        }
+      ]
+    },
+    {
+      "mp": "1016350",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/300G SUEDE U",
+      "comprado": 360,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.785
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.785
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.785
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.785
+        }
+      ]
+    },
+    {
+      "mp": "1015237",
+      "nomeProduto": "RENDA 171145 100%POLIAMIDA AZUL AURA U",
+      "comprado": 0,
+      "futuro": 306.83,
+      "candidatos": []
+    },
+    {
+      "mp": "1014857",
+      "nomeProduto": "ELAST. PAJAU 14 MM VERDINHO U",
+      "comprado": 0,
+      "futuro": 261.86,
+      "candidatos": []
+    },
+    {
+      "mp": "1016407",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G LUMIAR U",
+      "comprado": 0,
+      "futuro": 257.14,
+      "candidatos": [
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.861
+        },
+        {
+          "codigo": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "score": 0.861
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.861
+        },
+        {
+          "codigo": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "score": 0.861
+        },
+        {
+          "codigo": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "score": 0.84
+        }
+      ]
+    },
+    {
+      "mp": "1016422",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI OCEANO U",
+      "comprado": 0,
+      "futuro": 253.05,
+      "candidatos": [
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.857
+        },
+        {
+          "codigo": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "score": 0.857
+        },
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.829
+        },
+        {
+          "codigo": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "score": 0.829
+        },
+        {
+          "codigo": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "score": 0.806
+        }
+      ]
+    },
+    {
+      "mp": "5000117",
+      "nomeProduto": "SACO ADESIVADO PE 14X20(17+3)X0,12 PRATA",
+      "comprado": 0,
+      "futuro": 251.65,
+      "candidatos": []
+    },
+    {
+      "mp": "1015035",
+      "nomeProduto": "REGULADOR APR 000/B - 8MM PLAST POP U",
+      "comprado": 0,
+      "futuro": 250,
+      "candidatos": [
+        {
+          "codigo": 520,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST",
+          "score": 0.935
+        },
+        {
+          "codigo": 11068,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST PRETO U",
+          "score": 0.882
+        },
+        {
+          "codigo": 11068,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST PRETO U",
+          "score": 0.882
+        },
+        {
+          "codigo": 11391,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST NUDE U",
+          "score": 0.866
+        },
+        {
+          "codigo": 11391,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST NUDE U",
+          "score": 0.866
+        }
+      ]
+    },
+    {
+      "mp": "1006467",
+      "nomeProduto": "FITA DE CETIM SIMPL 004 MM BRANCO U",
+      "comprado": 239,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1016337",
+      "nomeProduto": "ELAST. JATAI 10MM MALAGUETA U",
+      "comprado": 96.89,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1016046",
+      "nomeProduto": "ELAST. DONNA 17MM AMEIXA U",
+      "comprado": 64.13,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11375,
+          "nome": "ELAST. DONNA 10MM AMEIXA U",
+          "score": 0.87
+        },
+        {
+          "codigo": 11375,
+          "nome": "ELAST. DONNA 10MM AMEIXA U",
+          "score": 0.87
+        }
+      ]
+    },
+    {
+      "mp": "1016227",
+      "nomeProduto": "ELAST MANACA BRILHOSO 13MM ROSEWOOD U",
+      "comprado": 19.04,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11546,
+          "nome": "ELAST MANACA BRILHOSO 7MM ROSEWOOD U",
+          "score": 0.899
+        },
+        {
+          "codigo": 11546,
+          "nome": "ELAST MANACA BRILHOSO 7MM ROSEWOOD U",
+          "score": 0.899
+        }
+      ]
+    },
+    {
+      "mp": "1002448",
+      "nomeProduto": "FECHO GIRATORIO 18 MM C/ LOGO PRETO U",
+      "comprado": 0.27,
+      "futuro": 0,
+      "candidatos": [
+        {
+          "codigo": 11194,
+          "nome": "FECHO GIRATORIO 10 MM C/ LOGO PRETO U",
+          "score": 0.912
+        },
+        {
+          "codigo": 11194,
+          "nome": "FECHO GIRATORIO 10 MM C/ LOGO PRETO U",
+          "score": 0.912
+        },
+        {
+          "codigo": 11197,
+          "nome": "FECHO GIRATORIO 13 MM C/ LOGO PRETO U",
+          "score": 0.912
+        },
+        {
+          "codigo": 11197,
+          "nome": "FECHO GIRATORIO 13 MM C/ LOGO PRETO U",
+          "score": 0.912
+        },
+        {
+          "codigo": 11199,
+          "nome": "FECHO GIRATORIO 18 MM C/ LOGO SUEDE U",
+          "score": 0.824
+        }
+      ]
+    },
+    {
+      "mp": "1014961",
+      "nomeProduto": "RENDA EL412209 LOVE U",
+      "comprado": 0,
+      "futuro": 0,
+      "candidatos": []
+    },
+    {
+      "mp": "1014974",
+      "nomeProduto": "RENDA JL20686KNM (BICOLOR) NECTAR U",
+      "comprado": 0,
+      "futuro": 0,
+      "candidatos": []
+    }
+  ]
+}

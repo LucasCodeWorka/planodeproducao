@@ -1,0 +1,4879 @@
+{
+  "fonte": ".agents/totvs_agent_minimo/data/preparo-fcpfm017-atual.json",
+  "calculadoEm": "2026-10-15T16:36:30.375Z",
+  "criterio": "NECESSIDADE_FUTURA_COM_FOLGA_SEM_COMPRAS_EM_ANDAMENTO",
+  "plano": 500,
+  "centroCusto": 506,
+  "meses": [
+    "2026-10",
+    "2026-11",
+    "2026-12",
+    "2027-01",
+    "2027-02"
+  ],
+  "despesas": [
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "5002671"
+      ],
+      "valoresCentavos": {
+        "2026-10": 29752,
+        "2026-11": 76318,
+        "2026-12": 109309,
+        "2027-01": 127741,
+        "2027-02": 15380
+      },
+      "totalCentavos": 358500
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "5000110"
+      ],
+      "valoresCentavos": {
+        "2026-10": 1210,
+        "2026-11": 5164,
+        "2026-12": 7922,
+        "2027-01": 9563,
+        "2027-02": 1300
+      },
+      "totalCentavos": 25159
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "5000140"
+      ],
+      "valoresCentavos": {
+        "2026-10": 92147,
+        "2026-11": 159339,
+        "2026-12": 348048,
+        "2027-01": 192793,
+        "2027-02": 38138
+      },
+      "totalCentavos": 830465
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11054,
+      "descricao": "REGULADOR METAL AMR 000/C 10MM DOURADO U",
+      "sequencias": [
+        "26602"
+      ],
+      "mps": [
+        "1010252"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 552,
+        "2026-12": 10118,
+        "2027-01": 11305,
+        "2027-02": 3702
+      },
+      "totalCentavos": 25677
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "5000138"
+      ],
+      "valoresCentavos": {
+        "2026-10": 4830,
+        "2026-11": 44926,
+        "2026-12": 91593,
+        "2027-01": 72792,
+        "2027-02": 16559
+      },
+      "totalCentavos": 230700
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "5000141"
+      ],
+      "valoresCentavos": {
+        "2026-10": 60516,
+        "2026-11": 157693,
+        "2026-12": 150705,
+        "2027-01": 146801,
+        "2027-02": 2733
+      },
+      "totalCentavos": 518448
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11383,
+      "descricao": "ARGOLA METAL AMA 000/B 8/10MM DOURADO DOURADO U",
+      "sequencias": [
+        "26604"
+      ],
+      "mps": [
+        "1010251"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 1916,
+        "2027-01": 17682,
+        "2027-02": 5819
+      },
+      "totalCentavos": 25417
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11181,
+      "descricao": "REGULADOR PLAST 10MM  APR 001 20041 VANILLA U",
+      "sequencias": [
+        "26106"
+      ],
+      "mps": [
+        "1014654"
+      ],
+      "valoresCentavos": {
+        "2026-10": 1460,
+        "2026-11": 10754,
+        "2026-12": 4312,
+        "2027-01": 21413,
+        "2027-02": 219
+      },
+      "totalCentavos": 38158
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11691,
+      "descricao": "PROT 45 X 70 X 0,5 PLUS BODY FURO CABII UNICA U",
+      "sequencias": [
+        "26104"
+      ],
+      "mps": [
+        "5001145"
+      ],
+      "valoresCentavos": {
+        "2026-10": 1691,
+        "2026-11": 6654,
+        "2026-12": 8192,
+        "2027-01": 9178,
+        "2027-02": 260
+      },
+      "totalCentavos": 25975
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11172,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 VANILLA U",
+      "sequencias": [
+        "26108"
+      ],
+      "mps": [
+        "1014661"
+      ],
+      "valoresCentavos": {
+        "2026-10": 8409,
+        "2026-11": 10349,
+        "2026-12": 3512,
+        "2027-01": 18886,
+        "2027-02": 190
+      },
+      "totalCentavos": 41346
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11129,
+      "descricao": "REGULADOR APR 002 POM  12 MM 27168 VANILLA U",
+      "sequencias": [
+        "26110"
+      ],
+      "mps": [
+        "1014667"
+      ],
+      "valoresCentavos": {
+        "2026-10": 7898,
+        "2026-11": 9721,
+        "2026-12": 3299,
+        "2027-01": 17740,
+        "2027-02": 178
+      },
+      "totalCentavos": 38836
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11710,
+      "descricao": "ELAST. NILLO 16MM C/100MT VANILLA U",
+      "sequencias": [
+        "26617"
+      ],
+      "mps": [
+        "1014657"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 462871,
+        "2027-02": 1144
+      },
+      "totalCentavos": 464015
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11260,
+      "descricao": "GANCHO APG 005 10MM VANILLA U",
+      "sequencias": [
+        "26116"
+      ],
+      "mps": [
+        "1014691"
+      ],
+      "valoresCentavos": {
+        "2026-10": 1267,
+        "2026-11": 16941,
+        "2026-12": 627,
+        "2027-01": 32000,
+        "2027-02": 0
+      },
+      "totalCentavos": 50835
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11533,
+      "descricao": "ARGOLA DE CORACAO AMC 009 20MM OURO OURO U",
+      "sequencias": [
+        "26132"
+      ],
+      "mps": [
+        "1016186"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 6831,
+        "2027-01": 14539,
+        "2027-02": 5516
+      },
+      "totalCentavos": 26886
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11166,
+      "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 VANILLA U",
+      "sequencias": [
+        "26118"
+      ],
+      "mps": [
+        "1014647"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 4761,
+        "2026-12": 4598,
+        "2027-01": 15408,
+        "2027-02": 242
+      },
+      "totalCentavos": 25009
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11457,
+      "descricao": "REGULADOR PLAST 10MM  APR 001 20041 TRUFA U",
+      "sequencias": [
+        "26120"
+      ],
+      "mps": [
+        "1014653"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 907,
+        "2027-01": 24100,
+        "2027-02": 0
+      },
+      "totalCentavos": 25007
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "5000127"
+      ],
+      "valoresCentavos": {
+        "2026-10": 6604,
+        "2026-11": 5795,
+        "2026-12": 1771,
+        "2027-01": 11006,
+        "2027-02": 0
+      },
+      "totalCentavos": 25176
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11366,
+      "descricao": "ELAST. TUI 5MM VANILLA U",
+      "sequencias": [
+        "26114"
+      ],
+      "mps": [
+        "1014492"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 371648,
+        "2027-02": 2388
+      },
+      "totalCentavos": 374036
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11563,
+      "descricao": "LACO MIDI MALAGUETA U",
+      "sequencias": [
+        "26124"
+      ],
+      "mps": [
+        "1016067"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 41776,
+        "2027-01": 48059,
+        "2027-02": 19400
+      },
+      "totalCentavos": 109235
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11438,
+      "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 TRUFA U",
+      "sequencias": [
+        "26130"
+      ],
+      "mps": [
+        "1014649"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 3903,
+        "2026-12": 2558,
+        "2027-01": 18545,
+        "2027-02": 0
+      },
+      "totalCentavos": 25006
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11441,
+      "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 AMEIXA U",
+      "sequencias": [
+        "26126"
+      ],
+      "mps": [
+        "1015415"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 1747,
+        "2026-12": 13007,
+        "2027-01": 6614,
+        "2027-02": 3638
+      },
+      "totalCentavos": 25006
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11459,
+      "descricao": "REGULADOR PLAST 10MM  APR 001 20041 AMEIXA U",
+      "sequencias": [
+        "26128"
+      ],
+      "mps": [
+        "1015413"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 1747,
+        "2026-12": 13007,
+        "2027-01": 6614,
+        "2027-02": 3638
+      },
+      "totalCentavos": 25006
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11068,
+      "descricao": "REGULADOR APR 000/B - 8MM PLAST PRETO U",
+      "sequencias": [
+        "26627"
+      ],
+      "mps": [
+        "1010925"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 6167,
+        "2027-01": 21942,
+        "2027-02": 3124
+      },
+      "totalCentavos": 31233
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11018,
+      "descricao": "REGULADOR APR 002 POM  12 MM 27168 SUEDE U",
+      "sequencias": [
+        "26136"
+      ],
+      "mps": [
+        "1005473"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 767,
+        "2026-12": 23718,
+        "2027-01": 5376,
+        "2027-02": 1423
+      },
+      "totalCentavos": 31284
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11690,
+      "descricao": "TAG SUTIA IDEAL BASICO & RENDA UNICA U",
+      "sequencias": [
+        "26608"
+      ],
+      "mps": [
+        "1006191"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 121015,
+        "2027-02": 10386
+      },
+      "totalCentavos": 131401
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11180,
+      "descricao": "REGULADOR PLAST 10MM  APR 001 20041 MAUVE U",
+      "sequencias": [
+        "26142"
+      ],
+      "mps": [
+        "1014655"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 1508,
+        "2027-01": 23497,
+        "2027-02": 0
+      },
+      "totalCentavos": 25005
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11257,
+      "descricao": "GANCHO APG 005 10MM SUEDE U",
+      "sequencias": [
+        "26134"
+      ],
+      "mps": [
+        "1005645"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 18669,
+        "2027-01": 15226,
+        "2027-02": 4926
+      },
+      "totalCentavos": 38821
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11561,
+      "descricao": "LACO MIDI AMEIXA U",
+      "sequencias": [
+        "26148"
+      ],
+      "mps": [
+        "1016065"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 761,
+        "2026-12": 12177,
+        "2027-01": 7915,
+        "2027-02": 4718
+      },
+      "totalCentavos": 25571
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11460,
+      "descricao": "REGULADOR PLAST 10MM  APR 001 20041 OLIVE U",
+      "sequencias": [
+        "26152"
+      ],
+      "mps": [
+        "1016318"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 1861,
+        "2026-12": 13135,
+        "2027-01": 6568,
+        "2027-02": 3440
+      },
+      "totalCentavos": 25004
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11442,
+      "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 OLIVE U",
+      "sequencias": [
+        "26154"
+      ],
+      "mps": [
+        "1016317"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 1861,
+        "2026-12": 13135,
+        "2027-01": 6568,
+        "2027-02": 3440
+      },
+      "totalCentavos": 25004
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11290,
+      "descricao": "ELAST. NILLO 16MM C/100MT TRUFA U",
+      "sequencias": [
+        "26606"
+      ],
+      "mps": [
+        "1014390"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 220360,
+        "2027-02": 0
+      },
+      "totalCentavos": 220360
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11654,
+      "descricao": "REGULADOR APR 002 POM  12 MM 27168 TRUFA U",
+      "sequencias": [
+        "26144"
+      ],
+      "mps": [
+        "1014579"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 1099,
+        "2027-01": 23906,
+        "2027-02": 0
+      },
+      "totalCentavos": 25005
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11471,
+      "descricao": "AMP 009 10MM OURO24K OURO U",
+      "sequencias": [
+        "26160"
+      ],
+      "mps": [
+        "1015364"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 2810,
+        "2026-12": 15754,
+        "2027-01": 4425,
+        "2027-02": 2744
+      },
+      "totalCentavos": 25733
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11463,
+      "descricao": "ELAST. MOLETON 25MM CRU U",
+      "sequencias": [
+        "26190"
+      ],
+      "mps": [
+        "1015327"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 43467,
+        "2026-12": 66883,
+        "2027-01": 240749,
+        "2027-02": 0
+      },
+      "totalCentavos": 351099
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11461,
+      "descricao": "REGULADOR PLAST 10MM  APR 001 20041 MALAGUETA U",
+      "sequencias": [
+        "26166"
+      ],
+      "mps": [
+        "1015667"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 2097,
+        "2026-12": 11277,
+        "2027-01": 8106,
+        "2027-02": 3524
+      },
+      "totalCentavos": 25004
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11562,
+      "descricao": "LACO MIDI OLIVE U",
+      "sequencias": [
+        "26164"
+      ],
+      "mps": [
+        "1016066"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 584,
+        "2026-12": 11865,
+        "2027-01": 8269,
+        "2027-02": 4764
+      },
+      "totalCentavos": 25482
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11447,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 TRUFA U",
+      "sequencias": [
+        "26146"
+      ],
+      "mps": [
+        "1014577"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 25005,
+        "2027-02": 0
+      },
+      "totalCentavos": 25005
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11465,
+      "descricao": "ARGOLA CORACAO KBR43650 - 0167 25X22MM OURO U",
+      "sequencias": [
+        "26168"
+      ],
+      "mps": [
+        "1015349"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 303975,
+        "2027-01": 390600,
+        "2027-02": 163800
+      },
+      "totalCentavos": 858375
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11444,
+      "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 MAUVE U",
+      "sequencias": [
+        "26178"
+      ],
+      "mps": [
+        "1014648"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 25003,
+        "2027-02": 0
+      },
+      "totalCentavos": 25003
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11390,
+      "descricao": "ARGOLA APA 000/B - 8MM PLAST PRETO U",
+      "sequencias": [
+        "26648"
+      ],
+      "mps": [
+        "1010920"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 20322,
+        "2027-02": 4681
+      },
+      "totalCentavos": 25003
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11080,
+      "descricao": "MP AVIAMENTO BARBATANA (PALHETA) 7 CM FERMOPLAST UNICA U",
+      "sequencias": [
+        "26170"
+      ],
+      "mps": [
+        "1011864"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 5645,
+        "2027-01": 30076,
+        "2027-02": 158
+      },
+      "totalCentavos": 35879
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11193,
+      "descricao": "REGULADOR METAL AMR 13 MM DOURADO U",
+      "sequencias": [
+        "26192"
+      ],
+      "mps": [
+        "1002419"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 160238,
+        "2027-01": 121106,
+        "2027-02": 45414
+      },
+      "totalCentavos": 326758
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11467,
+      "descricao": "ARGOLA DE 18MM APA 005 AMEIXA U",
+      "sequencias": [
+        "26196"
+      ],
+      "mps": [
+        "1015499"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 3335,
+        "2026-12": 11734,
+        "2027-01": 6945,
+        "2027-02": 2993
+      },
+      "totalCentavos": 25007
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11452,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 MALAGUETA U",
+      "sequencias": [
+        "26200"
+      ],
+      "mps": [
+        "1016145"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 14210,
+        "2027-01": 6869,
+        "2027-02": 3925
+      },
+      "totalCentavos": 25004
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11475,
+      "descricao": "ELAST ANNICK 11MM MILKSHAKE U",
+      "sequencias": [
+        "26198"
+      ],
+      "mps": [
+        "1015421"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 13995,
+        "2027-01": 304334,
+        "2027-02": 97406
+      },
+      "totalCentavos": 415735
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11032,
+      "descricao": "ELAST. TUI 5MM MAUVE U",
+      "sequencias": [
+        "26182"
+      ],
+      "mps": [
+        "1014472"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 159356,
+        "2027-02": 0
+      },
+      "totalCentavos": 159356
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11443,
+      "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 MALAGUETA U",
+      "sequencias": [
+        "26204"
+      ],
+      "mps": [
+        "1016435"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 1045,
+        "2026-12": 12777,
+        "2027-01": 6921,
+        "2027-02": 4259
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11605,
+      "descricao": "ARCO MF FIT 1000 AA396 UNICA 42",
+      "sequencias": [
+        "26158"
+      ],
+      "mps": [
+        "1016394",
+        "1016395",
+        "1016396",
+        "1016397"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 92533,
+        "2027-02": 16765
+      },
+      "totalCentavos": 109298
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11659,
+      "descricao": "REGULADOR APR 016 POM  18 MM AMEIXA U",
+      "sequencias": [
+        "26206"
+      ],
+      "mps": [
+        "1015704"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 3280,
+        "2026-12": 11550,
+        "2027-01": 7150,
+        "2027-02": 3025
+      },
+      "totalCentavos": 25005
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11173,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 PRETO U",
+      "sequencias": [
+        "26138"
+      ],
+      "mps": [
+        "1002210"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 26743,
+        "2027-02": 1594
+      },
+      "totalCentavos": 28337
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11458,
+      "descricao": "REGULADOR PLAST 10MM  APR 001 20041 DUNA U",
+      "sequencias": [
+        "26208"
+      ],
+      "mps": [
+        "1015412"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 2228,
+        "2026-12": 12933,
+        "2027-01": 6748,
+        "2027-02": 3093
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11440,
+      "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 DUNA U",
+      "sequencias": [
+        "26210"
+      ],
+      "mps": [
+        "1015414"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 2228,
+        "2026-12": 12933,
+        "2027-01": 6748,
+        "2027-02": 3093
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11167,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 SUEDE U",
+      "sequencias": [
+        "26288"
+      ],
+      "mps": [
+        "1006271"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 19492,
+        "2027-01": 5848,
+        "2027-02": 2924
+      },
+      "totalCentavos": 28264
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11206,
+      "descricao": "LACO MIDI VANILLA U",
+      "sequencias": [
+        "26324"
+      ],
+      "mps": [
+        "1015347"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 12632,
+        "2026-12": 10567,
+        "2027-01": 28177,
+        "2027-02": 1921
+      },
+      "totalCentavos": 53297
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11470,
+      "descricao": "ARGOLA METAL AMA 13 MM DOURADO DOURADO U",
+      "sequencias": [
+        "26218"
+      ],
+      "mps": [
+        "1002418"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 11974,
+        "2027-01": 10245,
+        "2027-02": 2881
+      },
+      "totalCentavos": 25100
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11658,
+      "descricao": "REGULADOR APR 002 POM  12 MM 27168 MALAGUETA U",
+      "sequencias": [
+        "26224"
+      ],
+      "mps": [
+        "1016444"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 14183,
+        "2027-01": 6762,
+        "2027-02": 4057
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11477,
+      "descricao": "ELAST ANNICK 11MM PRETO U",
+      "sequencias": [
+        "26174"
+      ],
+      "mps": [
+        "1015420"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 179286,
+        "2027-02": 132271
+      },
+      "totalCentavos": 311557
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11389,
+      "descricao": "ARGOLA APA 000/B - 8MM PLAST BERINGELA U",
+      "sequencias": [
+        "26647"
+      ],
+      "mps": [
+        "1016312"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 4145,
+        "2026-12": 13209,
+        "2027-01": 4867,
+        "2027-02": 2781
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11397,
+      "descricao": "REGULADOR APR 000/B - 8MM PLAST BERINGELA U",
+      "sequencias": [
+        "26634"
+      ],
+      "mps": [
+        "1016313"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 4145,
+        "2026-12": 13209,
+        "2027-01": 4867,
+        "2027-02": 2781
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11451,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 OLIVE U",
+      "sequencias": [
+        "26230"
+      ],
+      "mps": [
+        "1016146"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 2802,
+        "2026-12": 11982,
+        "2027-01": 5638,
+        "2027-02": 4581
+      },
+      "totalCentavos": 25003
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11476,
+      "descricao": "ELAST ANNICK 11MM MALAGUETA U",
+      "sequencias": [
+        "26180"
+      ],
+      "mps": [
+        "1015576"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 159811,
+        "2027-02": 127147
+      },
+      "totalCentavos": 286958
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11544,
+      "descricao": "ELAST MANACA BRILHOSO 13MM VANILLA U",
+      "sequencias": [
+        "26232"
+      ],
+      "mps": [
+        "1016467"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 331222,
+        "2027-02": 4320
+      },
+      "totalCentavos": 335542
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11395,
+      "descricao": "REGULADOR APR 000/B - 8MM PLAST OLIVE U",
+      "sequencias": [
+        "26632"
+      ],
+      "mps": [
+        "1015595"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 3133,
+        "2026-12": 14185,
+        "2027-01": 5123,
+        "2027-02": 2561
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11387,
+      "descricao": "ARGOLA APA 000/B - 8MM PLAST OLIVE U",
+      "sequencias": [
+        "26645"
+      ],
+      "mps": [
+        "1015594"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 3133,
+        "2026-12": 14185,
+        "2027-01": 5123,
+        "2027-02": 2561
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11450,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 AMEIXA U",
+      "sequencias": [
+        "26236"
+      ],
+      "mps": [
+        "1015451"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 13484,
+        "2027-01": 6355,
+        "2027-02": 5163
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11382,
+      "descricao": "ELAST. PAIVA 11MM PRETO U",
+      "sequencias": [
+        "26240"
+      ],
+      "mps": [
+        "1009644"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 33606,
+        "2027-01": 121380,
+        "2027-02": 69656
+      },
+      "totalCentavos": 224642
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11681,
+      "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 MILKSHAKE U",
+      "sequencias": [],
+      "mps": [
+        "1015522"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 4507,
+        "2026-12": 42811,
+        "2027-01": 74356,
+        "2027-02": 14646
+      },
+      "totalCentavos": 136320
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "5000126"
+      ],
+      "valoresCentavos": {
+        "2026-10": 2025,
+        "2026-11": 8931,
+        "2026-12": 14123,
+        "2027-01": 0,
+        "2027-02": 0
+      },
+      "totalCentavos": 25079
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11683,
+      "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 VANILLA U",
+      "sequencias": [],
+      "mps": [
+        "1014668"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 135630,
+        "2027-02": 0
+      },
+      "totalCentavos": 135630
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11696,
+      "descricao": "CADARCO JO 11MM REF. VANILLA U",
+      "sequencias": [
+        "26140"
+      ],
+      "mps": [
+        "1014669"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 175535,
+        "2027-02": 4493
+      },
+      "totalCentavos": 180028
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11408,
+      "descricao": "ELASTICO CERRUTI 11MM BRANCO U",
+      "sequencias": [
+        "26202"
+      ],
+      "mps": [
+        "1012649"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 123167,
+        "2027-02": 67854
+      },
+      "totalCentavos": 191021
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11378,
+      "descricao": "ELAST. DONNA 10MM VANILLA U",
+      "sequencias": [
+        "26188"
+      ],
+      "mps": [
+        "1014651"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 192107,
+        "2027-02": 0
+      },
+      "totalCentavos": 192107
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "5000681"
+      ],
+      "valoresCentavos": {
+        "2026-10": 10127,
+        "2026-11": 11342,
+        "2026-12": 2144,
+        "2027-01": 1430,
+        "2027-02": 0
+      },
+      "totalCentavos": 25043
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11174,
+      "descricao": "REGULADOR PLAST 10MM  APR 001 20041 SUEDE U",
+      "sequencias": [
+        "26228"
+      ],
+      "mps": [
+        "1005598"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 2145,
+        "2027-01": 18494,
+        "2027-02": 5651
+      },
+      "totalCentavos": 26290
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11549,
+      "descricao": "ELAST MANACA BRILHOSO 7MM MALAGUETA U",
+      "sequencias": [
+        "26266"
+      ],
+      "mps": [
+        "1016206"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 83758,
+        "2027-02": 48734
+      },
+      "totalCentavos": 132492
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11128,
+      "descricao": "REGULADOR APR 002 POM  12 MM 27168 MAUVE U",
+      "sequencias": [
+        "26268"
+      ],
+      "mps": [
+        "1014666"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 746,
+        "2026-12": 7580,
+        "2027-01": 16676,
+        "2027-02": 0
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11171,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 MAUVE U",
+      "sequencias": [
+        "26270"
+      ],
+      "mps": [
+        "1014662"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 746,
+        "2026-12": 7580,
+        "2027-01": 16676,
+        "2027-02": 0
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11291,
+      "descricao": "ELAST. NILLO 16MM C/100MT MAUVE U",
+      "sequencias": [
+        "26615"
+      ],
+      "mps": [
+        "1014384"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 85201,
+        "2027-02": 0
+      },
+      "totalCentavos": 85201
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11329,
+      "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 MAUVE U",
+      "sequencias": [],
+      "mps": [
+        "1014387"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 114884,
+        "2027-02": 0
+      },
+      "totalCentavos": 114884
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11597,
+      "descricao": "GANCHO APG 005 10MM MALAGUETA U",
+      "sequencias": [
+        "26274"
+      ],
+      "mps": [
+        "1015668"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 4146,
+        "2026-12": 8343,
+        "2027-01": 10429,
+        "2027-02": 2086
+      },
+      "totalCentavos": 25004
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11649,
+      "descricao": "ESPARTILHO APE 001 10MM MALAGUETA U",
+      "sequencias": [
+        "26276"
+      ],
+      "mps": [
+        "1015669"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 4149,
+        "2026-12": 8350,
+        "2027-01": 10437,
+        "2027-02": 2087
+      },
+      "totalCentavos": 25023
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11410,
+      "descricao": "ELASTICO CERRUTI 11MM MILKSHAKE U",
+      "sequencias": [
+        "26284"
+      ],
+      "mps": [
+        "1015808"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 30317,
+        "2026-12": 45763,
+        "2027-01": 76655,
+        "2027-02": 15159
+      },
+      "totalCentavos": 167894
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11294,
+      "descricao": "REGULADOR APR 002 POM  12 MM 27168 PRETO U",
+      "sequencias": [
+        "26150"
+      ],
+      "mps": [
+        "1004040"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 22267,
+        "2027-02": 2734
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11328,
+      "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 TRUFA U",
+      "sequencias": [],
+      "mps": [
+        "1014403"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 108858,
+        "2027-02": 0
+      },
+      "totalCentavos": 108858
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11345,
+      "descricao": "CADARCO JO 11MM REF. TRUFA U",
+      "sequencias": [
+        "26262"
+      ],
+      "mps": [
+        "1014388"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 148896,
+        "2027-02": 0
+      },
+      "totalCentavos": 148896
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11071,
+      "descricao": "VIES DE 2,5 VISCOVE M.V.S OFF WHITE U",
+      "sequencias": [
+        "26246"
+      ],
+      "mps": [
+        "1011740"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 20796,
+        "2026-12": 109140,
+        "2027-01": 54388,
+        "2027-02": 9186
+      },
+      "totalCentavos": 193510
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11478,
+      "descricao": "ELAST JERI 11MM BRANCO U",
+      "sequencias": [
+        "26212"
+      ],
+      "mps": [
+        "1015431"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 47389,
+        "2027-02": 59441
+      },
+      "totalCentavos": 106830
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11464,
+      "descricao": "ARGOLA CORACAO KBR43651- 0068 16X14MM OURO U",
+      "sequencias": [
+        "26184"
+      ],
+      "mps": [
+        "1015348"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 73262,
+        "2027-02": 48338
+      },
+      "totalCentavos": 121600
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11025,
+      "descricao": "ELAST. PAJAU 14 MM VANILLA U",
+      "sequencias": [
+        "26176"
+      ],
+      "mps": [
+        "1014656"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 133543,
+        "2027-02": 8482
+      },
+      "totalCentavos": 142025
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11394,
+      "descricao": "REGULADOR APR 000/B - 8MM PLAST AMEIXA U",
+      "sequencias": [
+        "26631"
+      ],
+      "mps": [
+        "1016431"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 12485,
+        "2027-01": 7510,
+        "2027-02": 5006
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11386,
+      "descricao": "ARGOLA APA 000/B - 8MM PLAST AMEIXA U",
+      "sequencias": [
+        "26644"
+      ],
+      "mps": [
+        "1016429"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 12485,
+        "2027-01": 7510,
+        "2027-02": 5006
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11396,
+      "descricao": "REGULADOR APR 000/B - 8MM PLAST MALAGUETA U",
+      "sequencias": [
+        "26633"
+      ],
+      "mps": [
+        "1016434"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 12485,
+        "2027-01": 7510,
+        "2027-02": 5006
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11388,
+      "descricao": "ARGOLA APA 000/B - 8MM PLAST MALAGUETA U",
+      "sequencias": [
+        "26646"
+      ],
+      "mps": [
+        "1016433"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 12485,
+        "2027-01": 7510,
+        "2027-02": 5006
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11479,
+      "descricao": "ELAST JERI 11MM MALAGUETA U",
+      "sequencias": [
+        "26216"
+      ],
+      "mps": [
+        "1015564"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 38455,
+        "2027-02": 64592
+      },
+      "totalCentavos": 103047
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11657,
+      "descricao": "REGULADOR APR 002 POM  12 MM 27168 OLIVE U",
+      "sequencias": [
+        "26294"
+      ],
+      "mps": [
+        "1016438"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 2550,
+        "2026-12": 11546,
+        "2027-01": 5132,
+        "2027-02": 5773
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11456,
+      "descricao": "REGULADOR PLAST 10MM  APR 001 20041 AMENDOA U",
+      "sequencias": [
+        "26300"
+      ],
+      "mps": [
+        "1012002"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 5237,
+        "2026-12": 13176,
+        "2027-01": 3953,
+        "2027-02": 2635
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11385,
+      "descricao": "ARGOLA APA 000/B - 8MM PLAST ROSEWOOD U",
+      "sequencias": [
+        "26643"
+      ],
+      "mps": [
+        "1015393"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 5237,
+        "2026-12": 13835,
+        "2027-01": 0,
+        "2027-02": 5929
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11393,
+      "descricao": "REGULADOR APR 000/B - 8MM PLAST ROSEWOOD U",
+      "sequencias": [
+        "26630"
+      ],
+      "mps": [
+        "1015394"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 5237,
+        "2026-12": 13835,
+        "2027-01": 0,
+        "2027-02": 5929
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11590,
+      "descricao": "ELAST HORTENCIA 16MM MILKSHAKE U",
+      "sequencias": [
+        "26302"
+      ],
+      "mps": [
+        "1015520"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 4660,
+        "2026-12": 46448,
+        "2027-01": 80196,
+        "2027-02": 15360
+      },
+      "totalCentavos": 146664
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11417,
+      "descricao": "VIES DE CETIM DE 2,5CM - ENVIESADO MALBEC U",
+      "sequencias": [
+        "26304"
+      ],
+      "mps": [
+        "1016315"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 54415,
+        "2026-12": 163243,
+        "2027-01": 84172,
+        "2027-02": 19130
+      },
+      "totalCentavos": 320960
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 1459,
+      "descricao": "TAG LIEBE ONE UNICA U",
+      "sequencias": [
+        "26292"
+      ],
+      "mps": [
+        "1015497"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 26634,
+        "2027-01": 74909,
+        "2027-02": 47858
+      },
+      "totalCentavos": 149401
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11380,
+      "descricao": "ELAST. DONNA 14MM TRUFA U",
+      "sequencias": [
+        "26286"
+      ],
+      "mps": [
+        "1014665"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 167272,
+        "2027-02": 0
+      },
+      "totalCentavos": 167272
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11656,
+      "descricao": "REGULADOR APR 002 POM  12 MM 27168 AMEIXA U",
+      "sequencias": [
+        "26316"
+      ],
+      "mps": [
+        "1015455"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 12840,
+        "2027-01": 5723,
+        "2027-02": 6438
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11595,
+      "descricao": "GANCHO APG 005 10MM AMENDOA U",
+      "sequencias": [
+        "26318"
+      ],
+      "mps": [
+        "1015855"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 5869,
+        "2026-12": 11775,
+        "2027-01": 5887,
+        "2027-02": 1472
+      },
+      "totalCentavos": 25003
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11591,
+      "descricao": "ELAST HORTENCIA 16MM MALAGUETA U",
+      "sequencias": [
+        "26320"
+      ],
+      "mps": [
+        "1015570"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 91340,
+        "2027-02": 42341
+      },
+      "totalCentavos": 133681
+    },
+    {
+      "categoria": "DESPESA_DUPLICADA",
+      "despesa": 11399,
+      "descricao": "ARCO EURO  MF DF 12 AA 377 UNICA 42",
+      "sequencias": [
+        "26312",
+        "26314"
+      ],
+      "mps": [
+        "1010946",
+        "1010947"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 79634,
+        "2027-02": 43115
+      },
+      "totalCentavos": 122749
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11596,
+      "descricao": "GANCHO APG 005 10MM TRUFA U",
+      "sequencias": [
+        "26322"
+      ],
+      "mps": [
+        "1014689"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 25003,
+        "2027-02": 0
+      },
+      "totalCentavos": 25003
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11592,
+      "descricao": "ELAST HORTENCIA 16MM PRETO U",
+      "sequencias": [
+        "26250"
+      ],
+      "mps": [
+        "1014584"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 5823,
+        "2027-02": 123502
+      },
+      "totalCentavos": 129325
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11376,
+      "descricao": "ELAST. DONNA 10MM OLIVE U",
+      "sequencias": [
+        "26326"
+      ],
+      "mps": [
+        "1016042"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 89247,
+        "2027-02": 46899
+      },
+      "totalCentavos": 136146
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11682,
+      "descricao": "ABOTOADOR 30MM X 03 REGULAGEM - 8418352 MALAGUETA U",
+      "sequencias": [],
+      "mps": [
+        "1015569"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 38008,
+        "2027-02": 45872
+      },
+      "totalCentavos": 83880
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11416,
+      "descricao": "ELASTICO TUSTI 10MM VANILLA U",
+      "sequencias": [
+        "26122"
+      ],
+      "mps": [
+        "1014488"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 158708,
+        "2027-02": 37105
+      },
+      "totalCentavos": 195813
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11381,
+      "descricao": "ELAST. DONNA 14MM VANILLA U",
+      "sequencias": [
+        "26186"
+      ],
+      "mps": [
+        "1014663"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 159861,
+        "2027-02": 0
+      },
+      "totalCentavos": 159861
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11398,
+      "descricao": "REGULADOR APR 000/B - 8MM PLAST CHOCOLATE U",
+      "sequencias": [],
+      "mps": [
+        "1014080"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 25001,
+        "2027-02": 0
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11547,
+      "descricao": "ELAST MANACA BRILHOSO 7MM MILKSHAKE U",
+      "sequencias": [
+        "26344"
+      ],
+      "mps": [
+        "1016207"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 43954,
+        "2027-02": 45781
+      },
+      "totalCentavos": 89735
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11588,
+      "descricao": "ELAST HORTENCIA 16MM DUNA U",
+      "sequencias": [
+        "26460"
+      ],
+      "mps": [
+        "1015402"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 81583,
+        "2027-02": 38921
+      },
+      "totalCentavos": 120504
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11487,
+      "descricao": "FECHO GIRATORIO 18 MM C/ LOGO CALLAS U",
+      "sequencias": [
+        "26658"
+      ],
+      "mps": [
+        "1013605"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 56180,
+        "2027-02": 0
+      },
+      "totalCentavos": 56180
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11692,
+      "descricao": "PLACA METAL LIEBE OURO ROSE 08X 24MM UNICA U",
+      "sequencias": [
+        "26374"
+      ],
+      "mps": [
+        "1006248"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 2979,
+        "2027-02": 22117
+      },
+      "totalCentavos": 25096
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11412,
+      "descricao": "ELASTICO CERRUTI 11MM MALAGUETA U",
+      "sequencias": [
+        "26220"
+      ],
+      "mps": [
+        "1015725"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 31103,
+        "2027-02": 78826
+      },
+      "totalCentavos": 109929
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11689,
+      "descricao": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 VANILLA U",
+      "sequencias": [],
+      "mps": [
+        "1014696"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 127951,
+        "2027-02": 0
+      },
+      "totalCentavos": 127951
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11144,
+      "descricao": "BJ 215.963 (PLZ) CHOCO/ESTLIEBE 46",
+      "sequencias": [],
+      "mps": [
+        "1013926",
+        "1013927",
+        "1013928",
+        "1013929",
+        "1013930"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 1310710,
+        "2027-01": 687100,
+        "2027-02": 0
+      },
+      "totalCentavos": 1997810
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11449,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 DUNA U",
+      "sequencias": [
+        "26356"
+      ],
+      "mps": [
+        "1015450"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 3979,
+        "2026-12": 14015,
+        "2027-01": 4004,
+        "2027-02": 3003
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11655,
+      "descricao": "REGULADOR APR 002 POM  12 MM 27168 DUNA U",
+      "sequencias": [
+        "26358"
+      ],
+      "mps": [
+        "1015454"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 3979,
+        "2026-12": 14015,
+        "2027-01": 4004,
+        "2027-02": 3003
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11031,
+      "descricao": "ELAST. TUI 5MM TRUFA U",
+      "sequencias": [
+        "26162"
+      ],
+      "mps": [
+        "1014199"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 59232,
+        "2027-02": 0
+      },
+      "totalCentavos": 59232
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11409,
+      "descricao": "ELASTICO CERRUTI 11MM DUNA U",
+      "sequencias": [
+        "26362"
+      ],
+      "mps": [
+        "1016586"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 13720,
+        "2026-12": 54882,
+        "2027-01": 17151,
+        "2027-02": 13720
+      },
+      "totalCentavos": 99473
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11535,
+      "descricao": "ELAST MANACA BRILHOSO 10MM MALAGUETA U",
+      "sequencias": [
+        "26364"
+      ],
+      "mps": [
+        "1016212"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 53098,
+        "2027-02": 41924
+      },
+      "totalCentavos": 95022
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11357,
+      "descricao": "ELAST. PAJAU 14 MM AMEIXA U",
+      "sequencias": [
+        "26366"
+      ],
+      "mps": [
+        "1015449"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 55020,
+        "2027-02": 33627
+      },
+      "totalCentavos": 88647
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11183,
+      "descricao": "ELAST. TATTO 10MM SUEDE U",
+      "sequencias": [
+        "26214"
+      ],
+      "mps": [
+        "1015338"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 113776,
+        "2027-02": 52216
+      },
+      "totalCentavos": 165992
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11446,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 AMENDOA U",
+      "sequencias": [
+        "26372"
+      ],
+      "mps": [
+        "1015357"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 13624,
+        "2027-01": 9102,
+        "2027-02": 2275
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11653,
+      "descricao": "REGULADOR APR 002 POM  12 MM 27168 AMENDOA U",
+      "sequencias": [
+        "26256"
+      ],
+      "mps": [
+        "1016449"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 13611,
+        "2027-01": 9112,
+        "2027-02": 2278
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11666,
+      "descricao": "MALHA SIELLA 1.65 VANILLA U",
+      "sequencias": [
+        "26384"
+      ],
+      "mps": [
+        "1014569"
+      ],
+      "valoresCentavos": {
+        "2026-10": 28241,
+        "2026-11": 1554219,
+        "2026-12": 752842,
+        "2027-01": 3936122,
+        "2027-02": 4144
+      },
+      "totalCentavos": 6275568
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11024,
+      "descricao": "ELAST. PAJAU 14 MM MAUVE U",
+      "sequencias": [
+        "26418"
+      ],
+      "mps": [
+        "1014431"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 88474,
+        "2027-02": 0
+      },
+      "totalCentavos": 88474
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11423,
+      "descricao": "BJ 911.001 CASCA C/ ALCA VANILLA 46",
+      "sequencias": [
+        "26666"
+      ],
+      "mps": [
+        "1014670",
+        "1014671",
+        "1014672",
+        "1014673",
+        "1014674"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 21243,
+        "2026-12": 37662,
+        "2027-01": 605591,
+        "2027-02": 0
+      },
+      "totalCentavos": 664496
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11411,
+      "descricao": "ELASTICO CERRUTI 11MM OLIVE U",
+      "sequencias": [
+        "26380"
+      ],
+      "mps": [
+        "1016585"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 57089,
+        "2027-01": 17840,
+        "2027-02": 14272
+      },
+      "totalCentavos": 89201
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11437,
+      "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 AMENDOA U",
+      "sequencias": [
+        "26382"
+      ],
+      "mps": [
+        "1012003"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 4738,
+        "2026-12": 14303,
+        "2027-01": 2384,
+        "2027-02": 3576
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11662,
+      "descricao": "REGULADOR APR 016 POM  18 MM BERINGELA U",
+      "sequencias": [
+        "26386"
+      ],
+      "mps": [
+        "1016443"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 4975,
+        "2026-12": 15020,
+        "2027-01": 2503,
+        "2027-02": 2503
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11594,
+      "descricao": "FECHO APS 001 13MM E 18MM BERINGELA U",
+      "sequencias": [
+        "26388"
+      ],
+      "mps": [
+        "1016442"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 4977,
+        "2026-12": 15025,
+        "2027-01": 2504,
+        "2027-02": 2504
+      },
+      "totalCentavos": 25010
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11687,
+      "descricao": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 TRUFA U",
+      "sequencias": [],
+      "mps": [
+        "1014697"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 98563,
+        "2027-02": 0
+      },
+      "totalCentavos": 98563
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11023,
+      "descricao": "ELAST. PAJAU 14 MM TRUFA U",
+      "sequencias": [
+        "26348"
+      ],
+      "mps": [
+        "1014432"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 79255,
+        "2027-02": 0
+      },
+      "totalCentavos": 79255
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11375,
+      "descricao": "ELAST. DONNA 10MM AMEIXA U",
+      "sequencias": [
+        "26394"
+      ],
+      "mps": [
+        "1016041"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 35342,
+        "2027-02": 51028
+      },
+      "totalCentavos": 86370
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11534,
+      "descricao": "ELAST MANACA BRILHOSO 10MM MILKSHAKE U",
+      "sequencias": [
+        "26396"
+      ],
+      "mps": [
+        "1016211"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 48117,
+        "2027-02": 27633
+      },
+      "totalCentavos": 75750
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11526,
+      "descricao": "TECIDO UV 3147 SUEDE U",
+      "sequencias": [
+        "26404"
+      ],
+      "mps": [
+        "1015872"
+      ],
+      "valoresCentavos": {
+        "2026-10": 568083,
+        "2026-11": 1672677,
+        "2026-12": 2295018,
+        "2027-01": 533726,
+        "2027-02": 192694
+      },
+      "totalCentavos": 5262198
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11660,
+      "descricao": "REGULADOR APR 016 POM  18 MM OLIVE U",
+      "sequencias": [
+        "26410"
+      ],
+      "mps": [
+        "1016439"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 12481,
+        "2027-01": 9390,
+        "2027-02": 3130
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11132,
+      "descricao": "BOJO CASCA 911.001 TRUFA 44",
+      "sequencias": [
+        "26414"
+      ],
+      "mps": [
+        "1014423",
+        "1014424",
+        "1014425",
+        "1014426",
+        "1014866",
+        "1014867"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 29380,
+        "2027-01": 621177,
+        "2027-02": 0
+      },
+      "totalCentavos": 650557
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11469,
+      "descricao": "ARGOLA DE 18MM APA 005 MALAGUETA U",
+      "sequencias": [
+        "26406"
+      ],
+      "mps": [
+        "1016436"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 12461,
+        "2027-01": 9405,
+        "2027-02": 3135
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11661,
+      "descricao": "REGULADOR APR 016 POM  18 MM MALAGUETA U",
+      "sequencias": [
+        "26408"
+      ],
+      "mps": [
+        "1016437"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 12461,
+        "2027-01": 9405,
+        "2027-02": 3135
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11468,
+      "descricao": "ARGOLA DE 18MM APA 005 OLIVE U",
+      "sequencias": [
+        "26412"
+      ],
+      "mps": [
+        "1016440"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 12461,
+        "2027-01": 9405,
+        "2027-02": 3135
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11140,
+      "descricao": "BOJO BOLHA 912.772 VANILLA 44",
+      "sequencias": [
+        "26360"
+      ],
+      "mps": [
+        "1014684",
+        "1014685",
+        "1014686",
+        "1014687"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 62032,
+        "2027-01": 479965,
+        "2027-02": 18157
+      },
+      "totalCentavos": 560154
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11133,
+      "descricao": "BOJO CASCA 911.001 MAUVE 44",
+      "sequencias": [
+        "26446"
+      ],
+      "mps": [
+        "1014420",
+        "1014421",
+        "1014422",
+        "1014678"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 80138,
+        "2027-01": 394381,
+        "2027-02": 0
+      },
+      "totalCentavos": 474519
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11560,
+      "descricao": "LACO MIDI AMENDOA U",
+      "sequencias": [
+        "26424"
+      ],
+      "mps": [
+        "1015385"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 13160,
+        "2027-01": 6793,
+        "2027-02": 5094
+      },
+      "totalCentavos": 25047
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11364,
+      "descricao": "ELAST. TUI 5MM AMEIXA U",
+      "sequencias": [
+        "26428"
+      ],
+      "mps": [
+        "1015401"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 19105,
+        "2027-02": 24785
+      },
+      "totalCentavos": 43890
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11589,
+      "descricao": "ELAST HORTENCIA 16MM AMEIXA U",
+      "sequencias": [
+        "26238"
+      ],
+      "mps": [
+        "1015403"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 25903,
+        "2027-02": 46261
+      },
+      "totalCentavos": 72164
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11374,
+      "descricao": "ELAST. DONNA 10MM TRUFA U",
+      "sequencias": [
+        "26512"
+      ],
+      "mps": [
+        "1014652"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 71347,
+        "2027-02": 0
+      },
+      "totalCentavos": 71347
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11307,
+      "descricao": "MALHA SIELLA 1.65 TRUFA U",
+      "sequencias": [
+        "26402"
+      ],
+      "mps": [
+        "1014405"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 545694,
+        "2027-01": 3668042,
+        "2027-02": 0
+      },
+      "totalCentavos": 4213736
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11673,
+      "descricao": "ARGOLA METAL AMA 000 7MM ROSE GOLD U",
+      "sequencias": [
+        "26234"
+      ],
+      "mps": [
+        "1005998"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 12392,
+        "2027-02": 12617
+      },
+      "totalCentavos": 25009
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11138,
+      "descricao": "BOJO BOLHA 912.772 TRUFA 42",
+      "sequencias": [
+        "26426"
+      ],
+      "mps": [
+        "1014368",
+        "1014369",
+        "1014370",
+        "1014371"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 66655,
+        "2027-01": 420949,
+        "2027-02": 0
+      },
+      "totalCentavos": 487604
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11147,
+      "descricao": "BJ 210.976 (PLZ) ESTLIEBE 46",
+      "sequencias": [
+        "26340"
+      ],
+      "mps": [
+        "1013849",
+        "1013850",
+        "1013851",
+        "1013852",
+        "1013853",
+        "1013854"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 452710,
+        "2027-01": 265715,
+        "2027-02": 0
+      },
+      "totalCentavos": 718425
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11424,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA BRANCO 42",
+      "sequencias": [
+        "26670"
+      ],
+      "mps": [
+        "1013769",
+        "1013770"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 37324,
+        "2027-01": 243841,
+        "2027-02": 18263
+      },
+      "totalCentavos": 299428
+    },
+    {
+      "categoria": "DESPESA_DUPLICADA",
+      "despesa": 11103,
+      "descricao": "BOJO 7004 CHOCOLATE 48",
+      "sequencias": [
+        "26306",
+        "26308"
+      ],
+      "mps": [
+        "1013045",
+        "1013046",
+        "1013047",
+        "1013048"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 535416,
+        "2027-02": 0
+      },
+      "totalCentavos": 535416
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11404,
+      "descricao": "VIES EM TECIDO MVS 2,5CM - COMPRIMENTO BERINGELA U",
+      "sequencias": [
+        "26458"
+      ],
+      "mps": [
+        "1016310"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 5591,
+        "2026-12": 17249,
+        "2027-01": 3749,
+        "2027-02": 4431
+      },
+      "totalCentavos": 31020
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11341,
+      "descricao": "BJ EXT-PREM D 1900 TAM:46 ESTLIEBE U",
+      "sequencias": [
+        "26390"
+      ],
+      "mps": [
+        "1000307"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 97338,
+        "2027-01": 100349,
+        "2027-02": 40139
+      },
+      "totalCentavos": 237826
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11454,
+      "descricao": "ELASTICO FANCY 20MM MILKSHAKE U",
+      "sequencias": [
+        "26462"
+      ],
+      "mps": [
+        "1015708"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 22794,
+        "2027-01": 36209,
+        "2027-02": 9022
+      },
+      "totalCentavos": 68025
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11466,
+      "descricao": "ARGOLA DE 18MM APA 005 DUNA U",
+      "sequencias": [
+        "26464"
+      ],
+      "mps": [
+        "1015498"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 15175,
+        "2027-01": 6551,
+        "2027-02": 3275
+      },
+      "totalCentavos": 25001
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11332,
+      "descricao": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 TRUFA U",
+      "sequencias": [],
+      "mps": [
+        "1014568"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 54634,
+        "2027-02": 0
+      },
+      "totalCentavos": 54634
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11143,
+      "descricao": "BJ 207.961 (PLZ) CH EST/ LIEBE 44",
+      "sequencias": [
+        "26682"
+      ],
+      "mps": [
+        "1013829",
+        "1013831",
+        "1013832",
+        "1013833"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 257422,
+        "2027-01": 245283,
+        "2027-02": 0
+      },
+      "totalCentavos": 502705
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 1461,
+      "descricao": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 MILKSHAKE U",
+      "sequencias": [],
+      "mps": [
+        "1015807"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 11985,
+        "2026-12": 17978,
+        "2027-01": 29964,
+        "2027-02": 5993
+      },
+      "totalCentavos": 65920
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11448,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 ROSEWOOD U",
+      "sequencias": [
+        "26466"
+      ],
+      "mps": [
+        "1016322"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 4499,
+        "2026-12": 13667,
+        "2027-01": 0,
+        "2027-02": 6834
+      },
+      "totalCentavos": 25000
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11074,
+      "descricao": "VIES EM TECIDO MVS 2,5CM - COMPRIMENTO PRETO U",
+      "sequencias": [],
+      "mps": [
+        "1011854"
+      ],
+      "valoresCentavos": {
+        "2026-10": 4042,
+        "2026-11": 18366,
+        "2026-12": 2553,
+        "2027-01": 5389,
+        "2027-02": 0
+      },
+      "totalCentavos": 30350
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "1014698"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 63874,
+        "2027-02": 0
+      },
+      "totalCentavos": 63874
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11365,
+      "descricao": "ELAST. TUI 5MM MALAGUETA U",
+      "sequencias": [
+        "26430"
+      ],
+      "mps": [
+        "1015577"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 2885,
+        "2027-02": 36211
+      },
+      "totalCentavos": 39096
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11652,
+      "descricao": "REGULADOR APR 002 POM  12 MM 27168 CALLAS U",
+      "sequencias": [
+        "26254"
+      ],
+      "mps": [
+        "1010918"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 25000,
+        "2027-02": 0
+      },
+      "totalCentavos": 25000
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11413,
+      "descricao": "VIES EM TECIDO MVS 2,5CM BERINGELA U",
+      "sequencias": [
+        "26478"
+      ],
+      "mps": [
+        "1016300"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 6095,
+        "2026-12": 18286,
+        "2027-01": 9143,
+        "2027-02": 1524
+      },
+      "totalCentavos": 35048
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11384,
+      "descricao": "ARGOLA APA 000/B - 8MM PLAST NAVY U",
+      "sequencias": [
+        "26642"
+      ],
+      "mps": [
+        "1015206"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 25279,
+        "2027-02": 0
+      },
+      "totalCentavos": 25279
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11392,
+      "descricao": "REGULADOR APR 000/B - 8MM PLAST NAVY U",
+      "sequencias": [
+        "26629"
+      ],
+      "mps": [
+        "1015205"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 25279,
+        "2027-02": 0
+      },
+      "totalCentavos": 25279
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11139,
+      "descricao": "BOJO BOLHA 912.772 MAUVE 42",
+      "sequencias": [
+        "26450"
+      ],
+      "mps": [
+        "1014376",
+        "1014377",
+        "1014378",
+        "1014379"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 11404,
+        "2026-12": 29337,
+        "2027-01": 364821,
+        "2027-02": 0
+      },
+      "totalCentavos": 405562
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11548,
+      "descricao": "ELAST MANACA BRILHOSO 7MM OLIVE U",
+      "sequencias": [
+        "26482"
+      ],
+      "mps": [
+        "1016237"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 15080,
+        "2027-02": 30591
+      },
+      "totalCentavos": 45671
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11006,
+      "descricao": "BOJO CASCA 911.001 BRANCO 42",
+      "sequencias": [
+        "26470"
+      ],
+      "mps": [
+        "1013648",
+        "1013649"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 24664,
+        "2026-12": 49210,
+        "2027-01": 145036,
+        "2027-02": 0
+      },
+      "totalCentavos": 218910
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11648,
+      "descricao": "ESPARTILHO APE 001 10MM AMEIXA U",
+      "sequencias": [
+        "26488"
+      ],
+      "mps": [
+        "1015468"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 11074,
+        "2026-12": 11144,
+        "2027-01": 0,
+        "2027-02": 2786
+      },
+      "totalCentavos": 25004
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11308,
+      "descricao": "MALHA SIELLA 1.65 MAUVE U",
+      "sequencias": [
+        "26436"
+      ],
+      "mps": [
+        "1014383"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 70313,
+        "2027-01": 2455446,
+        "2027-02": 0
+      },
+      "totalCentavos": 2525759
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11146,
+      "descricao": "BJ 210.962 (PLZ) VN EST/ LIEBE 44",
+      "sequencias": [],
+      "mps": [
+        "1015253"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 17687,
+        "2027-01": 217681,
+        "2027-02": 0
+      },
+      "totalCentavos": 235368
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11141,
+      "descricao": "BOJO BOLHA 912.772 PRETO 44",
+      "sequencias": [
+        "26248"
+      ],
+      "mps": [
+        "1013816",
+        "1013817",
+        "1013818"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 16806,
+        "2027-01": 242343,
+        "2027-02": 21337
+      },
+      "totalCentavos": 280486
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11034,
+      "descricao": "ELAST. PAJAU 12 MM TRUFA U",
+      "sequencias": [],
+      "mps": [
+        "1014362"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 43582,
+        "2027-02": 0
+      },
+      "totalCentavos": 43582
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11439,
+      "descricao": "ARGOLA PLAST 10MM  APA 001- 27068 ROSEWOOD U",
+      "sequencias": [
+        "26498"
+      ],
+      "mps": [
+        "1016333"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 6191,
+        "2026-12": 14107,
+        "2027-01": 0,
+        "2027-02": 4702
+      },
+      "totalCentavos": 25000
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 1454,
+      "descricao": "ELAST. NILLO 25MM AMEIXA U",
+      "sequencias": [
+        "26502"
+      ],
+      "mps": [
+        "1016057"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 348,
+        "2027-02": 38876
+      },
+      "totalCentavos": 39224
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11135,
+      "descricao": "BOJO CASCA 911.001 CHOCOLATE 46",
+      "sequencias": [
+        "26272"
+      ],
+      "mps": [
+        "1013663",
+        "1013665",
+        "1013666"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 168726,
+        "2027-02": 0
+      },
+      "totalCentavos": 168726
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11418,
+      "descricao": "VIES DE CETIM DE 2,5CM DE LARGURA MALBEC U",
+      "sequencias": [
+        "26506"
+      ],
+      "mps": [
+        "1016314"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 11377,
+        "2026-12": 25597,
+        "2027-01": 0,
+        "2027-02": 4266
+      },
+      "totalCentavos": 41240
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11372,
+      "descricao": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR AMENDOA U",
+      "sequencias": [],
+      "mps": [
+        "1015863"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 52104,
+        "2026-12": 109552,
+        "2027-01": 54776,
+        "2027-02": 11690
+      },
+      "totalCentavos": 228122
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11645,
+      "descricao": "BJ 904.731 REMOVIVEL CHOCOLATE 42",
+      "sequencias": [
+        "26400"
+      ],
+      "mps": [
+        "1016649",
+        "1016650"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 27665,
+        "2027-01": 107455,
+        "2027-02": 0
+      },
+      "totalCentavos": 135120
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11422,
+      "descricao": "BJ 911.001 CASCA C/ ALCA MALAGUETA 42",
+      "sequencias": [
+        "26665"
+      ],
+      "mps": [
+        "1016030",
+        "1016031",
+        "1016032",
+        "1016033"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 30416,
+        "2027-01": 117755,
+        "2027-02": 104229
+      },
+      "totalCentavos": 252400
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11491,
+      "descricao": "TULE BORDADO - DES 15836 PRETO U",
+      "sequencias": [
+        "26392"
+      ],
+      "mps": [
+        "1015665"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 73124,
+        "2027-02": 200129
+      },
+      "totalCentavos": 273253
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11453,
+      "descricao": "ARGOLA PLAST 13 MM APA 003 - 27070 CHOCOLATE U",
+      "sequencias": [
+        "26264"
+      ],
+      "mps": [
+        "1002211"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 25223,
+        "2027-02": 0
+      },
+      "totalCentavos": 25223
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11148,
+      "descricao": "BJ 210.976 (PLZ) CH EST/ LIEBE 44",
+      "sequencias": [
+        "26685"
+      ],
+      "mps": [
+        "1014758",
+        "1014759",
+        "1014760",
+        "1014761",
+        "1014762"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 8268,
+        "2027-01": 373364,
+        "2027-02": 0
+      },
+      "totalCentavos": 381632
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11124,
+      "descricao": "VIES DE CETIM DE 3CM DE LARGURA PRETO U",
+      "sequencias": [
+        "26490"
+      ],
+      "mps": [
+        "1013513"
+      ],
+      "valoresCentavos": {
+        "2026-10": 6588,
+        "2026-11": 4941,
+        "2026-12": 6588,
+        "2027-01": 19763,
+        "2027-02": 0
+      },
+      "totalCentavos": 37880
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "1015810"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 6315,
+        "2026-12": 9852,
+        "2027-01": 16925,
+        "2027-02": 3158
+      },
+      "totalCentavos": 36250
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11122,
+      "descricao": "VIES DE CETIM DE 2,5CM DE LARGURA BRANCO U",
+      "sequencias": [
+        "26472"
+      ],
+      "mps": [
+        "1013515"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 3551,
+        "2026-12": 13530,
+        "2027-01": 20295,
+        "2027-02": 0
+      },
+      "totalCentavos": 37376
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11145,
+      "descricao": "BJ 210.962 (PLZ) CH EST/ LIEBE 46",
+      "sequencias": [],
+      "mps": [
+        "1013932",
+        "1013933",
+        "1013934",
+        "1013935"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 31401,
+        "2027-01": 452813,
+        "2027-02": 0
+      },
+      "totalCentavos": 484214
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11431,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA MALAGUETA 42",
+      "sequencias": [
+        "26672"
+      ],
+      "mps": [
+        "1015572",
+        "1015573",
+        "1015574",
+        "1015575"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 234471,
+        "2027-02": 53489
+      },
+      "totalCentavos": 287960
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11420,
+      "descricao": "BJ 911.001 CASCA C/ ALCA AMEIXA 44",
+      "sequencias": [
+        "26663"
+      ],
+      "mps": [
+        "1016006",
+        "1016007",
+        "1016008",
+        "1016009",
+        "1016010",
+        "1016011",
+        "1016012"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 46275,
+        "2027-01": 195653,
+        "2027-02": 151512
+      },
+      "totalCentavos": 393440
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11421,
+      "descricao": "BJ 911.001 CASCA C/ ALCA OLIVE 42",
+      "sequencias": [
+        "26664"
+      ],
+      "mps": [
+        "1016018",
+        "1016019",
+        "1016020",
+        "1016021"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 31116,
+        "2027-01": 105846,
+        "2027-02": 105278
+      },
+      "totalCentavos": 242240
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11044,
+      "descricao": "BJ 907.743 ESTLIEBE 44",
+      "sequencias": [
+        "26194"
+      ],
+      "mps": [
+        "1008963"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 104516,
+        "2027-02": 0
+      },
+      "totalCentavos": 104516
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "1015809"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 11285,
+        "2027-01": 19388,
+        "2027-02": 3617
+      },
+      "totalCentavos": 34290
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 1458,
+      "descricao": "ELASTICO TUSTI 10MM PRETO U",
+      "sequencias": [
+        "26530"
+      ],
+      "mps": [
+        "1013326"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 49431
+      },
+      "totalCentavos": 49431
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11641,
+      "descricao": "BJ 904.731 REMOVIVEL OLIVE 44",
+      "sequencias": [
+        "26504"
+      ],
+      "mps": [
+        "1016668",
+        "1016669",
+        "1016670"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 26311,
+        "2027-01": 37422,
+        "2027-02": 60667
+      },
+      "totalCentavos": 124400
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11295,
+      "descricao": "REGULADOR APR 016 POM  18 MM SUEDE U",
+      "sequencias": [
+        "26492"
+      ],
+      "mps": [
+        "1005620"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 25261,
+        "2027-02": 0
+      },
+      "totalCentavos": 25261
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11694,
+      "descricao": "CADARCO JO 11MM REF. MALAGUETA U",
+      "sequencias": [
+        "26252"
+      ],
+      "mps": [
+        "1015568"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 36708
+      },
+      "totalCentavos": 36708
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11309,
+      "descricao": "MALHA SIELLA 1.65 PRETO U",
+      "sequencias": [
+        "26416"
+      ],
+      "mps": [
+        "1000050"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 1207327,
+        "2027-02": 7622
+      },
+      "totalCentavos": 1214949
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11149,
+      "descricao": "BJ 210.976 (PLZ) VN EST/ LIEBE 44",
+      "sequencias": [
+        "26686"
+      ],
+      "mps": [
+        "1015259",
+        "1015260",
+        "1015261",
+        "1015263"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 242926,
+        "2027-02": 0
+      },
+      "totalCentavos": 242926
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11427,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA DUNA 44",
+      "sequencias": [
+        "26671"
+      ],
+      "mps": [
+        "1015491",
+        "1015492",
+        "1015493"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 16410,
+        "2027-01": 104967,
+        "2027-02": 29823
+      },
+      "totalCentavos": 151200
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11202,
+      "descricao": "BOJO CASCA 811.664 ESPUMA TOUCH PREMIUM NUDE 44",
+      "sequencias": [],
+      "mps": [
+        "1015769",
+        "1015772"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 1770,
+        "2027-01": 107426,
+        "2027-02": 0
+      },
+      "totalCentavos": 109196
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11039,
+      "descricao": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR SUEDE U",
+      "sequencias": [],
+      "mps": [
+        "1005638"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 115841
+      },
+      "totalCentavos": 115841
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11400,
+      "descricao": "VIES DE 2,5CM - VISCOSE M.V.S BERINGELA U",
+      "sequencias": [],
+      "mps": [
+        "1016304"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 6566,
+        "2026-12": 19696,
+        "2027-01": 9848,
+        "2027-02": 1641
+      },
+      "totalCentavos": 37751
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11340,
+      "descricao": "BJ EXT-PREM D 1900 TAM:44 ESTLIEBE U",
+      "sequencias": [
+        "26376"
+      ],
+      "mps": [
+        "1000300"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 4521,
+        "2027-02": 77502
+      },
+      "totalCentavos": 82023
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11429,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA MILKSHAKE 44",
+      "sequencias": [],
+      "mps": [
+        "1015598",
+        "1015599",
+        "1015600",
+        "1015601"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 130960,
+        "2027-02": 40160
+      },
+      "totalCentavos": 171120
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11703,
+      "descricao": "MALHA VISCOSE M.V.S THIRTY PLUS 22518 BERINGELA U",
+      "sequencias": [
+        "26484"
+      ],
+      "mps": [
+        "1016297"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 341356,
+        "2027-02": 208782
+      },
+      "totalCentavos": 550138
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11134,
+      "descricao": "BOJO CASCA 911.001 PRETO 44",
+      "sequencias": [
+        "26278"
+      ],
+      "mps": [
+        "1013746",
+        "1013747"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 103594,
+        "2027-02": 0
+      },
+      "totalCentavos": 103594
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "1012650"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 32781
+      },
+      "totalCentavos": 32781
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11136,
+      "descricao": "BOJO BOLHA 912.772 NUDE 42",
+      "sequencias": [
+        "26434"
+      ],
+      "mps": [
+        "1013812"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 50654,
+        "2027-02": 0
+      },
+      "totalCentavos": 50654
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11428,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA AMEIXA 44",
+      "sequencias": [],
+      "mps": [
+        "1015476",
+        "1015477",
+        "1015478"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 20160,
+        "2027-01": 46987,
+        "2027-02": 53573
+      },
+      "totalCentavos": 120720
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11637,
+      "descricao": "BJ 904.731 REMOVIVEL AMEIXA 44",
+      "sequencias": [
+        "26514"
+      ],
+      "mps": [
+        "1016637",
+        "1016638",
+        "1016639"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 41867,
+        "2027-02": 67333
+      },
+      "totalCentavos": 109200
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11642,
+      "descricao": "BJ 904.731 REMOVIVEL MALAGUETA 44",
+      "sequencias": [
+        "26516"
+      ],
+      "mps": [
+        "1016657",
+        "1016658",
+        "1016659"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 41867,
+        "2027-02": 67333
+      },
+      "totalCentavos": 109200
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11702,
+      "descricao": "BJ 213.385 EXT CONFORT TAM 48 AMEIXA U",
+      "sequencias": [],
+      "mps": [
+        "1016248"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 51480,
+        "2027-01": 51480,
+        "2027-02": 25740
+      },
+      "totalCentavos": 128700
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11528,
+      "descricao": "TECIDO UV 3147 PRETO U",
+      "sequencias": [
+        "26518"
+      ],
+      "mps": [
+        "1015871"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 347214,
+        "2027-01": 318495,
+        "2027-02": 105991
+      },
+      "totalCentavos": 771700
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11485,
+      "descricao": "FECHO GIRATORIO 13 MM C/ LOGO CALLAS U",
+      "sequencias": [],
+      "mps": [
+        "1014739"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 25002,
+        "2027-02": 0
+      },
+      "totalCentavos": 25002
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11017,
+      "descricao": "RENDA 270115 90%POLIAMIDA 10%ELASTANO TRUFA U",
+      "sequencias": [
+        "26260"
+      ],
+      "mps": [
+        "1014196"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 34967,
+        "2027-02": 0
+      },
+      "totalCentavos": 34967
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11647,
+      "descricao": "PELLE 5330 79% POLIAMIDA 21% ELASTANO VANILLA U",
+      "sequencias": [],
+      "mps": [
+        "1014645"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 767324,
+        "2027-02": 0
+      },
+      "totalCentavos": 767324
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11638,
+      "descricao": "BJ 904.731 REMOVIVEL NUDE 46",
+      "sequencias": [
+        "26494"
+      ],
+      "mps": [
+        "1016664"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 37920,
+        "2027-02": 0
+      },
+      "totalCentavos": 37920
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11377,
+      "descricao": "ELAST. DONNA 10MM MAUVE U",
+      "sequencias": [
+        "26586"
+      ],
+      "mps": [
+        "1014650"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 30328,
+        "2027-02": 0
+      },
+      "totalCentavos": 30328
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11201,
+      "descricao": "BOJO CASCA 811.664 ESPUMA TOUCH PREMIUM BRANCO 44",
+      "sequencias": [],
+      "mps": [
+        "1015764"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 45460,
+        "2027-02": 0
+      },
+      "totalCentavos": 45460
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11430,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA OLIVE 42",
+      "sequencias": [],
+      "mps": [
+        "1015511",
+        "1015512",
+        "1015513"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 61987,
+        "2027-02": 43493
+      },
+      "totalCentavos": 105480
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11425,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA AMENDOA 44",
+      "sequencias": [],
+      "mps": [
+        "1015437",
+        "1015438"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 26827,
+        "2027-01": 0,
+        "2027-02": 43493
+      },
+      "totalCentavos": 70320
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11303,
+      "descricao": "MANTA CACHARREL D33  5MM ESTLIEBE U",
+      "sequencias": [
+        "26538"
+      ],
+      "mps": [
+        "1004162"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 142322,
+        "2027-01": 89891,
+        "2027-02": 0
+      },
+      "totalCentavos": 232213
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11473,
+      "descricao": "MICROFIBRA SUNNY - 1758 OLIVE U",
+      "sequencias": [],
+      "mps": [
+        "1016599"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 30747,
+        "2026-12": 225052,
+        "2027-01": 118241,
+        "2027-02": 61059
+      },
+      "totalCentavos": 435099
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11391,
+      "descricao": "REGULADOR APR 000/B - 8MM PLAST NUDE U",
+      "sequencias": [
+        "26628"
+      ],
+      "mps": [
+        "1013983"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 25000
+      },
+      "totalCentavos": 25000
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11130,
+      "descricao": "BOJO CASCA 911.001 NUDE 44",
+      "sequencias": [
+        "26378"
+      ],
+      "mps": [
+        "1013737"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 37446,
+        "2027-02": 0
+      },
+      "totalCentavos": 37446
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11370,
+      "descricao": "MICROFIBRA LUXURIUS 94516 OLIVE U",
+      "sequencias": [],
+      "mps": [
+        "1015712"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 63524,
+        "2027-02": 155745
+      },
+      "totalCentavos": 219269
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11203,
+      "descricao": "BOJO CASCA 811.664 ESPUMA TOUCH PREMIUM PRETO 46",
+      "sequencias": [],
+      "mps": [
+        "1015755",
+        "1015756"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 72330,
+        "2027-02": 0
+      },
+      "totalCentavos": 72330
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11086,
+      "descricao": "BJ 17-026 PRETO 46",
+      "sequencias": [
+        "26536"
+      ],
+      "mps": [
+        "1012345"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 39085,
+        "2027-02": 0
+      },
+      "totalCentavos": 39085
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11426,
+      "descricao": "BJ 912.772 BOLHA C/ ALCA ROSEWOOD 42",
+      "sequencias": [],
+      "mps": [
+        "1015481",
+        "1015482"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 70320,
+        "2027-02": 0
+      },
+      "totalCentavos": 70320
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11502,
+      "descricao": "BJ 811.664 TOUCH CASCA C/ ALCA MALAGUETA 44",
+      "sequencias": [],
+      "mps": [
+        "1016700"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 35760,
+        "2027-02": 0
+      },
+      "totalCentavos": 35760
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11664,
+      "descricao": "MALHA SIELLA 1.65 AMEIXA U",
+      "sequencias": [
+        "26576"
+      ],
+      "mps": [
+        "1016071"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 183085,
+        "2027-02": 103328
+      },
+      "totalCentavos": 286413
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11527,
+      "descricao": "TECIDO UV 3147 CALLAS U",
+      "sequencias": [],
+      "mps": [
+        "1016696"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 297259,
+        "2027-02": 0
+      },
+      "totalCentavos": 297259
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 1457,
+      "descricao": "BJ 7004 TQC CASCA BRANCO 50",
+      "sequencias": [
+        "26584"
+      ],
+      "mps": [
+        "1013053",
+        "1013054",
+        "1013055"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 104420,
+        "2027-02": 0
+      },
+      "totalCentavos": 104420
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11120,
+      "descricao": "VIES DE CETIM DE 2,5CM - ENVIESADO AZUL AURA U",
+      "sequencias": [
+        "26508"
+      ],
+      "mps": [
+        "1015238"
+      ],
+      "valoresCentavos": {
+        "2026-10": 31664,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 0
+      },
+      "totalCentavos": 31664
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "1004031"
+      ],
+      "valoresCentavos": {
+        "2026-10": 28965,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 0
+      },
+      "totalCentavos": 28965
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11403,
+      "descricao": "MICROFIBRA ATHENA BRANCO U",
+      "sequencias": [],
+      "mps": [
+        "1013949"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 90117,
+        "2027-02": 174227
+      },
+      "totalCentavos": 264344
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "1016252"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 45740
+      },
+      "totalCentavos": 45740
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11402,
+      "descricao": "RENDA ZG05914 ROSEWOOD U",
+      "sequencias": [],
+      "mps": [
+        "1015523"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 37283,
+        "2026-12": 92153,
+        "2027-01": 0,
+        "2027-02": 36697
+      },
+      "totalCentavos": 166133
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 11646,
+      "descricao": "PELLE 5330 79% POLIAMIDA 21% ELASTANO TRUFA U",
+      "sequencias": [
+        "26580"
+      ],
+      "mps": [
+        "1014516"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 137064,
+        "2027-02": 0
+      },
+      "totalCentavos": 137064
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11698,
+      "descricao": "MEIA MALHA CARDADA BACTERICIDA 2045 SUEDE U",
+      "sequencias": [],
+      "mps": [
+        "1011780"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 5281,
+        "2027-01": 38604,
+        "2027-02": 23753
+      },
+      "totalCentavos": 67638
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11401,
+      "descricao": "RENDA ZG05914 NAVY U",
+      "sequencias": [],
+      "mps": [
+        "1011789"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 83789,
+        "2027-02": 0
+      },
+      "totalCentavos": 83789
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 1460,
+      "descricao": "TEC DE MALHA PLUME ACABADO 158746001011 AMEIXA U",
+      "sequencias": [],
+      "mps": [
+        "1016335"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 50476
+      },
+      "totalCentavos": 50476
+    },
+    {
+      "categoria": "PRONTA",
+      "despesa": 1453,
+      "descricao": "MEIA MALHA CARDADA BACTERICIDA 2045 AMEIXA U",
+      "sequencias": [
+        "26598"
+      ],
+      "mps": [
+        "1015676"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 34629
+      },
+      "totalCentavos": 34629
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11665,
+      "descricao": "MALHA SIELLA 1.65 MALAGUETA U",
+      "sequencias": [],
+      "mps": [
+        "1015717"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 36633
+      },
+      "totalCentavos": 36633
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11671,
+      "descricao": "MANTA CACHARREL D26MC 3MM 60% POLIURETAN CALLAS U",
+      "sequencias": [],
+      "mps": [
+        "1014523"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 28468,
+        "2027-02": 0
+      },
+      "totalCentavos": 28468
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "1014970"
+      ],
+      "valoresCentavos": {
+        "2026-10": 31953,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 0
+      },
+      "totalCentavos": 31953
+    },
+    {
+      "categoria": "SEM_DESPESA",
+      "despesa": null,
+      "descricao": "",
+      "sequencias": [],
+      "mps": [
+        "1011955"
+      ],
+      "valoresCentavos": {
+        "2026-10": 3921,
+        "2026-11": 5881,
+        "2026-12": 7842,
+        "2027-01": 7841,
+        "2027-02": 0
+      },
+      "totalCentavos": 25485
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11510,
+      "descricao": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+      "sequencias": [],
+      "mps": [
+        "1016418"
+      ],
+      "valoresCentavos": {
+        "2026-10": 25136,
+        "2026-11": 0,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 0
+      },
+      "totalCentavos": 25136
+    },
+    {
+      "categoria": "FORA_PLANO",
+      "despesa": 11405,
+      "descricao": "FIO 3 CABOS CALLAS U",
+      "sequencias": [],
+      "mps": [
+        "1012569"
+      ],
+      "valoresCentavos": {
+        "2026-10": 0,
+        "2026-11": 25004,
+        "2026-12": 0,
+        "2027-01": 0,
+        "2027-02": 0
+      },
+      "totalCentavos": 25004
+    }
+  ]
+}

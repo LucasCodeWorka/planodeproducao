@@ -601,19 +601,19 @@ router.post("/plano-original", async (req, res) => {
       FROM vr_pcp_lotepl2 a
       LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
       WHERE p.tp_situacao = 1
-        AND p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU')
+        AND p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU', 'SX')
         AND a.cd_produto::TEXT = ANY($1::TEXT[])
       GROUP BY a.cd_produto, p.cd_auxiliar
     `, [productIds]);
 
     const data = {};
     for (const id of productIds) {
-      data[id] = { ma: 0, px: 0, ul: 0, qt: 0, qu: 0 };
+      data[id] = { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
     }
     for (const row of result.rows) {
       const id = String(row.idproduto || "");
       const periodo = String(row.periodo || "").toLowerCase();
-      if (!data[id] || !["ma", "px", "ul", "qt", "qu"].includes(periodo)) continue;
+      if (!data[id] || !["ma", "px", "ul", "qt", "qu", "sx"].includes(periodo)) continue;
       data[id][periodo] = Number(row.plano_original || 0);
     }
 

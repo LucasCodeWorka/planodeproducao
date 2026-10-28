@@ -56,10 +56,17 @@ function writeJson(file, payload) {
   fs.writeFileSync(file, JSON.stringify(payload, null, 2), "utf-8");
 }
 
-function readGrupos() {
-  const parsed = readJson(GRUPOS_FILE, { data: [] });
-  const rows = Array.isArray(parsed?.data) ? parsed.data : [];
-  return rows
+// ── capacidade diaria por grupo ─────────────────────────────────────────────
+//
+// Vive no BANCO (app_capacidade_grupos), pelo mesmo motivo que o mapeamento de referencias:
+// o disco do Render e efemero e nao ha disco persistente declarado no render.yaml. Enquanto
+// isto gravava so em arquivo, TODA capacidade cadastrada pela tela sumia no deploy seguinte
+// e o painel voltava para a versao commitada do repositorio — foi o que o Fagner viu como
+// "o painel perdeu as informacoes que subi". O arquivo continua como SEMENTE, para a
+// primeira carga e para rodar local sem banco.
+
+function normalizarGrupos(rows) {
+  return (Array.isArray(rows) ? rows : [])
     .map((r) => ({
       grupo: String(r.grupo || "").trim().toUpperCase(),
       tipo: String(r.tipo || "").trim().toUpperCase(),
@@ -69,8 +76,79 @@ function readGrupos() {
     .sort((a, b) => a.grupo.localeCompare(b.grupo));
 }
 
-function writeGrupos(data) {
-  writeJson(GRUPOS_FILE, { timestamp: Date.now(), total: data.length, data });
+function readGruposDoArquivo() {
+  return normalizarGrupos(readJson(GRUPOS_FILE, { data: [] })?.data);
+}
+
+const gruposCache = { data: null, timestamp: 0 };
+const GRUPOS_TTL_MS = 60 * 1000;
+
+async function readGrupos(pool) {
+  if (gruposCache.data && Date.now() - gruposCache.timestamp < GRUPOS_TTL_MS) {
+    return gruposCache.data;
+  }
+  if (!pool) return readGruposDoArquivo();
+  try {
+    const r = await pool.query("SELECT grupo, tipo, capacidade_diaria FROM app_capacidade_grupos");
+    const linhas = normalizarGrupos(r.rows);
+    if (linhas.length === 0) {
+      const doArquivo = readGruposDoArquivo();
+      if (doArquivo.length > 0) await writeGrupos(pool, doArquivo);
+      gruposCache.data = doArquivo;
+      gruposCache.timestamp = Date.now();
+      return doArquivo;
+    }
+    gruposCache.data = linhas;
+    gruposCache.timestamp = Date.now();
+    return linhas;
+  } catch (err) {
+    // Tabela ainda nao existe: e o estado normal ate o primeiro "salvar" da tela, e nao e
+    // erro. De proposito NAO semeamos o banco a partir do arquivo aqui — o arquivo commitado
+    // esta com codigo de referencia de produto no lugar de minutos (soma 7.671.414 contra
+    // 55.433 medidos no ERP), e semear tornaria esse lixo permanente em vez de descartavel.
+    // Ate alguem salvar a capacidade correta pela tela, segue valendo o arquivo, como antes.
+    if (err.code !== "42P01") {
+      console.error("[capacidade] grupos do banco falhou, usando arquivo:", err.message);
+    }
+    return readGruposDoArquivo();
+  }
+}
+
+async function writeGrupos(pool, data) {
+  const linhas = normalizarGrupos(data);
+  if (!pool) {
+    writeJson(GRUPOS_FILE, { timestamp: Date.now(), total: linhas.length, data: linhas });
+    return linhas;
+  }
+  const c = await pool.connect();
+  try {
+    await c.query("BEGIN");
+    await c.query(`
+      CREATE TABLE IF NOT EXISTS app_capacidade_grupos (
+        grupo            TEXT PRIMARY KEY,
+        tipo             TEXT NOT NULL DEFAULT '',
+        capacidade_diaria NUMERIC NOT NULL,
+        atualizado_em    TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    // A tela manda a lista inteira: trocar o conteudo faz um grupo REMOVIDO sumir de fato.
+    await c.query("DELETE FROM app_capacidade_grupos");
+    for (const r of linhas) {
+      await c.query(
+        "INSERT INTO app_capacidade_grupos (grupo, tipo, capacidade_diaria) VALUES ($1, $2, $3) ON CONFLICT (grupo) DO UPDATE SET tipo = EXCLUDED.tipo, capacidade_diaria = EXCLUDED.capacidade_diaria, atualizado_em = NOW()",
+        [r.grupo, r.tipo, r.capacidade_diaria]
+      );
+    }
+    await c.query("COMMIT");
+  } catch (err) {
+    await c.query("ROLLBACK");
+    throw err;
+  } finally {
+    c.release();
+  }
+  gruposCache.data = linhas;
+  gruposCache.timestamp = Date.now();
+  return linhas;
 }
 
 // ── mapeamento referencia -> grupo de capacidade ────────────────────────────
@@ -265,20 +343,91 @@ function buildDefaultDias() {
   };
 }
 
-function readDias() {
-  const parsed = readJson(DIAS_FILE, { data: buildDefaultDias() });
-  const src = parsed?.data && typeof parsed.data === "object" ? parsed.data : buildDefaultDias();
+// ── dias uteis por mes ──────────────────────────────────────────────────────
+// Mesma historia dos grupos: ia so para arquivo e voltava no deploy. Era por isso que o
+// arquivo commitado dizia que outubro tinha 12 dias uteis no dia 27 — o valor certo que a
+// operacao digitou tinha sido descartado no ultimo deploy.
+
+function normalizarDias(src) {
+  const base = src && typeof src === "object" ? src : {};
   const out = {};
   for (let mes = 1; mes <= 12; mes += 1) {
     const key = String(mes);
-    const value = Number(src[key] || 0);
+    const value = Number(base[key] || 0);
     out[key] = Number.isFinite(value) && value >= 0 ? value : 0;
   }
   return out;
 }
 
-function writeDias(data) {
-  writeJson(DIAS_FILE, { timestamp: Date.now(), data });
+function readDiasDoArquivo() {
+  const parsed = readJson(DIAS_FILE, { data: buildDefaultDias() });
+  return normalizarDias(parsed?.data && typeof parsed.data === "object" ? parsed.data : buildDefaultDias());
+}
+
+const diasCache = { data: null, timestamp: 0 };
+const DIAS_TTL_MS = 60 * 1000;
+
+async function readDias(pool) {
+  if (diasCache.data && Date.now() - diasCache.timestamp < DIAS_TTL_MS) {
+    return diasCache.data;
+  }
+  if (!pool) return readDiasDoArquivo();
+  try {
+    const r = await pool.query("SELECT mes, dias FROM app_capacidade_dias");
+    if (r.rows.length === 0) {
+      const doArquivo = readDiasDoArquivo();
+      await writeDias(pool, doArquivo);
+      diasCache.data = doArquivo;
+      diasCache.timestamp = Date.now();
+      return doArquivo;
+    }
+    const bruto = {};
+    for (const row of r.rows) bruto[String(row.mes)] = Number(row.dias || 0);
+    const linhas = normalizarDias(bruto);
+    diasCache.data = linhas;
+    diasCache.timestamp = Date.now();
+    return linhas;
+  } catch (err) {
+    // 42P01 = tabela ainda nao criada; e o estado ate o primeiro salvar, nao e falha.
+    if (err.code !== "42P01") {
+      console.error("[capacidade] dias do banco falhou, usando arquivo:", err.message);
+    }
+    return readDiasDoArquivo();
+  }
+}
+
+async function writeDias(pool, data) {
+  const dias = normalizarDias(data);
+  if (!pool) {
+    writeJson(DIAS_FILE, { timestamp: Date.now(), data: dias });
+    return dias;
+  }
+  const c = await pool.connect();
+  try {
+    await c.query("BEGIN");
+    await c.query(`
+      CREATE TABLE IF NOT EXISTS app_capacidade_dias (
+        mes           INTEGER PRIMARY KEY,
+        dias          INTEGER NOT NULL,
+        atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    for (let mes = 1; mes <= 12; mes += 1) {
+      await c.query(
+        "INSERT INTO app_capacidade_dias (mes, dias) VALUES ($1, $2) ON CONFLICT (mes) DO UPDATE SET dias = EXCLUDED.dias, atualizado_em = NOW()",
+        [mes, dias[String(mes)]]
+      );
+    }
+    await c.query("COMMIT");
+  } catch (err) {
+    await c.query("ROLLBACK");
+    throw err;
+  } finally {
+    c.release();
+  }
+  diasCache.data = dias;
+  diasCache.timestamp = Date.now();
+  return dias;
 }
 
 function parseNumericLikePowerBi(raw) {
@@ -451,12 +600,12 @@ async function queryRealCapacityReferences(pool) {
   return data;
 }
 
-router.get("/grupos", auth, (_req, res) => {
-  const data = readGrupos();
+router.get("/grupos", auth, async (req, res) => {
+  const data = await readGrupos(req.app.get("pool"));
   return res.json({ success: true, total: data.length, data });
 });
 
-router.post("/grupos", auth, (req, res) => {
+router.post("/grupos", auth, async (req, res) => {
   const rows = Array.isArray(req.body?.data) ? req.body.data : [];
   if (!rows.length) {
     return res.status(400).json({ success: false, error: "data é obrigatório" });
@@ -473,7 +622,12 @@ router.post("/grupos", auth, (req, res) => {
   if (!data.length) {
     return res.status(400).json({ success: false, error: "Nenhum grupo válido para salvar" });
   }
-  writeGrupos(data);
+  try {
+    await writeGrupos(req.app.get("pool"), data);
+  } catch (err) {
+    console.error("[capacidade/grupos] gravacao falhou:", err.message);
+    return res.status(500).json({ success: false, error: "Nao foi possivel salvar os grupos", details: err.message });
+  }
   return res.status(201).json({ success: true, total: data.length, data });
 });
 
@@ -507,11 +661,11 @@ router.post("/grupo-refs", auth, async (req, res) => {
   return res.status(201).json({ success: true, total: data.length, data });
 });
 
-router.get("/dias", auth, (_req, res) => {
-  return res.json({ success: true, data: readDias() });
+router.get("/dias", auth, async (req, res) => {
+  return res.json({ success: true, data: await readDias(req.app.get("pool")) });
 });
 
-router.post("/dias", auth, (req, res) => {
+router.post("/dias", auth, async (req, res) => {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const data = {};
   for (let mes = 1; mes <= 12; mes += 1) {
@@ -519,7 +673,12 @@ router.post("/dias", auth, (req, res) => {
     const value = Number(body[key] || 0);
     data[key] = Number.isFinite(value) && value >= 0 ? value : 0;
   }
-  writeDias(data);
+  try {
+    await writeDias(req.app.get("pool"), data);
+  } catch (err) {
+    console.error("[capacidade/dias] gravacao falhou:", err.message);
+    return res.status(500).json({ success: false, error: "Nao foi possivel salvar os dias", details: err.message });
+  }
   return res.status(201).json({ success: true, data });
 });
 
@@ -635,9 +794,9 @@ router.get("/config", auth, async (req, res) => {
   return res.json({
     success: true,
     data: {
-      grupos: readGrupos(),
+      grupos: await readGrupos(req.app.get("pool")),
       grupo_refs: await readGrupoRefs(req.app.get("pool")),
-      dias: readDias(),
+      dias: await readDias(req.app.get("pool")),
     },
   });
 });
@@ -755,9 +914,9 @@ router.get("/matriz", auth, async (req, res) => {
     const projecoesService = require('../services/projecoesService');
 
     // 1. Carregar todas as configurações em paralelo
-    const grupos = readGrupos();
+    const grupos = await readGrupos(req.app.get("pool"));
     const grupoRefs = await readGrupoRefs(pool);
-    const dias = readDias();
+    const dias = await readDias(req.app.get("pool"));
     const fonteCapacidade = ['planilha', 'ultimo_mes', 'media_12_meses'].includes(String(req.query.fonte_capacidade || '').toLowerCase())
       ? String(req.query.fonte_capacidade).toLowerCase()
       : 'planilha';
@@ -1200,9 +1359,9 @@ router.get("/dias-resumo", async (req, res) => {
     const { readCache } = require('../cache/matrizCache');
 
     // 1. Carregar configurações
-    const grupos = readGrupos();
+    const grupos = await readGrupos(req.app.get("pool"));
     const grupoRefs = await readGrupoRefs(pool);
-    const dias = readDias();
+    const dias = await readDias(req.app.get("pool"));
 
     // 2. Carregar tempos por referência
     const temposResult = await queryTempoBaseRows(pool, {});
@@ -1503,9 +1662,9 @@ router.get('/gap-mensal', auth, async (req, res) => {
     const pool = req.app.get('pool');
     const { readCache } = require('../cache/matrizCache');
 
-    const grupos = readGrupos();
+    const grupos = await readGrupos(req.app.get("pool"));
     const grupoRefs = await readGrupoRefs(pool);
-    const dias = readDias();
+    const dias = await readDias(req.app.get("pool"));
     const nomesGrupos = new Set(grupos.map((g) => g.grupo));
 
     // capacidade diária real por grupo no período (minutos ÷ dias com movimento)
@@ -1716,7 +1875,7 @@ router.get('/indice-mensal', auth, async (req, res) => {
     // cenario=anterior reproduz a conta de antes da desativacao: todos os locais do ERP,
     // sem filtrar pelos nomes ativos (inclui Progresso e Oficina Atila).
     const anterior = req.query.cenario === 'anterior';
-    const gruposAtivos = anterior ? null : readGrupos().map((grupo) => grupo.grupo);
+    const gruposAtivos = anterior ? null : (await readGrupos(req.app.get("pool"))).map((grupo) => grupo.grupo);
     const { rows } = await pool.query(`
       SELECT to_char(DATE_TRUNC('month', e.dt_ref),'YYYY-MM') AS competencia,
              EXTRACT(YEAR FROM e.dt_ref)::INT AS ano,

@@ -1,0 +1,3850 @@
+{
+  "baseEm": "2026-10-27T12:12:39.423Z",
+  "summary": {
+    "unicoProprioNoPlano": {
+      "mps": 0,
+      "comprado": 0,
+      "futuro": 0
+    },
+    "unicoProprioForaPlano": {
+      "mps": 85,
+      "comprado": 684436.52,
+      "futuro": 3384.89
+    },
+    "multiplosProprios": {
+      "mps": 11,
+      "comprado": 48331.88,
+      "futuro": 2917.45
+    },
+    "semProprio": {
+      "mps": 8,
+      "comprado": 0,
+      "futuro": 8132.55
+    },
+    "nomeExatoUnico": {
+      "mps": 0,
+      "comprado": 0
+    },
+    "nomeExatoMultiplo": {
+      "mps": 0
+    },
+    "semNomeExato": {
+      "mps": 104
+    }
+  },
+  "findings": [
+    {
+      "mp": "1011793",
+      "descricao": "RENDA ZG05914",
+      "nomeProduto": "RENDA ZG05914 BRANCO U",
+      "grupo": "12099",
+      "cor": "100",
+      "comprado": 76000,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_13608",
+            "pedido_item_18684",
+            "pedido_item_18685",
+            "pedido_item_19031",
+            "pedido_item_19032",
+            "pedido_item_19033"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11072,
+          "nome": "RENDA ZG05914 RED VELVET U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11401,
+          "nome": "RENDA ZG05914 NAVY U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11402,
+          "nome": "RENDA ZG05914 ROSEWOOD U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 6
+    },
+    {
+      "mp": "1011795",
+      "descricao": "RENDA ZG05914",
+      "nomeProduto": "RENDA ZG05914 NUDE U",
+      "grupo": "12099",
+      "cor": "1697",
+      "comprado": 37350,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18684",
+            "pedido_item_18685"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11072,
+          "nome": "RENDA ZG05914 RED VELVET U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11401,
+          "nome": "RENDA ZG05914 NAVY U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11402,
+          "nome": "RENDA ZG05914 ROSEWOOD U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 2
+    },
+    {
+      "mp": "1015524",
+      "descricao": "RENDA ZG05914",
+      "nomeProduto": "RENDA ZG05914 AMEIXA U",
+      "grupo": "12099",
+      "cor": "1901",
+      "comprado": 35773,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11072,
+          "nome": "RENDA ZG05914 RED VELVET U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11401,
+          "nome": "RENDA ZG05914 NAVY U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11402,
+          "nome": "RENDA ZG05914 ROSEWOOD U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 3
+    },
+    {
+      "mp": "1015716",
+      "descricao": "RENDA ZG05914",
+      "nomeProduto": "RENDA ZG05914 MALAGUETA U",
+      "grupo": "12099",
+      "cor": "1906",
+      "comprado": 29631,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11072,
+          "nome": "RENDA ZG05914 RED VELVET U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11401,
+          "nome": "RENDA ZG05914 NAVY U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11402,
+          "nome": "RENDA ZG05914 ROSEWOOD U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 3
+    },
+    {
+      "mp": "1015818",
+      "descricao": "RENDA ZG05914",
+      "nomeProduto": "RENDA ZG05914 OLIVE U",
+      "grupo": "12099",
+      "cor": "1903",
+      "comprado": 28054,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11072,
+          "nome": "RENDA ZG05914 RED VELVET U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11401,
+          "nome": "RENDA ZG05914 NAVY U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11402,
+          "nome": "RENDA ZG05914 ROSEWOOD U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 3
+    },
+    {
+      "mp": "1015620",
+      "descricao": "RENDA SEL 12528",
+      "nomeProduto": "RENDA SEL 12528 BRANCO U",
+      "grupo": "14505",
+      "cor": "100",
+      "comprado": 22000,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1015621",
+      "descricao": "RENDA 12524KD",
+      "nomeProduto": "RENDA 12524KD PRETO U",
+      "grupo": "14509",
+      "cor": "300",
+      "comprado": 21600,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1015622",
+      "descricao": "RENDA 12524KD",
+      "nomeProduto": "RENDA 12524KD MALAGUETA U",
+      "grupo": "14509",
+      "cor": "1906",
+      "comprado": 21600,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1015623",
+      "descricao": "RENDA 12524KD",
+      "nomeProduto": "RENDA 12524KD MILKSHAKE U",
+      "grupo": "14509",
+      "cor": "1902",
+      "comprado": 21600,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 69,
+          "cc": 506,
+          "nome": "TINGIMENTO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18894",
+            "pedido_item_18895",
+            "pedido_item_18896"
+          ]
+        },
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1015619",
+      "descricao": "RENDA SEL 12528",
+      "nomeProduto": "RENDA SEL 12528 MALAGUETA U",
+      "grupo": "14505",
+      "cor": "1906",
+      "comprado": 20350,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 4
+    },
+    {
+      "mp": "1015714",
+      "descricao": "RENDAO TULLE 5541",
+      "nomeProduto": "RENDAO TULLE 5541 PRETO U",
+      "grupo": "14613",
+      "cor": "PT",
+      "comprado": 20280,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 3
+    },
+    {
+      "mp": "1015715",
+      "descricao": "RENDAO TULLE 5541",
+      "nomeProduto": "RENDAO TULLE 5541 BRANCO U",
+      "grupo": "14613",
+      "cor": "BR",
+      "comprado": 20280,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 3
+    },
+    {
+      "mp": "1015604",
+      "descricao": "RENDA SJL 12541",
+      "nomeProduto": "RENDA SJL 12541 DUNA U",
+      "grupo": "14488",
+      "cor": "1900",
+      "comprado": 18260,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1015605",
+      "descricao": "RENDA SJL 12541",
+      "nomeProduto": "RENDA SJL 12541 OLIVE U",
+      "grupo": "14488",
+      "cor": "1903",
+      "comprado": 18260,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1015628",
+      "descricao": "RENDA 12624K",
+      "nomeProduto": "RENDA 12624K PRETO U",
+      "grupo": "14517",
+      "cor": "300",
+      "comprado": 13200,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1011790",
+      "descricao": "RENDA ZG05914",
+      "nomeProduto": "RENDA ZG05914 CHOCOLATE U",
+      "grupo": "12099",
+      "cor": "500",
+      "comprado": 12450,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18684",
+            "pedido_item_18685"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11072,
+          "nome": "RENDA ZG05914 RED VELVET U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11401,
+          "nome": "RENDA ZG05914 NAVY U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11402,
+          "nome": "RENDA ZG05914 ROSEWOOD U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 2
+    },
+    {
+      "mp": "1016332",
+      "descricao": "TEC DE MALHA PLUME ACABADO 158746001011",
+      "nomeProduto": "TEC DE MALHA PLUME ACABADO 158746001011 ROSEWOOD U",
+      "grupo": "4855",
+      "cor": "1899",
+      "comprado": 12228.29,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 281,
+          "cc": 506,
+          "nome": "LYCRA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19314"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11311,
+          "nome": "TEC DE MALHA PLUME ACABADO 158746001011 CONHAQUE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11312,
+          "nome": "TEC DE MALHA PLUME ACABADO 158746001011 PRETO U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 1460,
+          "nome": "TEC DE MALHA PLUME ACABADO 158746001011 AMEIXA U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015616",
+      "descricao": "RENDA JL 312525",
+      "nomeProduto": "RENDA JL 312525 PRETO U",
+      "grupo": "14491",
+      "cor": "300",
+      "comprado": 12100,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1015615",
+      "descricao": "RENDA JL 312525",
+      "nomeProduto": "RENDA JL 312525 ROSEWOOD U",
+      "grupo": "14491",
+      "cor": "1899",
+      "comprado": 12100,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1006674",
+      "descricao": "TECIDO MARTINICA 5324",
+      "nomeProduto": "TECIDO MARTINICA 5324 CHOCOLATE U",
+      "grupo": "7421",
+      "cor": "500",
+      "comprado": 11848.48,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 281,
+          "cc": 506,
+          "nome": "LYCRA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_13920",
+            "pedido_item_14006",
+            "pedido_item_14388",
+            "pedido_item_15120",
+            "pedido_item_15170",
+            "pedido_item_15875",
+            "pedido_item_16630",
+            "pedido_item_17015",
+            "pedido_item_17188",
+            "pedido_item_17652",
+            "pedido_item_19158"
+          ]
+        },
+        {
+          "despesa": 438,
+          "cc": 1,
+          "nome": "LYCRA 01 1153",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto",
+            "pedido_item_7187",
+            "pedido_item_8160"
+          ]
+        },
+        {
+          "despesa": 1,
+          "cc": 1,
+          "nome": "TECIDO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_5522",
+            "pedido_capa_5522"
+          ]
+        },
+        {
+          "despesa": 281,
+          "cc": 1,
+          "nome": "LYCRA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_11198"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 15
+    },
+    {
+      "mp": "1015661",
+      "descricao": "MICROFIBRA ATHENA",
+      "nomeProduto": "MICROFIBRA ATHENA MALAGUETA U",
+      "grupo": "12124",
+      "cor": "1906",
+      "comprado": 11406.08,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 281,
+          "cc": 506,
+          "nome": "LYCRA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19158"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11403,
+          "nome": "MICROFIBRA ATHENA BRANCO U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015675",
+      "descricao": "MICROFIBRA ATHENA",
+      "nomeProduto": "MICROFIBRA ATHENA DUNA U",
+      "grupo": "12124",
+      "cor": "1900",
+      "comprado": 11406.08,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 281,
+          "cc": 506,
+          "nome": "LYCRA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19158"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11403,
+          "nome": "MICROFIBRA ATHENA BRANCO U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015674",
+      "descricao": "MICROFIBRA ATHENA",
+      "nomeProduto": "MICROFIBRA ATHENA AMEIXA U",
+      "grupo": "12124",
+      "cor": "1901",
+      "comprado": 11406.08,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 281,
+          "cc": 506,
+          "nome": "LYCRA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19158"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11403,
+          "nome": "MICROFIBRA ATHENA BRANCO U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015824",
+      "descricao": "GLOSS SPAN",
+      "nomeProduto": "GLOSS SPAN MALBEC U",
+      "grupo": "13394",
+      "cor": "2382",
+      "comprado": 10962,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18887"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11116,
+          "nome": "GLOSS SPAN BRANCO U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11117,
+          "nome": "GLOSS SPAN ERVA DOCE U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015624",
+      "descricao": "RENDA JL12527",
+      "nomeProduto": "RENDA JL12527 DUNA U",
+      "grupo": "14513",
+      "cor": "1900",
+      "comprado": 10000,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1015625",
+      "descricao": "RENDA JL12527",
+      "nomeProduto": "RENDA JL12527 AMEIXA U",
+      "grupo": "14513",
+      "cor": "1901",
+      "comprado": 10000,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1015626",
+      "descricao": "RENDA 12624K",
+      "nomeProduto": "RENDA 12624K VANILLA U",
+      "grupo": "14517",
+      "cor": "2380",
+      "comprado": 9900,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884",
+            "pedido_item_18885",
+            "pedido_item_18906",
+            "pedido_item_18907"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1015850",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/300G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/300G PRETO U",
+      "grupo": "14673",
+      "cor": "300",
+      "comprado": 9840,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19370"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015851",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/300G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/300G BRANCO U",
+      "grupo": "14673",
+      "cor": "100",
+      "comprado": 9840,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19368",
+            "pedido_item_19370"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1015849",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/300G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/300G CHOCOLATE U",
+      "grupo": "14673",
+      "cor": "500",
+      "comprado": 9840,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19368",
+            "pedido_item_19370"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1013608",
+      "descricao": "LINHA 100% POLIESTER 5.000M POLI POLI",
+      "nomeProduto": "LINHA 100% POLIESTER 5.000M POLI POLI CHOCOLATE U",
+      "grupo": "13464",
+      "cor": "500",
+      "comprado": 9450,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19365",
+            "pedido_item_19369"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1015873",
+      "descricao": "TECIDO UV 3147",
+      "nomeProduto": "TECIDO UV 3147 AMENDOA U",
+      "grupo": "14690",
+      "cor": "1827",
+      "comprado": 8800,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 281,
+          "cc": 506,
+          "nome": "LYCRA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19238"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11526,
+          "nome": "TECIDO UV 3147 SUEDE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11527,
+          "nome": "TECIDO UV 3147 CALLAS U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11528,
+          "nome": "TECIDO UV 3147 PRETO U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1014170",
+      "descricao": "RENDA FM 313",
+      "nomeProduto": "RENDA FM 313 BRANCO U",
+      "grupo": "13669",
+      "cor": "100",
+      "comprado": 6900,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18684",
+            "pedido_item_18685"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1014171",
+      "descricao": "RENDA FM 313",
+      "nomeProduto": "RENDA FM 313 NUDE U",
+      "grupo": "13669",
+      "cor": "1697",
+      "comprado": 6900,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18684",
+            "pedido_item_18685"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1001617",
+      "descricao": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR",
+      "nomeProduto": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR PRETO U",
+      "grupo": "1062",
+      "cor": "300",
+      "comprado": 6759,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 398,
+          "cc": 1,
+          "nome": "ELASTICO MP 02 0362",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        },
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19195"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11039,
+          "nome": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR SUEDE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11371,
+          "nome": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR CALLAS U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11372,
+          "nome": "ELAST. GEBA DE 30MM B-07 2 FILETES CENTR AMENDOA U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016737",
+      "descricao": "TECIDO UV 3147",
+      "nomeProduto": "TECIDO UV 3147 OLIVE U",
+      "grupo": "14690",
+      "cor": "1903",
+      "comprado": 6400,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 181,
+          "cc": 506,
+          "nome": "MALHA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19538"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11526,
+          "nome": "TECIDO UV 3147 SUEDE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11527,
+          "nome": "TECIDO UV 3147 CALLAS U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11528,
+          "nome": "TECIDO UV 3147 PRETO U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016271",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/300G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/300G NUDE U",
+      "grupo": "14673",
+      "cor": "1697",
+      "comprado": 6396,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19206",
+            "pedido_item_19370"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1008472",
+      "descricao": "MICROFIBRA LUXURIUS 94516",
+      "nomeProduto": "MICROFIBRA LUXURIUS 94516 NAVY U",
+      "grupo": "10435",
+      "cor": "1755",
+      "comprado": 5992.5,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 281,
+          "cc": 506,
+          "nome": "LYCRA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_11763",
+            "pedido_item_18332",
+            "pedido_item_19397"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11035,
+          "nome": "MICROFIBRA LUXURIUS 94516 PRETO U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11370,
+          "nome": "MICROFIBRA LUXURIUS 94516 OLIVE U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 5
+    },
+    {
+      "mp": "1012860",
+      "descricao": "RENDA 110715",
+      "nomeProduto": "RENDA 110715 PEROLA U",
+      "grupo": "12863",
+      "cor": "1812",
+      "comprado": 5750,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18684",
+            "pedido_item_18685"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1015344",
+      "descricao": "ELAST. TATTO 18MM",
+      "nomeProduto": "ELAST. TATTO 18MM SUEDE U",
+      "grupo": "14219",
+      "cor": "0045",
+      "comprado": 5560,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19262"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015823",
+      "descricao": "RENDA 171145 100%POLIAMIDA",
+      "nomeProduto": "RENDA 171145 100%POLIAMIDA MALBEC U",
+      "grupo": "5852",
+      "cor": "2382",
+      "comprado": 5544,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18888",
+            "pedido_item_18889"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1013607",
+      "descricao": "LINHA 100% POLIESTER 5.000M POLI POLI",
+      "nomeProduto": "LINHA 100% POLIESTER 5.000M POLI POLI BRANCO U",
+      "grupo": "13464",
+      "cor": "100",
+      "comprado": 5400,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19365",
+            "pedido_item_19369"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1015821",
+      "descricao": "RENDA FM 313",
+      "nomeProduto": "RENDA FM 313 MALAGUETA U",
+      "grupo": "13669",
+      "cor": "1906",
+      "comprado": 5290,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1015820",
+      "descricao": "RENDA FM 313",
+      "nomeProduto": "RENDA FM 313 AMEIXA U",
+      "grupo": "13669",
+      "cor": "1901",
+      "comprado": 5290,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1015713",
+      "descricao": "RENDA FM 313",
+      "nomeProduto": "RENDA FM 313 OLIVE U",
+      "grupo": "13669",
+      "cor": "1903",
+      "comprado": 5290,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1015838",
+      "descricao": "RENDA 12624K",
+      "nomeProduto": "RENDA 12624K AMENDOA U",
+      "grupo": "14517",
+      "cor": "1827",
+      "comprado": 0,
+      "futuro": 5143.24,
+      "despesasNomeExato": [],
+      "candidatosProprios": [],
+      "despesasIrmas": [],
+      "pedidos": 0
+    },
+    {
+      "mp": "1011453",
+      "descricao": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483",
+      "nomeProduto": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 CALLAS U",
+      "grupo": "615",
+      "cor": "1785",
+      "comprado": 4650,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 178,
+          "cc": 506,
+          "nome": "ABOTOADOR",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19471",
+            "pedido_item_19499"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11334,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 SUEDE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11335,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 NUDE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11336,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 PRETO U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11337,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 CHOCOLATE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11687,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 TRUFA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11688,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11689,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 VANILLA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 1461,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 MILKSHAKE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 1462,
+          "nome": "ABOTOADOR 60MM X 03 REGULAGEM - 8758483 MAUVE U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 2
+    },
+    {
+      "mp": "1015819",
+      "descricao": "RENDA ZG05914",
+      "nomeProduto": "RENDA ZG05914 BERINGELA U",
+      "grupo": "12099",
+      "cor": "2381",
+      "comprado": 4648,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_18883",
+            "pedido_item_18884"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11072,
+          "nome": "RENDA ZG05914 RED VELVET U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11401,
+          "nome": "RENDA ZG05914 NAVY U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11402,
+          "nome": "RENDA ZG05914 ROSEWOOD U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 2
+    },
+    {
+      "mp": "1016348",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/200G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G CALLAS U",
+      "grupo": "14671",
+      "cor": "1785",
+      "comprado": 4565,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19368",
+            "pedido_item_19370"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11516,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11517,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G ROSEWOOD U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11521,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11522,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 2
+    },
+    {
+      "mp": "1013985",
+      "descricao": "LINHA 100% POLIESTER 5.000M POLI POLI",
+      "nomeProduto": "LINHA 100% POLIESTER 5.000M POLI POLI NUDE U",
+      "grupo": "13464",
+      "cor": "1697",
+      "comprado": 4050,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19365",
+            "pedido_item_19369"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "5000157",
+      "descricao": "",
+      "nomeProduto": "FITA ADESIVA 70MM P/FECHAR CXS RLO C/1,5",
+      "grupo": "353",
+      "cor": "900",
+      "comprado": 0,
+      "futuro": 2917.45,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 3,
+          "cc": 1,
+          "nome": "EMBALAGENS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        },
+        {
+          "despesa": 3,
+          "cc": 510,
+          "nome": "EMBALAGENS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_15489"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 2
+    },
+    {
+      "mp": "1013500",
+      "descricao": "GLOSS SPAN",
+      "nomeProduto": "GLOSS SPAN PRETO U",
+      "grupo": "13394",
+      "cor": "300",
+      "comprado": 2900,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 282,
+          "cc": 506,
+          "nome": "CETIM",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_15233",
+            "pedido_item_19190"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11116,
+          "nome": "GLOSS SPAN BRANCO U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11117,
+          "nome": "GLOSS SPAN ERVA DOCE U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 2
+    },
+    {
+      "mp": "1013609",
+      "descricao": "LINHA 100% POLIESTER 5.000M POLI POLI",
+      "nomeProduto": "LINHA 100% POLIESTER 5.000M POLI POLI PRETO U",
+      "grupo": "13464",
+      "cor": "300",
+      "comprado": 2700,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19365"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015356",
+      "descricao": "ELASTICO TUSTI 10MM",
+      "nomeProduto": "ELASTICO TUSTI 10MM AMENDOA U",
+      "grupo": "13308",
+      "cor": "1827",
+      "comprado": 2690.6,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19220"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11111,
+          "nome": "ELASTICO TUSTI 10MM CALLAS U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11112,
+          "nome": "ELASTICO TUSTI 10MM TRUFA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11416,
+          "nome": "ELASTICO TUSTI 10MM VANILLA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 1458,
+          "nome": "ELASTICO TUSTI 10MM PRETO U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1000984",
+      "descricao": "BJ 1900 CASCA C/ ALCA TAM 48",
+      "nomeProduto": "BJ 1900 CASCA C/ ALCA TAM 48 ESTLIEBE U",
+      "grupo": "931",
+      "cor": "1694",
+      "comprado": 0,
+      "futuro": 2672.04,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 343,
+          "cc": 1,
+          "nome": "BOJO MP 02 0206",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 0
+    },
+    {
+      "mp": "1016409",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/200G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G NAVY U",
+      "grupo": "14671",
+      "cor": "1755",
+      "comprado": 2490,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19368"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11516,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11517,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G ROSEWOOD U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11521,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11522,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016466",
+      "descricao": "ELAST MANACA BRILHOSO 13MM",
+      "nomeProduto": "ELAST MANACA BRILHOSO 13MM AMENDOA U",
+      "grupo": "14752",
+      "cor": "1827",
+      "comprado": 2380,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19320"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11543,
+          "nome": "ELAST MANACA BRILHOSO 13MM TRUFA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11544,
+          "nome": "ELAST MANACA BRILHOSO 13MM VANILLA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11545,
+          "nome": "ELAST MANACA BRILHOSO 13MM PRETO U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016341",
+      "descricao": "LINHA 100% POLIESTER 2.500M POLI POLI",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI CALLAS U",
+      "grupo": "14669",
+      "cor": "1785",
+      "comprado": 2130,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19365",
+            "pedido_item_19369"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11509,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11512,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11514,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11515,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 2
+    },
+    {
+      "mp": "1001449",
+      "descricao": "ELAST. PAJAU 14 MM",
+      "nomeProduto": "ELAST. PAJAU 14 MM BRANCO U",
+      "grupo": "1029",
+      "cor": "100",
+      "comprado": 2021.93,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 415,
+          "cc": 1,
+          "nome": "ELASTICO 332",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        },
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19262"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11022,
+          "nome": "AVIAMENTO ELAST. PAJAU 14 MM LOVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11023,
+          "nome": "ELAST. PAJAU 14 MM TRUFA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11024,
+          "nome": "ELAST. PAJAU 14 MM MAUVE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11025,
+          "nome": "ELAST. PAJAU 14 MM VANILLA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11356,
+          "nome": "ELAST. PAJAU 14 MM SUEDE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11357,
+          "nome": "ELAST. PAJAU 14 MM AMEIXA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11358,
+          "nome": "ELAST. PAJAU 14 MM MALAGUETA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 1455,
+          "nome": "ELAST. PAJAU 14 MM PRETO U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015830",
+      "descricao": "ELAST. TATTO 13MM",
+      "nomeProduto": "ELAST. TATTO 13MM AMENDOA U",
+      "grupo": "14217",
+      "cor": "1827",
+      "comprado": 1990,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19208"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11185,
+          "nome": "ELAST. TATTO 13MM SUEDE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11186,
+          "nome": "ELAST. TATTO 13MM PRETO U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1005839",
+      "descricao": "RENDA 171145 100%POLIAMIDA",
+      "nomeProduto": "RENDA 171145 100%POLIAMIDA BRANCO U",
+      "grupo": "5852",
+      "cor": "100",
+      "comprado": 1980,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_13487",
+            "pedido_item_15248",
+            "pedido_item_19151"
+          ]
+        },
+        {
+          "despesa": 108,
+          "cc": 1,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_5098",
+            "pedido_capa_5098",
+            "pedido_capa_5680"
+          ]
+        },
+        {
+          "despesa": 453,
+          "cc": 1,
+          "nome": "RENDA 01 1096",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 5
+    },
+    {
+      "mp": "1016346",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/200G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G TRUFA U",
+      "grupo": "14671",
+      "cor": "1885",
+      "comprado": 1792.8,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19368"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11516,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11517,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G ROSEWOOD U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11521,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11522,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015870",
+      "descricao": "ABOTOADOR 100MM X 05 REGULAGEM - 8758485",
+      "nomeProduto": "ABOTOADOR 100MM X 05 REGULAGEM - 8758485 SUEDE U",
+      "grupo": "12483",
+      "cor": "0045",
+      "comprado": 1750,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 178,
+          "cc": 506,
+          "nome": "ABOTOADOR",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19499"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015467",
+      "descricao": "ELAST. MIRELA 13MM",
+      "nomeProduto": "ELAST. MIRELA 13MM AMEIXA U",
+      "grupo": "3719",
+      "cor": "1901",
+      "comprado": 1596,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19166"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016408",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/200G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G MAUVE U",
+      "grupo": "14671",
+      "cor": "2379",
+      "comprado": 1494,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19368"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11516,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11517,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G ROSEWOOD U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11521,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11522,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1001451",
+      "descricao": "ELAST. PAJAU 14 MM",
+      "nomeProduto": "ELAST. PAJAU 14 MM CHOCOLATE U",
+      "grupo": "1029",
+      "cor": "500",
+      "comprado": 1482,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 415,
+          "cc": 1,
+          "nome": "ELASTICO 332",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        },
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19262"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11022,
+          "nome": "AVIAMENTO ELAST. PAJAU 14 MM LOVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11023,
+          "nome": "ELAST. PAJAU 14 MM TRUFA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11024,
+          "nome": "ELAST. PAJAU 14 MM MAUVE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11025,
+          "nome": "ELAST. PAJAU 14 MM VANILLA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11356,
+          "nome": "ELAST. PAJAU 14 MM SUEDE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11357,
+          "nome": "ELAST. PAJAU 14 MM AMEIXA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11358,
+          "nome": "ELAST. PAJAU 14 MM MALAGUETA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 1455,
+          "nome": "ELAST. PAJAU 14 MM PRETO U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016419",
+      "descricao": "LINHA 100% POLIESTER 2.500M POLI POLI",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI MAUVE U",
+      "grupo": "14669",
+      "cor": "2379",
+      "comprado": 1420,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19365"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11509,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11512,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11514,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11515,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016343",
+      "descricao": "LINHA 100% POLIESTER 2.500M POLI POLI",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI TRUFA U",
+      "grupo": "14669",
+      "cor": "1885",
+      "comprado": 1420,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19365"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11509,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11512,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11514,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11515,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016427",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/200G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G LOVE U",
+      "grupo": "14671",
+      "cor": "0071",
+      "comprado": 1328,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19368"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11516,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11517,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G ROSEWOOD U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11521,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11522,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016061",
+      "descricao": "ELAST. PAJAU 12 MM",
+      "nomeProduto": "ELAST. PAJAU 12 MM MALAGUETA U",
+      "grupo": "1039",
+      "cor": "1906",
+      "comprado": 1260,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19200"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11034,
+          "nome": "ELAST. PAJAU 12 MM TRUFA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11368,
+          "nome": "ELAST. PAJAU 12 MM SUEDE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11369,
+          "nome": "ELAST. PAJAU 12 MM VANILLA U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1011998",
+      "descricao": "ELAST. NILLO 16MM C/100MT",
+      "nomeProduto": "AVIAMENTO ELAST. NILLO 16MM C/100MT AMENDOA U",
+      "grupo": "999",
+      "cor": "1827",
+      "comprado": 1223.6,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19166"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11288,
+          "nome": "ELAST. NILLO 16MM C/100MT SUEDE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11289,
+          "nome": "ELAST. NILLO 16MM C/100MT NUDE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11290,
+          "nome": "ELAST. NILLO 16MM C/100MT TRUFA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11291,
+          "nome": "ELAST. NILLO 16MM C/100MT MAUVE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11292,
+          "nome": "ELAST. NILLO 16MM C/100MT PRETO U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11293,
+          "nome": "ELAST. NILLO 16MM C/100MT CHOCOLATE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11706,
+          "nome": "ELAST. NILLO 16MM C/100MT DUNA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11707,
+          "nome": "ELAST. NILLO 16MM C/100MT AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11708,
+          "nome": "ELAST. NILLO 16MM C/100MT OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11709,
+          "nome": "ELAST. NILLO 16MM C/100MT MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11710,
+          "nome": "ELAST. NILLO 16MM C/100MT VANILLA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11711,
+          "nome": "ELAST. NILLO 16MM C/100MT BERINGELA U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015442",
+      "descricao": "ELAST. MIRELA 10MM",
+      "nomeProduto": "ELAST. MIRELA 10MM AMEIXA U",
+      "grupo": "1007",
+      "cor": "1901",
+      "comprado": 1210.6,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19166"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11000,
+          "nome": "ELAST. MIRELA 10MM NUDE U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1001500",
+      "descricao": "ELAST. PAJAU 12 MM",
+      "nomeProduto": "ELAST. PAJAU 12 MM PRETO U",
+      "grupo": "1039",
+      "cor": "300",
+      "comprado": 1145,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 414,
+          "cc": 1,
+          "nome": "ELASTICO 339",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        },
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19262"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11034,
+          "nome": "ELAST. PAJAU 12 MM TRUFA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11368,
+          "nome": "ELAST. PAJAU 12 MM SUEDE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11369,
+          "nome": "ELAST. PAJAU 12 MM VANILLA U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016259",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/200G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G MILKSHAKE U",
+      "grupo": "14671",
+      "cor": "1902",
+      "comprado": 1079,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19374"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11516,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11517,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G ROSEWOOD U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11521,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11522,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016420",
+      "descricao": "LINHA 100% POLIESTER 2.500M POLI POLI",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI NAVY U",
+      "grupo": "14669",
+      "cor": "1755",
+      "comprado": 1065,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19365"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11509,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11512,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11514,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11515,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1001434",
+      "descricao": "ELAST. JATAI 14MM",
+      "nomeProduto": "ELAST. JATAI 14MM PRETO U",
+      "grupo": "1025",
+      "cor": "300",
+      "comprado": 1044.5,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 402,
+          "cc": 1,
+          "nome": "ELASTICO 329",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        },
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19200"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015682",
+      "descricao": "ELAST. NILLO 25MM",
+      "nomeProduto": "ELAST. NILLO 25MM MALAGUETA U",
+      "grupo": "1011",
+      "cor": "1906",
+      "comprado": 901.4,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19166"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11001,
+          "nome": "ELAST. NILLO 25MM BRANCO U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11002,
+          "nome": "ELAST. NILLO 25MM CHOCOLATE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 1454,
+          "nome": "ELAST. NILLO 25MM AMEIXA U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016058",
+      "descricao": "ELAST. NILLO 25MM",
+      "nomeProduto": "ELAST. NILLO 25MM OLIVE U",
+      "grupo": "1011",
+      "cor": "1903",
+      "comprado": 901.4,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19166"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11001,
+          "nome": "ELAST. NILLO 25MM BRANCO U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11002,
+          "nome": "ELAST. NILLO 25MM CHOCOLATE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 1454,
+          "nome": "ELAST. NILLO 25MM AMEIXA U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015566",
+      "descricao": "ELAST LOTUS 4MM",
+      "nomeProduto": "ELAST LOTUS 4MM MALAGUETA U",
+      "grupo": "17197",
+      "cor": "1906",
+      "comprado": 890,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19313"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11598,
+          "nome": "ELAST LOTUS 4MM BRANCO U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015856",
+      "descricao": "ELAST. TATTO 10MM",
+      "nomeProduto": "ELAST. TATTO 10MM AMENDOA U",
+      "grupo": "14210",
+      "cor": "1827",
+      "comprado": 0,
+      "futuro": 855.33,
+      "despesasNomeExato": [],
+      "candidatosProprios": [],
+      "despesasIrmas": [
+        {
+          "despesa": 11183,
+          "nome": "ELAST. TATTO 10MM SUEDE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11184,
+          "nome": "ELAST. TATTO 10MM PRETO U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016254",
+      "descricao": "BJ 213.385 EXT CONFORT TAM 52",
+      "nomeProduto": "BJ 213.385 EXT CONFORT TAM 52 AMEIXA U",
+      "grupo": "935",
+      "cor": "1901",
+      "comprado": 829.6,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 106,
+          "cc": 506,
+          "nome": "BOJO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19174"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11269,
+          "nome": "BJ EXTRA CONFORT 213.385 TAM:52 NUDE U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015723",
+      "descricao": "ELAST. JATAI 14MM",
+      "nomeProduto": "ELAST. JATAI 14MM AMENDOA U",
+      "grupo": "1025",
+      "cor": "1827",
+      "comprado": 0,
+      "futuro": 805.1,
+      "despesasNomeExato": [],
+      "candidatosProprios": [],
+      "despesasIrmas": [],
+      "pedidos": 0
+    },
+    {
+      "mp": "1016191",
+      "descricao": "ELAST MANACA BRILHOSO 10MM",
+      "nomeProduto": "ELAST MANACA BRILHOSO 10MM AMENDOA U",
+      "grupo": "14743",
+      "cor": "1827",
+      "comprado": 730,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19208"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11534,
+          "nome": "ELAST MANACA BRILHOSO 10MM MILKSHAKE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11535,
+          "nome": "ELAST MANACA BRILHOSO 10MM MALAGUETA U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016344",
+      "descricao": "LINHA 100% POLIESTER 2.500M POLI POLI",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI LOVE U",
+      "grupo": "14669",
+      "cor": "0071",
+      "comprado": 568,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19365"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11509,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11512,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11514,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11515,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016198",
+      "descricao": "ELAST MANACA BRILHOSO 10MM",
+      "nomeProduto": "ELAST MANACA BRILHOSO 10MM DUNA U",
+      "grupo": "14743",
+      "cor": "1900",
+      "comprado": 504.43,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19208"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11534,
+          "nome": "ELAST MANACA BRILHOSO 10MM MILKSHAKE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11535,
+          "nome": "ELAST MANACA BRILHOSO 10MM MALAGUETA U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016502",
+      "descricao": "ELAST MANACA BRILHOSO 7MM",
+      "nomeProduto": "ELAST MANACA BRILHOSO 7MM BERINGELA U",
+      "grupo": "1034",
+      "cor": "2381",
+      "comprado": 500,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19320"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11360,
+          "nome": "ELAST MANACA BRILHOSO 7MM NUDE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11361,
+          "nome": "ELAST MANACA BRILHOSO 7MM AMEIXA U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015817",
+      "descricao": "TULE INVISIBLE M11TL0139CTLG",
+      "nomeProduto": "TULE INVISIBLE M11TL0139CTLG BREAD 00019 U",
+      "grupo": "17638",
+      "cor": "1855",
+      "comprado": 495,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 183,
+          "cc": 506,
+          "nome": "TULE",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19190"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    },
+    {
+      "mp": "1002831",
+      "descricao": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482",
+      "nomeProduto": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 BRANCO U",
+      "grupo": "613",
+      "cor": "100",
+      "comprado": 0,
+      "futuro": 461.2,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 294,
+          "cc": 1,
+          "nome": "ABOTOADOR MP 02 0036",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11332,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 TRUFA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11333,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 PRETO U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11684,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 SUEDE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11685,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11686,
+          "nome": "ABOTOADOR 40MM X 03 REGULAGEM - 8758482 VANILLA U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 0
+    },
+    {
+      "mp": "1006099",
+      "descricao": "ELAST. NILLO 25MM",
+      "nomeProduto": "ELAST. NILLO 25MM SUEDE U",
+      "grupo": "1011",
+      "cor": "0045",
+      "comprado": 450.7,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 413,
+          "cc": 1,
+          "nome": "ELASTICO MP 02 0319",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        },
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19166"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11001,
+          "nome": "ELAST. NILLO 25MM BRANCO U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11002,
+          "nome": "ELAST. NILLO 25MM CHOCOLATE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 1454,
+          "nome": "ELAST. NILLO 25MM AMEIXA U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016251",
+      "descricao": "LINHA 100% POLIESTER 2.500M POLI POLI",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI MILKSHAKE U",
+      "grupo": "14669",
+      "cor": "1902",
+      "comprado": 426,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19365"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11509,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11512,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11514,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11515,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016350",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/300G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/300G SUEDE U",
+      "grupo": "14673",
+      "cor": "0045",
+      "comprado": 360,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 185,
+          "cc": 501,
+          "nome": "LINHAS E FIOS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19206"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    },
+    {
+      "mp": "1015237",
+      "descricao": "RENDA 171145 100%POLIAMIDA",
+      "nomeProduto": "RENDA 171145 100%POLIAMIDA AZUL AURA U",
+      "grupo": "5852",
+      "cor": "1892",
+      "comprado": 0,
+      "futuro": 306.83,
+      "despesasNomeExato": [],
+      "candidatosProprios": [],
+      "despesasIrmas": [],
+      "pedidos": 0
+    },
+    {
+      "mp": "1014857",
+      "descricao": "ELAST. PAJAU 14 MM",
+      "nomeProduto": "ELAST. PAJAU 14 MM VERDINHO U",
+      "grupo": "1029",
+      "cor": "1888",
+      "comprado": 0,
+      "futuro": 261.86,
+      "despesasNomeExato": [],
+      "candidatosProprios": [],
+      "despesasIrmas": [
+        {
+          "despesa": 11022,
+          "nome": "AVIAMENTO ELAST. PAJAU 14 MM LOVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11023,
+          "nome": "ELAST. PAJAU 14 MM TRUFA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11024,
+          "nome": "ELAST. PAJAU 14 MM MAUVE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11025,
+          "nome": "ELAST. PAJAU 14 MM VANILLA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11356,
+          "nome": "ELAST. PAJAU 14 MM SUEDE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11357,
+          "nome": "ELAST. PAJAU 14 MM AMEIXA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11358,
+          "nome": "ELAST. PAJAU 14 MM MALAGUETA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 1455,
+          "nome": "ELAST. PAJAU 14 MM PRETO U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 0
+    },
+    {
+      "mp": "1016407",
+      "descricao": "FIO HELANSTAR 100% POLIAMIDA C/200G",
+      "nomeProduto": "FIO HELANSTAR 100% POLIAMIDA C/200G LUMIAR U",
+      "grupo": "14671",
+      "cor": "1864",
+      "comprado": 0,
+      "futuro": 257.14,
+      "despesasNomeExato": [],
+      "candidatosProprios": [],
+      "despesasIrmas": [
+        {
+          "despesa": 11516,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11517,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G ROSEWOOD U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11518,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11519,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11520,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11521,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11522,
+          "nome": "FIO HELANSTAR 100% POLIAMIDA C/200G MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 0
+    },
+    {
+      "mp": "1016422",
+      "descricao": "LINHA 100% POLIESTER 2.500M POLI POLI",
+      "nomeProduto": "LINHA 100% POLIESTER 2.500M POLI POLI OCEANO U",
+      "grupo": "14669",
+      "cor": "1889",
+      "comprado": 0,
+      "futuro": 253.05,
+      "despesasNomeExato": [],
+      "candidatosProprios": [],
+      "despesasIrmas": [
+        {
+          "despesa": 11509,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMENDOA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11510,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI LUMIAR U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11511,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI DUNA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11512,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI AMEIXA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11513,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI OLIVE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11514,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALAGUETA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11515,
+          "nome": "LINHA 100% POLIESTER 2.500M POLI POLI MALBEC U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 0
+    },
+    {
+      "mp": "5000117",
+      "descricao": "",
+      "nomeProduto": "SACO ADESIVADO PE 14X20(17+3)X0,12 PRATA",
+      "grupo": "283",
+      "cor": "1009",
+      "comprado": 0,
+      "futuro": 251.65,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 3,
+          "cc": 1,
+          "nome": "EMBALAGENS",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 0
+    },
+    {
+      "mp": "1015035",
+      "descricao": "REGULADOR APR 000/B - 8MM PLAST",
+      "nomeProduto": "REGULADOR APR 000/B - 8MM PLAST POP U",
+      "grupo": "11380",
+      "cor": "1890",
+      "comprado": 0,
+      "futuro": 250,
+      "despesasNomeExato": [],
+      "candidatosProprios": [],
+      "despesasIrmas": [
+        {
+          "despesa": 11066,
+          "nome": "AVIAMENTO REGULADOR APR 000/B - 8MM PLAST CONHAQUE U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11067,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST VANILLA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11068,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST PRETO U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11391,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST NUDE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11392,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST NAVY U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11393,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST ROSEWOOD U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11394,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST AMEIXA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11395,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST OLIVE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11396,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST MALAGUETA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11397,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST BERINGELA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11398,
+          "nome": "REGULADOR APR 000/B - 8MM PLAST CHOCOLATE U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 0
+    },
+    {
+      "mp": "1006467",
+      "descricao": "FITA DE CETIM SIMPL 004 MM",
+      "nomeProduto": "FITA DE CETIM SIMPL 004 MM BRANCO U",
+      "grupo": "6966",
+      "cor": "100",
+      "comprado": 239,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 299,
+          "cc": 506,
+          "nome": "ACESSORIO >R$1 2336",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19265"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016337",
+      "descricao": "ELAST. JATAI 10MM",
+      "nomeProduto": "ELAST. JATAI 10MM MALAGUETA U",
+      "grupo": "1045",
+      "cor": "1906",
+      "comprado": 96.89,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19200"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016046",
+      "descricao": "ELAST. DONNA 17MM",
+      "nomeProduto": "ELAST. DONNA 17MM AMEIXA U",
+      "grupo": "1069",
+      "cor": "1901",
+      "comprado": 64.13,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19200"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11042,
+          "nome": "ELAST. DONNA 17MM BRANCO U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11043,
+          "nome": "ELAST. DONNA 17MM NUDE U",
+          "noPlano500Cc506": false
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1016227",
+      "descricao": "ELAST MANACA BRILHOSO 13MM",
+      "nomeProduto": "ELAST MANACA BRILHOSO 13MM ROSEWOOD U",
+      "grupo": "14752",
+      "cor": "1899",
+      "comprado": 19.04,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 107,
+          "cc": 506,
+          "nome": "ELASTICO",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19208"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11543,
+          "nome": "ELAST MANACA BRILHOSO 13MM TRUFA U",
+          "noPlano500Cc506": false
+        },
+        {
+          "despesa": 11544,
+          "nome": "ELAST MANACA BRILHOSO 13MM VANILLA U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11545,
+          "nome": "ELAST MANACA BRILHOSO 13MM PRETO U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1002448",
+      "descricao": "FECHO GIRATORIO 18 MM C/ LOGO",
+      "nomeProduto": "FECHO GIRATORIO 18 MM C/ LOGO PRETO U",
+      "grupo": "1443",
+      "cor": "300",
+      "comprado": 0.27,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 2,
+          "cc": 1,
+          "nome": "ACESSORIOS < R$ 1,00 MP",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "produto"
+          ]
+        },
+        {
+          "despesa": 299,
+          "cc": 506,
+          "nome": "ACESSORIO >R$1 2336",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_19519"
+          ]
+        }
+      ],
+      "despesasIrmas": [
+        {
+          "despesa": 11199,
+          "nome": "FECHO GIRATORIO 18 MM C/ LOGO SUEDE U",
+          "noPlano500Cc506": true
+        },
+        {
+          "despesa": 11487,
+          "nome": "FECHO GIRATORIO 18 MM C/ LOGO CALLAS U",
+          "noPlano500Cc506": true
+        }
+      ],
+      "pedidos": 1
+    },
+    {
+      "mp": "1014961",
+      "descricao": "RENDA EL412209",
+      "nomeProduto": "RENDA EL412209 LOVE U",
+      "grupo": "13929",
+      "cor": "0071",
+      "comprado": 0,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_17476"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    },
+    {
+      "mp": "1014974",
+      "descricao": "RENDA JL20686KNM (BICOLOR)",
+      "nomeProduto": "RENDA JL20686KNM (BICOLOR) NECTAR U",
+      "grupo": "13954",
+      "cor": "1887",
+      "comprado": 0,
+      "futuro": 0,
+      "despesasNomeExato": [],
+      "candidatosProprios": [
+        {
+          "despesa": 108,
+          "cc": 506,
+          "nome": "RENDA",
+          "noPlano500Cc506": false,
+          "fontes": [
+            "pedido_item_17476"
+          ]
+        }
+      ],
+      "despesasIrmas": [],
+      "pedidos": 1
+    }
+  ]
+}
