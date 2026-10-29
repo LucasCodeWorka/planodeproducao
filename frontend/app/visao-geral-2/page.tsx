@@ -1346,6 +1346,15 @@ export default function VisaoGeral2Page() {
       });
     }
 
+    // Mes -> periodo do plano, para os meses projetados que JA tem periodo (QU e SX hoje).
+    // A `gap-mensal` devolve os seis periodos com dias necessarios e disponiveis ACUMULADOS,
+    // mas so as linhas MA..QT liam esses campos — fevereiro e marco mostravam o plano sem o
+    // percentual de ocupacao e sem o gap em dias, que e justamente o que diz se ele cabe.
+    const periodoDoMes: Record<number, string> = {};
+    for (const [per, mes] of Object.entries(resumoDiasEfetivo.periodos || {})) {
+      const n = Number(mes || 0);
+      if (n >= 1 && n <= 12) periodoDoMes[n] = String(per).trim().toUpperCase();
+    }
     const ultimoFechado = Number(resumoDiasEfetivo.periodos?.QT || 0);
     data.meses.forEach((m, i) => {
       const mes = i + 1;
@@ -1395,6 +1404,16 @@ export default function VisaoGeral2Page() {
         diasDisponiveis: m.diasDisponiveis,
         pendenteBaixa: baixaDe(data.anoDestino, mes),
         pendenteSaldo: (saldoPendente = Math.max(0, saldoPendente - baixaDe(data.anoDestino, mes))),
+        // Ocupacao e gap ACUMULADOS, da mesma `gap-mensal` que alimenta as linhas fechadas e
+        // a Cobertura do Plano da tela principal. Fica indefinido nos meses sem periodo
+        // (abr/27 em diante), onde nao existe plano para ocupar nada.
+        ...(() => {
+          const per = periodoDoMes[mes];
+          const cob = per ? data.coberturaPorPeriodo?.[per] : undefined;
+          return cob
+            ? { necAcumPlano: cob.nec, dispAcumPlano: cob.disp, gapAcumPlano: cob.gap, ocupAcumPlano: cob.ocup ?? undefined }
+            : {};
+        })(),
         travado: false,
       });
     });
