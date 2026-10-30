@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -468,6 +468,70 @@ export default function SugestaoPlanoPage() {
   // Vazio = comportamento de sempre.
   type PlanoPeriodos = Partial<Record<Lowercase<PeriodoAlvo>, number>>;
   const [planoLote, setPlanoLote] = useState<Map<string, PlanoPeriodos>>(new Map());
+
+  // ── SIMULACOES JA SALVAS, APLICADAS POR CIMA DA MATRIZ ──────────────────────────
+  //
+  // O plano e arrastado, mas o periodo seguinte so enxerga o anterior depois que o Fagner
+  // implanta no ERP. O lote resolvia isso rodando tudo numa cascata — e na pratica ficou
+  // dificil de conferir, porque o PCP perde o controle de um periodo por vez.
+  //
+  // Aqui e o caminho do meio, igual ao seletor de SIMULACAO da tela principal: emite ST,
+  // salva, e na hora de emitir OT marca a simulacao do ST. O motor passa a ler o plano
+  // DELA no lugar do que esta na matriz, sem nada ter ido para o ERP.
+  //
+  // Cada simulacao sobrepoe SOMENTE o periodo que ela emitiu (`periodoAlvo`). Aplicar os
+  // nove campos faria a simulacao do ST tambem reescrever OT e NV com a foto velha da
+  // matriz que ela carregava — justamente os periodos que ainda vao ser calculados.
+  type SimSalva = { id: string; nome: string; criadaEm: number; periodo: PeriodoAlvo; campo: Lowercase<PeriodoAlvo>; pecas: number; planos: { chave: string }[] };
+  const [simulacoesSalvas, setSimulacoesSalvas] = useState<SimSalva[]>([]);
+  const [simsAplicadas, setSimsAplicadas] = useState<Set<string>>(new Set());
+  const [simsAberto, setSimsAberto] = useState(false);
+
+  const planoDeSimulacoes = useMemo(() => {
+    const mapa = new Map<string, PlanoPeriodos>();
+    // Ordem cronologica: a simulacao mais nova do mesmo periodo prevalece.
+    const aplicaveis = simulacoesSalvas
+      .filter((s) => simsAplicadas.has(s.id))
+      .sort((a, b) => a.criadaEm - b.criadaEm);
+    for (const sim of aplicaveis) {
+      for (const linha of sim.planos) {
+        const chave = String(linha?.chave || '').trim();
+        if (!chave) continue;
+        const atual = mapa.get(chave) || {};
+        atual[sim.campo] = Math.round(Number((linha as unknown as Record<string, number>)[sim.campo] || 0));
+        mapa.set(chave, atual);
+      }
+    }
+    return mapa;
+  }, [simulacoesSalvas, simsAplicadas]);
+
+  async function carregarSimulacoesSalvas() {
+    try {
+      const r = await fetchNoCache(`${API_URL}/api/simulacoes?limit=30`, { headers: authHeaders() });
+      const p = await r.json();
+      const lista: SimSalva[] = (Array.isArray(p?.data) ? p.data : [])
+        .map((x: { id?: string; nome?: string; createdAt?: number; parametros?: { periodoAlvo?: string; planos?: { chave: string }[] }; resumo?: { aumentoTotal?: number } }) => {
+          const per = String(x?.parametros?.periodoAlvo || '').trim().toUpperCase();
+          if (!(PERIODOS as readonly string[]).includes(per) || per === 'MA') return null;
+          const planos = Array.isArray(x?.parametros?.planos) ? x.parametros!.planos! : [];
+          if (!planos.length) return null;
+          return {
+            id: String(x.id),
+            nome: String(x.nome || ''),
+            criadaEm: Number(x.createdAt || 0),
+            periodo: per as PeriodoAlvo,
+            campo: campoDoPeriodo(per as PeriodoAlvo),
+            pecas: Number(x?.resumo?.aumentoTotal || 0),
+            planos,
+          };
+        })
+        .filter(Boolean) as SimSalva[];
+      setSimulacoesSalvas(lista.sort((a, b) => b.criadaEm - a.criadaEm));
+    } catch {
+      setSimulacoesSalvas([]);
+    }
+  }
+  useEffect(() => { carregarSimulacoesSalvas(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
   // Fila do lote. O calculo e um useMemo que reage a `periodoAlvo`, entao a sequencia e
   // dirigida por fora: troca o periodo, espera o render, colhe o resultado, avanca.
   const [lote, setLote] = useState<{ fila: PeriodoAlvo[]; indice: number; resumo: { periodo: PeriodoAlvo; pecas: number; alterados: number }[] } | null>(null);
@@ -1111,10 +1175,16 @@ export default function SugestaoPlanoPage() {
       // que faz a emissao em sequencia funcionar sem passar pelo ERP no meio: o disponivel
       // que sobra de um periodo vira a base do proximo (dispMA -> ... -> dispSX logo abaixo).
       // Fora do lote o mapa fica vazio e tudo segue vindo da matriz, como sempre.
-      const planoLoteDoSku = planoLote.get(chaveItem(item));
+      const chaveDoItem = chaveItem(item);
+      const planoLoteDoSku = planoLote.get(chaveDoItem);
+      const planoSimDoSku = planoDeSimulacoes.get(chaveDoItem);
       const planoDoPeriodo = (per: Lowercase<PeriodoAlvo>) => {
+        // Precedencia: o lote em memoria (decisao desta sessao) ganha da simulacao salva,
+        // que ganha da matriz (o que esta no ERP). Da mais novo para o mais antigo.
         const doLote = planoLoteDoSku?.[per];
         if (doLote !== undefined) return Number(doLote);
+        const daSim = planoSimDoSku?.[per];
+        if (daSim !== undefined) return Number(daSim);
         return Number((item.plano as unknown as Record<string, number> | undefined)?.[per] || 0);
       };
       const pMA = planoDoPeriodo('ma');
@@ -1870,7 +1940,7 @@ export default function SugestaoPlanoPage() {
     logDiagnosticoChave('4-rowsCap (fim capacidade)', rowsCap);
     logTempoSugestao('calculo rows', tRows, `periodo=${periodoAlvo} fase=capacidade items=${rowsCap.length}`);
     return rowsCap;
-  }, [dadosBase, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, filtroSuspensos, modoEmissaoAlvo, pctCapacidade, gapMensal, capacidadeRealGrupos, planoLote]);
+  }, [dadosBase, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, filtroSuspensos, modoEmissaoAlvo, pctCapacidade, gapMensal, capacidadeRealGrupos, planoLote, planoDeSimulacoes]);
 
   // Motor do lote: colhe o periodo que acabou de ser calculado e avanca para o proximo.
   //
@@ -2886,6 +2956,13 @@ export default function SugestaoPlanoPage() {
             aplicarSomenteVisiveis: salvarSomenteVisiveis,
             somenteReducao: salvarSomenteReducao,
             atenderNegativos,
+            // Rastro de quais simulacoes salvas foram aplicadas por cima da matriz neste
+            // calculo. Sem isto, duas sugestoes do mesmo periodo com numeros diferentes
+            // ficariam indistinguiveis — a diferenca esta justamente no que cada uma
+            // considerou como ja decidido.
+            simulacoesConsideradas: simulacoesSalvas
+              .filter((x) => simsAplicadas.has(x.id))
+              .map((x) => ({ id: x.id, periodo: x.periodo, nome: x.nome })),
             planoCompleto: true,
           },
           usarEstoqueLojas,
@@ -2920,6 +2997,9 @@ export default function SugestaoPlanoPage() {
       const escopoMsg = 'plano completo com restante sem alteração';
       const reducaoMsg = salvarSomenteReducao ? ' somente reduções' : '';
       const negativosMsg = negativosAtendidos.length > 0 ? ` + ${negativosAtendidos.length} negativos atendidos (+${fmt(deltaNegativosAtendidos)} pçs)` : '';
+      // Recarrega a lista para a sugestao recem-salva ja aparecer em "Considerar
+      // simulação" — e esse o fluxo: salva ST, marca ST, emite OT.
+      await carregarSimulacoesSalvas();
       setOkMsg(`Sugestão salva com ${alterados.length} itens alterados e ${planos.length} itens no ${escopoMsg}${reducaoMsg}${negativosMsg}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar sugestão');
@@ -3218,6 +3298,67 @@ export default function SugestaoPlanoPage() {
                       <option value="COBERTURA">Cobertura</option>
                     </select>
                   </label>
+                )}
+                {/* CONSIDERAR SIMULACOES JA SALVAS. Emite ST, salva, marca aqui, e o OT
+                    sai ja contando com o ST — sem nada ter ido para o ERP. E o seletor de
+                    SIMULACAO da tela principal, trazido para onde o plano e feito. */}
+                {periodoAlvo !== 'MA' && simulacoesSalvas.length > 0 && (
+                  <div className="relative flex flex-col">
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Considerar simulação</span>
+                    <button
+                      type="button"
+                      onClick={() => setSimsAberto((v) => !v)}
+                      disabled={!!lote}
+                      title="Aplica o plano de simulações já salvas por cima da matriz, como se elas estivessem implantadas. Só o período que cada uma emitiu é sobreposto."
+                      className={`flex items-center gap-2 rounded border px-2 py-1.5 text-sm font-medium disabled:opacity-50 ${
+                        simsAplicadas.size > 0 ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-gray-300 bg-gray-50 hover:bg-white'
+                      }`}
+                    >
+                      {simsAplicadas.size}/{simulacoesSalvas.length}
+                      <span className="text-[10px] text-gray-500">{simsAberto ? '▴' : '▾'}</span>
+                    </button>
+                    {simsAberto && (
+                      <div className="absolute top-full z-30 mt-1 w-80 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+                        <div className="mb-1 flex items-center justify-between gap-2 px-1">
+                          <span className="text-[11px] text-gray-500">Últimas {simulacoesSalvas.length} salvas</span>
+                          <button type="button" onClick={() => setSimsAplicadas(new Set())} className="rounded border border-gray-200 px-2 py-0.5 text-[11px] hover:bg-gray-50">Limpar</button>
+                        </div>
+                        <div className="max-h-60 overflow-y-auto">
+                          {simulacoesSalvas.map((sim) => {
+                            // Emitir OT lendo uma simulacao de OT seria circular: ela
+                            // sobreporia o proprio periodo que esta sendo calculado.
+                            const circular = sim.periodo === periodoAlvo;
+                            const marcada = simsAplicadas.has(sim.id);
+                            return (
+                              <label
+                                key={sim.id}
+                                title={circular ? `Esta simulação é do próprio ${periodoAlvo} que você está emitindo — ela sobreporia o cálculo.` : sim.nome}
+                                className={`flex items-center gap-2 rounded px-1 py-1 text-xs ${circular ? 'opacity-40' : 'cursor-pointer hover:bg-gray-50'}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  disabled={circular}
+                                  checked={marcada}
+                                  onChange={(e) => setSimsAplicadas((atual) => {
+                                    const novo = new Set(atual);
+                                    if (e.target.checked) novo.add(sim.id); else novo.delete(sim.id);
+                                    return novo;
+                                  })}
+                                  className="h-3.5 w-3.5 accent-amber-600"
+                                />
+                                <span className="w-8 shrink-0 font-mono font-bold text-amber-800">{sim.periodo}</span>
+                                <span className="shrink-0 font-mono text-gray-600">{fmt(sim.pecas)}</span>
+                                <span className="truncate text-gray-500">{new Date(sim.criadaEm).toLocaleDateString('pt-BR')}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-1 border-t border-gray-100 px-1 pt-1 text-[10px] leading-snug text-gray-500">
+                          Sobrepõe só o período de cada simulação. O lote em memória, quando existe, prevalece.
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
                 {/* Só de PX em diante: o fluxo de MA retorna antes do bloco de capacidade,
                     então em MA este seletor não teria efeito nenhum. */}
