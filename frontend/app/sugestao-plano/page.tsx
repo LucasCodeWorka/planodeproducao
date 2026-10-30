@@ -35,7 +35,29 @@ function logTempoSugestao(label: string, startedAt: number, extra?: string) {
   console.log(`[sugestao-plano] ${label}: ${elapsed.toFixed(1)}ms${extra ? ` — ${extra}` : ''}`);
 }
 
-type PeriodoAlvo = 'MA' | 'PX' | 'UL' | 'QT' | 'QU' | 'SX';
+// Rotulos posicionais do plano, iguais aos do ERP (`pcp_lotepv.cd_auxiliar`) e ao
+// PERIODOS_PLANO do backend: MA = mes atual, PX = proximo, UL = o seguinte, e dali pelo
+// ordinal — quarto, quinto, sexto, setimo, oitavo, nono.
+//
+// ST ja existia no ERP (producao abr/2027) e estava fora da lista, entao o plano dele era
+// invisivel. OT e NV entraram para o PCP emitir ate junho sem esperar a janela rolar.
+const PERIODOS = ['MA', 'PX', 'UL', 'QT', 'QU', 'SX', 'ST', 'OT', 'NV'] as const;
+type PeriodoAlvo = typeof PERIODOS[number];
+/** Campo do plano na matriz e no row: 'QU' -> 'qu'. */
+const campoDoPeriodo = (p: PeriodoAlvo) => p.toLowerCase() as Lowercase<PeriodoAlvo>;
+/** Quantos periodos a frente: MA = 0, PX = 1, ... NV = 8. */
+const ordemDoPeriodo = (p: PeriodoAlvo) => PERIODOS.indexOf(p);
+/**
+ * Mes (1-12) de um periodo, a partir do mes do MA. Os periodos sao consecutivos, entao o
+ * mes sai da propria posicao na lista — antes QT, QU e SX eram calculados a mao com
+ * `mesSeguinte` encadeado e o resto vinha de `periodos[...]`, o que impedia acrescentar
+ * periodo sem mexer em cada ternario.
+ */
+function mesDoPeriodoDe(periodos: PeriodosPlano, p: PeriodoAlvo) {
+  const base = Number(periodos.MA || 0);
+  if (!base) return 0;
+  return ((base - 1 + ordemDoPeriodo(p)) % 12) + 1;
+}
 type MAModo = 'EMERGENCIA' | 'COBERTURA';
 // Forma de emitir o plano. NECESSIDADE e o comportamento historico da tela: soma o que cada
 // SKU precisa para atingir a cobertura (bottom-up). CAPACIDADE parte de um teto de fabrica e
@@ -107,20 +129,16 @@ type Row = {
   planoSemCorte: number;
   projMes: number;
   dispAnterior: number;
+  // Disponivel DEPOIS de cada periodo, por rotulo. Era um campo por periodo; virou mapa
+  // pelo mesmo motivo do plano — acrescentar periodo nao pode exigir caçar ternarios.
+  dispPorPeriodo: Record<PeriodoAlvo, number>;
   dispMA: number;
-  dispPX: number;
-  dispUL: number;
-  dispQT: number;
-  dispQU: number;
-  dispSX: number;
   dispMesAlvo: number;
   coberturaMA: number;
-  planoMA: number;
-  planoPX: number;
-  planoUL: number;
-  planoQT: number;
-  planoQU: number;
-  planoSX: number;
+  // Plano de cada periodo, por rotulo: { MA: 100, PX: 0, ... NV: 0 }. Era um campo por
+  // periodo (planoMA..planoPeriodo.SX); virou mapa para acrescentar periodo nao exigir mexer em
+  // dezenas de ternarios espalhados.
+  planoPeriodo: Record<PeriodoAlvo, number>;
   planoAtual: number;
   planoSugerido: number;
   planoBaseSemOpMin: number;
@@ -440,6 +458,24 @@ export default function SugestaoPlanoPage() {
   const [salvarSomenteReducao, setSalvarSomenteReducao] = useState(false);
   const [atenderNegativos, setAtenderNegativos] = useState(false);
   const [capacidadeGrupos, setCapacidadeGrupos] = useState<GrupoCapacidadeConfig[]>([]);
+  // ── EMISSAO EM LOTE ───────────────────────────────────────────────────────────
+  // O plano e arrastado: o disponivel que sobra de um periodo e a base do seguinte. Por
+  // isso, hoje, cada periodo so pode ser emitido depois que o anterior foi implantado no
+  // ERP — cinco idas e voltas para cobrir PX..SX.
+  //
+  // `planoLote` guarda, por SKU, o plano que ESTA sessao ja decidiu. O motor le dele antes
+  // da matriz, entao o encadeamento acontece em memoria e os periodos saem numa rodada so.
+  // Vazio = comportamento de sempre.
+  type PlanoPeriodos = Partial<Record<Lowercase<PeriodoAlvo>, number>>;
+  const [planoLote, setPlanoLote] = useState<Map<string, PlanoPeriodos>>(new Map());
+  // Fila do lote. O calculo e um useMemo que reage a `periodoAlvo`, entao a sequencia e
+  // dirigida por fora: troca o periodo, espera o render, colhe o resultado, avanca.
+  const [lote, setLote] = useState<{ fila: PeriodoAlvo[]; indice: number; resumo: { periodo: PeriodoAlvo; pecas: number; alterados: number }[] } | null>(null);
+  const [resumoLote, setResumoLote] = useState<{ periodo: PeriodoAlvo; pecas: number; alterados: number }[]>([]);
+  // Intervalo escolhido pelo PCP: emite DE um periodo ATE outro, em cascata. MA fica fora
+  // porque tem modos proprios (emergencia/cobertura) e ja esta em execucao na fabrica.
+  const [loteDe, setLoteDe] = useState<PeriodoAlvo>('PX');
+  const [loteAte, setLoteAte] = useState<PeriodoAlvo>('NV');
   const [gapMensal, setGapMensal] = useState<GapMensal | null>(null);
   const [capacidadeRealGrupos, setCapacidadeRealGrupos] = useState<GrupoReal[]>([]);
   const [capacidadeGrupoRefs, setCapacidadeGrupoRefs] = useState<GrupoRefConfig[]>([]);
@@ -465,21 +501,31 @@ export default function SugestaoPlanoPage() {
   const [pctCapacidade, setPctCapacidade] = useState(90);
   const [somenteDeltaNegativo, setSomenteDeltaNegativo] = useState(false);
   const [somenteNegativoMA, setSomenteNegativoMA] = useState(false);
-  const [considerarCapacidade, setConsiderarCapacidade] = useState(false);
+  // EXCECOES de modo, por periodo. O lote e encadeado mas os periodos nao precisam ser
+  // emitidos da mesma forma: o caso real que originou isto foi "ST por capacidade, OT e NV
+  // por necessidade" — abril entra com estoque herdado e a necessidade sozinha deixaria a
+  // fabrica em metade de um mes, enquanto maio e junho ja caminham no ritmo da demanda.
+  // Vazio = todos os periodos seguem `modoEmissao`, que e o comportamento de sempre.
+  const [modoPorPeriodo, setModoPorPeriodo] = useState<Partial<Record<PeriodoAlvo, ModoEmissao>>>({});
 
+  // MA nunca usa capacidade: o fluxo dele retorna antes do bloco, e ele tem modos proprios.
+  const modoDoPeriodo = (p: PeriodoAlvo): ModoEmissao =>
+    (p === 'MA' ? 'NECESSIDADE' : (modoPorPeriodo[p] ?? modoEmissao));
+
+  // Modo do periodo que esta na tela. DERIVADO, nao estado: antes `considerarCapacidade` era
+  // um `useState` sincronizado por `useEffect`, e isso atrasava um render. No lote — que
+  // troca `periodoAlvo` sozinho e colhe o resultado assim que `rows` muda — esse atraso
+  // significava colher o periodo novo com o modo do periodo anterior. Derivando, o calculo
+  // e o modo andam sempre no mesmo render.
+  const modoEmissaoAlvo = modoDoPeriodo(periodoAlvo);
+  const considerarCapacidade = modoEmissaoAlvo === 'CAPACIDADE';
+
+  // Trocar o modo GERAL limpa as excecoes: senao o PCP mudaria o seletor e um periodo
+  // continuaria no modo antigo sem nada na tela dizendo por que.
   const aplicarModoEmissao = (novoModo: ModoEmissao) => {
     setModoEmissao(novoModo);
-    setConsiderarCapacidade(novoModo === 'CAPACIDADE' && periodoAlvo !== 'MA');
+    setModoPorPeriodo({});
   };
-
-  useEffect(() => {
-    if (periodoAlvo === 'MA') {
-      setConsiderarCapacidade(false);
-      setModoEmissao('NECESSIDADE');
-      return;
-    }
-    setConsiderarCapacidade(modoEmissao === 'CAPACIDADE');
-  }, [periodoAlvo, modoEmissao]);
 
   const [usarEstoqueLojas, setUsarEstoqueLojas] = useState(false);
   const [estoqueLojasDisponivel, setEstoqueLojasDisponivel] = useState<Map<number, EstoqueLojaDisponivelAggregado>>(new Map());
@@ -830,10 +876,8 @@ export default function SugestaoPlanoPage() {
   }, [considerarProjecaoNova, reprojecaoPreview, projecoes, periodos]);
 
   const resumoMudancaProjecao = useMemo(() => {
-    const mesQT = mesSeguinte(Number(periodos.UL || 0));
-    const mesQU = mesSeguinte(mesQT);
-    const mesSX = mesSeguinte(mesQU);
-    const targetMes = String(periodoAlvo === 'QT' ? mesQT : (periodoAlvo === 'QU' ? mesQU : (periodoAlvo === 'SX' ? mesSX : periodos[periodoAlvo])));
+    const mesDoPeriodo = (p: PeriodoAlvo) => mesDoPeriodoDe(periodos, p);
+    const targetMes = String(mesDoPeriodo(periodoAlvo));
     let alterados = 0;
     let originalTotal = 0;
     let novoTotal = 0;
@@ -880,9 +924,10 @@ export default function SugestaoPlanoPage() {
 
   const rows = useMemo<Row[]>(() => {
     const tRows = nowMs();
-    const mesQT = mesSeguinte(Number(periodos.UL || 0));
-    const mesQU = mesSeguinte(mesQT);
-    const mesSX = mesSeguinte(mesQU);
+    const mesDoPeriodo = (p: PeriodoAlvo) => mesDoPeriodoDe(periodos, p);
+    const mesQT = mesDoPeriodo('QT');
+    const mesQU = mesDoPeriodo('QU');
+    const mesSX = mesDoPeriodo('SX');
     // Agora todos os períodos (MA, PX, UL, QT, QU, SX) usam OP mínima e capacidade
     const alvoComOpMinECapacidade = true;
     // Capacidade por grupo, MEDIDA no ERP (minutos trabalhados / dias com movimento nos 3
@@ -1062,31 +1107,49 @@ export default function SugestaoPlanoPage() {
       const emP = Number(item.estoques.em_processo || 0);
       const dispAtual = estoqueAtual - pedidosPendentes;
       const dispAtualComProcesso = dispAtual + emP;
-      const pMA = Number(item.plano?.ma || 0);
-      const pPX = Number(item.plano?.px || 0);
-      const pUL = Number(item.plano?.ul || 0);
-      const pQT = Number((item.plano as { qt?: number } | undefined)?.qt || 0);
-      const pQU = Number((item.plano as { qu?: number } | undefined)?.qu || 0);
-      const pSX = Number((item.plano as { sx?: number } | undefined)?.sx || 0);
-      const prMA = projecaoMesPlanejamento(Number(projecoesAtivas[id]?.[String(periodos.MA)] || 0), periodos.MA);
-      const prPX = Number(projecoesAtivas[id]?.[String(periodos.PX)] || 0);
-      const prUL = Number(projecoesAtivas[id]?.[String(periodos.UL)] || 0);
-      const prQT = Number(projecoesAtivas[id]?.[String(mesQT)] || 0);
-      const prQU = Number(projecoesAtivas[id]?.[String(mesQU)] || 0);
-      const prSX = Number(projecoesAtivas[id]?.[String(mesSX)] || 0);
-      const dispMA = dispAtual + emP + pMA - prMA;
-      const dispPX = dispMA + pPX - prPX;
-      const dispUL = dispPX + pUL - prUL;
-      const dispQT = dispUL + pQT - prQT;
-      const dispQU = dispQT + pQU - prQU;
-      const dispSX = dispQU + pSX - prSX;
+      // Plano de cada periodo. O que o LOTE ja decidiu vence o que esta na matriz — e isso
+      // que faz a emissao em sequencia funcionar sem passar pelo ERP no meio: o disponivel
+      // que sobra de um periodo vira a base do proximo (dispMA -> ... -> dispSX logo abaixo).
+      // Fora do lote o mapa fica vazio e tudo segue vindo da matriz, como sempre.
+      const planoLoteDoSku = planoLote.get(chaveItem(item));
+      const planoDoPeriodo = (per: Lowercase<PeriodoAlvo>) => {
+        const doLote = planoLoteDoSku?.[per];
+        if (doLote !== undefined) return Number(doLote);
+        return Number((item.plano as unknown as Record<string, number> | undefined)?.[per] || 0);
+      };
+      const pMA = planoDoPeriodo('ma');
+      const pPX = planoDoPeriodo('px');
+      const pUL = planoDoPeriodo('ul');
+      const pQT = planoDoPeriodo('qt');
+      const pQU = planoDoPeriodo('qu');
+      const pSX = planoDoPeriodo('sx');
+      // CADEIA DO DISPONIVEL, periodo a periodo. O plano e arrastado: o que sobra de um mes
+      // entra no seguinte. Antes isto eram seis linhas e dois ternarios encadeados, e cada
+      // periodo novo exigia mexer nos tres lugares — foi assim que ST ficou de fora.
+      //
+      // `dispPorPeriodo[p]` = disponivel DEPOIS do periodo p. O de antes e o do periodo
+      // anterior (no MA, o estoque de hoje com o que esta em processo).
+      const projecaoDoPeriodo = (per: PeriodoAlvo) => {
+        const mes = mesDoPeriodo(per);
+        const bruta = Number(projecoesAtivas[id]?.[String(mes)] || 0);
+        // So o mes corrente e pro-rata: dele ja passou parte, e o plano cobre o que falta.
+        return per === 'MA' ? projecaoMesPlanejamento(bruta, mes) : bruta;
+      };
+      const dispPorPeriodo = {} as Record<PeriodoAlvo, number>;
+      let acumulado = dispAtualComProcesso;
+      for (const per of PERIODOS) {
+        acumulado = acumulado + planoDoPeriodo(campoDoPeriodo(per)) - projecaoDoPeriodo(per);
+        dispPorPeriodo[per] = acumulado;
+      }
+      const dispMA = dispPorPeriodo.MA;
 
-      const mesAlvo = periodoAlvo === 'QT' ? mesQT : (periodoAlvo === 'QU' ? mesQU : (periodoAlvo === 'SX' ? mesSX : periodos[periodoAlvo]));
+      const mesAlvo = mesDoPeriodo(periodoAlvo);
       const projMes = Number(projecoesAtivas[id]?.[String(mesAlvo)] || 0);
-      // dispAnterior = disponível ANTES do período alvo (entrada do mês)
-      const dispAnterior = periodoAlvo === 'MA' ? dispAtualComProcesso : (periodoAlvo === 'PX' ? dispMA : (periodoAlvo === 'UL' ? dispPX : (periodoAlvo === 'QT' ? dispUL : (periodoAlvo === 'QU' ? dispQT : dispQU))));
-      // dispMesAlvo = disponível APÓS o período alvo (saída do mês, com plano atual)
-      const dispMesAlvo = periodoAlvo === 'MA' ? dispMA : (periodoAlvo === 'PX' ? dispPX : (periodoAlvo === 'UL' ? dispUL : (periodoAlvo === 'QT' ? dispQT : (periodoAlvo === 'QU' ? dispQU : dispSX))));
+      const ordemAlvo = ordemDoPeriodo(periodoAlvo);
+      // Entrada do mes: o disponivel que sobrou do periodo anterior.
+      const dispAnterior = ordemAlvo <= 0 ? dispAtualComProcesso : dispPorPeriodo[PERIODOS[ordemAlvo - 1]];
+      // Saida do mes, com o plano que esta la hoje.
+      const dispMesAlvo = dispPorPeriodo[periodoAlvo];
 
       // Para MA, o comportamento depende do modo selecionado.
       let cobAlvo = cobAlvoBase;
@@ -1167,7 +1230,7 @@ export default function SugestaoPlanoPage() {
         }
 
         // Para PX em diante: aplicar lógica de meio lote baseada na cobertura máxima por curva ABC (ou IDEAL)
-        if (!bloquearMeioLoteCurvaATamanho && (periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && cfg.usar_corte_minimo && lote > 1 && min > 0 && planoSugerido > 0) {
+        if (!bloquearMeioLoteCurvaATamanho && cfg.usar_corte_minimo && lote > 1 && min > 0 && planoSugerido > 0) {
           const cobMax = getCoberturaMaxPorCurva(curvaRef, cfg, linhaItem);
           const cobMaxTolerada = getCoberturaMaxToleradaParaCorteMinimo(curvaRef, cobMax);
           const dispPosAtual = dispAnterior + planoSugerido - projMes;
@@ -1229,20 +1292,11 @@ export default function SugestaoPlanoPage() {
         planoSemCorte,
         projMes,
         dispAnterior,
+        dispPorPeriodo,
         dispMA,
-        dispPX,
-        dispUL,
-        dispQT,
-        dispQU,
-        dispSX,
         dispMesAlvo,
         coberturaMA,
-        planoMA: pMA,
-        planoPX: pPX,
-        planoUL: pUL,
-        planoQT: pQT,
-        planoQU: pQU,
-        planoSX: pSX,
+        planoPeriodo: Object.fromEntries(PERIODOS.map((per) => [per, planoDoPeriodo(campoDoPeriodo(per))])) as Record<PeriodoAlvo, number>,
         planoAtual,
         planoSugerido,
         planoBaseSemOpMin: planoSugerido,
@@ -1439,9 +1493,12 @@ export default function SugestaoPlanoPage() {
     const gapAlvo = gapMensal?.meses?.find((x) => x.periodo === periodoAlvo) || null;
     const capDiariaGap = Number(gapMensal?.capacidadeDiariaTotal || 0);
     let orcamentoAcumuladoTotal: number | null = null;
-    if (modoEmissao === 'CAPACIDADE' && gapAlvo && capDiariaGap > 0) {
-      const planoCampoAlvo = periodoAlvo === 'PX' ? 'px'
-        : periodoAlvo === 'UL' ? 'ul' : periodoAlvo === 'QT' ? 'qt' : periodoAlvo === 'QU' ? 'qu' : 'sx';
+    if (modoEmissaoAlvo === 'CAPACIDADE' && gapAlvo && capDiariaGap > 0) {
+      // Derivado do proprio periodo, nunca escrito a mao. A escada de `if` que estava aqui
+      // terminava em `: 'sx'`, entao ST, OT e NV liam o plano de MARCO para medir a carga ja
+      // comprometida — o orcamento de capacidade saia errado nos tres periodos novos, e
+      // justamente no modo que existe para preencher a fabrica.
+      const planoCampoAlvo = campoDoPeriodo(periodoAlvo);
       let cargaPermAlvo = 0;
       for (const item of dadosBase) {
         const cont = String(item.produto?.continuidade || '').trim().toUpperCase();
@@ -1464,10 +1521,11 @@ export default function SugestaoPlanoPage() {
     // compilador confirma isso (periodoAlvo ja vem estreitado sem 'MA'). Por consequencia o
     // modo CAPACIDADE vale de PX em diante — o que atende o alvo pedido (QU/janeiro), mas
     // precisa de trabalho proprio no dia em que quiserem usa-lo no mes corrente.
-    const planoCampoReserva = periodoAlvo === 'PX' ? 'px'
-      : periodoAlvo === 'UL' ? 'ul' : periodoAlvo === 'QT' ? 'qt' : periodoAlvo === 'QU' ? 'qu' : 'sx';
+    // Mesmo motivo do `planoCampoAlvo` acima: a reserva de edicao limitada de ST/OT/NV
+    // estava sendo lida do campo de marco.
+    const planoCampoReserva = campoDoPeriodo(periodoAlvo);
     const reservaPorGrupo = new Map<string, number>();
-    if (modoEmissao === 'CAPACIDADE') {
+    if (modoEmissaoAlvo === 'CAPACIDADE') {
       for (const item of dadosBase) {
         const cont = String(item.produto?.continuidade || '').trim().toUpperCase();
         if (cont !== 'EDICAO LIMITADA' && cont !== 'EDIÇÃO LIMITADA') continue;
@@ -1489,7 +1547,7 @@ export default function SugestaoPlanoPage() {
       const grupoKey = normRef(grupo.grupo);
       const capDiaria = Number(grupo.capacidade_diaria || 0);
 
-      if (modoEmissao === 'CAPACIDADE') {
+      if (modoEmissaoAlvo === 'CAPACIDADE') {
         if (orcamentoAcumuladoTotal !== null && temMedida) {
           // Fatia do grupo no orcamento acumulado, pela capacidade medida dele. A reserva de
           // edicao limitada NAO entra aqui: ela ja esta dentro dos dias necessarios da rota.
@@ -1519,9 +1577,9 @@ export default function SugestaoPlanoPage() {
         const rateio = row.grupoRateios.find((g) => g.grupo === grupoKey)?.rateio || 0;
         if (!(rateio > 0) || !(row.tempoRef > 0)) return;
         processoCarga += row.emProcesso * row.tempoRef * rateio;
-        cargaMA += row.planoMA * row.tempoRef * rateio;
-        cargaPX += row.planoPX * row.tempoRef * rateio;
-        cargaUL += row.planoUL * row.tempoRef * rateio;
+        cargaMA += row.planoPeriodo.MA * row.tempoRef * rateio;
+        cargaPX += row.planoPeriodo.PX * row.tempoRef * rateio;
+        cargaUL += row.planoPeriodo.UL * row.tempoRef * rateio;
       });
 
       const saldoAcumPX = (capMA - (processoCarga + cargaMA)) + (capPX - cargaPX);
@@ -1558,9 +1616,7 @@ export default function SugestaoPlanoPage() {
     const coberturaAtual = (row: Row) => {
       if (!(Number(row.estoqueMin || 0) > 0)) return 0;
       const dispBase =
-        periodoAlvo === 'PX' ? Number(row.dispPX || 0) :
-        periodoAlvo === 'UL' ? Number(row.dispUL || 0) :
-        Number(row.dispQT || 0);
+        Number(row.dispPorPeriodo?.[PERIODOS[Math.max(0, ordemDoPeriodo(periodoAlvo) - 1)]] || 0);
       return dispBase / Number(row.estoqueMin || 0);
     };
 
@@ -1718,7 +1774,7 @@ export default function SugestaoPlanoPage() {
     // Round-robin de um lote por vez, e nao "enche o primeiro e passa para o proximo":
     // senao os primeiros SKUs da fila comiam o orcamento inteiro e o resto da fabrica
     // continuava parada. O limite de rodadas e so trava de seguranca.
-    if (modoEmissao === 'CAPACIDADE') {
+    if (modoEmissaoAlvo === 'CAPACIDADE') {
       const aplicar = (row: Row, extra: number) => {
         if (!(extra > 0)) return;
         // Acumula o que ESTA etapa colocou, separado do plano de necessidade: o teto de
@@ -1814,7 +1870,46 @@ export default function SugestaoPlanoPage() {
     logDiagnosticoChave('4-rowsCap (fim capacidade)', rowsCap);
     logTempoSugestao('calculo rows', tRows, `periodo=${periodoAlvo} fase=capacidade items=${rowsCap.length}`);
     return rowsCap;
-  }, [dadosBase, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, considerarCapacidade, filtroSuspensos, modoEmissao, pctCapacidade, gapMensal, capacidadeRealGrupos]);
+  }, [dadosBase, cfg, cortes, projecoes, projecoesAtivas, periodos, periodoAlvo, vendasReais, margemCobMA, maModo, capacidadeGrupos, capacidadeGrupoRefs, capacidadeDias, capacidadeTemposRef, filtroSuspensos, modoEmissaoAlvo, pctCapacidade, gapMensal, capacidadeRealGrupos, planoLote]);
+
+  // Motor do lote: colhe o periodo que acabou de ser calculado e avanca para o proximo.
+  //
+  // Roda depois do render, quando `rows` ja corresponde ao `periodoAlvo` atual (os dois saem
+  // do mesmo useMemo). A ordem e sempre colher -> gravar no `planoLote` -> trocar o periodo;
+  // a troca dispara novo calculo, agora com o periodo anterior ja sobreposto.
+  useEffect(() => {
+    if (!lote) return;
+    const periodo = lote.fila[lote.indice];
+    if (!periodo || periodo !== periodoAlvo || !rows.length) return;
+    const campo = periodo.toLowerCase() as keyof PlanoPeriodos;
+    const proximo = new Map(planoLote);
+    let pecas = 0;
+    let alterados = 0;
+    for (const r of rows) {
+      const chave = String(r.chave || '').trim();
+      if (!chave) continue;
+      const valor = Math.round(Number(r.planoSugerido || 0));
+      proximo.set(chave, { ...(proximo.get(chave) || {}), [campo]: valor });
+      pecas += valor;
+      if (valor !== Math.round(Number(r.planoAtual || 0))) alterados += 1;
+    }
+    const resumo = [...lote.resumo, { periodo, pecas, alterados }];
+    const indice = lote.indice + 1;
+    setPlanoLote(proximo);
+    if (indice >= lote.fila.length) {
+      setLote(null);
+      setOkMsg(`Lote concluido: ${resumo.map((x) => `${x.periodo} ${x.pecas.toLocaleString('pt-BR')}`).join(' · ')}. Confira periodo a periodo antes de salvar.`);
+      setResumoLote(resumo);
+      // Volta o seletor para o PRIMEIRO periodo do lote. Terminando no ultimo, a tela
+      // ficava em "NV" e o botao lia "Emitir NV ate NV" — parecia que so NV tinha rodado,
+      // quando os tres haviam sido calculados em cascata.
+      setPeriodoAlvo(lote.fila[0]);
+      return;
+    }
+    setLote({ ...lote, indice, resumo });
+    setPeriodoAlvo(lote.fila[indice]);
+    // `rows` entra de proposito: e o sinal de que o calculo do periodo atual terminou.
+  }, [lote, rows, periodoAlvo, planoLote]);
 
   // Leitura acumulada do periodo alvo, na mesma conta da tabela Capacidade x Venda: dias
   // necessarios somados desde o primeiro periodo contra dias de fabrica somados. Serve para
@@ -1881,7 +1976,7 @@ export default function SugestaoPlanoPage() {
   // ser visivel e diferente de "nao cadastrado".
   const capacidadeConfigCarregada = capacidadeGrupos.length > 0 && capacidadeGrupoRefs.length > 0;
   const referenciasSemGrupoCapacidade = useMemo(() => {
-    if (modoEmissao !== 'CAPACIDADE' || periodoAlvo === 'MA') return [];
+    if (modoEmissaoAlvo !== 'CAPACIDADE' || periodoAlvo === 'MA') return [];
     if (!capacidadeConfigCarregada) return [];
     const set = new Set<string>();
     for (const r of rows) {
@@ -1890,7 +1985,7 @@ export default function SugestaoPlanoPage() {
       }
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
-  }, [rows, modoEmissao, periodoAlvo, capacidadeConfigCarregada]);
+  }, [rows, modoEmissaoAlvo, periodoAlvo, capacidadeConfigCarregada]);
 
   const rowsVisiveis = useMemo(() => {
     return rows.filter((r) => {
@@ -1900,7 +1995,7 @@ export default function SugestaoPlanoPage() {
       if (filtroLinha !== 'TODAS' && String(r.linha || '').trim().toUpperCase() !== filtroLinha) return false;
       if (filtroFamilia !== 'TODAS' && String(r.familia || '').trim().toUpperCase() !== filtroFamilia) return false;
       if (filtroOpMin === 'BLOQUEADA' && !Boolean(r.opMinNaoAtendida)) return false;
-      if ((periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && filtroMeioLoteUL === 'MEIO_LOTE' && !Boolean(r.usouMeioLote)) return false;
+      if ((periodoAlvo !== 'MA') && filtroMeioLoteUL === 'MEIO_LOTE' && !Boolean(r.usouMeioLote)) return false;
       // Filtro por curva ABC
       if (filtroCurvaABC.length > 0) {
         const refNorm = String(r.referencia || '').trim().toUpperCase();
@@ -2007,7 +2102,7 @@ export default function SugestaoPlanoPage() {
       delta += planoEmissao - planoBaseAtual;
     });
 
-    if (modoEmissao === 'CAPACIDADE' && periodoAlvo !== 'MA') {
+    if (modoEmissaoAlvo === 'CAPACIDADE' && periodoAlvo !== 'MA') {
       return {
         atual: Math.round(atual),
         sugerido: Math.round(sugerido),
@@ -2016,16 +2111,16 @@ export default function SugestaoPlanoPage() {
     }
 
     return { atual: Math.round(atual), sugerido: Math.round(sugerido), delta: Math.round(delta) };
-  }, [rowsVisiveisTela, modoEmissao, periodoAlvo]);
+  }, [rowsVisiveisTela, modoEmissaoAlvo, periodoAlvo]);
 
   function exportarAlteracoesCSV() {
     const planoAtualPeriodo = (r: Row) => {
-      if (periodoAlvo === 'MA') return r.planoMA;
-      if (periodoAlvo === 'PX') return r.planoPX;
-      if (periodoAlvo === 'UL') return r.planoUL;
-      if (periodoAlvo === 'QT') return r.planoQT;
-      if (periodoAlvo === 'QU') return r.planoQU;
-      return r.planoSX;
+      if (periodoAlvo === 'MA') return r.planoPeriodo.MA;
+      if (periodoAlvo === 'PX') return r.planoPeriodo.PX;
+      if (periodoAlvo === 'UL') return r.planoPeriodo.UL;
+      if (periodoAlvo === 'QT') return r.planoPeriodo.QT;
+      if (periodoAlvo === 'QU') return r.planoPeriodo.QU;
+      return r.planoPeriodo.SX;
     };
     const periodoLower = periodoAlvo.toLowerCase();
     const alteracoes = rows
@@ -2086,7 +2181,7 @@ export default function SugestaoPlanoPage() {
 
   // Conta SKUs que usaram corte_min / 2 (MA Emergência, PX, UL, QT, QU e SX)
   const resumoMeioLote = useMemo(() => {
-    const habilitado = (periodoAlvo === 'MA' && maModo === 'EMERGENCIA') || periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX';
+    const habilitado = (periodoAlvo === 'MA' && maModo === 'EMERGENCIA') || periodoAlvo !== 'MA';
     if (!habilitado) {
       return { skus: 0, pecas: 0 };
     }
@@ -2196,7 +2291,7 @@ export default function SugestaoPlanoPage() {
   }, [rows, rowsVisiveisTela, salvarSomenteVisiveis, salvarSomenteReducao, atenderNegativos]);
 
   const resumoCapacidadeUL = useMemo(() => {
-    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX')) {
+    if (!(ordemDoPeriodo(periodoAlvo) >= 2)) {
       return { ligado: false, cortados: 0, qtdCortada: 0, qtdMantida: 0, itensNegativos: 0, pecasNegativas: 0 };
     }
     let cortados = 0;
@@ -2206,7 +2301,7 @@ export default function SugestaoPlanoPage() {
     let pecasNegativas = 0;
     rowsVisiveisTela.forEach((r) => {
       const base = Math.max(0, Number(r.planoSugerido || 0));
-      const atual = Math.max(0, Number((periodoAlvo === 'UL' ? r.planoUL : (periodoAlvo === 'QT' ? r.planoQT : (periodoAlvo === 'QU' ? r.planoQU : r.planoSX))) || 0));
+      const atual = Math.max(0, Number((periodoAlvo === 'UL' ? r.planoPeriodo.UL : (periodoAlvo === 'QT' ? r.planoPeriodo.QT : (periodoAlvo === 'QU' ? r.planoPeriodo.QU : r.planoPeriodo.SX))) || 0));
       if (base > 0) qtdMantida += base;
       if (considerarCapacidade && base < atual) {
         cortados += 1;
@@ -2228,7 +2323,7 @@ export default function SugestaoPlanoPage() {
   }, [periodoAlvo, rowsVisiveisTela, considerarCapacidade]);
 
   const diagnosticoCapacidadeUL = useMemo(() => {
-    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX')) {
+    if (!(ordemDoPeriodo(periodoAlvo) >= 2)) {
       return {
         cargaDisponivelUL: 0,
         cargaSugeridaUL: 0,
@@ -2276,20 +2371,20 @@ export default function SugestaoPlanoPage() {
         const rateio = row.grupoRateios.find((g) => g.grupo === grupoKey)?.rateio || 0;
         if (!(rateio > 0) || !(Number(row.tempoRef || 0) > 0)) return;
         processoCarga += Number(row.emProcesso || 0) * Number(row.tempoRef || 0) * rateio;
-        cargaMA += Number(row.planoMA || 0) * Number(row.tempoRef || 0) * rateio;
-        cargaPX += Number(row.planoPX || 0) * Number(row.tempoRef || 0) * rateio;
+        cargaMA += Number(row.planoPeriodo.MA || 0) * Number(row.tempoRef || 0) * rateio;
+        cargaPX += Number(row.planoPeriodo.PX || 0) * Number(row.tempoRef || 0) * rateio;
         cargaUL += Number((periodoAlvo === 'UL'
           ? (considerarCapacidade ? row.planoAntesCapacidade : row.planoSugerido)
-          : row.planoUL) || 0) * Number(row.tempoRef || 0) * rateio;
+          : row.planoPeriodo.UL) || 0) * Number(row.tempoRef || 0) * rateio;
         cargaQT += Number((periodoAlvo === 'QT'
           ? (considerarCapacidade ? row.planoAntesCapacidade : row.planoSugerido)
-          : row.planoQT) || 0) * Number(row.tempoRef || 0) * rateio;
+          : row.planoPeriodo.QT) || 0) * Number(row.tempoRef || 0) * rateio;
         cargaQU += Number((periodoAlvo === 'QU'
           ? (considerarCapacidade ? row.planoAntesCapacidade : row.planoSugerido)
-          : row.planoQU) || 0) * Number(row.tempoRef || 0) * rateio;
+          : row.planoPeriodo.QU) || 0) * Number(row.tempoRef || 0) * rateio;
         cargaSX += Number((periodoAlvo === 'SX'
           ? (considerarCapacidade ? row.planoAntesCapacidade : row.planoSugerido)
-          : row.planoSX) || 0) * Number(row.tempoRef || 0) * rateio;
+          : row.planoPeriodo.SX) || 0) * Number(row.tempoRef || 0) * rateio;
       });
 
       const disponivelUL = Math.max(0, (capMA - (processoCarga + cargaMA)) + (capPX - cargaPX) + capUL);
@@ -2329,7 +2424,7 @@ export default function SugestaoPlanoPage() {
   }, [periodoAlvo, capacidadeDias, periodos, capacidadeGrupos, rows, cfg, considerarCapacidade]);
 
   const coberturaSugeridaAutomatica = useMemo(() => {
-    if (!(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX')) {
+    if (!(ordemDoPeriodo(periodoAlvo) >= 2)) {
       return {
         curvaA: Number(cfg.cobertura_min_a || 0),
         curvaB: Number(cfg.cobertura_min_b || 0),
@@ -2541,12 +2636,12 @@ export default function SugestaoPlanoPage() {
       const planos = rows
         .map((r) => {
           const inScope = rowsVisiveisSet.has(String(r.idproduto || '').trim());
-          const maAjustado = Math.max(0, Number(r.planoMA || 0));
-          const pxAjustado = periodoAlvo === 'PX' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoPX || 0));
-          const ulAjustado = periodoAlvo === 'UL' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoUL || 0));
-          const qtAjustado = periodoAlvo === 'QT' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoQT || 0));
-          const quAjustado = periodoAlvo === 'QU' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoQU || 0));
-          const sxAjustado = periodoAlvo === 'SX' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoSX || 0));
+          const maAjustado = Math.max(0, Number(r.planoPeriodo.MA || 0));
+          const pxAjustado = periodoAlvo === 'PX' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoPeriodo.PX || 0));
+          const ulAjustado = periodoAlvo === 'UL' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoPeriodo.UL || 0));
+          const qtAjustado = periodoAlvo === 'QT' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoPeriodo.QT || 0));
+          const quAjustado = periodoAlvo === 'QU' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoPeriodo.QU || 0));
+          const sxAjustado = periodoAlvo === 'SX' && inScope ? Math.max(0, Number(r.planoSugerido || 0)) : Math.max(0, Number(r.planoPeriodo.SX || 0));
           return {
             idproduto: String(r.idproduto || '').trim(),
             idreferencia: String(r.idreferencia || '').trim(),
@@ -2562,11 +2657,11 @@ export default function SugestaoPlanoPage() {
         .filter((p) => p.idproduto && (p.ma > 0 || p.px > 0 || p.ul > 0 || p.qt > 0 || p.qu > 0 || p.sx > 0));
 
       const aumentoMA = rowsVisiveis.reduce((acc, r) => {
-        if (periodoAlvo === 'PX') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoPX || 0));
-        if (periodoAlvo === 'UL') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoUL || 0));
-        if (periodoAlvo === 'QT') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoQT || 0));
-        if (periodoAlvo === 'QU') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoQU || 0));
-        return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoSX || 0));
+        if (periodoAlvo === 'PX') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoPeriodo.PX || 0));
+        if (periodoAlvo === 'UL') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoPeriodo.UL || 0));
+        if (periodoAlvo === 'QT') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoPeriodo.QT || 0));
+        if (periodoAlvo === 'QU') return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoPeriodo.QU || 0));
+        return acc + Math.max(0, Number(r.planoSugerido || 0) - Number(r.planoPeriodo.SX || 0));
       }, 0);
       if (!planos.length) {
         setMpViab({
@@ -2722,26 +2817,22 @@ export default function SugestaoPlanoPage() {
       const alteradosKeys = new Set(alterados.map((r) => String(r.chave || '').trim()).filter(Boolean));
       const negativosKeys = new Set(negativosAtendidos.map((r) => String(r.chave || '').trim()).filter(Boolean));
 
+      // Grava o plano COMPLETO do SKU — os nove periodos. So o periodo alvo recebe a
+      // sugestao; os outros vao com o valor que ja tinham, seja da matriz ou do lote.
       const buildPlano = (r: Row, aplicarSugestao: boolean, planoOverride?: number) => {
-        const getValorPeriodo = (periodo: string) => {
-          if (periodo !== periodoAlvo) {
-            return Math.round(periodo === 'MA' ? r.planoMA : (periodo === 'PX' ? r.planoPX : (periodo === 'UL' ? r.planoUL : (periodo === 'QT' ? r.planoQT : (periodo === 'QU' ? r.planoQU : r.planoSX)))));
-          }
+        const getValorPeriodo = (periodo: PeriodoAlvo) => {
+          const atual = Number(r.planoPeriodo?.[periodo] || 0);
+          if (periodo !== periodoAlvo) return Math.round(atual);
           if (planoOverride !== undefined) return Math.round(planoOverride);
-          return Math.round(aplicarSugestao ? r.planoSugerido : (periodo === 'MA' ? r.planoMA : (periodo === 'PX' ? r.planoPX : (periodo === 'UL' ? r.planoUL : (periodo === 'QT' ? r.planoQT : (periodo === 'QU' ? r.planoQU : r.planoSX))))));
+          return Math.round(aplicarSugestao ? r.planoSugerido : atual);
         };
         return {
           chave: r.chave,
-          ma: getValorPeriodo('MA'),
-          px: getValorPeriodo('PX'),
-          ul: getValorPeriodo('UL'),
-          qt: getValorPeriodo('QT'),
-          qu: getValorPeriodo('QU'),
-          sx: getValorPeriodo('SX'),
+          ...Object.fromEntries(PERIODOS.map((per) => [campoDoPeriodo(per), getValorPeriodo(per)])),
         };
       };
 
-      const planosMap = new Map<string, { chave: string; ma: number; px: number; ul: number; qt: number; qu: number; sx: number }>();
+      const planosMap = new Map<string, { chave: string } & Record<string, number | string>>();
 
       // Sempre salva o plano final completo: itens fora do escopo entram sem alteração.
       rows.forEach((r) => {
@@ -2780,14 +2871,14 @@ export default function SugestaoPlanoPage() {
       const payload = {
         // O modo entra no nome, e nao so no subtipo: e o nome que aparece na lista de
         // simulacoes, e os dois tipos de plano precisam ser distinguiveis por quem escolhe.
-        nome: `Sugestão Plano ${periodoAlvo}${periodoAlvo === 'MA' ? ` · ${maModo === 'EMERGENCIA' ? 'Emergência' : 'Cobertura'}` : ''}${modoEmissao === 'CAPACIDADE' ? ` · Capacidade ${pctCapacidade}%` : ''}${atenderNegativos && negativosAtendidos.length > 0 ? ' + Negativos' : ''} · ${new Date().toLocaleDateString('pt-BR')}`,
+        nome: `Sugestão Plano ${periodoAlvo}${periodoAlvo === 'MA' ? ` · ${maModo === 'EMERGENCIA' ? 'Emergência' : 'Cobertura'}` : ''}${modoEmissaoAlvo === 'CAPACIDADE' ? ` · Capacidade ${pctCapacidade}%` : ''}${atenderNegativos && negativosAtendidos.length > 0 ? ' + Negativos' : ''} · ${new Date().toLocaleDateString('pt-BR')}`,
         parametros: {
           tipo: 'SUGESTAO_PLANO',
-          subtipo: modoEmissao === 'CAPACIDADE'
+          subtipo: modoEmissaoAlvo === 'CAPACIDADE'
             ? `CAPACIDADE_${pctCapacidade}_${periodoAlvo}`
             : (periodoAlvo === 'MA' ? (maModo === 'EMERGENCIA' ? 'MA_EMERGENCIA' : 'MA_COBERTURA') : `MES_${periodoAlvo}`),
-          modoEmissao,
-          pctCapacidade: modoEmissao === 'CAPACIDADE' ? pctCapacidade : null,
+          modoEmissao: modoEmissaoAlvo,
+          pctCapacidade: modoEmissaoAlvo === 'CAPACIDADE' ? pctCapacidade : null,
           statusAprovacao: 'PENDENTE',
           origem: 'SUGESTAO_PLANO',
           periodoAlvo,
@@ -2820,7 +2911,7 @@ export default function SugestaoPlanoPage() {
           negativosAtendidos: negativosAtendidos.length,
           deltaNegativosAtendidos,
         },
-        observacoes: `Gerado na Sugestão de Plano. Emissão=${modoEmissao === 'CAPACIDADE' ? `CAPACIDADE ${pctCapacidade}% de ${CAPACIDADE_DIARIA_ALVO.toLocaleString('pt-BR')} min/dia, menos a reserva de edição limitada do período` : 'NECESSIDADE'}. Filtros: cont=${filtroCont}, suspensos=${filtroSuspensos}, curvas=${filtroCurvaABC.length ? filtroCurvaABC.join('/') : 'TODAS'}, aplicarVisiveis=${salvarSomenteVisiveis ? 'SIM' : 'NAO'}, somenteReducao=${salvarSomenteReducao ? 'SIM' : 'NAO'}, atenderNegativos=${atenderNegativos ? 'SIM' : 'NAO'}, planoCompleto=SIM, viab=${filtroViabilidade}, estoqueLojas=${usarEstoqueLojas ? 'SIM' : 'NAO'}.`,
+        observacoes: `Gerado na Sugestão de Plano. Emissão=${modoEmissaoAlvo === 'CAPACIDADE' ? `CAPACIDADE ${pctCapacidade}% de ${CAPACIDADE_DIARIA_ALVO.toLocaleString('pt-BR')} min/dia, menos a reserva de edição limitada do período` : 'NECESSIDADE'}. Filtros: cont=${filtroCont}, suspensos=${filtroSuspensos}, curvas=${filtroCurvaABC.length ? filtroCurvaABC.join('/') : 'TODAS'}, aplicarVisiveis=${salvarSomenteVisiveis ? 'SIM' : 'NAO'}, somenteReducao=${salvarSomenteReducao ? 'SIM' : 'NAO'}, atenderNegativos=${atenderNegativos ? 'SIM' : 'NAO'}, planoCompleto=SIM, viab=${filtroViabilidade}, estoqueLojas=${usarEstoqueLojas ? 'SIM' : 'NAO'}.`,
       };
 
       const res = await fetchNoCache(`${API_URL}/api/simulacoes`, {
@@ -2836,6 +2927,89 @@ export default function SugestaoPlanoPage() {
       setOkMsg(`Sugestão salva com ${alterados.length} itens alterados e ${planos.length} itens no ${escopoMsg}${reducaoMsg}${negativosMsg}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar sugestão');
+    } finally {
+      setSalvandoSugestao(false);
+    }
+  }
+
+  // Salva TODOS os periodos do lote de uma vez — uma simulacao por periodo, com um
+  // `loteId` comum. Sem isto o PCP teria que trocar o seletor e clicar Salvar em cada um,
+  // que e exatamente a repeticao que o lote veio eliminar.
+  //
+  // O plano por SKU sai de `rows[].planoPeriodo`, que ja carrega o resultado do lote nos
+  // nove periodos (o motor le o `planoLote` antes da matriz). As tres simulacoes gravam o
+  // mesmo plano completo e se diferenciam pelo periodo que cada uma assume como alvo —
+  // e assim que o Fagner aprova e exporta um de cada vez, sem perder o encadeamento.
+  async function salvarLoteCompleto() {
+    if (!resumoLote.length) return;
+    try {
+      setSalvandoSugestao(true);
+      setError(null);
+      setOkMsg(null);
+      const loteId = `LOTE-${Date.now()}`;
+      const planos = rows
+        .filter((r) => String(r.chave || '').trim())
+        .map((r) => ({
+          chave: r.chave,
+          ...Object.fromEntries(PERIODOS.map((per) => [campoDoPeriodo(per), Math.round(Number(r.planoPeriodo?.[per] || 0))])),
+        }));
+      if (!planos.length) throw new Error('Nenhum item elegível para salvar.');
+
+      const salvos: string[] = [];
+      for (const item of resumoLote) {
+        const payload = {
+          nome: `Sugestão Plano ${item.periodo} · Lote ${resumoLote.map((x) => x.periodo).join('-')} · ${new Date().toLocaleDateString('pt-BR')}`,
+          parametros: {
+            tipo: 'SUGESTAO_PLANO',
+            subtipo: `MES_${item.periodo}`,
+            // O modo e POR PERIODO: num lote pode haver ST por capacidade e OT/NV por
+            // necessidade. Gravar o modo global aqui faria a simulacao mentir sobre como
+            // ela propria foi gerada, que e justamente o que o PCP vai conferir depois.
+            modoEmissao: modoDoPeriodo(item.periodo),
+            pctCapacidade: modoDoPeriodo(item.periodo) === 'CAPACIDADE' ? pctCapacidade : null,
+            statusAprovacao: 'PENDENTE',
+            origem: 'SUGESTAO_PLANO_LOTE',
+            periodoAlvo: item.periodo,
+            loteId,
+            lotePeriodos: resumoLote.map((x) => x.periodo),
+            maModo: null,
+            filtros: {
+              continuidade: filtroCont,
+              suspensos: filtroSuspensos,
+              curvasABC: filtroCurvaABC,
+              aplicarSomenteVisiveis: false,
+              somenteReducao: false,
+              atenderNegativos: false,
+              planoCompleto: true,
+            },
+            usarEstoqueLojas,
+            estoqueLojasSnapshot: [],
+            considerarProjecaoNova,
+            reprojecaoPreview: [],
+            planos,
+          },
+          resumo: {
+            alterados: item.alterados,
+            deltaTotal: 0,
+            aumentoTotal: item.pecas,
+            retiradaTotal: 0,
+            negativosAtendidos: 0,
+            deltaNegativosAtendidos: 0,
+          },
+          observacoes: `Emitido em LOTE (${resumoLote.map((x) => x.periodo).join(' → ')}), encadeado: o disponível de cada período entra no seguinte. ${item.periodo} = ${item.pecas.toLocaleString('pt-BR')} peças em ${item.alterados.toLocaleString('pt-BR')} SKUs alterados. Emissão=${modoDoPeriodo(item.periodo)}${modoDoPeriodo(item.periodo) === 'CAPACIDADE' ? ` ${pctCapacidade}%` : ''}. Modos do lote: ${resumoLote.map((x) => `${x.periodo}=${modoDoPeriodo(x.periodo)}`).join(', ')}. loteId=${loteId}.`,
+        };
+        const res = await fetchNoCache(`${API_URL}/api/simulacoes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data?.success) throw new Error(data?.error || `Erro ao salvar ${item.periodo}`);
+        salvos.push(item.periodo);
+      }
+      setOkMsg(`${salvos.length} sugestões salvas (${salvos.join(', ')}), com ${planos.length} itens cada e o mesmo loteId. Falta aprovar e exportar cada uma.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao salvar o lote');
     } finally {
       setSalvandoSugestao(false);
     }
@@ -2921,8 +3095,121 @@ export default function SugestaoPlanoPage() {
                     <option value="QT">QT</option>
                     <option value="QU">QU</option>
                     <option value="SX">SX</option>
+                    <option value="ST">ST</option>
+                    <option value="OT">OT</option>
+                    <option value="NV">NV</option>
                   </select>
                 </label>
+                {/* EMISSAO EM LOTE, de um periodo ate outro. Roda em cascata: o disponivel
+                    que sobra de cada mes entra no seguinte, do mesmo jeito que o PCP faz
+                    hoje manualmente — so que sem a ida ao ERP entre um e outro. MA fica de
+                    fora da lista porque tem modos proprios e ja esta em execucao. */}
+                <div className="flex items-end gap-2 pl-3 ml-1 border-l border-gray-200">
+                  <label className="flex flex-col">
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Lote de</span>
+                    <select
+                      value={loteDe}
+                      onChange={(e) => {
+                        const novo = e.target.value as PeriodoAlvo;
+                        setLoteDe(novo);
+                        if (ordemDoPeriodo(novo) > ordemDoPeriodo(loteAte)) setLoteAte(novo);
+                      }}
+                      disabled={!!lote}
+                      className="border border-gray-300 rounded px-2 py-1.5 text-sm font-medium bg-gray-50 hover:bg-white focus:ring-2 focus:ring-brand-primary/20 disabled:opacity-50"
+                    >
+                      {PERIODOS.filter((p) => p !== 'MA').map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </label>
+                  <label className="flex flex-col">
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">até</span>
+                    <select
+                      value={loteAte}
+                      onChange={(e) => {
+                        const novo = e.target.value as PeriodoAlvo;
+                        setLoteAte(novo);
+                        if (ordemDoPeriodo(novo) < ordemDoPeriodo(loteDe)) setLoteDe(novo);
+                      }}
+                      disabled={!!lote}
+                      className="border border-gray-300 rounded px-2 py-1.5 text-sm font-medium bg-gray-50 hover:bg-white focus:ring-2 focus:ring-brand-primary/20 disabled:opacity-50"
+                    >
+                      {PERIODOS.filter((p) => p !== 'MA').map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={!!lote || loading || carregandoComplementos || !rows.length}
+                    title="Calcula cada periodo do intervalo em sequencia, encadeando o disponivel de um no seguinte. Nada e salvo nem exportado — o resultado aparece abaixo para conferencia."
+                    onClick={() => {
+                      const fila = PERIODOS.filter((p) => (
+                        p !== 'MA'
+                        && ordemDoPeriodo(p) >= ordemDoPeriodo(loteDe)
+                        && ordemDoPeriodo(p) <= ordemDoPeriodo(loteAte)
+                      ));
+                      if (!fila.length) { setError('Intervalo vazio: escolha de um periodo ate outro a partir de PX.'); return; }
+                      setError(null);
+                      setOkMsg(null);
+                      setResumoLote([]);
+                      setPlanoLote(new Map());
+                      setLote({ fila, indice: 0, resumo: [] });
+                      setPeriodoAlvo(fila[0]);
+                    }}
+                    className="border border-brand-primary/40 text-brand-dark rounded px-3 py-1.5 text-sm font-medium bg-white hover:bg-brand-primary/5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {lote
+                      ? `Calculando ${lote.fila[lote.indice]}... (${lote.indice + 1}/${lote.fila.length})`
+                      : `Emitir ${loteDe} até ${loteAte}`}
+                  </button>
+                </div>
+                {/* MODO POR PERIODO. O lote e encadeado, mas os periodos nao precisam ser
+                    emitidos da mesma forma. O caso que originou isto: abril (ST) entra com
+                    estoque herdado, entao a necessidade sozinha pede 57.836 pecas contra uma
+                    demanda de 137.994 — a fabrica ficaria em menos de metade de um mes.
+                    Maio e junho ja caminham no ritmo da propria demanda e nao precisam do
+                    teto de capacidade. Sem esta linha o PCP teria que rodar dois lotes e
+                    perder o encadeamento entre eles. */}
+                {(() => {
+                  const fila = PERIODOS.filter((p) => (
+                    p !== 'MA'
+                    && ordemDoPeriodo(p) >= ordemDoPeriodo(loteDe)
+                    && ordemDoPeriodo(p) <= ordemDoPeriodo(loteAte)
+                  ));
+                  if (fila.length < 2) return null;
+                  return (
+                    <div className="flex items-end gap-2 pl-3 ml-1 border-l border-gray-200">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                          Modo por período
+                        </span>
+                        <div className="flex gap-1.5">
+                          {fila.map((p) => {
+                            const modo = modoDoPeriodo(p);
+                            const cap = modo === 'CAPACIDADE';
+                            return (
+                              <button
+                                key={p}
+                                type="button"
+                                disabled={!!lote}
+                                title={`${p}: ${cap ? `por capacidade (${pctCapacidade}%)` : 'por necessidade'}. Clique para trocar só este período.`}
+                                onClick={() => setModoPorPeriodo((m) => ({
+                                  ...m,
+                                  [p]: cap ? 'NECESSIDADE' : 'CAPACIDADE',
+                                }))}
+                                className={`rounded border px-2 py-1.5 text-xs font-semibold disabled:opacity-50 ${
+                                  cap
+                                    ? 'border-amber-300 bg-amber-50 text-amber-800'
+                                    : 'border-gray-300 bg-gray-50 text-gray-600 hover:bg-white'
+                                }`}
+                              >
+                                {p}
+                                <span className="ml-1 font-normal">{cap ? `cap ${pctCapacidade}%` : 'nec'}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
                 {periodoAlvo === 'MA' && (
                   <label className="flex flex-col">
                     <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Modo</span>
@@ -2952,7 +3239,11 @@ export default function SugestaoPlanoPage() {
                     </select>
                   </label>
                 )}
-                {periodoAlvo !== 'MA' && modoEmissao === 'CAPACIDADE' && (
+                {/* Aparece tambem quando a capacidade esta ligada so em ALGUM periodo do
+                    lote: senao, com a tela parada em OT (necessidade) e o ST marcado como
+                    capacidade, o percentual que o ST vai usar some da vista e nao tem como
+                    ajustar. */}
+                {periodoAlvo !== 'MA' && (modoEmissaoAlvo === 'CAPACIDADE' || Object.values(modoPorPeriodo).includes('CAPACIDADE')) && (
                   <label className="flex flex-col">
                     <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">% da capacidade</span>
                     <select
@@ -2973,13 +3264,67 @@ export default function SugestaoPlanoPage() {
                   necessidade, nao do historico) — mas o teto combinado na tela nao vale para
                   estas, e isso tem que ficar visivel, ou o "X% da capacidade" parece valer
                   para 100% do plano quando na pratica nao vale. */}
-              {modoEmissao === 'CAPACIDADE' && periodoAlvo !== 'MA' && !capacidadeConfigCarregada && (
+              {/* Resultado do lote. Nada foi salvo nem exportado — e so a conta, para o PCP
+                  conferir periodo a periodo antes de decidir. */}
+              {resumoLote.length > 0 && !lote && (
+                <div className="w-full bg-violet-50 border border-violet-200 rounded-lg p-3 text-sm text-violet-900">
+                  <div className="font-semibold mb-1">Lote calculado — {resumoLote.length} periodo(s), encadeados</div>
+                  <div className="overflow-x-auto">
+                    <table className="text-xs">
+                      <thead className="text-violet-700">
+                        <tr>
+                          <th className="px-2 py-1 text-left">Periodo</th>
+                          {resumoLote.map((x) => <th key={x.periodo} className="px-2 py-1 text-right">{x.periodo}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="px-2 py-1 text-violet-700">Pecas</td>
+                          {resumoLote.map((x) => <td key={x.periodo} className="px-2 py-1 text-right font-mono font-bold">{fmt(x.pecas)}</td>)}
+                        </tr>
+                        <tr>
+                          <td className="px-2 py-1 text-violet-700">SKUs alterados</td>
+                          {resumoLote.map((x) => <td key={x.periodo} className="px-2 py-1 text-right font-mono">{fmt(x.alterados)}</td>)}
+                        </tr>
+                        {/* Com modo por periodo, "57.836 pecas" sozinho nao diz nada: a
+                            mesma celula significa coisas diferentes se o periodo saiu por
+                            necessidade ou por capacidade. A linha anda junto com o numero. */}
+                        <tr>
+                          <td className="px-2 py-1 text-violet-700">Emissao</td>
+                          {resumoLote.map((x) => {
+                            const cap = modoDoPeriodo(x.periodo) === 'CAPACIDADE';
+                            return (
+                              <td key={x.periodo} className={`px-2 py-1 text-right font-mono ${cap ? 'font-bold text-amber-700' : 'text-violet-500'}`}>
+                                {cap ? `cap ${pctCapacidade}%` : 'nec'}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 mt-2">
+                    <button
+                      type="button"
+                      disabled={salvandoSugestao}
+                      onClick={salvarLoteCompleto}
+                      className="bg-brand-primary text-white rounded px-3 py-1.5 text-sm font-medium hover:bg-brand-dark disabled:opacity-50"
+                    >
+                      {salvandoSugestao ? 'Salvando...' : `Salvar as ${resumoLote.length} sugestoes`}
+                    </button>
+                    <span className="text-[11px] text-violet-700">
+                      Grava uma simulacao por periodo, com o mesmo loteId. Nada e exportado — o CSV de cada periodo sai no botao Exportar, trocando o seletor.
+                    </span>
+                  </div>
+                </div>
+              )}
+              {modoEmissaoAlvo === 'CAPACIDADE' && periodoAlvo !== 'MA' && !capacidadeConfigCarregada && (
                 <div className="w-full bg-red-50 border border-red-300 rounded-lg p-3 text-sm text-red-800">
                   <strong>Capacidade ainda carregando — não emita agora.</strong>
                   {' '}Sem a configuração de grupos, nenhuma linha é limitada e o teto de {pctCapacidade}% não vale para ninguém: o plano sai com a necessidade cheia, sem aviso. Espere os cartões de ocupação aparecerem.
                 </div>
               )}
-              {modoEmissao === 'CAPACIDADE' && periodoAlvo !== 'MA' && referenciasSemGrupoCapacidade.length > 0 && (
+              {modoEmissaoAlvo === 'CAPACIDADE' && periodoAlvo !== 'MA' && referenciasSemGrupoCapacidade.length > 0 && (
                 <div className="w-full bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
                   <strong>{referenciasSemGrupoCapacidade.length} referência{referenciasSemGrupoCapacidade.length > 1 ? 's' : ''} sem grupo de capacidade cadastrado</strong>
                   {' '}— ficam fora do teto de {pctCapacidade}% e recebem a necessidade cheia, sem rateio de fábrica. Atualize <code className="bg-amber-100 px-1 rounded">data/capacidade_grupo_refs.json</code> para essas referências entrarem no cálculo:
@@ -3116,7 +3461,7 @@ export default function SugestaoPlanoPage() {
                     <option value="BLOQUEADA">Bloqueada</option>
                   </select>
                 </label>
-                {(periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && (
+                {(periodoAlvo !== 'MA') && (
                   <label className="flex flex-col">
                     <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">1/2 Corte</span>
                     <select
@@ -3633,7 +3978,7 @@ export default function SugestaoPlanoPage() {
                     </div>
                   </div>
                 </div>
-                {(periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && resumoMeioLote.skus > 0 && (
+                {resumoMeioLote.skus > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5">
                       <div className="text-[11px] text-amber-700">SKUs com Corte Mín ÷ 2</div>
@@ -3647,7 +3992,7 @@ export default function SugestaoPlanoPage() {
                     </div>
                   </div>
                 )}
-                {ocupacaoAcumulada && (periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && (
+                {ocupacaoAcumulada && (
                   <div className="rounded-md border border-violet-200 bg-violet-50 px-3 py-2.5 mb-3">
                     <div className="flex items-baseline justify-between flex-wrap gap-2">
                       <div className="text-[11px] font-semibold text-violet-900 uppercase tracking-wide">
@@ -3697,7 +4042,7 @@ export default function SugestaoPlanoPage() {
                           {fmt(Math.abs(ocupacaoAcumulada.folgaMin))} min
                         </div>
                       </div>
-                      {modoEmissao === 'CAPACIDADE' && ocupacaoAcumulada.acimaCobertura > 0 && (
+                      {modoEmissaoAlvo === 'CAPACIDADE' && ocupacaoAcumulada.acimaCobertura > 0 && (
                         <div className="col-span-2 md:col-span-4 border-t border-violet-200 pt-2 mt-1">
                           <div className="text-[11px] text-gray-500">O preço de encher a fábrica</div>
                           <div className="text-sm text-amber-800">
@@ -3710,7 +4055,7 @@ export default function SugestaoPlanoPage() {
                     </div>
                   </div>
                 )}
-                {(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && (
+                {(ordemDoPeriodo(periodoAlvo) >= 2) && (
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                     <div className={`rounded-md border px-3 py-2.5 ${considerarCapacidade ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="text-[11px] text-gray-500">Capacidade ativa ({periodoAlvo})</div>
@@ -3743,7 +4088,7 @@ export default function SugestaoPlanoPage() {
                     </div>
                   </div>
                 )}
-                {(periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && (
+                {(ordemDoPeriodo(periodoAlvo) >= 2) && (
                   <>
                     <div className="pt-1 text-xs font-semibold text-gray-600 uppercase tracking-wide">Ajuste estimado pela capacidade</div>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -3898,20 +4243,11 @@ export default function SugestaoPlanoPage() {
                               planoSemCorte: 0,
                               projMes: 0,
                               dispAnterior: 0,
+                              dispPorPeriodo: Object.fromEntries(PERIODOS.map((per) => [per, 0])) as Record<PeriodoAlvo, number>,
                               dispMA: 0,
-                              dispPX: 0,
-                              dispUL: 0,
-                              dispQT: 0,
-                              dispQU: 0,
-                              dispSX: 0,
                               dispMesAlvo: 0,
                               coberturaMA: 0,
-                              planoMA: 0,
-                              planoPX: 0,
-                              planoUL: 0,
-                              planoQT: 0,
-                              planoQU: 0,
-                              planoSX: 0,
+                              planoPeriodo: Object.fromEntries(PERIODOS.map((per) => [per, 0])) as Record<PeriodoAlvo, number>,
                               planoAtual: 0,
                               planoSugerido: 0,
                               planoBaseSemOpMin: 0,
@@ -4145,7 +4481,7 @@ export default function SugestaoPlanoPage() {
                         const refKey = `${cont.continuidade}__${refGroup.referencia}`;
                         const refOpen = expandedRefs.has(refKey);
                         const refOpMinNaoAtendida = refGroup.itens.some((r) => Boolean(r.opMinNaoAtendida));
-                        const refMeioLoteUL = (periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && refGroup.itens.some((r) => Boolean(r.usouMeioLote));
+                        const refMeioLoteUL = (periodoAlvo !== 'MA') && refGroup.itens.some((r) => Boolean(r.usouMeioLote));
                         const refOpMinFaltante = refGroup.itens.reduce((max, r) => Math.max(max, Number(r.opMinFaltante || 0)), 0);
                         const refTotais = refGroup.itens.reduce((acc, r) => ({
                           estoqueAtual: acc.estoqueAtual + Number(r.estoqueAtual || 0),
@@ -4245,7 +4581,7 @@ export default function SugestaoPlanoPage() {
                               const st = statusViabilidadeRow(r);
                               const aumentoPlano = Number(r.deltaPlano || 0) > 0;
                               const opMinBloqueada = Boolean(r.opMinNaoAtendida);
-                              const meioLoteUL = (periodoAlvo === 'PX' || periodoAlvo === 'UL' || periodoAlvo === 'QT' || periodoAlvo === 'QU' || periodoAlvo === 'SX') && Boolean(r.usouMeioLote);
+                              const meioLoteUL = (periodoAlvo !== 'MA') && Boolean(r.usouMeioLote);
                               const rowBgClass = isActive
                                 ? 'bg-blue-50'
                                 : opMinBloqueada
