@@ -1,9 +1,9 @@
 {
-  "timestamp": 1791476488051,
+  "timestamp": 1793296956410,
   "data": {
-    "cobertura_min_a": 0.2,
-    "cobertura_max_a": 0.5,
-    "cobertura_min_b": 0.8,
+    "cobertura_min_a": 0.5,
+    "cobertura_max_a": 0.8,
+    "cobertura_min_b": 1,
     "cobertura_max_b": 2,
     "cobertura_min_c": 0.6,
     "cobertura_max_c": 2.5,

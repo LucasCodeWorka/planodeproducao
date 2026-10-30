@@ -83,7 +83,9 @@ function lerTsv(arquivo) {
     `SELECT id, idproduto, mes, ano, quantidade, origem, updated_at
        FROM app_projecoes WHERE mes=$1 AND ano=$2 ORDER BY idproduto`, [MES, ANO]);
   const hoje = new Map(atual.rows.map((r) => [String(r.idproduto), Number(r.quantidade)]));
-  const dest = path.join('data', `backup_projecoes_antes_proj_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`);
+  // O MES entra no nome: rodando dois meses no mesmo dia, o segundo backup sobrescrevia o
+  // primeiro e o estado anterior daquele mes se perdia.
+  const dest = path.join('data', `backup_projecoes_antes_${MESES_PT[MES].toLowerCase()}${ANO}_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`);
   fs.writeFileSync(dest, ['id;idproduto;mes;ano;quantidade;origem;updated_at']
     .concat(atual.rows.map((r) => [r.id, r.idproduto, r.mes, r.ano, r.quantidade, r.origem,
       r.updated_at ? new Date(r.updated_at).toISOString() : ''].join(';'))).join('\n'), 'utf8');
