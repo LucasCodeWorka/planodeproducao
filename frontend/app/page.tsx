@@ -1,8 +1,14 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import MatrizPlanejamentoTable, { type GrupoTotais } from './components/MatrizPlanejamentoTable';
+import { PERIODOS_PLANO, campoDoPeriodo, type CampoPeriodo, type PeriodoPlano } from './lib/periodos';
+
+// Quantos cards da Cobertura do Plano ficam visiveis de uma vez. SEIS era o horizonte
+// inteiro antes de ST, OT e NV entrarem; virou o tamanho da janela para a leitura nao
+// mudar de densidade so porque o plano passou a ir ate junho.
+const CARDS_VISIVEIS = 6;
 import Sidebar from './components/Sidebar';
 import { Planejamento, ProjecoesMap, PeriodosPlano, EstoqueLojaDisponivelAggregado } from './types';
 import { getToken, authHeaders, clearToken } from './lib/auth';
@@ -161,23 +167,13 @@ type RiscoMpDetalhePorSku = Record<string, {
   sx: RiscoMpMes;
 }>;
 
+// Indexado por PERIODO, nao com os seis rotulos escritos a mao: o backend serve os nove
+// desde que a execucao do plano passou a ler `PERIODOS_PLANO`, e com a lista fixa aqui o
+// TypeScript recusava `geral.ST` — a barra de execucao de abril, maio e junho nao tinha
+// como chegar na tela. `Partial` porque periodo sem lote no ERP nao vem na resposta.
 type ExecucaoPlanoResumo = {
-  geral: {
-    MA: ExecucaoPlanoItem | null;
-    PX: ExecucaoPlanoItem | null;
-    UL: ExecucaoPlanoItem | null;
-    QT: ExecucaoPlanoItem | null;
-    QU: ExecucaoPlanoItem | null;
-    SX: ExecucaoPlanoItem | null;
-  };
-  continuidade: Record<string, {
-    MA: ExecucaoPlanoItem | null;
-    PX: ExecucaoPlanoItem | null;
-    UL: ExecucaoPlanoItem | null;
-    QT: ExecucaoPlanoItem | null;
-    QU: ExecucaoPlanoItem | null;
-    SX: ExecucaoPlanoItem | null;
-  }>;
+  geral: Partial<Record<PeriodoPlano, ExecucaoPlanoItem | null>>;
+  continuidade: Record<string, Partial<Record<PeriodoPlano, ExecucaoPlanoItem | null>>>;
 };
 
 type HistoricoMinimoFechamento = { ano: number; mes: number; label: string; minimo: number; mediaTri: number };
@@ -214,6 +210,9 @@ export default function Home() {
   const [fechamentosMinimo, setFechamentosMinimo] = useState<Array<{ ano: number; mes: number; label: string }>>([]);
   const [historicoMinimoStatus, setHistoricoMinimoStatus] = useState<'idle' | 'carregando' | 'ok' | 'erro'>('idle');
   const [loading,      setLoading]      = useState(true);
+  // Primeiro card visivel da Cobertura do Plano. Comeca em 0 — o mes corrente — porque
+  // e dali que o PCP le, e os meses mais distantes sao consulta, nao rotina.
+  const [janelaCards, setJanelaCards] = useState(0);
   const [error,        setError]        = useState<string | null>(null);
   const [fromCache,    setFromCache]    = useState(false);
   const [cacheStatus,  setCacheStatus]  = useState<CacheStatus | null>(null);
@@ -848,23 +847,38 @@ export default function Home() {
     }
   }
 
+  // Plano das simulacoes marcadas no seletor SIMULACAO, por SKU.
+  //
+  // Dois defeitos corrigidos aqui, e os dois faziam abril, maio e junho nao reagirem ao
+  // seletor:
+  //
+  // 1) A linha so copiava `ma`..`sx`. ST, OT e NV eram descartados, entao marcar as tres
+  //    sugestoes do lote nao mudava nada nos cards novos.
+  // 2) `map.set` SUBSTITUIA o registro inteiro a cada simulacao. Marcando ST, OT e NV, a
+  //    ultima apagava o que as outras duas tinham posto. Agora acumula.
+  //
+  // Cada simulacao contribui SO com o periodo que ela emitiu (`periodoAlvo`). Os outros
+  // campos que ela carrega sao a foto da matriz de quando foi calculada — aplicá-los
+  // reescreveria periodos que outra simulacao ja decidiu. Simulacao antiga, sem o campo,
+  // cai no comportamento de antes e contribui com tudo.
   const planosAprovadosMap = useMemo(() => {
-    const map = new Map<string, { ma: number; px: number; ul: number; qt: number; qu: number; sx: number }>();
+    const map = new Map<string, Partial<Record<CampoPeriodo, number>>>();
     const base = aprovadas.filter((a) => aprovadasSelecionadasIds.includes(a.id));
     const ordenadas = [...base].sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
     for (const a of ordenadas) {
       const planos = Array.isArray(a?.parametros?.planos) ? a.parametros!.planos! : [];
+      const alvo = String((a?.parametros as { periodoAlvo?: string } | undefined)?.periodoAlvo || '').trim().toUpperCase();
+      const campos = (PERIODOS_PLANO as readonly string[]).includes(alvo)
+        ? [campoDoPeriodo(alvo as PeriodoPlano)]
+        : PERIODOS_PLANO.map(campoDoPeriodo);
       for (const p of planos) {
         const k = String(p?.chave || '').trim();
         if (!k) continue;
-        map.set(k, {
-          ma: Number(p?.ma || 0),
-          px: Number(p?.px || 0),
-          ul: Number(p?.ul || 0),
-          qt: Number(p?.qt || 0),
-          qu: Number(p?.qu || 0),
-          sx: Number(p?.sx || 0),
-        });
+        const atual = map.get(k) || {};
+        for (const campo of campos) {
+          atual[campo] = Number((p as unknown as Record<string, number>)[campo] || 0);
+        }
+        map.set(k, atual);
       }
     }
     return map;
@@ -876,18 +890,9 @@ export default function Home() {
       const k = chaveItem(i);
       const p = planosAprovadosMap.get(k);
       if (!p) return i;
-      return {
-        ...i,
-        plano: {
-          ...(i.plano || {}),
-          ma: p.ma,
-          px: p.px,
-          ul: p.ul,
-          qt: p.qt,
-          qu: p.qu,
-          sx: p.sx,
-        },
-      };
+      // Espalha o que a simulacao decidiu por cima do plano da matriz. Os campos que ela
+      // nao toca ficam como estao no ERP, em vez de virarem zero.
+      return { ...i, plano: { ...(i.plano || {}), ...p } };
     });
   }, [dados, aplicarAprovadas, planosAprovadosMap]);
 
@@ -2311,20 +2316,46 @@ export default function Home() {
 
           {/* Totais do plano por continuidade — espelha a linha de totalizador da matriz */}
           {!loading && !error && totaisContinuidade.length > 0 && (() => {
-            const meses = [
-              { label: nomeMesCurto(periodos.MA), bg: 'bg-indigo-50', head: 'bg-indigo-100 text-indigo-900', periodo: 'MA',
-                proj: 'projMA', plano: 'planoMA', disp: 'dispFutMar', neg: 'negFutMar' },
-              { label: nomeMesCurto(periodos.PX), bg: 'bg-emerald-50', head: 'bg-emerald-100 text-emerald-900', periodo: 'PX',
-                proj: 'projPX', plano: 'planoPX', disp: 'dispFutAbr', neg: 'negFutAbr' },
-              { label: nomeMesCurto(periodos.UL), bg: 'bg-amber-50', head: 'bg-amber-100 text-amber-900', periodo: 'UL',
-                proj: 'projUL', plano: 'planoUL', disp: 'dispFutMai', neg: 'negFutMai' },
-              { label: nomeMesCurto((periodos.UL || 0) + 1), bg: 'bg-cyan-50', head: 'bg-cyan-100 text-cyan-900', periodo: 'QT',
-                proj: 'projQT', plano: 'planoQT', disp: 'dispFutJun', neg: 'negFutJun' },
-              { label: nomeMesCurto((periodos.UL || 0) + 2), bg: 'bg-rose-50', head: 'bg-rose-100 text-rose-900', periodo: 'QU',
-                proj: 'projQU', plano: 'planoQU', disp: 'dispFutJul', neg: 'negFutJul' },
-              { label: nomeMesCurto((periodos.UL || 0) + 3), bg: 'bg-purple-50', head: 'bg-purple-100 text-purple-900', periodo: 'SX',
-                proj: 'projSX', plano: 'planoSX', disp: 'dispFutNov', neg: 'negFutNov' },
-            ] as const;
+            // UM CARD POR PERIODO DO PLANO, derivados da lista — nove, nao seis.
+            //
+            // A lista estava escrita a mao e parava em SX (marco/27), entao abril, maio e
+            // junho nao apareciam aqui mesmo depois de o Fagner implantar os lotes ST, OT e
+            // NV no ERP pelos codigos auxiliares. Os campos tambem eram chapados
+            // (`dispFutMar`, `negFutNov`) e tinham nome de mes que nao batia com mes nenhum;
+            // agora saem dos mapas por periodo do `GrupoTotais`.
+            //
+            // O mes de cada card vem do que a API devolveu em `periodos`. A conta antiga
+            // (`periodos.UL + 1`, `+2`, `+3`) estourava em dezembro — mes 13 — e so nao
+            // quebrava porque `nomeMesCurto` normaliza.
+            const CORES_CARD = [
+              { bg: 'bg-indigo-50', head: 'bg-indigo-100 text-indigo-900' },
+              { bg: 'bg-emerald-50', head: 'bg-emerald-100 text-emerald-900' },
+              { bg: 'bg-amber-50', head: 'bg-amber-100 text-amber-900' },
+              { bg: 'bg-cyan-50', head: 'bg-cyan-100 text-cyan-900' },
+              { bg: 'bg-rose-50', head: 'bg-rose-100 text-rose-900' },
+              { bg: 'bg-purple-50', head: 'bg-purple-100 text-purple-900' },
+              { bg: 'bg-teal-50', head: 'bg-teal-100 text-teal-900' },
+              { bg: 'bg-orange-50', head: 'bg-orange-100 text-orange-900' },
+              { bg: 'bg-slate-50', head: 'bg-slate-100 text-slate-900' },
+            ];
+            const mesDoCard = (p: PeriodoPlano) => {
+              const dado = Number((periodos as unknown as Record<string, number | undefined>)[p] || 0);
+              if (dado >= 1 && dado <= 12) return dado;
+              const base = Number(periodos.MA || 0);
+              return base ? ((base - 1 + PERIODOS_PLANO.indexOf(p)) % 12) + 1 : 0;
+            };
+            const meses = PERIODOS_PLANO.map((p, k) => ({
+              label: nomeMesCurto(mesDoCard(p)),
+              bg: CORES_CARD[k % CORES_CARD.length].bg,
+              head: CORES_CARD[k % CORES_CARD.length].head,
+              periodo: p,
+              campo: campoDoPeriodo(p),
+            }));
+            // A janela nunca pode passar do fim: se o horizonte encolher (um periodo sair
+            // do ERP), um indice antigo mostraria cards vazios.
+            const janelaMax = Math.max(0, meses.length - CARDS_VISIVEIS);
+            const inicioJanela = Math.min(janelaCards, janelaMax);
+            const mesesVisiveis = meses.slice(inicioJanela, inicioJanela + CARDS_VISIVEIS);
             // Ordem fixa das continuidades dentro do card. Nunca por valor: ordenar pelo negativo
             // faz as linhas trocarem de lugar de um mes para o outro e impede a leitura na horizontal.
             const ordemContinuidade: Record<string, number> = {
@@ -2339,6 +2370,10 @@ export default function Home() {
             const fmtN = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
             // soma as continuidades que a matriz devolveu já filtradas
             const soma = (campo: string) => totaisContinuidade.reduce((acc, t) => acc + num(t.totais, campo), 0);
+            // Soma de um mapa por periodo (`plano`, `proj`, `dispFut`, `negFut`), que e de
+            // onde os nove cards leem agora.
+            const somaMapa = (mapa: 'plano' | 'proj' | 'dispFut' | 'negFut', campo: CampoPeriodo) =>
+              totaisContinuidade.reduce((acc, t) => acc + Number(t.totais[mapa]?.[campo] || 0), 0);
             const minTotal = totaisContinuidade.reduce((acc, t) => acc + (t.totais.estoqueMin || 0), 0);
 
             return (
@@ -2347,15 +2382,45 @@ export default function Home() {
                   <span className="w-1.5 h-1.5 rounded-full bg-brand-primary shrink-0" />
                   <span className="text-[10px] font-bold text-brand-primary uppercase tracking-widest">Cobertura do Plano</span>
                   <div className="flex-1 h-px bg-gray-100" />
+                  {/* JANELA DE 6 CARDS. O horizonte foi de seis para nove periodos quando
+                      abril, maio e junho entraram no ERP, e nove cards lado a lado deixam
+                      cada um estreito demais para a leitura de relance. Entao a tela segue
+                      mostrando SEIS — o que o PCP ja conhecia — e os outros tres ficam a um
+                      clique. Comeca no inicio do horizonte, no mes corrente. */}
+                  {meses.length > CARDS_VISIVEIS && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-mono text-gray-400">
+                        {mesesVisiveis[0]?.label}–{mesesVisiveis[mesesVisiveis.length - 1]?.label}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setJanelaCards((j) => Math.max(0, j - 1))}
+                        disabled={janelaCards <= 0}
+                        title="Mês anterior"
+                        className="rounded border border-gray-200 px-1.5 py-0.5 text-xs leading-none text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setJanelaCards((j) => Math.min(meses.length - CARDS_VISIVEIS, j + 1))}
+                        disabled={janelaCards >= meses.length - CARDS_VISIVEIS}
+                        title="Próximo mês"
+                        className="rounded border border-gray-200 px-1.5 py-0.5 text-xs leading-none text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
                   <span className="text-[10px] text-gray-400">negativo aberto por continuidade em cada mês</span>
                 </div>
 
                 <div className="grid grid-cols-2 items-start gap-2 sm:grid-cols-3 xl:grid-cols-6">
-                  {meses.map((m) => {
-                    const plano = soma(m.plano);
-                    const proj = soma(m.proj);
-                    const disp = soma(m.disp);
-                    const neg = soma(m.neg);
+                  {mesesVisiveis.map((m) => {
+                    const plano = somaMapa('plano', m.campo);
+                    const proj = somaMapa('proj', m.campo);
+                    const disp = somaMapa('dispFut', m.campo);
+                    const neg = somaMapa('negFut', m.campo);
                     const cob = minTotal > 0 ? disp / minTotal : null;
                     const exec = execucaoPlanoResumo?.geral?.[m.periodo]?.percentual ?? null;
                     const gapMes = m.periodo in gapPorPeriodo ? gapPorPeriodo[m.periodo] : null;
@@ -2363,7 +2428,7 @@ export default function Home() {
                     const celulas = exec === null ? 0 : Math.max(0, Math.min(10, Math.ceil((exec / 100) * 10)));
 
                     const linhas = totaisContinuidade
-                      .map((t) => ({ nome: t.continuidade, valor: num(t.totais, m.neg) }))
+                      .map((t) => ({ nome: t.continuidade, valor: Number(t.totais.negFut?.[m.campo] || 0) }))
                       .sort((a, b) => ordemDe(a.nome) - ordemDe(b.nome) || b.valor - a.valor);
                     const maiorNeg = Math.max(1, ...linhas.map((l) => l.valor));
 
