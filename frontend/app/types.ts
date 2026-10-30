@@ -77,12 +77,19 @@ export interface ProjecoesMap {
 }
 
 /** Mapeamento dos períodos do plano para número de mês */
+// Mês (1-12) de cada período do plano. Os rótulos são posicionais e iguais aos do ERP:
+// MA = mês atual, PX = próximo, UL = o seguinte, e dali pelo ordinal.
+// Do QT em diante são opcionais porque nem toda tela pede o horizonte inteiro.
 export interface PeriodosPlano {
   MA: number;  // mês atual (ex: 3 para março)
   PX: number;  // próximo mês
   UL: number;  // mês seguinte
-  QT?: number; // quarto mês (opcional)
-  QU?: number; // quinto mês (opcional)
+  QT?: number; // quarto mês
+  QU?: number; // quinto mês
+  SX?: number; // sexto mês
+  ST?: number; // sétimo mês
+  OT?: number; // oitavo mês
+  NV?: number; // nono mês
 }
 
 /** Excedente de estoque das lojas por produto */

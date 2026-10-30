@@ -12,7 +12,7 @@ const {
   buscarLocaisProducao,
   buscarExecucaoPlanoResumo
 } = require("../services/producaoService");
-const { calcularPeriodosPlano } = require("../services/periodoPlanoService");
+const { calcularPeriodosPlano, PERIODOS_PLANO } = require("../services/periodoPlanoService");
 
 const { readCache, filterCache } = require("../cache/matrizCache");
 const {
@@ -601,10 +601,10 @@ router.post("/plano-original", async (req, res) => {
       FROM vr_pcp_lotepl2 a
       LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
       WHERE p.tp_situacao = 1
-        AND p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU', 'SX')
+        AND UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) = ANY($2::TEXT[])
         AND a.cd_produto::TEXT = ANY($1::TEXT[])
       GROUP BY a.cd_produto, p.cd_auxiliar
-    `, [productIds]);
+    `, [productIds, PERIODOS_PLANO]);
 
     const data = {};
     for (const id of productIds) {
@@ -1037,7 +1037,7 @@ router.get("/lotes-execucao-matriz", async (req, res) => {
         FROM vr_pcp_loteplop a
         JOIN pcp_lotepv p ON p.nr_lote = a.nr_lote
         WHERE p.tp_situacao = 1
-          AND UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) IN ('MA', 'PX', 'UL', 'QT', 'QU', 'SX')
+          AND UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) = ANY(ARRAY[${PERIODOS_PLANO.map((x) => `'${x}'`).join(',')}]::TEXT[])
         GROUP BY a.cd_produto, p.cd_auxiliar, a.nr_lote
       ),
       consolidados AS (

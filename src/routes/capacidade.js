@@ -1,7 +1,7 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
-const { calcularPeriodosPlano } = require("../services/periodoPlanoService");
+const { calcularPeriodosPlano, PERIODOS_PLANO } = require("../services/periodoPlanoService");
 const { diasDeFabricaRestantes, diasDisponiveisDoPeriodo } = require("../lib/diasUteis");
 
 const router = express.Router();
@@ -241,7 +241,9 @@ async function writeGrupoRefs(pool, data) {
   return linhas;
 }
 
-const PERIODOS_LOTE = ["MA", "PX", "UL", "QT", "QU"];
+// Mesma lista do serviço de períodos: MA..NV. Estava congelada em cinco aqui, então o
+// em-processo de SX em diante nunca era atribuído ao período certo.
+const PERIODOS_LOTE = PERIODOS_PLANO;
 
 /**
  * Em processo por REFERENCIA e por PERIODO do plano.
@@ -743,6 +745,98 @@ router.get("/tempos-ref", auth, async (req, res) => {
       error: "Erro ao consultar tempos por referência",
       details: error.message,
     });
+  }
+});
+
+/**
+ * GET /api/capacidade/tempos-por-grupo
+ *
+ * Tempo de costura MEDIDO, agregado por grupo de produto (SUTIA, CALCA, TOP, ...).
+ *
+ * Existe para um problema concreto: produto que a fabrica ainda nao faz nao tem tempo
+ * cadastrado, e sem tempo nao da para dizer se ele cabe na capacidade. A saida que estava
+ * em uso era digitar um minuto por peca no olho — e a dispersao medida aqui mostra por que
+ * isso e frageil: CALCA da 5,48 min/peca e SUTIA da 10,78, o dobro. Errar o grupo erra a
+ * resposta inteira.
+ *
+ * Com esta rota, em vez de inventar o minuto, aponta-se o produto novo para um grupo que a
+ * fabrica JA produz e usa-se o tempo dele. Vira premissa rastreavel ("igual a um TOP, 8,61
+ * min/peca medido em 7 referencias") em vez de um numero sem origem.
+ *
+ * O grupo sai da matriz de planejamento (`produto.grupo`) e o tempo da mesma resolucao que
+ * todo o resto da tela de capacidade usa (`resolveTempoLikePowerBi`), para nao nascer uma
+ * segunda verdade sobre tempo no sistema.
+ */
+router.get('/tempos-por-grupo', auth, async (req, res) => {
+  try {
+    const pool = req.app.get('pool');
+    const { readCache } = require('../cache/matrizCache');
+
+    const matrizCache = await readCache();
+    const matrizRows = Array.isArray(matrizCache?.data?.rows) ? matrizCache.data.rows : [];
+
+    // idreferencia -> grupo. Primeira ocorrencia vence: a referencia e a mesma peca em
+    // varias cores e tamanhos, e todas compartilham grupo.
+    const grupoPorIdRef = new Map();
+    for (const item of matrizRows) {
+      const idref = String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase();
+      if (!idref || grupoPorIdRef.has(idref)) continue;
+      const grupo = String(item?.produto?.grupo || '').trim().toUpperCase();
+      grupoPorIdRef.set(idref, grupo || '(SEM GRUPO)');
+    }
+    if (!grupoPorIdRef.size) {
+      return res.json({ success: true, total: 0, data: [], aviso: 'Matriz vazia no cache.' });
+    }
+
+    const temposResult = await queryTempoBaseRows(pool, { idreferencias: [...grupoPorIdRef.keys()] });
+    const tempoPorIdRef = new Map();
+    for (const row of temposResult.rows || []) {
+      const idref = String(row.idreferencia || '').trim().toUpperCase();
+      if (!idref) continue;
+      const base = resolveTempoLikePowerBi(row.hr_tempo, row.hr_tempopadrao);
+      tempoPorIdRef.set(idref, (tempoPorIdRef.get(idref) || 0) + (Number.isFinite(base) ? base : 0));
+    }
+
+    const porGrupo = new Map();
+    for (const [idref, tempo] of tempoPorIdRef) {
+      // Referencia sem tempo nao entra na media: ela puxaria o grupo para baixo dizendo
+      // "esta peca leva zero minuto", quando o que houve foi falta de cadastro.
+      if (!(tempo > 0)) continue;
+      const grupo = grupoPorIdRef.get(idref) || '(SEM GRUPO)';
+      const acc = porGrupo.get(grupo) || { grupo, referencias: 0, soma: 0, tempos: [] };
+      acc.referencias += 1;
+      acc.soma += tempo;
+      acc.tempos.push(tempo);
+      porGrupo.set(grupo, acc);
+    }
+
+    const data = [...porGrupo.values()]
+      .map((g) => {
+        const ordenados = g.tempos.slice().sort((a, b) => a - b);
+        return {
+          grupo: g.grupo,
+          referencias: g.referencias,
+          min_peca_medio: Number((g.soma / g.referencias).toFixed(2)),
+          min_peca_mediana: Number(ordenados[Math.floor(ordenados.length / 2)].toFixed(2)),
+          min_peca_minimo: Number(ordenados[0].toFixed(2)),
+          min_peca_maximo: Number(ordenados[ordenados.length - 1].toFixed(2)),
+        };
+      })
+      .sort((a, b) => b.referencias - a.referencias);
+
+    const totalRefs = data.reduce((acc, g) => acc + g.referencias, 0);
+    const somaGeral = data.reduce((acc, g) => acc + g.min_peca_medio * g.referencias, 0);
+
+    return res.json({
+      success: true,
+      total: data.length,
+      referencias: totalRefs,
+      min_peca_geral: totalRefs > 0 ? Number((somaGeral / totalRefs).toFixed(2)) : 0,
+      data,
+    });
+  } catch (error) {
+    console.error('[capacidade/tempos-por-grupo] Erro:', error);
+    return res.status(500).json({ success: false, error: 'Erro ao agregar tempos por grupo', details: error.message });
   }
 });
 
@@ -1630,10 +1724,73 @@ router.get("/dias-resumo", async (req, res) => {
 const gapMensalCache = { chave: '', data: null, timestamp: 0 };
 const GAP_CACHE_TTL = 5 * 60 * 1000;
 
+// Simulacoes APROVADAS que carregam o plano por SKU, para sobrepor ao plano da matriz.
+//
+// Vinha de `data/analises_plano.json`, que parou em marco/2026: as simulacoes migraram para
+// `app_simulacoes` no Postgres e o disco do Render e efemero. Na pratica
+// `gap-mensal?aplicar_aprovadas=true` nao aplicava mais nada — lia um arquivo congelado.
+// O arquivo segue como fallback para rodar local sem banco.
+function aprovadasComPlano(lista) {
+  return (Array.isArray(lista) ? lista : [])
+    .filter((a) => a?.parametros?.statusAprovacao === 'APROVADA' && Array.isArray(a?.parametros?.planos));
+}
+
 function lerAprovadasDoArquivo() {
   const parsed = readJson(path.join(DATA_DIR, 'analises_plano.json'), { data: [] });
-  const lista = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.data) ? parsed.data : []);
-  return lista.filter((a) => a?.parametros?.statusAprovacao === 'APROVADA' && Array.isArray(a?.parametros?.planos));
+  return aprovadasComPlano(Array.isArray(parsed) ? parsed : parsed?.data);
+}
+
+async function lerAprovadas(pool) {
+  if (!pool) return lerAprovadasDoArquivo();
+  try {
+    const r = await pool.query(
+      `SELECT created_at, parametros
+         FROM app_simulacoes
+        WHERE UPPER(COALESCE(parametros::jsonb ->> 'statusAprovacao', 'PENDENTE')) = 'APROVADA'
+        ORDER BY created_at`
+    );
+    const lista = r.rows.map((row) => {
+      let parametros = {};
+      try { parametros = row.parametros ? JSON.parse(row.parametros) : {}; } catch { parametros = {}; }
+      return { createdAt: Number(row.created_at || 0), parametros };
+    });
+    return aprovadasComPlano(lista);
+  } catch (err) {
+    // 42P01 = tabela ainda nao criada; nada aprovado e um estado valido, nao uma falha.
+    if (err.code !== '42P01') {
+      console.error('[capacidade] aprovadas do banco falharam, usando arquivo:', err.message);
+    }
+    return lerAprovadasDoArquivo();
+  }
+}
+
+// Simulacoes de um LOTE especifico, aprovadas ou nao.
+//
+// O `aplicar_aprovadas` so enxerga o que ja passou pela aprovacao, e o PCP precisa ver o
+// efeito do lote ANTES disso — e justamente a conferencia que decide se aprova. Como as
+// simulacoes de um lote guardam o plano completo dos nove periodos por SKU, basta a mais
+// recente: as outras sao a mesma foto, mudando so qual periodo cada uma assume como alvo.
+async function lerSimulacoesDoLote(pool, loteId) {
+  const alvo = String(loteId || '').trim();
+  if (!pool || !alvo) return [];
+  try {
+    const r = await pool.query(
+      `SELECT created_at, parametros
+         FROM app_simulacoes
+        WHERE parametros::jsonb ->> 'loteId' = $1
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [alvo]
+    );
+    return r.rows.map((row) => {
+      let parametros = {};
+      try { parametros = row.parametros ? JSON.parse(row.parametros) : {}; } catch { parametros = {}; }
+      return { createdAt: Number(row.created_at || 0), parametros };
+    }).filter((a) => Array.isArray(a?.parametros?.planos));
+  } catch (err) {
+    if (err.code !== '42P01') console.error('[capacidade] lote do banco falhou:', err.message);
+    return [];
+  }
 }
 
 // mesma chave usada pela tela ao casar simulação com a linha da matriz
@@ -1653,7 +1810,10 @@ router.get('/gap-mensal', auth, async (req, res) => {
     const ate = String(req.query.ate || atePadrao).slice(0, 10);
     // padrão false: é assim que a tela de Capacidade calcula o gap que serve de referência
     const aplicarAprovadas = String(req.query.aplicar_aprovadas ?? 'false') === 'true';
-    const chaveCache = `${de}|${ate}|${aplicarAprovadas}`;
+    // Lote de simulacao a sobrepor, aprovado ou nao. Entra na chave do cache para a tela
+    // com e sem simulacao nao se contaminarem.
+    const loteId = String(req.query.lote_id || '').trim();
+    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}`;
 
     if (gapMensalCache.data && gapMensalCache.chave === chaveCache && (Date.now() - gapMensalCache.timestamp) < GAP_CACHE_TTL) {
       return res.json({ ...gapMensalCache.data, fromCache: true });
@@ -1683,7 +1843,17 @@ router.get('/gap-mensal', auth, async (req, res) => {
     // plano da matriz, com a simulação aprovada por cima quando pedido
     const planosAprovados = new Map();
     if (aplicarAprovadas) {
-      for (const a of lerAprovadasDoArquivo().sort((x, y) => Number(x.createdAt || 0) - Number(y.createdAt || 0))) {
+      const aprovadas = await lerAprovadas(pool);
+      for (const a of aprovadas.sort((x, y) => Number(x.createdAt || 0) - Number(y.createdAt || 0))) {
+        for (const p of a.parametros.planos) {
+          const k = String(p?.chave || '').trim();
+          if (k) planosAprovados.set(k, p);
+        }
+      }
+    }
+    // O lote entra DEPOIS das aprovadas: e a foto mais recente e deve prevalecer.
+    if (loteId) {
+      for (const a of await lerSimulacoesDoLote(pool, loteId)) {
         for (const p of a.parametros.planos) {
           const k = String(p?.chave || '').trim();
           if (k) planosAprovados.set(k, p);
@@ -1706,9 +1876,11 @@ router.get('/gap-mensal', auth, async (req, res) => {
       if (descricao.includes('MEIA DE SEDA')) continue;
 
       const aprovado = planosAprovados.get(chaveDaLinha(item));
-      const plano = aprovado
-        ? { ma: Number(aprovado.ma || 0), px: Number(aprovado.px || 0), ul: Number(aprovado.ul || 0), qt: Number(aprovado.qt || 0), qu: Number(aprovado.qu || 0), sx: Number(aprovado.sx || 0) }
-        : { ma: Number(item?.plano?.ma || 0), px: Number(item?.plano?.px || 0), ul: Number(item?.plano?.ul || 0), qt: Number(item?.plano?.qt || 0), qu: Number(item?.plano?.qu || 0), sx: Number(item?.plano?.sx || 0) };
+      const fonte = aprovado || item?.plano || {};
+      const plano = Object.fromEntries(PERIODOS_PLANO.map((per) => {
+        const campo = per.toLowerCase();
+        return [campo, Number(fonte[campo] || 0)];
+      }));
 
       const refPadrao = String(item?.produto?.referencia || '').trim().toUpperCase();
       const refSistema = String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase();
@@ -1716,9 +1888,8 @@ router.get('/gap-mensal', auth, async (req, res) => {
 
       for (const chave of [refPadrao, refSistema]) {
         if (!chave) continue;
-        const atual = planoPorRef.get(chave) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
-        atual.ma += plano.ma; atual.px += plano.px; atual.ul += plano.ul;
-        atual.qt += plano.qt; atual.qu += plano.qu; atual.sx += plano.sx;
+        const atual = planoPorRef.get(chave) || Object.fromEntries(PERIODOS_PLANO.map((per) => [per.toLowerCase(), 0]));
+        for (const per of PERIODOS_PLANO) { const campo = per.toLowerCase(); atual[campo] += plano[campo]; }
         planoPorRef.set(chave, atual);
         processoPorRef.set(chave, (processoPorRef.get(chave) || 0) + emProcesso);
       }
@@ -1744,8 +1915,10 @@ router.get('/gap-mensal', auth, async (req, res) => {
       await carregarProcessoPorRefPeriodo(pool, matrizRows, periodos, hoje);
 
     // carga por mês, com rateio quando a referência pertence a mais de um grupo
-    const carga = { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
-    const cargaProcesso = { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 };
+    // Um acumulador por periodo de PERIODOS_PLANO (ma..nv), em vez da lista escrita a mao:
+    // era assim que ST ficava de fora da carga mesmo tendo plano lancado no ERP.
+    const carga = Object.fromEntries(PERIODOS_PLANO.map((p) => [p.toLowerCase(), 0]));
+    const cargaProcesso = Object.fromEntries(PERIODOS_PLANO.map((p) => [p, 0]));
     let processoCarga = 0;
     const somarProcessoGap = (referencia, tempo, totalDaRef, rateio) => {
       const total = tempo * totalDaRef * rateio;
@@ -1766,12 +1939,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
         ? 1
         : (totalRateio > 0 ? ((capacidadeConfigPorGrupo.get(row.grupo) || 0) / totalRateio) : (1 / gruposDaRef.length));
 
-      carga.ma += tempo * base.ma * rateio;
-      carga.px += tempo * base.px * rateio;
-      carga.ul += tempo * base.ul * rateio;
-      carga.qt += tempo * base.qt * rateio;
-      carga.qu += tempo * base.qu * rateio;
-      carga.sx += tempo * base.sx * rateio;
+      for (const p of PERIODOS_PLANO) carga[p.toLowerCase()] += tempo * Number(base[p.toLowerCase()] || 0) * rateio;
       somarProcessoGap(row.referencia, tempo, Number(processoPorRef.get(row.referencia) || 0), rateio);
     }
 
@@ -1787,13 +1955,8 @@ router.get('/gap-mensal', auth, async (req, res) => {
       const idreferencia = seqgrupoPorRef.get(referencia) || '';
       const tempo = Number(tempoPorRef.get(idreferencia) || 0);
       if (!tempo) continue;
-      const base = planoPorRef.get(referencia) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
-      carga.ma += tempo * base.ma;
-      carga.px += tempo * base.px;
-      carga.ul += tempo * base.ul;
-      carga.qt += tempo * base.qt;
-      carga.qu += tempo * base.qu;
-      carga.sx += tempo * base.sx;
+      const base = planoPorRef.get(referencia) || {};
+      for (const p of PERIODOS_PLANO) carga[p.toLowerCase()] += tempo * Number(base[p.toLowerCase()] || 0);
       somarProcessoGap(referencia, tempo, Number(processoPorRef.get(referencia) || 0), 1);
     }
 
@@ -1807,7 +1970,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
     let tempoAcumulado = 0;
     let diasAcumulados = 0;
     const meses = [];
-    for (const chave of ['MA', 'PX', 'UL', 'QT', 'QU', 'SX']) {
+    for (const chave of PERIODOS_PLANO) {
       tempoAcumulado += carga[chave.toLowerCase()] + (cargaProcesso[chave] || 0);
       // Dias do calendario, nao da config: o mes em curso entra so com o que falta, e os
       // feriados de cada mes sao descontados no ano certo.

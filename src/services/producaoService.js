@@ -5,7 +5,7 @@
 const { buscarProdutoComMedias } = require('./vendasService');
 const { calcularEstoqueMinimo } = require('./estoqueMinimo');
 const { isExcludedPlanningItem } = require('./planningExclusions');
-const { calcularPeriodosPlano } = require('./periodoPlanoService');
+const { calcularPeriodosPlano, PERIODOS_PLANO } = require('./periodoPlanoService');
 const {
   carregarPares,
   parAtivoNoMes,
@@ -565,7 +565,9 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
        GROUP BY p.cd_produto`,
       [cdEmpresa]
     ),
-    // Q4_ph1 – Plano de produção futuro (MA=mês atual, PX=próximo, UL=seguinte)
+    // Q4_ph1 – Plano de produção futuro, um período por rótulo de PERIODOS_PLANO.
+    // A lista vem do serviço de períodos em vez de escrita aqui: foi assim que ST ficou de
+    // fora por tempo indeterminado, com plano lançado no ERP e invisível em toda a aplicação.
     pool.query(
       `SELECT a.cd_produto::BIGINT AS idproduto,
               p.cd_auxiliar,
@@ -574,9 +576,9 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
        FROM vr_pcp_lotepl2 a
        LEFT JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
        WHERE p.tp_situacao = 1
-         AND p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU', 'SX')
+         AND UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) = ANY($1::TEXT[])
        GROUP BY a.cd_produto, p.cd_auxiliar`,
-      []
+      [PERIODOS_PLANO]
     ),
   ]);
 
@@ -762,15 +764,22 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
   const emprocMap = new Map(rEmProcesso.rows.map(r => [Number(r.idproduto), parseFloat(r.qt_em_processo) || 0]));
   const pedMap    = new Map(rPedidos.rows.map(r    => [Number(r.idproduto), parseFloat(r.qt_pendente)    || 0]));
 
-  // Plano de produção: { MA, PX, UL, QT } por produto
+  // Plano de produção por período, um campo por rótulo de PERIODOS_PLANO.
+  //
+  // Antes a lista estava escrita a mão aqui e em mais cinco lugares. Quando o ERP ganhou o
+  // sétimo período (ST, produção abr/2027), ele simplesmente sumia: tinha 2.380 peças
+  // lançadas que nenhuma tela via. Agora quem manda é PERIODOS_PLANO — acrescentar um
+  // período passa a ser mexer num lugar só.
+  const periodosValidos = new Set(PERIODOS_PLANO);
+  const zeradoPorPeriodo = () => Object.fromEntries(PERIODOS_PLANO.map((p) => [p, 0]));
   const planoMap  = new Map();
   const planoOriginalMap = new Map();
   for (const row of rPlano.rows) {
     const id  = Number(row.idproduto);
     const per = String(row.cd_auxiliar || '').trim().toUpperCase();
-    if (!planoMap.has(id)) planoMap.set(id, { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 });
-    if (!planoOriginalMap.has(id)) planoOriginalMap.set(id, { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0, SX: 0 });
-    if (per === 'MA' || per === 'PX' || per === 'UL' || per === 'QT' || per === 'QU' || per === 'SX') {
+    if (!planoMap.has(id)) planoMap.set(id, zeradoPorPeriodo());
+    if (!planoOriginalMap.has(id)) planoOriginalMap.set(id, zeradoPorPeriodo());
+    if (periodosValidos.has(per)) {
       planoMap.get(id)[per] = parseFloat(row.plano) || 0;
       planoOriginalMap.get(id)[per] = parseFloat(row.plano_original) || 0;
     }
@@ -925,18 +934,10 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
     let emProcesso = 0;
     let qtPendente = 0;
     let saldoAdicional = 0;
-    let planoSX = 0;
-    let planoOriginalSX = 0;
-    let planoMA = 0;
-    let planoPX = 0;
-    let planoUL = 0;
-    let planoQT = 0;
-    let planoQU = 0;
-    let planoOriginalMA = 0;
-    let planoOriginalPX = 0;
-    let planoOriginalUL = 0;
-    let planoOriginalQT = 0;
-    let planoOriginalQU = 0;
+    // Acumuladores por periodo, na ordem de PERIODOS_PLANO. Chave em maiusculo (MA, PX...)
+    // para casar com o `cd_auxiliar` do ERP.
+    const planoPorPeriodo = zeradoPorPeriodo();
+    const planoOriginalPorPeriodo = zeradoPorPeriodo();
 
     // `peso` e 1 para o proprio SKU e fracionado quando uma cor que sai e rateada entre
     // varias cores novas do mesmo tamanho — a soma dos pesos de cada origem da 1, entao os
@@ -951,18 +952,10 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
       emProcesso += (emprocMap.get(idFonte) || 0) * peso;
       qtPendente += (pedMap.get(idFonte) || 0) * peso;
       saldoAdicional += (saldoMap.get(idFonte) || 0) * peso;
-      planoMA += (planoMap.get(idFonte)?.MA || 0) * peso;
-      planoPX += (planoMap.get(idFonte)?.PX || 0) * peso;
-      planoUL += (planoMap.get(idFonte)?.UL || 0) * peso;
-      planoQT += (planoMap.get(idFonte)?.QT || 0) * peso;
-      planoQU += (planoMap.get(idFonte)?.QU || 0) * peso;
-      planoSX += (planoMap.get(idFonte)?.SX || 0) * peso;
-      planoOriginalMA += (planoOriginalMap.get(idFonte)?.MA || 0) * peso;
-      planoOriginalPX += (planoOriginalMap.get(idFonte)?.PX || 0) * peso;
-      planoOriginalUL += (planoOriginalMap.get(idFonte)?.UL || 0) * peso;
-      planoOriginalQT += (planoOriginalMap.get(idFonte)?.QT || 0) * peso;
-      planoOriginalQU += (planoOriginalMap.get(idFonte)?.QU || 0) * peso;
-      planoOriginalSX += (planoOriginalMap.get(idFonte)?.SX || 0) * peso;
+      for (const per of PERIODOS_PLANO) {
+        planoPorPeriodo[per] += (planoMap.get(idFonte)?.[per] || 0) * peso;
+        planoOriginalPorPeriodo[per] += (planoOriginalMap.get(idFonte)?.[per] || 0) * peso;
+      }
     }
 
     const mediaSemestral = sumSem / 6;  // média mensal do semestre (total ÷ 6 meses)
@@ -1027,22 +1020,9 @@ async function buscarMatrizPlanejamentoRapida(pool, options = {}) {
         media_vendas_3m_bruta: media3mBruta,   // sempre dividido por 3, para auditoria
         meses_base_3m:       mesesBase3m       // quantos meses de vida entraram na média
       },
-      plano: {
-        ma: planoMA,   // mês atual
-        px: planoPX,   // próximo mês
-        ul: planoUL,   // mês seguinte
-        qt: planoQT,   // quarto mês
-        qu: planoQU,   // quinto mês
-        sx: planoSX    // sexto mês
-      },
-      plano_original: {
-        ma: planoOriginalMA,
-        px: planoOriginalPX,
-        ul: planoOriginalUL,
-        qt: planoOriginalQT,
-        qu: planoOriginalQU,
-        sx: planoOriginalSX
-      },
+      // Uma chave minuscula por periodo: ma, px, ul, qt, qu, sx, st, ot, nv.
+      plano: Object.fromEntries(PERIODOS_PLANO.map((per) => [per.toLowerCase(), planoPorPeriodo[per]])),
+      plano_original: Object.fromEntries(PERIODOS_PLANO.map((per) => [per.toLowerCase(), planoOriginalPorPeriodo[per]])),
       planejamento: {
         necessidade_total:    necessidadeTotal,
         necessidade_producao: necessidadeProducao,

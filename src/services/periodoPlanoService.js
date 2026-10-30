@@ -1,4 +1,11 @@
-const PERIODOS_PLANO = ['MA', 'PX', 'UL', 'QT', 'QU', 'SX'];
+// Rotulos posicionais do plano, na mesma ordem do ERP (`pcp_lotepv.cd_auxiliar`):
+// MA = mes atual, PX = proximo, UL = o seguinte, e dali em diante pelo ordinal —
+// QT quarto, QU quinto, SX sexto, ST setimo, OT oitavo, NV nono.
+//
+// ST ja existia no ERP com producao prevista para abr/2027 e estava fora desta lista, entao
+// o sistema inteiro ignorava um periodo que a fabrica ja tinha. OT e NV foram acrescentados
+// para o PCP conseguir emitir ate junho na mesma rodada, em vez de esperar a janela rolar.
+const PERIODOS_PLANO = ['MA', 'PX', 'UL', 'QT', 'QU', 'SX', 'ST', 'OT', 'NV'];
 
 /**
  * Períodos do plano de produção (MA/PX/UL/QT/QU/SX), a partir de uma data de referência
