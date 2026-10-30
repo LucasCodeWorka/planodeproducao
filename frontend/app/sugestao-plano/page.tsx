@@ -2114,14 +2114,10 @@ export default function SugestaoPlanoPage() {
   }, [rowsVisiveisTela, modoEmissaoAlvo, periodoAlvo]);
 
   function exportarAlteracoesCSV() {
-    const planoAtualPeriodo = (r: Row) => {
-      if (periodoAlvo === 'MA') return r.planoPeriodo.MA;
-      if (periodoAlvo === 'PX') return r.planoPeriodo.PX;
-      if (periodoAlvo === 'UL') return r.planoPeriodo.UL;
-      if (periodoAlvo === 'QT') return r.planoPeriodo.QT;
-      if (periodoAlvo === 'QU') return r.planoPeriodo.QU;
-      return r.planoPeriodo.SX;
-    };
+    // Pelo proprio periodo. A escada de `if` que estava aqui terminava em `.SX`, entao o
+    // CSV de ST, OT e NV trazia o plano ANTES de marco na coluna "antes" — e o filtro
+    // `antes !== agora` abaixo passava a comparar periodos diferentes.
+    const planoAtualPeriodo = (r: Row) => r.planoPeriodo[periodoAlvo];
     const periodoLower = periodoAlvo.toLowerCase();
     const alteracoes = rows
       .map((r) => ({

@@ -45,6 +45,10 @@ export interface CalculoEstoqueMinimo {
   descricaoRegra: string;
 }
 
+// O backend serve os NOVE periodos desde que `PERIODOS_PLANO` passou a ser fonte unica
+// (`src/services/periodoPlanoService.js`). Este tipo parava em `sx`, entao `st`, `ot` e
+// `nv` chegavam no JSON e ficavam invisiveis para quem lesse pelo tipo — foi assim que a
+// tela de aprovacoes exportou tres CSVs identicos para um lote ST-OT-NV.
 export interface Plano {
   ma: number;  // mês atual
   px: number;  // próximo mês
@@ -52,6 +56,9 @@ export interface Plano {
   qt?: number; // quarto mês
   qu?: number; // quinto mês
   sx?: number; // sexto mês
+  st?: number; // sétimo mês
+  ot?: number; // oitavo mês
+  nv?: number; // nono mês
 }
 
 export interface Planejamento {

@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar';
 import { PeriodosPlano, Planejamento, ProjecoesMap } from '../types';
 import { authHeaders, getToken } from '../lib/auth';
 import { projecaoMesPlanejamento } from '../lib/projecao';
+import { PERIODOS_PLANO, campoDoPeriodo, somaPeriodos, type CampoPeriodo, type PeriodoPlano } from '../lib/periodos';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const MARCA_FIXA = 'LIEBE';
@@ -22,7 +23,9 @@ function defaultDataDe() {
   return dateInputValue(date);
 }
 
-type PlanoSnapshotItem = { chave: string; ma: number; px: number; ul: number; qt?: number; qu?: number; sx?: number };
+// Os campos de periodo vem por indice, nao escritos um a um: a lista anterior parava em
+// `sx` e, com o horizonte em nove, `st`/`ot`/`nv` chegavam no JSON e o tipo os escondia.
+type PlanoSnapshotItem = { chave: string } & Partial<Record<CampoPeriodo, number>>;
 type Suggestion = {
   id: string;
   nome: string;
@@ -33,6 +36,10 @@ type Suggestion = {
     aprovadoEm?: number;
     aprovadoPor?: string;
     planos?: PlanoSnapshotItem[];
+    /** Periodo que esta sugestao emitiu. Num lote as tres carregam o plano completo, e e
+     *  este campo que diz qual coluna olhar em cada uma. */
+    periodoAlvo?: string;
+    loteId?: string;
   };
   resumo?: { alterados?: number; retiradoTotal?: number };
   observacoes?: string;
@@ -150,6 +157,15 @@ export default function SugestoesAprovacoesPage() {
     [sugestoes, selectedId]
   );
 
+  // Periodo que a sugestao selecionada emitiu. Num lote as tres simulacoes carregam o
+  // MESMO plano completo dos nove periodos — o que as distingue e so este campo. Sem ele
+  // na tela, tres sugestoes diferentes parecem identicas, que foi exatamente o que o Fagner
+  // relatou ao tentar importar ST, OT e NV.
+  const periodoDaSugestao = useMemo<PeriodoPlano | null>(() => {
+    const p = String(selecionada?.parametros?.periodoAlvo || '').trim().toUpperCase();
+    return (PERIODOS_PLANO as readonly string[]).includes(p) ? (p as PeriodoPlano) : null;
+  }, [selecionada]);
+
   const linhasAlteradas = useMemo(() => {
     if (!selecionada) return [];
     const planos = Array.isArray(selecionada.parametros?.planos) ? selecionada.parametros?.planos : [];
@@ -158,18 +174,19 @@ export default function SugestoesAprovacoesPage() {
       .map((p) => {
         const b = basePorChave.get(p.chave);
         if (!b) return null;
-        const bMA = Math.round(b.plano?.ma || 0);
-        const bPX = Math.round(b.plano?.px || 0);
-        const bUL = Math.round(b.plano?.ul || 0);
-        const bQT = Math.round(b.plano?.qt || 0);
-        const bQU = Math.round(b.plano?.qu || 0);
-        const bSX = Math.round(b.plano?.sx || 0);
-        const cMA = Math.round(p.ma || 0);
-        const cPX = Math.round(p.px || 0);
-        const cUL = Math.round(p.ul || 0);
-        const cQT = Math.round(p.qt || 0);
-        const cQU = Math.round(p.qu || 0);
-        const cSX = Math.round(p.sx || 0);
+        // Os nove periodos derivados da lista, nunca escritos a mao. Antes estavam fixos de
+        // `ma` ate `sx`, e por isso o lote ST-OT-NV gerou tres arquivos identicos para
+        // importar: ST, OT e NV — os unicos que diferiam entre as tres simulacoes — nao
+        // tinham coluna nenhuma, e o que sobrava era o mesmo bloco MA..SX.
+        const base = {} as Record<CampoPeriodo, number>;
+        const cenario = {} as Record<CampoPeriodo, number>;
+        const delta = {} as Record<CampoPeriodo, number>;
+        for (const per of PERIODOS_PLANO) {
+          const campo = campoDoPeriodo(per);
+          base[campo] = Math.round(Number((b.plano as unknown as Record<string, number> | undefined)?.[campo] || 0));
+          cenario[campo] = Math.round(Number((p as unknown as Record<string, number>)[campo] || 0));
+          delta[campo] = cenario[campo] - base[campo];
+        }
         return {
           chave: p.chave,
           referencia: b.produto.referencia || '-',
@@ -177,17 +194,14 @@ export default function SugestoesAprovacoesPage() {
           cor: b.produto.cor || '-',
           tamanho: b.produto.tamanho || '-',
           continuidade: b.produto.continuidade || 'SEM CONTINUIDADE',
-          baseMA: bMA, basePX: bPX, baseUL: bUL, baseQT: bQT, baseQU: bQU, baseSX: bSX,
-          cenarioMA: cMA, cenarioPX: cPX, cenarioUL: cUL, cenarioQT: cQT, cenarioQU: cQU, cenarioSX: cSX,
-          deltaMA: cMA - bMA,
-          deltaPX: cPX - bPX,
-          deltaUL: cUL - bUL,
-          deltaQT: cQT - bQT,
-          deltaQU: cQU - bQU,
-          deltaSX: cSX - bSX,
-          deltaTotal: (cMA + cPX + cUL + cQT + cQU + cSX) - (bMA + bPX + bUL + bQT + bQU + bSX),
-          baseCalc: calculaDispECobPorPlano(b, projecoes, periodos, { ma: bMA, px: bPX, ul: bUL, qt: bQT }),
-          cenarioCalc: calculaDispECobPorPlano(b, projecoes, periodos, { ma: cMA, px: cPX, ul: cUL, qt: cQT }),
+          base,
+          cenario,
+          delta,
+          // Soma os NOVE: antes parava em SX, entao uma sugestao que so mexia em ST/OT/NV
+          // aparecia com delta zero e a tela dizia que nada tinha mudado.
+          deltaTotal: somaPeriodos(cenario) - somaPeriodos(base),
+          baseCalc: calculaDispECobPorPlano(b, projecoes, periodos, { ma: base.ma, px: base.px, ul: base.ul, qt: base.qt }),
+          cenarioCalc: calculaDispECobPorPlano(b, projecoes, periodos, { ma: cenario.ma, px: cenario.px, ul: cenario.ul, qt: cenario.qt }),
         };
       })
       .filter((v): v is NonNullable<typeof v> => Boolean(v))
@@ -249,17 +263,36 @@ export default function SugestoesAprovacoesPage() {
 
   function exportarCSV() {
     if (!linhasAlteradas.length) return;
+    // Cabecalho e linhas derivados da MESMA lista, para nunca mais sairem de sincronia
+    // entre si nem com o horizonte do plano.
+    const campos = PERIODOS_PLANO.map(campoDoPeriodo);
+    const alvo = periodoDaSugestao ? campoDoPeriodo(periodoDaSugestao) : null;
+
+    // AS QUATRO PRIMEIRAS COLUNAS DE PLANO SAO O PERIODO DESTA SUGESTAO.
+    //
+    // Num lote, as tres simulacoes guardam o MESMO plano completo dos nove periodos — o que
+    // as distingue e so o `periodoAlvo`. Exportando apenas o bloco completo, os tres
+    // arquivos saiam byte a byte iguais e nao havia como importar nem conferir: foi o que
+    // aconteceu com o lote ST-OT-NV. Com `periodo`/`plano_antes`/`plano_agora` na frente,
+    // cada arquivo diz de qual mes ele e e traz os dois numeros que o ERP precisa, sem
+    // ninguem ter que caçar a coluna certa entre vinte e sete.
+    //
+    // O bloco dos nove continua depois, para auditoria do encadeamento.
     const header = [
       'referencia', 'produto', 'cor', 'tamanho', 'continuidade',
-      'base_ma', 'base_px', 'base_ul', 'base_qt', 'base_qu', 'base_sx',
-      'cenario_ma', 'cenario_px', 'cenario_ul', 'cenario_qt', 'cenario_qu', 'cenario_sx',
-      'delta_ma', 'delta_px', 'delta_ul', 'delta_qt', 'delta_qu', 'delta_sx', 'delta_total'
+      ...(alvo ? ['periodo', 'plano_antes', 'plano_agora', 'delta_periodo'] : []),
+      ...campos.map((c) => `base_${c}`),
+      ...campos.map((c) => `cenario_${c}`),
+      ...campos.map((c) => `delta_${c}`),
+      'delta_total',
     ];
     const rows = linhasAlteradas.map((r) => [
       r.referencia, r.produto, r.cor, r.tamanho, r.continuidade,
-      r.baseMA, r.basePX, r.baseUL, r.baseQT, r.baseQU, r.baseSX,
-      r.cenarioMA, r.cenarioPX, r.cenarioUL, r.cenarioQT, r.cenarioQU, r.cenarioSX,
-      r.deltaMA, r.deltaPX, r.deltaUL, r.deltaQT, r.deltaQU, r.deltaSX, r.deltaTotal,
+      ...(alvo ? [periodoDaSugestao as string, r.base[alvo], r.cenario[alvo], r.delta[alvo]] : []),
+      ...campos.map((c) => r.base[c]),
+      ...campos.map((c) => r.cenario[c]),
+      ...campos.map((c) => r.delta[c]),
+      r.deltaTotal,
     ]);
     const csv = [header, ...rows]
       .map((arr) => arr.map((v) => `"${String(v ?? '').replaceAll('"', '""')}"`).join(','))
@@ -268,7 +301,9 @@ export default function SugestoesAprovacoesPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `planos_aprovados_${new Date().toISOString().slice(0, 10)}.csv`;
+    // O periodo entra no NOME. Baixando as tres sugestoes de um lote, os arquivos tinham o
+    // mesmo nome e o navegador salvava "(1)", "(2)" — ninguem sabia qual era qual.
+    a.download = `planos_aprovados_${periodoDaSugestao ? `${periodoDaSugestao}_` : ''}${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -357,7 +392,7 @@ export default function SugestoesAprovacoesPage() {
                           <th className="text-left px-2 py-2">Ref</th>
                           <th className="text-left px-2 py-2">Cor</th>
                           <th className="text-left px-2 py-2">Tam</th>
-                          <th className="text-left px-2 py-2">Plano (MA/PX/UL/QT/QU/SX)</th>
+                          <th className="text-left px-2 py-2">Plano ({PERIODOS_PLANO.join('/')})</th>
                           <th className="text-left px-2 py-2">Disp. (MA/PX/UL/QT)</th>
                           <th className="text-left px-2 py-2">Cob. (MA/PX/UL/QT)</th>
                           <th className="text-right px-2 py-2">Δ Total</th>
@@ -370,9 +405,19 @@ export default function SugestoesAprovacoesPage() {
                             <td className="px-2 py-1.5">{r.cor}</td>
                             <td className="px-2 py-1.5">{r.tamanho}</td>
                             <td className="px-2 py-1.5 whitespace-nowrap">
-                              <span className="text-gray-700">{fmtPeca(r.baseMA)} / {fmtPeca(r.basePX)} / {fmtPeca(r.baseUL)} / {fmtPeca(r.baseQT)} / {fmtPeca(r.baseQU)} / {fmtPeca(r.baseSX)}</span>
+                              {/* Os nove periodos, nao seis. O periodo que a sugestao
+                                  mexeu vem destacado: numa linha de nove numeros, saber
+                                  qual deles e o do lote e metade da conferencia. */}
+                              <span className="text-gray-700">{PERIODOS_PLANO.map((p) => fmtPeca(r.base[campoDoPeriodo(p)])).join(' / ')}</span>
                               <span className="mx-1 text-gray-400">→</span>
-                              <span className="font-semibold text-brand-dark">{fmtPeca(r.cenarioMA)} / {fmtPeca(r.cenarioPX)} / {fmtPeca(r.cenarioUL)} / {fmtPeca(r.cenarioQT)} / {fmtPeca(r.cenarioQU)} / {fmtPeca(r.cenarioSX)}</span>
+                              <span className="font-semibold text-brand-dark">
+                                {PERIODOS_PLANO.map((p, k) => (
+                                  <span key={p} className={p === periodoDaSugestao ? 'rounded bg-amber-100 px-1 text-amber-900' : undefined}>
+                                    {k > 0 && <span className="text-gray-400"> / </span>}
+                                    {fmtPeca(r.cenario[campoDoPeriodo(p)])}
+                                  </span>
+                                ))}
+                              </span>
                             </td>
                             <td className="px-2 py-1.5 whitespace-nowrap">
                               <span className="text-gray-700">{fmtPeca(r.baseCalc.dispMA)} / {fmtPeca(r.baseCalc.dispPX)} / {fmtPeca(r.baseCalc.dispUL)} / {fmtPeca(r.baseCalc.dispQT)}</span>
