@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Factory, Search, SlidersHorizontal, TrendingUp } from 'lucide-react';
 import { DIAS_FIXOS_POR_MES } from '../lib/feriados';
 import AnaliseProjecaoModal from './AnaliseProjecaoModal';
@@ -62,6 +62,9 @@ export type MesCapacidadeVenda = {
    * Diferente de `producao`, que é só o restante — este é o plano como foi lançado.
    * Só existe nos meses de plano real (out a jan); nos projetados vem indefinido. */
   planoCompleto?: number;
+  // Plano que vem de uma SIMULACAO salva, ainda nao implantada no ERP. Muda a cor e ganha
+  // marcador: e proposta, nao compromisso.
+  planoSimulado?: boolean;
   /** Dias de fábrica que o plano COMPLETO consome, no ritmo medido do próprio mês. */
   planoCompletoDias?: number;
   /** Dias do mês INTEIRO. Diferente de `diasDisponiveis`, que no mês em curso traz só o
@@ -77,6 +80,18 @@ export type MesCapacidadeVenda = {
    * fábrica que a carga pede e dias que o calendário oferece, ambos acumulados. */
   necAcumPlano?: number;
   dispAcumPlano?: number;
+  /** LIEBE MOVE — marca nova, ainda SEM plano e sem lote no ERP. Entra como carga extra
+   * simulada por cima do plano que existe, só para responder se a fábrica comporta.
+   * `movePecas` é a previsão de venda do mês pelo estudo; `moveDias` o que ela consome de
+   * fábrica nesse mês, ao `moveMinPeca` escolhido na tela. */
+  movePecas?: number;
+  moveDias?: number;
+  moveMinPeca?: number;
+  /** Os mesmos necessários/gap/ocupação ACUMULADOS, agora COM a Move somada. Indefinidos
+   * nos meses sem período de plano, onde não há leitura acumulada a que somar. */
+  necAcumMove?: number;
+  gapAcumMove?: number;
+  ocupAcumMove?: number;
   capacidadePecas: number;
   diasNecessarios: number;
   diasDisponiveis: number;
@@ -106,6 +121,8 @@ type Props = {
   /** Crescimento da fabrica ao ano (0-1). A pagina recompoe a projecao; aqui so o seletor. */
   cenarioFabrica?: number;
   onCenarioFabrica?: (c: number) => void;
+  /** Controles da página, renderizados ENTRE o gráfico e a tabela. */
+  controles?: ReactNode;
 };
 
 // Cobertura PADRAO da carteira, em dias de venda. O medido na carteira de hoje da ~40
@@ -136,6 +153,7 @@ export default function CapacidadeVsVenda({
   capacidadeDiariaAtual,
   cenarioFabrica,
   onCenarioFabrica,
+  controles,
 }: Props) {
   // Tres leituras, nao duas: o plano como esta, o nivelado com teto no MES e o nivelado com
   // teto no ACUMULADO. Os dois nivelamentos respondem a perguntas diferentes — "nenhum mes
@@ -157,6 +175,7 @@ export default function CapacidadeVsVenda({
     'venda-perm': false,
     'venda-el': false,
     plano: false,
+    move: false,
     pendente: false,
     disponivel: false,
     info: false,
@@ -177,9 +196,18 @@ export default function CapacidadeVsVenda({
   // Trajetoria de estoque fisico para uma serie de producao qualquer. Sempre recalculada
   // aqui, nunca recebida pronta: assim o plano real, o simulado e o nivelado caminham todos
   // da mesma abertura e ficam comparaveis.
-  // A demanda do mes e a soma das duas continuidades. Elas aparecem separadas na tabela,
-  // mas o estoque nao distingue: quem sai, sai.
-  const demandaTotal = (m: MesCapacidadeVenda) => m.demanda + Number(m.demandaEl || 0);
+  // A demanda do mes e a soma das continuidades. Elas aparecem separadas na tabela, mas o
+  // estoque nao distingue: quem sai, sai.
+  //
+  // A LIEBE MOVE entra aqui quando a simulacao esta ligada. A primeira versao desta tela
+  // somava a Move so nos DIAS, deixando projecao e plano intactos — e isso produzia uma
+  // tabela incoerente: a ocupacao subia sem que peca nenhuma aparecesse em lugar nenhum. A
+  // Move e marca da casa, vai ser vendida e vai ser produzida, entao ela e demanda como
+  // qualquer outra. Funil unico de proposito: a projecao, a trajetoria de estoque, a
+  // carteira projetada e o grafico leem todos daqui, e assim nao ha como uma delas ficar
+  // para tras.
+  const demandaTotal = (m: MesCapacidadeVenda) =>
+    m.demanda + Number(m.demandaEl || 0) + Number(m.movePecas || 0);
   const trajetoria = (producoes: number[]) => {
     let saldo = aberturaEstoque;
     return producoes.map((p, i) => {
@@ -338,10 +366,12 @@ export default function CapacidadeVsVenda({
     i === 0 && referenciaOutubro
       ? l.capacidadePecas - demandaTotal(l)
       : l.producao - demandaTotal(l);
+  // Disponivel de ABERTURA do horizonte. Estava escrito duas vezes (aqui e no
+  // `disponivelPlano` abaixo); virou const para as duas series partirem do mesmo ponto, e
+  // porque a razao do estoque fisico precisa dele tambem.
+  const disponivelAbertura = referenciaOutubro?.disponivel ?? aberturaEstoque - carteiraProjetada[0];
   const disponivelTabela = linhas.reduce<number[]>((valores, l, i) => {
-    const anterior = i === 0
-      ? (referenciaOutubro?.disponivel ?? aberturaEstoque - carteiraProjetada[0])
-      : valores[i - 1];
+    const anterior = i === 0 ? disponivelAbertura : valores[i - 1];
     valores.push(anterior + sobraTabela(l, i));
     return valores;
   }, []);
@@ -364,13 +394,29 @@ export default function CapacidadeVsVenda({
       valores.push(null);
       return valores;
     }
-    const anterior = i === 0
-      ? (referenciaOutubro?.disponivel ?? aberturaEstoque - carteiraProjetada[0])
-      : (valores[i - 1] ?? disponivelTabela[i - 1]);
+    const anterior = i === 0 ? disponivelAbertura : (valores[i - 1] ?? disponivelTabela[i - 1]);
     const entra = l.producaoAtual + (l.mesCorrente ? emProcessoAtual : 0);
     valores.push(anterior + entra - demandaTotal(l));
     return valores;
   }, []);
+  // ESTOQUE FISICO PREVISTO.
+  //
+  // O Disponivel ja abate a carteira pendente. O fisico (estoque + processo, sem abater
+  // pedido) nao tinha previsao que caminhasse junto: a linha "Estoque (s/ abater pedidos)"
+  // da tabela saia de `l.estoque`, que parte de `aberturaEstoque` e anda pela producao —
+  // regua DIFERENTE da do `disponivelTabela`, que parte do disponivel consolidado de
+  // out/26 e usa a capacidade no primeiro mes. As duas discordavam entre si.
+  //
+  // A conta pedida pelo PCP: a razao fisico/disponivel de HOJE, mantida o horizonte todo.
+  // E premissa, nao medicao — supoe que a carteira cresce junto com o estoque. Se ela ficar
+  // parada enquanto o estoque sobe, este numero exagera (a alternativa aditiva,
+  // `disponivel + carteira`, foi considerada e descartada na decisao).
+  //
+  // Nao substitui `l.estoque` nem `trajetoria`: aqueles alimentam o nivelamento, e mexer
+  // neles mudaria o plano nivelado. Esta serie e so de exibicao.
+  const razaoFisico = disponivelAbertura > 0 ? aberturaEstoque / disponivelAbertura : 1;
+  const fisicoPrevisto = disponivelTabela.map((v) => v * razaoFisico);
+
   const desvioMeta = disponivelTabela[disponivelTabela.length - 1] - metaEstoqueFinal;
   const menorDisponivel = Math.min(...disponivelTabela);
   const primeiroProjetado = linhas.findIndex((l) => !l.travado);
@@ -411,7 +457,11 @@ export default function CapacidadeVsVenda({
   const T = 28;
   const B = 32;
   const W = 1200;
-  const H = modoGrafico === 'isolado' ? 400 : 280;
+  // 400 era a altura de quando cada ponto escrevia UM numero. Com a segunda linha de
+  // rotulo (ocupacao e gap no Plano, dias na Capacidade, fisico no Disponivel) a faixa de
+  // 85 ficou apertada: o texto encostava no proprio marcador. Em 560 cada faixa tem 125, e
+  // o `faixaInset` abaixo ainda reserva margem para os dois rotulos.
+  const H = modoGrafico === 'isolado' ? 560 : 280;
   // Escala arredondada para cima, para a linha de topo cair num numero redondo.
   const passo = Math.pow(10, Math.floor(Math.log10(Math.max(teto, -piso)))) / 2;
   const escalaTopo = Math.ceil(teto / passo) * passo;
@@ -451,12 +501,40 @@ export default function CapacidadeVsVenda({
       topo: T + indice * faixaAltura,
     };
   });
+  // Margem RESERVADA dentro da faixa: a curva nao usa a altura inteira, senao os dois
+  // rotulos (um acima do ponto, outro abaixo) saem da faixa nos extremos. Em cima precisa
+  // caber o valor; embaixo, a ocupacao/dias/fisico. Com faixa de 125 a curva fica com 47 de
+  // amplitude e sobra folga nas duas pontas.
+  const FAIXA_TOPO = 30;
+  const FAIXA_BASE = 48;
+  // A faixa do DISPONIVEL carrega DUAS curvas: o estoque fisico previsto em cima e o
+  // disponivel embaixo, com o percentual entre elas. Cada uma ocupa uma sub-faixa propria e
+  // e normalizada pelo PROPRIO minimo/maximo — mesma ideia que ja separa as quatro faixas
+  // entre si. Normalizar as duas na mesma escala nao serviria: o fisico e multiplo do
+  // disponivel, entao ele teria amplitude maior e as linhas abririam em leque em vez de
+  // caminharem juntas, que e justamente a leitura pedida.
+  const SUB_FISICO_TOPO = 30;
+  const SUB_DISP_TOPO = 78;
+  const SUB_ALTURA = 22;
+  const SUB_PCT_Y = 64; // linha do percentual, entre as duas curvas
+  const faixaDisponivel = faixas[iDisponivel];
+  const minFisico = Math.min(...fisicoPrevisto);
+  const maxFisico = Math.max(...fisicoPrevisto);
+  const yFisico = (valor: number) => {
+    const p = maxFisico === minFisico ? 0.5 : (valor - minFisico) / (maxFisico - minFisico);
+    return faixaDisponivel.topo + SUB_FISICO_TOPO + SUB_ALTURA * (1 - p);
+  };
   const ySerie = (indice: number, valor: number) => {
     if (modoGrafico === 'comparado') return y(valor);
     const faixa = faixas[indice];
     const proporcao = faixa.maximo === faixa.minimo ? 0.5 : (valor - faixa.minimo) / (faixa.maximo - faixa.minimo);
-    return faixa.topo + 23 + (faixaAltura - 46) * (1 - proporcao);
+    if (indice === iDisponivel) return faixa.topo + SUB_DISP_TOPO + SUB_ALTURA * (1 - proporcao);
+    return faixa.topo + FAIXA_TOPO + Math.max(0, faixaAltura - FAIXA_TOPO - FAIXA_BASE) * (1 - proporcao);
   };
+  // Caminho do fisico: mesma montagem do `caminho()`, so que na sub-faixa de cima.
+  const caminhoFisico = () => fisicoPrevisto
+    .map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${yFisico(v).toFixed(1)}`)
+    .join(' ');
   // `M` a cada retomada: assim uma serie que so existe em parte do horizonte desenha o
   // trecho que tem e para, em vez de despencar ate o eixo.
   const caminho = (indice: number) => {
@@ -635,6 +713,16 @@ export default function CapacidadeVsVenda({
             <span className="w-6 border-t-2 border-dashed border-slate-400" aria-hidden="true" />
             Capacidade do mês em peças (já descontados 3% de faltas)
           </span>
+          {/* O Plano nunca esteve na legenda, e com o traço mais claro ele precisava
+              entrar. O físico previsto é novo. */}
+          <span className="inline-flex items-center gap-2">
+            <span className="w-6 border-t-2 border-dotted border-violet-300" aria-hidden="true" />
+            Plano do mês, com ocupação acumulada e gap em dias
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="w-6 border-t-[3px] border-indigo-300" aria-hidden="true" />
+            Estoque físico previsto (sem abater a carteira)
+          </span>
           <span className="inline-flex items-center gap-2">
             <span className="w-6 border-t-[3px] border-indigo-600" aria-hidden="true" />
             Disponível fim do mês
@@ -713,8 +801,21 @@ export default function CapacidadeVsVenda({
               fundo) e o plano por cima, para nao sumir sob o disponivel no modo comparado. */}
           <path d={caminho(iCapacidade)} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 4" />
           <path d={caminho(iVenda)} fill="none" stroke="#f59e0b" strokeWidth="2.5" />
+          {/* ESTOQUE FISICO PREVISTO, acima do disponivel e na mesma faixa. Azul claro: e
+              previsao derivada, nao medicao, e nao deve competir com o disponivel, que e a
+              linha de decisao. As duas saem com a MESMA forma — o fisico e o disponivel
+              vezes uma constante — e e por isso que elas caminham juntas. */}
+          {modoGrafico === 'isolado' && (
+            <path d={caminhoFisico()} fill="none" stroke="#a5b4fc" strokeWidth="2.5" strokeLinejoin="round" />
+          )}
           <path d={caminho(iDisponivel)} fill="none" stroke="#4f46e5" strokeWidth="3.5" strokeLinejoin="round" />
-          <path d={caminho(iPlano)} fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeDasharray="2 3" />
+          {/* Pontilhado BEM claro de proposito. Com a segunda linha de rotulo (ocupacao e
+              gap) a faixa do Plano ficou a mais carregada das quatro, e o roxo forte
+              (#7c3aed) competia com os numeros em vez de ligar os pontos. So o TRACO
+              clareia: os marcadores e os rotulos seguem em `SERIE_COR`/`SERIE_COR_TEXTO`,
+              no roxo cheio, entao o que se le continua forte e o que so conduz o olho
+              recua. A espessura fica em 2.5 para o traco nao sumir na cor nova. */}
+          <path d={caminho(iPlano)} fill="none" stroke="#ddd6fe" strokeWidth="2.5" strokeDasharray="2 3" />
 
           {/* MES CHEIO: o circulo vazado marca onde o primeiro ponto estaria com o mes
               inteiro, e o tracejado liga ele ao ponto real embaixo e ao mes seguinte — a
@@ -785,9 +886,102 @@ export default function CapacidadeVsVenda({
                       "202.602"; ancorado em x(0)-10 ele cobria o marcador e encostava no
                       rotulo da faixa ("Plano142.782"). x(0) e exatamente a margem L, entao
                       nao ha espaco a esquerda — o lugar livre e depois do ponto. */}
-                  <text x={i === 0 ? x(i) + 8 : x(i)} y={ySerie(indice, valor) - 8} textAnchor={i === 0 ? 'start' : 'middle'} fontSize="10" fontWeight="600" fill={SERIE_COR_TEXTO[indice]} fontFamily="ui-monospace, monospace">
+                  {/* No DISPONIVEL o numero vai ABAIXO do ponto: acima dele fica a linha do
+                      percentual e, mais acima, a curva do fisico. Nas outras faixas
+                      continua em cima, como sempre. */}
+                  <text x={i === 0 && indice !== iDisponivel ? x(i) + 8 : x(i)} y={indice === iDisponivel ? ySerie(indice, valor) + 15 : ySerie(indice, valor) - 8} textAnchor={i === 0 && indice !== iDisponivel ? 'start' : 'middle'} fontSize="10" fontWeight="600" fill={SERIE_COR_TEXTO[indice]} fontFamily="ui-monospace, monospace">
                     {fmt(valor)}
                   </text>
+                  {/* Ponto e numero do ESTOQUE FISICO, na sub-faixa de cima. Entra aqui
+                      dentro, junto do disponivel, porque os dois sao a mesma leitura: o
+                      estoque com e sem a carteira abatida. */}
+                  {indice === iDisponivel && (
+                    <g>
+                      <circle cx={x(i)} cy={yFisico(fisicoPrevisto[i])} r="3.5" fill="#fff" stroke="#a5b4fc" strokeWidth="2">
+                        <title>{`${l.mes} · estoque físico previsto: ${fmt(fisicoPrevisto[i])} peças, sem abater a carteira.`}</title>
+                      </circle>
+                      <text x={x(i)} y={yFisico(fisicoPrevisto[i]) - 8} textAnchor="middle" fontSize="10" fontWeight="600" fill="#818cf8" fontFamily="ui-monospace, monospace">
+                        {fmt(fisicoPrevisto[i])}
+                      </text>
+                    </g>
+                  )}
+                  {/* SEGUNDA LINHA, abaixo do ponto. O grafico mostrava so a quantidade, e
+                      quantidade sozinha nao responde a pergunta de cada faixa: 119.262 de
+                      plano ocupa ou sobra? 12.420 de capacidade em out/26 esta errado ou e
+                      o mes pela metade? Os numeros que respondem ja existiam na tabela —
+                      aqui eles passam a andar junto da curva. */}
+                  {(() => {
+                    // SEMPRE centralizado, inclusive no mes zero — ao contrario do rotulo
+                    // principal, que ali e ancorado a direita do ponto. A razao e que o
+                    // motivo daquele encosto nao se aplica aqui: o nome da faixa fica no
+                    // TOPO dela (`topo + 17`) e este rotulo fica abaixo do ponto, longe.
+                    // Ancorar em x(0)+8 jogava a string inteira para a direita e ela
+                    // invadia o mes seguinte — "443% · +6,9d" de out/26 cobria o 119.262 de
+                    // nov/26. Centralizado ele ocupa a sobra a esquerda, que esta livre.
+                    const xr = x(i);
+                    const anchor = 'middle';
+                    // No disponivel o rotulo secundario mora numa LINHA FIXA, entre as duas
+                    // curvas da faixa — nao colado no ponto, senao ele subiria e desceria e
+                    // deixaria de parecer o que e: a relacao entre a curva de cima e a de
+                    // baixo.
+                    const yr = indice === iDisponivel
+                      ? faixaDisponivel.topo + SUB_PCT_Y
+                      : ySerie(indice, valor) + 13;
+                    // Plano: ocupacao e gap ACUMULADOS, lidos dos mesmos campos da tabela
+                    // (`ocupAcumPlano`/`gapAcumPlano`) de proposito — recalcular por aqui
+                    // daria um numero proximo e diferente, e a tela voltaria a "nao bater".
+                    if (indice === iPlano) {
+                      const ocup = l.ocupAcumPlano;
+                      const gap = l.gapAcumPlano;
+                      if (ocup === undefined && gap === undefined) return null;
+                      return (
+                        <text x={xr} y={yr} textAnchor={anchor} fontSize="9" fontWeight="700" fontFamily="ui-monospace, monospace">
+                          {ocup !== undefined && (
+                            <tspan fill={ocup > 1 ? '#dc2626' : ocup >= 0.85 ? '#059669' : '#d97706'}>{pct(ocup)}</tspan>
+                          )}
+                          {ocup !== undefined && gap !== undefined && <tspan fill="#d1d5db"> · </tspan>}
+                          {gap !== undefined && (
+                            <tspan fill={gap > 0 ? '#dc2626' : '#059669'}>
+                              {gap > 0 ? '+' : ''}{gap.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}d
+                            </tspan>
+                          )}
+                        </text>
+                      );
+                    }
+                    // Capacidade: os dias que a geraram. E o divisor da propria
+                    // `capacidadePecas`, entao explica o 12.420 de out/26 — sao os dias que
+                    // FALTAM do mes em curso, nao os 21 inteiros.
+                    if (indice === iCapacidade) {
+                      const d = Number(l.diasDisponiveis || 0);
+                      if (!(d > 0)) return null;
+                      return (
+                        <text x={xr} y={yr} textAnchor={anchor} fontSize="9" fill="#64748b" fontFamily="ui-monospace, monospace">
+                          <title>{`${l.mes}: ${d.toLocaleString('pt-BR')} dias de fábrica. A capacidade do mês é esses dias × a capacidade diária medida.`}</title>
+                          {d.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}d
+                        </text>
+                      );
+                    }
+                    // Disponivel: quanto do estoque FISICO esta de fato livre — o
+                    // disponivel sobre o fisico. O resto e carteira ja comprometida.
+                    //
+                    // ATENCAO: no modelo proporcional em uso este percentual e CONSTANTE
+                    // por construcao (o fisico e o disponivel vezes uma razao fixa), entao
+                    // ele repete o mesmo numero nos 16 meses. Fica assim de proposito, ate
+                    // o PCP decidir o que quer entre as duas linhas — se o modelo virar
+                    // aditivo (`disponivel + carteira`), este mesmo calculo passa a variar
+                    // sozinho, sem mudar nada aqui.
+                    if (indice === iDisponivel) {
+                      const f = fisicoPrevisto[i];
+                      if (!(f > 0)) return null;
+                      return (
+                        <text x={xr} y={yr} textAnchor={anchor} fontSize="9" fontWeight="700" fill="#6366f1" fontFamily="ui-monospace, monospace">
+                          <title>{`${l.mes}: ${pct(valor / f)} do estoque físico está disponível — o resto é carteira já comprometida. Físico previsto pela proporção de hoje (${razaoFisico.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}× o disponível), que é premissa e não medição.`}</title>
+                          {pct(valor / f)}
+                        </text>
+                      );
+                    }
+                    return null;
+                  })()}
                 </g>)
               )) : (
                 <>
@@ -805,6 +999,10 @@ export default function CapacidadeVsVenda({
           ))}
         </svg>
       </div>
+
+      {/* Controles que a PAGINA injeta, entre o grafico e a tabela. E onde o PCP pediu: em
+          cima do grafico eles ficavam longe demais dos numeros que mudam. */}
+      {controles && <div className="px-5 pb-3">{controles}</div>}
 
       {/* Transposta: mes vira coluna e indicador vira linha, no mesmo formato da Visao
           Geral. Com 15 meses a leitura horizontal e a que importa — da para seguir uma
@@ -976,7 +1174,7 @@ export default function CapacidadeVsVenda({
                   rotulo: 'Plano (completo)',
                   forte: true,
                   expansivel: true,
-                  dica: 'Plano como foi lançado: o que já virou OP mais o lote que falta, pelo mês do próprio lote. Embaixo, a ocupação ACUMULADA e o gap em dias — os mesmos números da Cobertura do Plano na tela principal, vindos da mesma conta: dias necessários somados desde o primeiro mês contra os dias de fábrica somados. 207% em outubro é a carga que resta contra os dias que restam; janeiro em 92% é o conjunto, já carregando o atraso de outubro. Só existe até janeiro: de fevereiro em diante não há plano, só projeção.',
+                  dica: 'Plano como foi lançado: o que já virou OP mais o lote que falta, pelo mês do próprio lote. Embaixo, a ocupação ACUMULADA e o gap em dias — os mesmos números da Cobertura do Plano na tela principal, vindos da mesma conta: dias necessários somados desde o primeiro mês contra os dias de fábrica somados. 207% em outubro é a carga que resta contra os dias que restam; janeiro em 92% é o conjunto, já carregando o atraso de outubro. Em VERMELHO com o marcador SIM é SIMULAÇÃO: plano sugerido e salvo na Sugestão de Plano, ainda não aprovado nem implantado no ERP — a ocupação e o gap ao lado já consideram ela.',
                   celula: (l: typeof linhas[number]) => {
                     if (!l.planoCompleto) return <span className="text-gray-300">—</span>;
                     // Abaixo do numero, o GAP ACUMULADO em dias — o mesmo +6,45d / -5,09d
@@ -992,7 +1190,12 @@ export default function CapacidadeVsVenda({
                     const ocup = l.ocupAcumPlano;
                     return (
                       <>
-                        <span className="font-semibold text-violet-700">{fmt(l.planoCompleto)}</span>
+                        <span
+                          className={l.planoSimulado ? 'font-semibold text-red-600' : 'font-semibold text-violet-700'}
+                          title={l.planoSimulado ? 'SIMULAÇÃO — plano sugerido e salvo na Sugestão de Plano, ainda não aprovado nem implantado no ERP.' : undefined}
+                        >
+                          {fmt(l.planoCompleto)}{l.planoSimulado && <span className="ml-1 text-[9px] font-bold align-top">SIM</span>}
+                        </span>
                         {gap !== undefined && gap !== null && (
                           <div
                             title="Ocupação e gap ACUMULADOS desde o primeiro mês: dias necessários contra dias de fábrica. Acima de 100% a carga não cabe e transborda para o mês seguinte. Mesmos números da Cobertura do Plano."
@@ -1060,6 +1263,67 @@ export default function CapacidadeVsVenda({
                     );
                   },
                 },
+                // ── LIEBE MOVE ──────────────────────────────────────────────────────────
+                // Marca nova, SEM plano e sem lote no ERP. Entra aqui como carga extra por
+                // cima do plano existente, para responder uma pergunta so: a fabrica
+                // comporta? Por isso a linha de topo mostra a OCUPACAO ACUMULADA COM a
+                // Move, nao as pecas dela — as pecas ficam no nivel de baixo.
+                //
+                // Nao mexe em estoque, demanda nem cobertura: so a Liebe entra naquele
+                // saldo. Somar a venda da Move ali daria um estoque que nao existe.
+                {
+                  id: 'move',
+                  rotulo: 'Liebe Move',
+                  forte: true,
+                  expansivel: true,
+                  dica: 'Marca nova. A Liebe Move ainda não tem lote no ERP e não tem tempo de costura cadastrado — a previsão vem do estudo e os minutos por peça são o valor escolhido no campo acima da tabela. A Projeção de venda e o Plano (completo) já incluem a Move. O número desta linha é a ocupação acumulada com ela somada. Vazio nos meses sem período de plano, onde não existe leitura acumulada a que somar.',
+                  celula: (l: typeof linhas[number]) => {
+                    const ocup = l.ocupAcumMove;
+                    const gap = l.gapAcumMove;
+                    if (ocup === undefined && gap === undefined) return <span className="text-gray-300">—</span>;
+                    return (
+                      <div className="font-mono text-[11px] font-bold tabular-nums">
+                        {ocup !== undefined && (
+                          <span className={ocup > 1 ? 'text-red-600' : ocup >= 0.85 ? 'text-emerald-600' : 'text-amber-600'}>
+                            {pct(ocup)}
+                          </span>
+                        )}
+                        {ocup !== undefined && gap !== undefined && <span className="text-gray-300"> · </span>}
+                        {gap !== undefined && (
+                          <span className={gap > 0 ? 'text-red-600' : 'text-emerald-600'}>
+                            {gap > 0 ? '+' : ''}{gap.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}d
+                          </span>
+                        )}
+                      </div>
+                    );
+                  },
+                },
+                {
+                  id: 'move-pecas',
+                  rotulo: 'peças previstas (estudo)',
+                  pai: 'move',
+                  dica: 'Previsão de venda da Liebe Move no mês, somando as quatro famílias do estudo. A família STUDIO é edição limitada (multimarcas até abril, lojas até maio) e zera de junho em diante — por isso o segundo semestre cai.',
+                  celula: (l: typeof linhas[number]) => (
+                    Number(l.movePecas || 0) > 0
+                      ? <span className="tabular-nums text-sky-700">{fmt(l.movePecas || 0)}</span>
+                      : <span className="text-gray-300">—</span>
+                  ),
+                },
+                {
+                  id: 'move-dias',
+                  rotulo: 'dias de fábrica que consome',
+                  pai: 'move',
+                  dica: 'Peças do mês × minutos por peça ÷ capacidade diária da fábrica. É o acréscimo do MÊS; a linha de cima já mostra o efeito acumulado, que é como a capacidade se lê.',
+                  celula: (l: typeof linhas[number]) => (
+                    Number(l.moveDias || 0) > 0
+                      ? (
+                        <span className="tabular-nums text-sky-700" title={`${l.moveMinPeca?.toLocaleString('pt-BR')} min/peça`}>
+                          {Number(l.moveDias).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}d
+                        </span>
+                      )
+                      : <span className="text-gray-300">—</span>
+                  ),
+                },
                 {
                   id: 'sobra',
                   rotulo: 'Sobra do mês (entra − sai)',
@@ -1125,9 +1389,14 @@ export default function CapacidadeVsVenda({
                 // resumo usam eles.
                 {
                   id: 'fisico',
-                  rotulo: 'Estoque (s/ abater pedidos)',
+                  rotulo: 'Estoque físico previsto (s/ abater pedidos)',
                   pai: 'info',
-                  celula: (l: typeof linhas[number]) => <span className="text-slate-700">{fmt(l.estoque)}</span>,
+                  dica: 'Estoque físico (estoque + processo, SEM abater a carteira pendente), previsto a partir do Disponível pela proporção de hoje: físico ÷ disponível na abertura, mantida o horizonte todo. É PREMISSA, não medição — ela supõe que a carteira cresce junto com o estoque; se a carteira ficar parada enquanto o estoque sobe, este número exagera. Vinha de outra régua antes, e por isso discordava do gráfico.',
+                  celula: (l: typeof linhas[number]) => (
+                    <span className="text-slate-700" title={`${razaoFisico.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}× o disponível`}>
+                      {fmt(fisicoPrevisto[linhas.indexOf(l)])}
+                    </span>
+                  ),
                 },
                 {
                   id: 'pendente',
@@ -1161,7 +1430,12 @@ export default function CapacidadeVsVenda({
               // sai de sincronia na primeira linha nova.
               const paiDe: Record<string, string> = {};
               defs.forEach((d) => { if ('pai' in d) paiDe[d.id] = d.pai; });
+              // As tres linhas da Move so existem com a simulacao LIGADA. Desligada, a
+              // pagina nem calcula os campos, e deixar as linhas na tabela so acrescentaria
+              // tres fileiras de travessao.
+              const temMove = linhas.some((l) => l.movePecas !== undefined);
               return defs
+              .filter((linha) => temMove || !linha.id.startsWith('move'))
               // Visibilidade em CADEIA: um neto so aparece se o pai e o avo estiverem abertos.
               // O zebrado usa a posicao VISIVEL, senao abrir um nivel trocaria a cor de todas
               // as linhas de baixo.
