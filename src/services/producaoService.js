@@ -1276,7 +1276,7 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
     FROM vr_pcp_loteplop a
     LEFT JOIN pcp_lotepv p
       ON a.nr_lote = p.nr_lote
-    WHERE p.cd_auxiliar IN ('MA', 'PX', 'UL', 'QT', 'QU', 'SX')
+    WHERE UPPER(TRIM(COALESCE(p.cd_auxiliar, ''))) = ANY($3::TEXT[])
       AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 20::bigint), ''))) = UPPER(TRIM($1))
       AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto, 'DS'::text, 27::bigint), ''))) = ANY($2)
       AND UPPER(COALESCE(f_dic_prd_nivel(a.cd_produto, 'DS'::bpchar), '')) NOT LIKE '%MEIA DE SEDA%'
@@ -1284,9 +1284,13 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
     GROUP BY p.cd_auxiliar, continuidade
   `;
 
-  const result = await pool.query(query, [marca, statusList]);
+  // Os NOVE periodos, da mesma fonte que o resto do sistema. A lista estava escrita a mao
+  // aqui (no SQL, na inicializacao e no laco do percentual) e parava em SX, entao a barra
+  // de EXECUCAO dos cards ficava vazia em ST, OT e NV mesmo com lote lancado no ERP.
+  const result = await pool.query(query, [marca, statusList, PERIODOS_PLANO]);
+  const vazioPorPeriodo = () => Object.fromEntries(PERIODOS_PLANO.map((p) => [p, null]));
   const base = {
-    geral: { MA: null, PX: null, UL: null, QT: null, QU: null, SX: null },
+    geral: vazioPorPeriodo(),
     continuidade: {},
   };
 
@@ -1304,7 +1308,7 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
     base.geral[periodo].qtdFinalizada += qtdFinalizada;
 
     if (!base.continuidade[continuidade]) {
-      base.continuidade[continuidade] = { MA: null, PX: null, UL: null, QT: null, QU: null, SX: null };
+      base.continuidade[continuidade] = vazioPorPeriodo();
     }
     base.continuidade[continuidade][periodo] = {
       qtdReal: qtdLote,
@@ -1313,7 +1317,7 @@ async function buscarExecucaoPlanoResumo(pool, options = {}) {
     };
   }
 
-  for (const periodo of ['MA', 'PX', 'UL', 'QT', 'QU', 'SX']) {
+  for (const periodo of PERIODOS_PLANO) {
     const item = base.geral[periodo];
     if (item) {
       item.percentual = item.qtdReal > 0 ? (item.qtdFinalizada * 100) / item.qtdReal : null;

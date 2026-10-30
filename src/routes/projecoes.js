@@ -29,11 +29,16 @@ const MESES_TRANSICAO_NOVA_COLECAO = ['1', '2', '3', '4', '5', '6', '7', '8', '9
 // ── Calcula períodos automaticamente ────────────────────────────────────────
 // Fonte única em src/services/periodoPlanoService.js. Esta função existia com sua
 // própria conta (dia 1, sem a regra do último dia) e discordava de capacidade.js sobre
-// qual é o MA de hoje — mantida aqui só como wrapper de compatibilidade, sem QU/SX
-// porque nada neste arquivo os usa.
+// qual é o MA de hoje — ficou como wrapper de compatibilidade.
+//
+// Devolvia só MA..QT, com a justificativa de que "nada neste arquivo usa QU/SX". A
+// justificativa olhava para o lado errado: quem consome `periodos` não é este arquivo, é
+// a TELA, que recebe o objeto na resposta e monta a Cobertura do Plano e as colunas da
+// matriz a partir dele. Truncando aqui, a tela não tinha como saber que ST, OT e NV
+// existem — e eles já existem no ERP desde que o Fagner implantou abril, maio e junho.
 function calcularPeriodos() {
   const { meses } = calcularPeriodosPlano();
-  return { MA: meses.MA, PX: meses.PX, UL: meses.UL, QT: meses.QT };
+  return { ...meses };
 }
 
 // ── autenticação (igual ao admin.js) ─────────────────────────────────────────
@@ -547,11 +552,10 @@ function parsearMes(raw) {
     OUT: 10, OUTUBRO: 10,
     NOV: 11, NOVEMBRO: 11,
     DEZ: 12, DEZEMBRO: 12,
-    // Períodos do plano (calculados dinamicamente)
-    MA: periodos.MA,
-    PX: periodos.PX,
-    UL: periodos.UL,
-    QT: periodos.QT,
+    // Períodos do plano (calculados dinamicamente). Espalhados do mapa completo: escritos
+    // um a um, a importação por nome de período reconhecia MA..QT e ignorava em silêncio
+    // uma planilha que dissesse QU, SX, ST, OT ou NV.
+    ...periodos,
   };
 
   return nomes[v] ?? null;
