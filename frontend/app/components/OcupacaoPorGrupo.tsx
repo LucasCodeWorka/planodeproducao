@@ -36,6 +36,19 @@ export type MesGrupo = {
 
 export type RefSemCelula = { referencia: string; produto: string; pecas: number; minutos: number };
 
+/** Grupo de costura (celula de producao) que fabrica a familia. */
+export type CelulaDaFamilia = {
+  celula: string;
+  capacidadeDiaria: number;
+  cargaFamiliaMin: number;
+  cargaCelulaMin: number;
+  /** Quanto desta celula a familia aberta consome. */
+  fatiaDaFamilia: number;
+  /** Ocupacao da CELULA no horizonte, com TODAS as famílias dentro. */
+  ocupacaoCelula: number | null;
+  semCapacidade: boolean;
+};
+
 export type GrupoOcupacao = {
   grupo: string;
   capacidadeDiaria: number;
@@ -47,6 +60,8 @@ export type GrupoOcupacao = {
   fatiaSemCelula: number;
   /** As referências que faltam cadastrar, as maiores primeiro. É a lista de correção. */
   refsSemCelula: RefSemCelula[];
+  /** Os grupos de costura que fabricam a família, os de maior carga primeiro. */
+  celulas: CelulaDaFamilia[];
   meses: MesGrupo[];
 };
 
@@ -180,6 +195,51 @@ export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedi
             );
           })}
         </tr>
+        {/* GRUPOS DE COSTURA. Abrir a familia mostrava a conta e nao mostrava a FABRICA —
+            e e na celula que se age, nao na familia inteira. A ocupacao de cada celula
+            soma TODAS as familias que passam por ela, nao so a aberta: uma celula pode
+            estar cheia por causa de outra familia, e esconder isso sugeriria folga onde
+            nao ha. */}
+        {aberto && g.celulas.length > 0 && (
+          <tr key={`${g.grupo}-celulas`} className="border-t border-slate-100 bg-slate-50/70">
+            <td className="sticky left-0 z-10 bg-slate-50/70 py-2 pl-10 pr-4 align-top text-left text-[11px] font-semibold text-slate-700 whitespace-nowrap">
+              <span className="mr-1 text-slate-300">└</span>
+              grupos de costura
+              <div className="pl-4 font-normal text-slate-500">{g.celulas.length} células</div>
+            </td>
+            <td colSpan={g.meses.length} className="px-3 py-2">
+              <table className="text-[11px]">
+                <thead className="text-[10px] uppercase tracking-wide text-slate-400">
+                  <tr>
+                    <th className="pr-4 text-left font-semibold">célula</th>
+                    <th className="px-2 text-right font-semibold">min/dia</th>
+                    <th className="px-2 text-right font-semibold">carga da família</th>
+                    <th className="px-2 text-right font-semibold">% da célula</th>
+                    <th className="pl-2 text-right font-semibold">ocupação da célula</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {g.celulas.map((c) => (
+                    <tr key={c.celula}>
+                      <td className="pr-4 font-medium text-slate-700 whitespace-nowrap">{c.celula}</td>
+                      <td className="px-2 text-right font-mono tabular-nums text-slate-500">
+                        {c.semCapacidade ? '—' : fmt(c.capacidadeDiaria)}
+                      </td>
+                      <td className="px-2 text-right font-mono tabular-nums text-slate-700">{fmt(c.cargaFamiliaMin)}</td>
+                      <td className="px-2 text-right font-mono tabular-nums text-slate-500">{pct(c.fatiaDaFamilia)}</td>
+                      <td
+                        className={`pl-2 text-right font-mono font-bold tabular-nums ${corOcupacao(c.ocupacaoCelula)}`}
+                        title={`${pct(c.fatiaDaFamilia)} da carga desta célula vem de ${g.grupo}. A ocupação considera todas as famílias que passam por ela — ${fmt(c.cargaCelulaMin)} min no total.`}
+                      >
+                        {c.semCapacidade ? 'sem medição' : pct(c.ocupacaoCelula)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        )}
         {/* ONDE CORRIGIR. O aviso de carga sem celula sozinho nao resolvia nada: o PCP via
             que o numero nao era confiavel e nao tinha o que fazer com isso. Aqui estao as
             referencias que faltam cadastrar, as de maior carga primeiro — e a fila de

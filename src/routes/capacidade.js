@@ -2357,6 +2357,44 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
       diasPorPeriodo[per] = diasAcum;
     }
 
+    // GRUPOS DE COSTURA de cada familia.
+    //
+    // Abrir a familia mostrava a conta (pecas, carga, capacidade) e nao mostrava a FABRICA.
+    // O que o PCP quer ver ao abrir SUTIA e QUAIS celulas costuram sutia e qual delas esta
+    // estourada — porque e nela que se age, nao na familia inteira.
+    //
+    // A ocupacao aqui e da CELULA, somando todas as familias que passam por ela, nao so a
+    // que esta aberta: uma celula pode estar cheia por causa de outra familia, e esconder
+    // isso faria a tela sugerir folga onde nao ha.
+    const diasHorizonte = diasPorPeriodo[PERIODOS_PLANO[PERIODOS_PLANO.length - 1]] || 0;
+    const cargaTotalDaCelula = new Map();
+    for (const [celula, mapa] of cargaCelulaGrupo) {
+      cargaTotalDaCelula.set(celula, [...mapa.values()].reduce((a, b) => a + b, 0));
+    }
+    const celulasDaFamilia = (familia) => {
+      const saida = [];
+      for (const [celula, mapa] of cargaCelulaGrupo) {
+        const cargaFamilia = Number(mapa.get(familia) || 0);
+        if (!(cargaFamilia > 0)) continue;
+        const cargaCelula = Number(cargaTotalDaCelula.get(celula) || 0);
+        const capCelula = Math.max(0, Number(capDiariaCelula.get(celula) || 0));
+        const capHorizonte = capCelula * diasHorizonte;
+        saida.push({
+          celula,
+          capacidadeDiaria: Number(capCelula.toFixed(2)),
+          cargaFamiliaMin: Math.round(cargaFamilia),
+          cargaCelulaMin: Math.round(cargaCelula),
+          // Quanto desta celula e consumido pela familia aberta.
+          fatiaDaFamilia: cargaCelula > 0 ? Number((cargaFamilia / cargaCelula).toFixed(4)) : 0,
+          // Ocupacao da CELULA no horizonte, com todas as familias dentro.
+          ocupacaoCelula: capHorizonte > 0 ? Number((cargaCelula / capHorizonte).toFixed(4)) : null,
+          // Capacidade medida zero = celula desativada ou sem medicao no periodo.
+          semCapacidade: !(capCelula > 0),
+        });
+      }
+      return saida.sort((a, b) => b.cargaFamiliaMin - a.cargaFamiliaMin);
+    };
+
     const dados = [...porGrupoProduto.entries()]
       .map(([grupo, v]) => {
         const capDiaria = Number(capDiariaGrupo.get(grupo) || 0);
@@ -2399,6 +2437,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
           pecasHorizonte: Math.round(pecasAcum),
           // Nomeada pelo PCP: a tela mostra sempre, sem passar pelo corte de tamanho.
           nomeada: FAMILIAS_NOMEADAS.has(grupo),
+          celulas: celulasDaFamilia(grupo),
           fatiaSemCelula,
           refsSemCelula: [...semCelulaPorRef.values()]
             .filter((x) => x.grupo === grupo)
