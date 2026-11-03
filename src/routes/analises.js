@@ -397,6 +397,129 @@ router.post("/projecao-vs-venda", auth, async (req, res) => {
   }
 });
 
+// Cache curto: a consulta de venda do ano inteiro e pesada e o fechamento de um mes nao
+// muda depois que ele fecha.
+let projRealCache = { chave: null, data: null, timestamp: 0 };
+const PROJ_REAL_TTL = 10 * 60 * 1000;
+
+/**
+ * GET /api/analises/projetado-vs-realizado?ano=2026
+ *
+ * Previsto contra realizado, mes a mes, nos SKUs da matriz de planejamento.
+ *
+ * Por que existe: o horizonte do plano rola com o calendario. Em 03/11/2026 a Visao Geral
+ * passou a comecar em novembro e OUTUBRO SUMIU da tela — com ele, a unica leitura de quanto
+ * a projecao acertou. "Nao e porque estamos em novembro que devemos perder o realizado de
+ * outubro", e esta certo: o mes que fecha e o unico que diz se o modelo esta calibrado.
+ *
+ * Medido em 03/11/2026 para out/2026: previsto 167.104, realizado 139.861, desvio -16,3%.
+ * Aberto por continuidade, o erro nao esta espalhado — permanentes erraram 5% (116.791 ->
+ * 110.639) e edicao limitada errou 54% (37.566 -> 17.433). Sem a abertura, a conclusao
+ * seria "a projecao erra 16%", que e verdade e nao ajuda.
+ *
+ * So meses FECHADOS entram. O mes em curso tem venda parcial e apareceria como queda
+ * brutal — em 03/11 novembro estava com 875 pecas contra 108.226 projetadas, que e so o
+ * calendario, nao erro de previsao.
+ */
+router.get("/projetado-vs-realizado", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const hoje = new Date();
+    const ano = Number(req.query.ano) || hoje.getFullYear();
+    const chave = `${ano}`;
+
+    if (projRealCache.data && projRealCache.chave === chave && (Date.now() - projRealCache.timestamp) < PROJ_REAL_TTL) {
+      return res.json({ ...projRealCache.data, fromCache: true });
+    }
+
+    const cache = await readCacheByKey("matriz_planejamento");
+    const rows = Array.isArray(cache?.data?.rows) ? cache.data.rows : [];
+    const continuidadePorId = new Map();
+    const ids = [];
+    for (const item of rows) {
+      const id = Number(item?.produto?.idproduto);
+      if (!Number.isFinite(id)) continue;
+      ids.push(id);
+      continuidadePorId.set(String(id), String(item?.produto?.continuidade || "SEM CONTINUIDADE").trim().toUpperCase());
+    }
+    if (!ids.length) return res.json({ success: true, ano, meses: [], aviso: "Matriz vazia no cache." });
+
+    const [realResult, projResult] = await Promise.all([
+      pool.query(
+        `SELECT idproduto::TEXT AS id, EXTRACT(MONTH FROM data)::INT AS mes, SUM(qt_liquida)::FLOAT AS q
+           FROM vr_vendas_qtd
+          WHERE idproduto = ANY($1::BIGINT[]) AND EXTRACT(YEAR FROM data)::INT = $2
+          GROUP BY 1, 2`,
+        [ids, ano]
+      ),
+      pool.query(
+        `SELECT idproduto::TEXT AS id, mes, quantidade AS q
+           FROM app_projecoes
+          WHERE ano = $2 AND idproduto::BIGINT = ANY($1::BIGINT[])`,
+        [ids, ano]
+      ),
+    ]);
+
+    // Ultimo mes FECHADO do ano pedido. Num ano passado, dezembro; no corrente, o anterior
+    // ao de hoje.
+    const ultimoFechado = ano < hoje.getFullYear() ? 12 : hoje.getMonth();
+
+    const vazio = () => ({ projetado: 0, realizado: 0, porContinuidade: {} });
+    const porMes = new Map();
+    const doMes = (m) => {
+      if (!porMes.has(m)) porMes.set(m, vazio());
+      return porMes.get(m);
+    };
+    const soma = (alvo, cont, campo, valor) => {
+      alvo[campo] += valor;
+      if (!alvo.porContinuidade[cont]) alvo.porContinuidade[cont] = { projetado: 0, realizado: 0 };
+      alvo.porContinuidade[cont][campo] += valor;
+    };
+
+    for (const r of projResult.rows || []) {
+      const m = Number(r.mes);
+      if (!(m >= 1 && m <= ultimoFechado)) continue;
+      soma(doMes(m), continuidadePorId.get(r.id) || "SEM CONTINUIDADE", "projetado", Number(r.q) || 0);
+    }
+    for (const r of realResult.rows || []) {
+      const m = Number(r.mes);
+      if (!(m >= 1 && m <= ultimoFechado)) continue;
+      soma(doMes(m), continuidadePorId.get(r.id) || "SEM CONTINUIDADE", "realizado", Number(r.q) || 0);
+    }
+
+    const meses = [...porMes.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([mes, v]) => ({
+        mes,
+        projetado: Math.round(v.projetado),
+        realizado: Math.round(v.realizado),
+        // Desvio relativo ao PREVISTO: e o previsto que estava sendo julgado.
+        desvio: v.projetado > 0 ? Number(((v.realizado - v.projetado) / v.projetado).toFixed(4)) : null,
+        porContinuidade: Object.entries(v.porContinuidade)
+          .map(([continuidade, x]) => ({
+            continuidade,
+            projetado: Math.round(x.projetado),
+            realizado: Math.round(x.realizado),
+            desvio: x.projetado > 0 ? Number(((x.realizado - x.projetado) / x.projetado).toFixed(4)) : null,
+          }))
+          .sort((a, b) => b.projetado - a.projetado),
+      }));
+
+    const payload = {
+      success: true,
+      ano,
+      ultimoFechado,
+      skus: ids.length,
+      meses,
+    };
+    projRealCache = { chave, data: payload, timestamp: Date.now() };
+    return res.json(payload);
+  } catch (error) {
+    console.error("[analises/projetado-vs-realizado] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao comparar projetado e realizado", details: error.message });
+  }
+});
+
 router.get("/snapshot-lotes/datas", auth, async (req, res) => {
   try {
     const pool = req.app.get("pool");
