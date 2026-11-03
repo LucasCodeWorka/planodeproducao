@@ -41,6 +41,8 @@ export type GrupoOcupacao = {
   capacidadeDiaria: number;
   fatiaCapacidade: number;
   pecasHorizonte: number;
+  /** Família nomeada pelo PCP: aparece sempre, mesmo abaixo do corte de tamanho. */
+  nomeada?: boolean;
   /** Fatia da carga do HORIZONTE sem célula de capacidade cadastrada. */
   fatiaSemCelula: number;
   /** As referências que faltam cadastrar, as maiores primeiro. É a lista de correção. */
@@ -129,8 +131,11 @@ export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedi
     [dados, periodos],
   );
 
-  const principais = dados.filter((g) => g.fatiaCapacidade >= FATIA_MINIMA);
-  const outros = dados.filter((g) => g.fatiaCapacidade < FATIA_MINIMA);
+  // Familia NOMEADA pelo PCP nunca cai no "outros". ANATOMIC e 1,1% do plano e seria
+  // recolhida pelo corte de 3% — que e justamente o oposto do que foi pedido.
+  const visivel = (g: GrupoOcupacao) => g.nomeada || g.fatiaCapacidade >= FATIA_MINIMA;
+  const principais = dados.filter(visivel);
+  const outros = dados.filter((g) => !visivel(g));
 
   if (!dados.length) return null;
 

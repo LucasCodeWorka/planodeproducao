@@ -2029,10 +2029,26 @@ const FAMILIA_POR_GRUPO_PRODUTO = {
   'SHORT DOLL': 'NOITE',
 };
 
-const familiaDoGrupo = (grupo) => {
-  const g = String(grupo || '').trim().toUpperCase();
+// ANATOMIC nao e grupo de produto, e LINHA (`produto.linha`) — ela atravessa calca, sutia,
+// short, body e macaquinho. As proprias celulas de capacidade refletem isso: ha "CA
+// ANATOMIC" e "SO ANATOMIC", e a celula "09 - LIDERANCA ANATOMIC" e dedicada a ela.
+//
+// Por isso a linha tem PRECEDENCIA sobre o grupo: um short anatomic nao e short comum, e a
+// fabrica o trata separado. Medido em 03/11/2026: 31 SKUs, 9.120 pecas (1,1% do plano),
+// distribuidas entre SHORT 3.390, BODY 1.950, CALCA 1.770, MACAQUINHO 1.350 e SUTIA 660 —
+// que sao exatamente as pecas que saem dessas familias quando ANATOMIC vira linha propria.
+const LINHAS_COM_FAMILIA_PROPRIA = new Set(['ANATOMIC']);
+
+const familiaDoProduto = (produto) => {
+  const linha = String(produto?.linha || '').trim().toUpperCase();
+  if (LINHAS_COM_FAMILIA_PROPRIA.has(linha)) return linha;
+  const g = String(produto?.grupo || '').trim().toUpperCase();
   return FAMILIA_POR_GRUPO_PRODUTO[g] || g || 'SEM GRUPO';
 };
+
+// Familias que o PCP nomeou. Aparecem sempre, mesmo pequenas: ANATOMIC e 1,1% do plano e
+// cairia no "outros" pelo corte de 3%, que e justamente o oposto do pedido.
+const FAMILIAS_NOMEADAS = new Set([...Object.values(FAMILIA_POR_GRUPO_PRODUTO), ...LINHAS_COM_FAMILIA_PROPRIA]);
 
 /**
  * GET /api/capacidade/ocupacao-por-grupo-produto
@@ -2216,7 +2232,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
       if (!ref) continue;
       processoPorRef.set(ref, (processoPorRef.get(ref) || 0) + Number(item?.estoques?.em_processo || 0));
       if (!grupoDaRef.has(ref)) {
-        grupoDaRef.set(ref, familiaDoGrupo(item?.produto?.grupo));
+        grupoDaRef.set(ref, familiaDoProduto(item?.produto));
         tempoDaRef.set(ref, Number(tempoPorRef.get(String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase()) || 0));
       }
     }
@@ -2254,7 +2270,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
       if (!['EM LINHA', 'NOVA COLECAO'].includes(status)) continue;
       if (descricao.includes('MEIA DE SEDA')) continue;
 
-      const grupoProduto = familiaDoGrupo(item?.produto?.grupo);
+      const grupoProduto = familiaDoProduto(item?.produto);
       const refPadrao = String(item?.produto?.referencia || '').trim().toUpperCase();
       const idreferencia = String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase();
       const tempo = Number(tempoPorRef.get(idreferencia) || 0);
@@ -2381,6 +2397,8 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
           // Fatia do grupo na fabrica, para a tela saber o que vale a pena abrir.
           fatiaCapacidade: capacidadeDiariaTotal > 0 ? Number((capDiaria / capacidadeDiariaTotal).toFixed(4)) : 0,
           pecasHorizonte: Math.round(pecasAcum),
+          // Nomeada pelo PCP: a tela mostra sempre, sem passar pelo corte de tamanho.
+          nomeada: FAMILIAS_NOMEADAS.has(grupo),
           fatiaSemCelula,
           refsSemCelula: [...semCelulaPorRef.values()]
             .filter((x) => x.grupo === grupo)
