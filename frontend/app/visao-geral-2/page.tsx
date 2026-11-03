@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, LayoutGrid, RefreshCw, TriangleAlert } from 'lucide-react';
@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import PainelCapacidade, { type ResumoDiasCapacidade } from '../components/PainelCapacidade';
 import CapacidadeVsVenda, { MesCapacidadeVenda } from '../components/CapacidadeVsVenda';
+import OcupacaoPorGrupo, { type GrupoOcupacao } from '../components/OcupacaoPorGrupo';
+import ProjetadoVsRealizado, { type MesFechado } from '../components/ProjetadoVsRealizado';
 import { diasDeFabricaNoMes, diasUteisNoMes } from '../lib/feriados';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
@@ -148,6 +150,8 @@ export default function VisaoGeral2Page() {
   // e herda o minuto dele — premissa conferivel no lugar de um numero digitado no olho.
   type TempoGrupo = { grupo: string; referencias: number; min_peca_medio: number; min_peca_minimo: number; min_peca_maximo: number };
   const [temposPorGrupo, setTemposPorGrupo] = useState<TempoGrupo[]>([]);
+  const [ocupacaoGrupo, setOcupacaoGrupo] = useState<{ dados: GrupoOcupacao[]; capacidadeDiariaTotal: number; temMedida: boolean } | null>(null);
+  const [fechamento, setFechamento] = useState<{ ano: number; meses: MesFechado[] } | null>(null);
   // Minuto por peca da Move: a media das referencias que a fabrica JA produz, ponderada
   // pelo numero de referencias de cada grupo. Da 8,96.
   //
@@ -421,6 +425,10 @@ export default function VisaoGeral2Page() {
       // sistematica — em out/2026 dava 141.044 contra ~155.000 pela curva.
       // `null` (historico curto) cai no linear de antes.
       const fracaoVendaEsperada = Number(vendaMesJson?.fracaoVendaEsperada || 0);
+      // Quanto do mes precisa ter decorrido, pela curva, para o ritmo MEDIDO valer mais que
+      // a projecao. Um quinto: pela curva medida isso e por volta do dia 8, quando a
+      // amostra ja atravessou um fim de semana inteiro e nao depende de um unico dia.
+      const FRACAO_MINIMA_RITMO = 0.20;
       /**
        * Quanto uma populacao ainda deve vender no mes em curso, em pecas.
        *
@@ -464,6 +472,23 @@ export default function VisaoGeral2Page() {
        */
       const fatorRitmoMes = (ids: string[], projecaoCheia: number) => {
         if (diasCompletosMes <= 0 || diasFaltantesMes <= 0 || projecaoCheia <= 0) return fracaoMesCorrente();
+        // MES RECEM-COMECADO NAO SE EXTRAPOLA.
+        //
+        // `aindaVendeDe` divide o vendido pela fatia da curva ja decorrida. Com o mes quase
+        // inteiro pela frente essa divisao vira ruido puro: em 03/11/2026 havia 2 dias
+        // "completos" — 1/nov foi DOMINGO e 2/nov foi FINADOS, ou seja, nenhum dia util.
+        // As 1.191 pecas residuais divididas pelos 5,04% que a curva esperava do dia 2
+        // davam 23.618 para o mes inteiro, contra 129.828 projetados: -82%.
+        //
+        // O erro nao ficava na linha de venda. Ele entrava no DISPONIVEL, porque a demanda
+        // do mes corrente alimenta a cadeia de estoque — e o horizonte inteiro subia junto
+        // (dez/27 aparecia com 491.655).
+        //
+        // A curva e por dia de CALENDARIO, medida na media de 21 meses: ela nao sabe que
+        // este dia 2 caiu em feriado. Exigir um quinto do mes decorrido e o que impede uma
+        // amostra de um ou dois dias atipicos de reescrever o mes inteiro. Abaixo disso
+        // vale a projecao pro-rata, que e o comportamento antigo.
+        if (!(fracaoVendaEsperada >= FRACAO_MINIMA_RITMO)) return fracaoMesCorrente();
         const { completo, parcial } = realizadoDe(ids);
         if (completo <= 0) return fracaoMesCorrente();
         return aindaVendeDe({ completo, parcial }) / projecaoCheia;
@@ -682,7 +707,10 @@ export default function VisaoGeral2Page() {
       // Capacidade x Venda le a quantidade do modelo sazonal, que e outra base — aplicar um
       // fator calculado sobre esta base ali daria um numero sem sentido. `null` = sem venda
       // medida; o relatorio cai no pro-rata antigo.
-      const elRestanteMesCorrente = diasCompletosMes > 0 && diasFaltantesMes > 0 && elRealizadoMes.completo > 0
+      // Mesma trava da `fatorRitmoMes`: sem mes suficiente decorrido, `null` manda o
+      // relatorio cair no pro-rata em vez de confiar na extrapolacao.
+      const elRestanteMesCorrente = diasCompletosMes > 0 && diasFaltantesMes > 0
+        && fracaoVendaEsperada >= FRACAO_MINIMA_RITMO && elRealizadoMes.completo > 0
         ? aindaVendeDe(elRealizadoMes)
         : null;
       const elDemandaPorMes: Record<string, number> = {};
@@ -980,6 +1008,44 @@ export default function VisaoGeral2Page() {
     }
   }
   useEffect(() => { carregarTemposPorGrupo(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  // Ocupacao aberta por grupo de produto. Carrega por fora do `Promise.all` principal e
+  // falha em silencio: e abertura da tabela de cima, nao base dela — se nao vier, a Visao
+  // Geral continua inteira e so a quebra fica de fora.
+  //
+  // Segue o MESMO `lote_id` da cobertura simulada, senao o detalhe contaria uma historia e
+  // o total outra na mesma tela.
+  async function carregarOcupacaoPorGrupo(lote?: string) {
+    try {
+      const sufixo = lote ? `?lote_id=${encodeURIComponent(lote)}` : '';
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/ocupacao-por-grupo-produto${sufixo}`, { headers: authHeaders() }, 300000);
+      const p = await r.json();
+      if (r.ok && p?.success && Array.isArray(p.dados)) {
+        setOcupacaoGrupo({ dados: p.dados, capacidadeDiariaTotal: Number(p.capacidadeDiariaTotal || 0), temMedida: p.temMedida !== false });
+      }
+    } catch {
+      setOcupacaoGrupo(null);
+    }
+  }
+  useEffect(() => {
+    // `rawData` e a origem; `data` (o cenario derivado) so existe mais abaixo no arquivo.
+    carregarOcupacaoPorGrupo(rawData?.loteId || undefined);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [rawData?.loteId]);
+
+  // Fechamento dos meses que ja passaram. Independente do resto: o horizonte rola e leva o
+  // mes fechado embora, e e justamente ele que diz se a projecao acertou.
+  async function carregarFechamento() {
+    try {
+      const ano = new Date().getFullYear();
+      const r = await fetchNoCache(`${API_URL}/api/analises/projetado-vs-realizado?ano=${ano}`, { headers: authHeaders() }, 300000);
+      const p = await r.json();
+      if (r.ok && p?.success && Array.isArray(p.meses)) setFechamento({ ano: p.ano, meses: p.meses });
+    } catch {
+      setFechamento(null);
+    }
+  }
+  useEffect(() => { carregarFechamento(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   // Aqui havia a troca para a variante "anterior" da capacidade (antes de desativar
   // Progresso e Oficina Atila), que vinha LIGADA por padrao. O cenario foi removido: vale
@@ -1935,6 +2001,12 @@ export default function VisaoGeral2Page() {
         />
       )}
 
+      {/* O passado antes do futuro: o mes fechado e a referencia contra a qual se le o
+          horizonte logo abaixo. */}
+      {fechamento && fechamento.meses.length > 0 && (
+        <ProjetadoVsRealizado ano={fechamento.ano} meses={fechamento.meses} />
+      )}
+
       {relatorioCapacidade && (
         <CapacidadeVsVenda
           meses={relatorioCapacidade.linhas}
@@ -1975,6 +2047,17 @@ export default function VisaoGeral2Page() {
               
             </div>
           )}
+        />
+      )}
+
+      {/* Abertura da tabela acima, por grupo de produto. O total dela tem que reproduzir a
+          ocupacao do conjunto — e a reconciliacao fica visivel no rodape de proposito. */}
+      {ocupacaoGrupo && ocupacaoGrupo.dados.length > 0 && (
+        <OcupacaoPorGrupo
+          dados={ocupacaoGrupo.dados}
+          capacidadeDiariaTotal={ocupacaoGrupo.capacidadeDiariaTotal}
+          temMedida={ocupacaoGrupo.temMedida}
+          comSimulacao={Boolean(data.loteId)}
         />
       )}
 
