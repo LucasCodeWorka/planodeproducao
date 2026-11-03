@@ -2006,6 +2006,418 @@ router.get('/gap-mensal', auth, async (req, res) => {
   }
 });
 
+// Cache proprio, mesma vida do gap-mensal: a consulta de tempos e a leitura da matriz sao
+// as partes caras e sao exatamente as mesmas.
+let ocupGrupoCache = { chave: null, data: null, timestamp: 0 };
+
+// AGRUPAMENTO DOS GRUPOS DE PRODUTO EM FAMILIAS DE PRODUCAO.
+//
+// Definido pelo Fagner em 03/11/2026, olhando a planilha de analise de capacidade que ele
+// mantem: sem costura e short entram em CALCA, top entra em SUTIA, camisola e short doll
+// formam NOITE. E como a fabrica pensa a alocacao, e nao como o ERP classifica o produto.
+//
+// Grupo que nao esta aqui permanece com o proprio nome, de proposito: BODY, CINTA, ROBE,
+// MACAQUINHO e os outros nao foram citados, e enfia-los num "outros" esconderia carga que
+// hoje da para ver. Quando o PCP decidir onde eles entram, e so acrescentar a linha.
+const FAMILIA_POR_GRUPO_PRODUTO = {
+  'CALCA': 'CALCA',
+  'SEM COSTURA': 'CALCA',
+  'SHORT': 'CALCA',
+  'SUTIA': 'SUTIA',
+  'TOP': 'SUTIA',
+  'CAMISOLA': 'NOITE',
+  'SHORT DOLL': 'NOITE',
+};
+
+const familiaDoGrupo = (grupo) => {
+  const g = String(grupo || '').trim().toUpperCase();
+  return FAMILIA_POR_GRUPO_PRODUTO[g] || g || 'SEM GRUPO';
+};
+
+/**
+ * GET /api/capacidade/ocupacao-por-grupo-produto
+ *
+ * A Capacidade x Venda diz se o plano cabe NO CONJUNTO da fabrica. Nao diz ONDE aperta.
+ * Esta rota abre a mesma conta por grupo de produto (CALCA, SUTIA, CAMISOLA...), que e a
+ * leitura que o PCP mantinha numa planilha a parte.
+ *
+ * O PONTO DIFICIL: carga e por PRODUTO, capacidade e por CELULA.
+ *
+ * A carga sai exata — `plano x tempo` somado por `produto.grupo`, cobrindo 100% do plano.
+ * A capacidade nao: ela e medida por celula de producao, e uma celula faz referencias de
+ * mais de um grupo. Entao cada celula distribui a capacidade dela entre os grupos na mesma
+ * proporcao em que eles a carregam:
+ *
+ *   fatia(grupo, celula) = carga do grupo naquela celula / carga total da celula
+ *   capacidadeDiaria(grupo) = SOMA_celulas  capacidadeDiaria(celula) x fatia(grupo, celula)
+ *
+ * A fatia usa o horizonte ACUMULADO, nao periodo a periodo: um mes em que a celula nao tem
+ * carga produziria uma divisao sem sentido.
+ *
+ * E auto-consistente (a soma por grupo devolve a capacidade da fabrica) e preserva o sinal
+ * que interessa: celula sobrecarregada puxa para cima a ocupacao de quem a usa.
+ *
+ * O QUE NAO FAZER, e por que: ratear a capacidade TOTAL pela carga de cada grupo daria a
+ * mesma ocupacao para todos, por construcao, e a tela nao diria nada.
+ *
+ * REFERENCIA SEM CELULA (13,4% do plano medido em 30/10/2026) tem carga e nao tem
+ * capacidade. Ela entra na carga do grupo e sai tambem em `cargaSemCelulaMin`, em vez de
+ * ser diluida: quando essa coluna e alta, a ocupacao do grupo esta superestimada, e quem
+ * le precisa enxergar isso em vez de receber um numero limpo e errado.
+ */
+router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
+  try {
+    const hoje = new Date();
+    const dePadrao = new Date(hoje.getFullYear(), hoje.getMonth() - 3, 1).toISOString().slice(0, 10);
+    const atePadrao = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+    const de = String(req.query.de || dePadrao).slice(0, 10);
+    const ate = String(req.query.ate || atePadrao).slice(0, 10);
+    const aplicarAprovadas = String(req.query.aplicar_aprovadas ?? 'false') === 'true';
+    const loteId = String(req.query.lote_id || '').trim();
+    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}`;
+
+    if (ocupGrupoCache.data && ocupGrupoCache.chave === chaveCache && (Date.now() - ocupGrupoCache.timestamp) < GAP_CACHE_TTL) {
+      return res.json({ ...ocupGrupoCache.data, fromCache: true });
+    }
+
+    const pool = req.app.get('pool');
+    const { readCache } = require('../cache/matrizCache');
+
+    const grupos = await readGrupos(pool);
+    const grupoRefs = await readGrupoRefs(pool);
+    const nomesGrupos = new Set(grupos.map((g) => g.grupo));
+    const { porGrupo: capacidadeRealPorGrupo } = await consultarCapacidadeRealPorGrupo(pool, de, ate, 'media');
+
+    // Capacidade diaria efetiva de cada celula. Igual a tela: havendo medicao real, celula
+    // sem medicao vale ZERO — nao cai no numero do arquivo, que esta corrompido.
+    const temMedida = capacidadeRealPorGrupo.size > 0;
+    const capDiariaCelula = new Map(grupos.map((g) => [
+      g.grupo,
+      temMedida ? Number(capacidadeRealPorGrupo.get(g.grupo) || 0) : Number(g.capacidade_diaria || 0),
+    ]));
+    const capacidadeDiariaTotal = [...capDiariaCelula.values()].reduce((a, b) => a + b, 0);
+
+    const temposResult = await queryTempoBaseRows(pool, {});
+    const tempoPorRef = new Map();
+    for (const row of temposResult.rows || []) {
+      const idreferencia = String(row.idreferencia || '').trim().toUpperCase();
+      if (!idreferencia) continue;
+      const base = resolveTempoLikePowerBi(row.hr_tempo, row.hr_tempopadrao);
+      tempoPorRef.set(idreferencia, (tempoPorRef.get(idreferencia) || 0) + (Number.isFinite(base) ? base : 0));
+    }
+
+    // Simulacao por cima do plano, exatamente como o gap-mensal faz, para a quebra reagir
+    // ao lote junto com o total em vez de contar outra historia.
+    const planosAprovados = new Map();
+    if (aplicarAprovadas) {
+      const aprovadas = await lerAprovadas(pool);
+      for (const a of aprovadas.sort((x, y) => Number(x.createdAt || 0) - Number(y.createdAt || 0))) {
+        for (const p of a.parametros.planos) {
+          const k = String(p?.chave || '').trim();
+          if (k) planosAprovados.set(k, p);
+        }
+      }
+    }
+    if (loteId) {
+      for (const a of await lerSimulacoesDoLote(pool, loteId)) {
+        for (const p of a.parametros.planos) {
+          const k = String(p?.chave || '').trim();
+          if (k) planosAprovados.set(k, p);
+        }
+      }
+    }
+
+    const matrizCache = await readCache();
+    const matrizRows = Array.isArray(matrizCache?.data?.rows) ? matrizCache.data.rows : [];
+
+    // Celulas de cada referencia, e o rateio entre elas pela capacidade — mesmo criterio do
+    // gap-mensal, para as duas telas dividirem a carga do mesmo jeito.
+    const celulasPorRef = new Map();
+    for (const row of grupoRefs) {
+      if (!nomesGrupos.has(row.grupo)) continue;
+      const ref = String(row.referencia || '').trim().toUpperCase();
+      if (!ref) continue;
+      const atual = celulasPorRef.get(ref) || [];
+      if (!atual.includes(row.grupo)) atual.push(row.grupo);
+      celulasPorRef.set(ref, atual);
+    }
+
+    // ── HERANCA DE CELULA POR TIPO DE PRODUTO ────────────────────────────────────────
+    //
+    // Mesma regra que a Sugestao de Plano ja aplica (`gruposDaReferencia`, em
+    // frontend/app/sugestao-plano/page.tsx). Sem ela, referencia nao cadastrada ficava com
+    // carga e NENHUMA capacidade, e a ocupacao do grupo inflava — as duas maiores sem
+    // celula aqui, 123606 e 123019, sao as mesmas que o motor do plano ja herdava ha
+    // tempos. Duas telas respondendo diferente sobre a mesma referencia e pior do que
+    // qualquer uma das duas respostas.
+    //
+    // A heranca e pelo `grupo` do produto (SUTIA, CALCA, CAMISOLA...), que e o que de fato
+    // determina onde a peca pode ser costurada — os proprios nomes das celulas trazem isso
+    // (SU, CA, SO). Entram so as celulas DOMINANTES do tipo, com pelo menos metade da
+    // frequencia da mais comum: senao um SUTIA herdaria toda celula que ja costurou algum
+    // sutia alguma vez, inclusive excecao.
+    const tipoPorRef = new Map();
+    for (const item of matrizRows) {
+      const ref = String(item?.produto?.referencia || '').trim().toUpperCase();
+      const tipo = String(item?.produto?.grupo || '').trim().toUpperCase();
+      if (ref && tipo && !tipoPorRef.has(ref)) tipoPorRef.set(ref, tipo);
+    }
+    const contagemPorTipo = new Map();
+    for (const [ref, celulas] of celulasPorRef) {
+      const tipo = tipoPorRef.get(ref);
+      if (!tipo) continue;
+      const cont = contagemPorTipo.get(tipo) || new Map();
+      for (const c of celulas) cont.set(c, (cont.get(c) || 0) + 1);
+      contagemPorTipo.set(tipo, cont);
+    }
+    const dominantesPorTipo = new Map();
+    for (const [tipo, cont] of contagemPorTipo) {
+      let maior = 0;
+      for (const n of cont.values()) if (n > maior) maior = n;
+      if (!(maior > 0)) continue;
+      const dominantes = [];
+      for (const [c, n] of cont) if (n >= maior * 0.5) dominantes.push(c);
+      dominantesPorTipo.set(tipo, dominantes);
+    }
+    // Quem herdou, para a tela poder dizer que a capacidade veio de palpite e nao de
+    // cadastro. Herdado e melhor que nada, mas nao e a mesma coisa que cadastrado.
+    const refsHerdaram = new Set();
+    const celulasDaRef = (ref) => {
+      const proprio = celulasPorRef.get(ref);
+      if (proprio && proprio.length) return proprio;
+      const herdado = dominantesPorTipo.get(tipoPorRef.get(ref));
+      if (herdado && herdado.length) {
+        refsHerdaram.add(ref);
+        return herdado;
+      }
+      return [];
+    };
+
+    // EM PROCESSO tambem ocupa a fabrica, e por isso entra no `tempoAcumulado` do
+    // gap-mensal. Sem ele aqui a quebra por grupo ficava 771.409 minutos abaixo do total —
+    // medido — e as duas telas nunca reconciliariam.
+    //
+    // Indexado por REFERENCIA, nao por SKU: o mapa de abertura e por referencia, e varios
+    // SKUs dividem a mesma. Somar por SKU contaria o processo tantas vezes quantas forem as
+    // cores e tamanhos daquela referencia.
+    const { mapa: processoPorRefPeriodo, ok: processoPorPeriodoOk } =
+      await carregarProcessoPorRefPeriodo(pool, matrizRows, calcularPeriodosPlano(hoje).meses, hoje);
+    const processoPorRef = new Map();
+    const grupoDaRef = new Map();
+    const tempoDaRef = new Map();
+    for (const item of matrizRows) {
+      const marca = String(item?.produto?.marca || '').trim().toUpperCase();
+      const status = String(item?.produto?.status || '').trim().toUpperCase();
+      const descricao = String(item?.produto?.produto || '').trim().toUpperCase();
+      if (marca !== 'LIEBE') continue;
+      if (!['EM LINHA', 'NOVA COLECAO'].includes(status)) continue;
+      if (descricao.includes('MEIA DE SEDA')) continue;
+      const ref = String(item?.produto?.referencia || '').trim().toUpperCase();
+      if (!ref) continue;
+      processoPorRef.set(ref, (processoPorRef.get(ref) || 0) + Number(item?.estoques?.em_processo || 0));
+      if (!grupoDaRef.has(ref)) {
+        grupoDaRef.set(ref, familiaDoGrupo(item?.produto?.grupo));
+        tempoDaRef.set(ref, Number(tempoPorRef.get(String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase()) || 0));
+      }
+    }
+
+    const zerado = () => Object.fromEntries(PERIODOS_PLANO.map((p) => [p, 0]));
+    const porGrupoProduto = new Map(); // grupo -> { pecas, carga, cargaSemCelula } por periodo
+    const cargaCelulaGrupo = new Map(); // celula -> Map(grupo -> carga do horizonte)
+
+    const doGrupo = (nome) => {
+      if (!porGrupoProduto.has(nome)) {
+        porGrupoProduto.set(nome, { pecas: zerado(), carga: zerado(), cargaSemCelula: zerado() });
+      }
+      return porGrupoProduto.get(nome);
+    };
+
+    // QUEM esta sem celula, nao so QUANTO. A tela marcava o grupo como pouco confiavel e
+    // parava ai — o PCP via o aviso e nao tinha o que fazer com ele. Com a referencia
+    // nomeada, o aviso vira uma lista de cadastro para o Fagner.
+    const semCelulaPorRef = new Map(); // `grupo|referencia` -> { ..., minutos }
+    const anotarSemCelula = (grupoProduto, referencia, descricao, pecas, minutos) => {
+      if (!referencia || !(minutos > 0)) return;
+      const k = `${grupoProduto}|${referencia}`;
+      const atual = semCelulaPorRef.get(k) || { grupo: grupoProduto, referencia, produto: descricao, pecas: 0, minutos: 0 };
+      atual.pecas += pecas;
+      atual.minutos += minutos;
+      if (!atual.produto && descricao) atual.produto = descricao;
+      semCelulaPorRef.set(k, atual);
+    };
+
+    for (const item of matrizRows) {
+      const marca = String(item?.produto?.marca || '').trim().toUpperCase();
+      const status = String(item?.produto?.status || '').trim().toUpperCase();
+      const descricao = String(item?.produto?.produto || '').trim().toUpperCase();
+      if (marca !== 'LIEBE') continue;
+      if (!['EM LINHA', 'NOVA COLECAO'].includes(status)) continue;
+      if (descricao.includes('MEIA DE SEDA')) continue;
+
+      const grupoProduto = familiaDoGrupo(item?.produto?.grupo);
+      const refPadrao = String(item?.produto?.referencia || '').trim().toUpperCase();
+      const idreferencia = String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase();
+      const tempo = Number(tempoPorRef.get(idreferencia) || 0);
+
+      const aprovado = planosAprovados.get(chaveDaLinha(item));
+      const fonte = aprovado || item?.plano || {};
+
+      const alvo = doGrupo(grupoProduto);
+      const celulas = celulasDaRef(refPadrao);
+      const totalRateio = celulas.reduce((acc, c) => acc + Math.max(0, Number(capDiariaCelula.get(c) || 0)), 0);
+
+      for (const per of PERIODOS_PLANO) {
+        const pecas = Number(fonte[per.toLowerCase()] || 0);
+        if (!pecas) continue;
+        alvo.pecas[per] += pecas;
+        const cargaMin = pecas * tempo;
+        if (!cargaMin) continue;
+        alvo.carga[per] += cargaMin;
+        if (!celulas.length) {
+          alvo.cargaSemCelula[per] += cargaMin;
+          anotarSemCelula(grupoProduto, refPadrao, descricao, pecas, cargaMin);
+          continue;
+        }
+        for (const celula of celulas) {
+          const fatia = celulas.length === 1
+            ? 1
+            : (totalRateio > 0 ? Math.max(0, Number(capDiariaCelula.get(celula) || 0)) / totalRateio : 1 / celulas.length);
+          const mapa = cargaCelulaGrupo.get(celula) || new Map();
+          mapa.set(grupoProduto, (mapa.get(grupoProduto) || 0) + cargaMin * fatia);
+          cargaCelulaGrupo.set(celula, mapa);
+        }
+      }
+    }
+
+    // Carga do EM PROCESSO, pela mesma estrada: abertura por periodo quando o ERP tem a
+    // data, tudo em MA quando nao tem — identico ao gap-mensal, para os totais fecharem.
+    for (const [ref, pecasProcesso] of processoPorRef) {
+      if (!(pecasProcesso > 0)) continue;
+      const tempo = Number(tempoDaRef.get(ref) || 0);
+      if (!tempo) continue;
+      const grupoProduto = grupoDaRef.get(ref) || 'SEM GRUPO';
+      const alvo = doGrupo(grupoProduto);
+      const celulas = celulasDaRef(ref);
+      const totalRateio = celulas.reduce((acc, c) => acc + Math.max(0, Number(capDiariaCelula.get(c) || 0)), 0);
+      const abertura = processoPorPeriodoOk ? processoPorRefPeriodo.get(ref) : null;
+
+      for (const per of PERIODOS_PLANO) {
+        const pecas = abertura ? Number(abertura[per] || 0) : (per === 'MA' ? pecasProcesso : 0);
+        if (!pecas) continue;
+        const cargaMin = pecas * tempo;
+        alvo.carga[per] += cargaMin;
+        if (!celulas.length) {
+          alvo.cargaSemCelula[per] += cargaMin;
+          continue;
+        }
+        for (const celula of celulas) {
+          const fatia = celulas.length === 1
+            ? 1
+            : (totalRateio > 0 ? Math.max(0, Number(capDiariaCelula.get(celula) || 0)) / totalRateio : 1 / celulas.length);
+          const mapa = cargaCelulaGrupo.get(celula) || new Map();
+          mapa.set(grupoProduto, (mapa.get(grupoProduto) || 0) + cargaMin * fatia);
+          cargaCelulaGrupo.set(celula, mapa);
+        }
+      }
+    }
+
+    // Capacidade diaria de cada grupo de produto, pela fatia que ele ocupa em cada celula.
+    const capDiariaGrupo = new Map();
+    for (const [celula, mapa] of cargaCelulaGrupo) {
+      const capCelula = Math.max(0, Number(capDiariaCelula.get(celula) || 0));
+      if (!capCelula) continue;
+      const totalCelula = [...mapa.values()].reduce((a, b) => a + b, 0);
+      if (!(totalCelula > 0)) continue;
+      for (const [grupoProduto, cargaDoGrupo] of mapa) {
+        capDiariaGrupo.set(grupoProduto, (capDiariaGrupo.get(grupoProduto) || 0) + capCelula * (cargaDoGrupo / totalCelula));
+      }
+    }
+
+    const periodos = calcularPeriodosPlano(hoje).meses;
+    const diasPorPeriodo = {};
+    let diasAcum = 0;
+    for (const per of PERIODOS_PLANO) {
+      diasAcum += diasDisponiveisDoPeriodo(periodos[per], hoje);
+      diasPorPeriodo[per] = diasAcum;
+    }
+
+    const dados = [...porGrupoProduto.entries()]
+      .map(([grupo, v]) => {
+        const capDiaria = Number(capDiariaGrupo.get(grupo) || 0);
+        let cargaAcum = 0;
+        let semCelulaAcum = 0;
+        let pecasAcum = 0;
+        const meses = PERIODOS_PLANO.map((per) => {
+          cargaAcum += v.carga[per];
+          semCelulaAcum += v.cargaSemCelula[per];
+          pecasAcum += v.pecas[per];
+          const capacidadeMin = capDiaria * diasPorPeriodo[per];
+          const diasNecessarios = capDiaria > 0 ? cargaAcum / capDiaria : 0;
+          return {
+            periodo: per,
+            mes: periodos[per],
+            pecas: Math.round(v.pecas[per]),
+            pecasAcum: Math.round(pecasAcum),
+            cargaMin: Number(v.carga[per].toFixed(1)),
+            cargaAcumMin: Number(cargaAcum.toFixed(1)),
+            cargaSemCelulaMin: Number(semCelulaAcum.toFixed(1)),
+            capacidadeMin: Number(capacidadeMin.toFixed(1)),
+            diasNecessarios: Number(diasNecessarios.toFixed(2)),
+            diasDisponiveis: diasPorPeriodo[per],
+            // Ocupacao e gap ACUMULADOS, como no resto do sistema: o que nao cabe num mes
+            // transborda para o seguinte.
+            ocupacao: capacidadeMin > 0 ? Number((cargaAcum / capacidadeMin).toFixed(4)) : null,
+            gapDias: Number((diasNecessarios - diasPorPeriodo[per]).toFixed(2)),
+          };
+        });
+        // Fatia sem celula do HORIZONTE INTEIRO, nao de cada periodo. Por periodo ela
+        // oscila (SUTIA cruzava os 30% em dez e jan e voltava em fev), e o grupo piscava
+        // entre cinza e colorido ao longo da linha. Confiabilidade e propriedade do
+        // CADASTRO do grupo, nao do mes.
+        const fatiaSemCelula = cargaAcum > 0 ? Number((semCelulaAcum / cargaAcum).toFixed(4)) : 0;
+        return {
+          grupo,
+          capacidadeDiaria: Number(capDiaria.toFixed(2)),
+          // Fatia do grupo na fabrica, para a tela saber o que vale a pena abrir.
+          fatiaCapacidade: capacidadeDiariaTotal > 0 ? Number((capDiaria / capacidadeDiariaTotal).toFixed(4)) : 0,
+          pecasHorizonte: Math.round(pecasAcum),
+          fatiaSemCelula,
+          refsSemCelula: [...semCelulaPorRef.values()]
+            .filter((x) => x.grupo === grupo)
+            .sort((a, b) => b.minutos - a.minutos)
+            .slice(0, 12)
+            .map((x) => ({
+              referencia: x.referencia,
+              produto: x.produto,
+              pecas: Math.round(x.pecas),
+              minutos: Math.round(x.minutos),
+            })),
+          meses,
+        };
+      })
+      .sort((a, b) => b.pecasHorizonte - a.pecasHorizonte);
+
+    const payload = {
+      success: true,
+      de,
+      ate,
+      aplicarAprovadas,
+      loteId: loteId || null,
+      temMedida,
+      capacidadeDiariaTotal: Number(capacidadeDiariaTotal.toFixed(2)),
+      periodos,
+      dados,
+    };
+    ocupGrupoCache.chave = chaveCache;
+    ocupGrupoCache.data = payload;
+    ocupGrupoCache.timestamp = Date.now();
+    return res.json(payload);
+  } catch (error) {
+    console.error('[capacidade/ocupacao-por-grupo-produto] Erro:', error);
+    return res.status(500).json({ success: false, error: 'Erro ao calcular ocupacao por grupo de produto', details: error.message });
+  }
+});
+
 /**
  * GET /api/capacidade/indice-mensal
  *
