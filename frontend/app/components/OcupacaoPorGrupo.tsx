@@ -73,6 +73,10 @@ type Props = {
   temMedida: boolean;
   /** Quando a leitura inclui uma simulacao salva, para o titulo dizer isso. */
   comSimulacao?: boolean;
+  /** Como a carga encontra a celula hoje. */
+  alocacao: 'cadastro' | 'mix';
+  onAlocacao: (a: 'cadastro' | 'mix') => void;
+  carregando?: boolean;
 };
 
 const MES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -113,7 +117,7 @@ function confiavel(g: GrupoOcupacao) {
   return Number(g.fatiaSemCelula || 0) <= LIMITE_SEM_CELULA;
 }
 
-export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedida, comSimulacao }: Props) {
+export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedida, comSimulacao, alocacao, onAlocacao, carregando }: Props) {
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
   const [verOutros, setVerOutros] = useState(false);
 
@@ -145,6 +149,7 @@ export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedi
     () => periodos.map((_, i) => dados.reduce((a, g) => a + Number(g.meses[i]?.pecas || 0), 0) === 0),
     [dados, periodos],
   );
+
 
   // Familia NOMEADA pelo PCP nunca cai no "outros". ANATOMIC e 1,1% do plano e seria
   // recolhida pelo corte de 3% — que e justamente o oposto do que foi pedido.
@@ -306,7 +311,34 @@ export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedi
           </h2>
           <p className="text-xs text-gray-500">
             A mesma ocupação acumulada da tabela acima, aberta por grupo. O total no rodapé tem que bater com ela.
+            {alocacao === 'mix' ? ' Alocando pelo mix de produção do ERP.' : ' Alocando pelo cadastro de referências.'}
           </p>
+        </div>
+        {/* AS DUAS LEITURAS, lado a lado. Nenhuma e obviamente certa: o cadastro carrega
+            erros e defasagem, o mix depende de quais referencias ja foram cadastradas para
+            revelar o que cada celula faz. Medido em 03/11/2026 elas discordam em 886.188
+            minutos — 19,3% da carga. Escolher uma no escuro seria pior que comparar. */}
+        <div className="flex items-center gap-2">
+          <div className="inline-flex overflow-hidden rounded border border-gray-300 text-xs">
+            {([
+              { id: 'cadastro' as const, rotulo: 'Por cadastro', dica: 'Pelo cadastro manual de referência → célula, com herança por tipo de produto para quem não está cadastrado. É a leitura que a Sugestão de Plano usa.' },
+              { id: 'mix' as const, rotulo: 'Por mix', dica: 'Pela classificação 29 do ERP: o produto tem um mix de produção, e a carga vai para as células que comprovadamente produzem aquele mix. Reproduz o relatório de Locais × Mix do TOTVS a partir dos próprios dados.' },
+            ]).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => onAlocacao(opt.id)}
+                disabled={carregando}
+                title={opt.dica}
+                className={`px-2.5 py-1 disabled:opacity-50 ${
+                  alocacao === opt.id ? 'bg-indigo-600 font-semibold text-white' : 'bg-white hover:bg-gray-50'
+                }`}
+              >
+                {opt.rotulo}
+              </button>
+            ))}
+          </div>
+          {carregando && <span className="text-[11px] text-gray-400">recalculando…</span>}
         </div>
         <span
           className="cursor-help text-[11px] text-gray-400 decoration-dotted underline-offset-4 [text-decoration-line:underline]"

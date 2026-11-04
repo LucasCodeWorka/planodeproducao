@@ -104,7 +104,49 @@ export function diasUteisNoMes(ano: number, mes: number): number {
   return Math.max(0, n - feriadosUteisNoMes(ano, mes));
 }
 
-/** Dias que a fábrica realmente tem no mês: o fixo da coletiva, ou os dias úteis. */
-export function diasDeFabricaNoMes(ano: number, mes: number): number {
-  return DIAS_FIXOS_POR_MES[mes] ?? diasUteisNoMes(ano, mes);
+/**
+ * PARADAS DE FÁBRICA (férias coletivas), declaradas por DATA — nunca por quantidade de dias.
+ *
+ * "Dez dias de férias" não são dez dias de produção perdidos. Fev/2027, de 05 a 14, são dez
+ * dias corridos que custam só QUATRO de fábrica: 06, 07, 13 e 14 caem em fim de semana, e 08
+ * e 09 são Carnaval, que a conta já descontava. Quem digitasse "10" tiraria seis dias que
+ * nunca existiram — e é por isso que isto são datas, e o número se calcula.
+ *
+ * Espelhado em `src/lib/diasUteis.js`. Para acrescentar uma parada, ponha as datas nos dois.
+ */
+export const PARADAS: ReadonlyArray<{ nome: string; ano: number; inicio: [number, number]; fim: [number, number] }> = [
+  { nome: 'Férias coletivas', ano: 2027, inicio: [2, 5], fim: [2, 14] },
+];
+
+/** Dias de fábrica que as paradas tiram do mês. Só conta dia que seria trabalhado. */
+export function diasDeParadaNoMes(ano: number, mes: number): number {
+  const feriados = new Set(
+    feriadosDoAno(ano).filter((f) => f.data.getUTCMonth() === mes - 1).map((f) => f.data.getUTCDate())
+  );
+  let n = 0;
+  for (const p of PARADAS) {
+    if (p.ano !== ano) continue;
+    const d = new Date(Date.UTC(ano, p.inicio[0] - 1, p.inicio[1]));
+    const fim = new Date(Date.UTC(ano, p.fim[0] - 1, p.fim[1]));
+    while (d <= fim) {
+      const w = d.getUTCDay();
+      if (d.getUTCMonth() === mes - 1 && w >= 1 && w <= 5 && !feriados.has(d.getUTCDate())) n += 1;
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+  }
+  return n;
+}
+
+/** As paradas que caem num mês, para a tela poder dizer QUAL parada e em que datas. */
+export function paradasDoMes(ano: number, mes: number) {
+  return PARADAS.filter((p) => p.ano === ano && (p.inicio[0] === mes || p.fim[0] === mes));
+}
+
+/**
+ * Dias que a fábrica realmente tem no mês: o fixo da coletiva, ou os dias úteis.
+ * `comParada` desconta as férias declaradas — é cenário, entra só quando pedido.
+ */
+export function diasDeFabricaNoMes(ano: number, mes: number, comParada = false): number {
+  const base = DIAS_FIXOS_POR_MES[mes] ?? diasUteisNoMes(ano, mes);
+  return comParada ? Math.max(0, base - diasDeParadaNoMes(ano, mes)) : base;
 }

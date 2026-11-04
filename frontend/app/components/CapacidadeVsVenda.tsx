@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, type ReactNode } from 'react';
 import { Factory, Search, SlidersHorizontal, TrendingUp } from 'lucide-react';
@@ -103,6 +103,11 @@ export type MesCapacidadeVenda = {
   travado?: boolean;
   /** Mês em curso: já está rodando, então nem o piso sobe — vale o plano como está. */
   mesCorrente?: boolean;
+  /** Peças JA EM PROCESSO que terminam neste mês (pelo período do lote em que estão).
+   *  Entram no disponível como produção: já foram cortadas, mas ainda não viraram estoque.
+   *  Disjuntas do `producao` — o plano da matriz é necessidade, e a necessidade já desconta
+   *  o que está em processo. Medido em 04/11/2026: 82.059 em MA e 17.064 em PX. */
+  emProcessoMes?: number;
 };
 
 type Props = {
@@ -110,6 +115,9 @@ type Props = {
   /** Estoque físico (estoque + processo) na abertura do horizonte, sem abater pendentes. */
   aberturaEstoque: number;
   pedidosPendentes: number;
+  /** Disponível de HOJE, pela conta do painel: estoque − pendente por SKU, só os positivos.
+   *  É de onde a linha do Disponível parte. Calculado, nunca constante. */
+  disponivelAtual?: number;
   /** Peças já em processo hoje; somadas apenas na exibição da produção do mês corrente. */
   emProcessoAtual: number;
   /** Referencia de estoque disponivel no fim do horizonte. So leitura: nao limita o plano. */
@@ -123,6 +131,9 @@ type Props = {
   onCenarioFabrica?: (c: number) => void;
   /** Controles da página, renderizados ENTRE o gráfico e a tabela. */
   controles?: ReactNode;
+  /** Controle que entra na LINHA do cabeçalho, junto de "Capacidade atual" e "Ajustes".
+   *  Diferente de `controles`, que desenha numa faixa abaixo do título. */
+  controleCabecalho?: ReactNode;
 };
 
 // Cobertura PADRAO da carteira, em dias de venda. O medido na carteira de hoje da ~40
@@ -131,9 +142,7 @@ type Props = {
 const CARTEIRA_DIAS_PADRAO = 25;
 
 
-// Referência operacional informada para out/26. O estoque consolidado já inclui
-// carteira e plano; a venda restante vem agora da projeção atualizada da página.
-const REFERENCIA_OUTUBRO_2026 = { disponivel: 192541 };
+
 
 function fmt(v: number) {
   return Math.round(v || 0).toLocaleString('pt-BR');
@@ -147,6 +156,7 @@ export default function CapacidadeVsVenda({
   meses,
   aberturaEstoque,
   pedidosPendentes,
+  disponivelAtual,
   emProcessoAtual,
   metaEstoqueFinal = 100000,
   limiteOcupacao = 0.9,
@@ -154,16 +164,37 @@ export default function CapacidadeVsVenda({
   cenarioFabrica,
   onCenarioFabrica,
   controles,
+  controleCabecalho,
 }: Props) {
   // Tres leituras, nao duas: o plano como esta, o nivelado com teto no MES e o nivelado com
   // teto no ACUMULADO. Os dois nivelamentos respondem a perguntas diferentes — "nenhum mes
   // passa de 90%" e "a fabrica no conjunto nao passa de 90%" — e com os meses reais ja em
   // 95% eles dao planos bem distintos, entao os dois ficam disponiveis no botao.
-  const [modo, setModo] = useState<'capacidade' | 'atual' | 'mes' | 'acumulado'>('capacidade');
+  // ABRE NO TETO NO MES — que e como esta tela sempre abriu, ate 09/10/2026.
+  //
+  // O commit e74d81f trocou o default de 'mes' para 'capacidade' ao introduzir os tres
+  // pilares. "Capacidade cheia" produz o teto da fabrica TODO mes, entao o disponivel so
+  // cresce: terminava o horizonte em 499.204 — cinco meses de cobertura numa casa que gira
+  // em menos de um. Nao era erro de conta; era a resposta honesta de uma pergunta que
+  // ninguem fazia ("quanto a fabrica aguentaria se rodasse cheia o ano inteiro").
+  //
+  // O print que o PCP guardou de outubro — o estado em que ele confiava — tem no cabecalho
+  // "Ocupacao acumulada ao fim: 97% · teto no mes", e terminava em 287.593 de disponivel. A
+  // diferenca para os 499.204 e quase toda o modo: 10% da capacidade de cada mes, ~160 mil
+  // pecas, em 14 meses, dao ~224 mil — contra os 211.611 medidos entre os dois prints.
+  //
+  // Capacidade cheia e Plano atual continuam no botao: o primeiro como teto teorico, o
+  // segundo para ver o disponivel se sair exatamente o plano lancado, sem nivelar nada.
+  const [modo, setModo] = useState<'capacidade' | 'atual' | 'mes' | 'acumulado' | 'cobertura'>('capacidade');
   const nivelar = modo !== 'atual';
   // Teto de ocupacao efetivo do modo. "capacidade" roda a fabrica cheia: o que ela aguenta
   // e o que entra no estoque, que e a leitura dos tres pilares.
-  const tetoDoModo = modo === 'capacidade' ? 1 : limiteOcupacao;
+  // 'cobertura' tambem roda a fabrica cheia; o que a segura nao e ocupacao, e estoque.
+  const tetoDoModo = modo === 'capacidade' || modo === 'cobertura' ? 1 : limiteOcupacao;
+  // O teto de ESTOQUE so existe no modo que foi feito para ele. Pendurá-lo no "Capacidade
+  // cheia" tornava aquele modo uma mentira: a pergunta dele e "e se a fabrica rodar no
+  // limite", e a resposta nao pode vir com a fabrica freada por politica de estoque.
+  const limitarPorCobertura = modo === 'cobertura';
   // Niveis abertos na tabela. Ausente = aberto; so o `false` explicito fecha, para um nivel
   // novo nascer visivel sem precisar vir cadastrado aqui. O comparativo da divida fixa
   // nasce fechado: e referencia de conferencia, nao leitura do dia a dia.
@@ -184,6 +215,10 @@ export default function CapacidadeVsVenda({
   // expedicao. Abre no padrao da casa, nao no medido: o medido e o retrato de hoje, que
   // inclui atraso, e nao a politica.
   const [diasCarteira, setDiasCarteira] = useState<number>(CARTEIRA_DIAS_PADRAO);
+  // Cobertura maxima de estoque, em meses de venda futura. Dois meses e o patamar que a
+  // propria politica de cobertura por curva pratica (A 0,8x ate D 3,0x). E ajustavel: quem
+  // conhece a politica e a operacao, nao o codigo.
+  const [coberturaMaxMeses, setCoberturaMaxMeses] = useState<number>(2);
   // A faixa de ajustes nasce fechada: o relatorio abre na leitura, nao na configuracao.
   const [mostrarAjustes, setMostrarAjustes] = useState(false);
   const [analiseAberta, setAnaliseAberta] = useState(false);
@@ -238,9 +273,24 @@ export default function CapacidadeVsVenda({
   // daí acompanha a curva de venda. Em mes de pico o livro incha, em mes fraco encolhe.
   // Usa a media dos 3 meses seguintes porque e nesse prazo que a agenda do ERP distribui as
   // entregas de hoje; so o mes seguinte deixaria a linha pulando a cada vale da projecao.
+  //
+  // NO FIM DO HORIZONTE NAO EXISTE "proximos 3 meses", e a janela ia encolhendo: dois meses
+  // no antepenultimo, um no penultimo, e no ultimo ela caia no PROPRIO mes. Como o
+  // horizonte termina em dezembro — vale de venda —, o teto de estoque do ultimo mes virava
+  // 2 x 87.056 = 174.112, o menor numero do ano, justo onde nao ha dado para medir. A
+  // producao batia nesse teto e a sobra zerava: nao por decisao de plano, mas porque a
+  // janela tinha acabado.
+  //
+  // Entao a janela sempre fecha TRES meses: o que falta para frente se completa para tras.
+  // No ultimo mes isso vira a media do ultimo trimestre, que e uma base de verdade, em vez
+  // de um mes solto. A carteira projetada le daqui tambem e para de afunilar no fim.
   const mediaProximos = (i: number) => {
-    const janela = meses.slice(i + 1, i + 4);
-    const base = janela.length ? janela : [meses[i]];
+    const frente = meses.slice(i + 1, i + 4);
+    const faltam = 3 - frente.length;
+    const base = faltam > 0
+      ? [...meses.slice(Math.max(0, i + 1 - faltam), i + 1), ...frente]
+      : frente;
+    if (!base.length) return demandaTotal(meses[i]);
     return base.reduce((s, m) => s + demandaTotal(m), 0) / base.length;
   };
   // O tamanho sai da carteira de hoje, mas e so o ponto de partida: quem conhece o prazo
@@ -250,6 +300,25 @@ export default function CapacidadeVsVenda({
   const diasEfetivos = diasCarteira;
   const coberturaCarteira = diasEfetivos / 30;
   const carteiraProjetada = meses.map((_, i) => coberturaCarteira * mediaProximos(i));
+
+  // DISPONIVEL DE HOJE — a partida de tudo que fala de disponivel nesta tela.
+  //
+  // Vem CALCULADO da matriz, pela mesma conta do painel principal: por SKU, estoque menos
+  // pedido pendente, somando so quem esta positivo (quem esta negativo nao empresta saldo
+  // para quem sobra). Mede 192.035 em 04/11/2026.
+  //
+  // Antes havia uma constante `REFERENCIA_OUTUBRO_2026 = 192541` chumbada aqui — era esta
+  // mesma conta, congelada em outubro — e ela valia so enquanto o primeiro mes fosse out/26.
+  // Quando o mes virou, a tela caiu no `estoque fisico - carteira projetada`, que e outra
+  // regua: parte do fisico (estoque + processo) e desconta uma carteira ESTIMADA em dias de
+  // venda, nao o pedido pendente real. Era de onde vinham os 600 mil de disponivel.
+  //
+  // Esta e a UNICA partida: o nivelamento por cobertura, a serie da tabela e a cobertura em
+  // meses do rodape leem todos daqui. Tres lugares liam o fisico por conta propria e
+  // discordavam entre si.
+  const disponivelHoje = Number(disponivelAtual || 0) > 0
+    ? Number(disponivelAtual)
+    : aberturaEstoque - carteiraProjetada[0];
 
   const producaoAtual = meses.map((m) => m.producao);
   const totalAtual = producaoAtual.reduce((s, p) => s + p, 0);
@@ -264,43 +333,91 @@ export default function CapacidadeVsVenda({
   // meses reais ja entregam o acumulado em 95%, nesse modo os primeiros meses projetados
   // entram abaixo dos 90% deles proprios para puxar a media de volta — e o preco e estoque
   // disponivel menor no fim.
+  //
+  // TETO DE ESTOQUE. Sem ele, "capacidade cheia" produz capacidade TODO mes, e como a
+  // fabrica aguenta ~170 mil/mes contra uma venda de ~122 mil, sobram ~48 mil que viram
+  // estoque e nunca param de crescer: em 04/11/2026 a linha chegava a 628.251 de
+  // disponivel em dez/27 — CINCO meses de cobertura, numa casa que gira em menos de um.
+  // Nao e plano, e aritmetica solta.
+  //
+  // Entao a producao de um mes LIVRE para quando o disponivel alcanca a cobertura maxima.
+  // Mes com plano lancado nao e tocado: ali o plano e piso, e quem decidiu foi o PCP.
+  // Alem das pecas, nivelarCom devolve ONDE o teto de estoque mordeu. Sem isso a tabela
+  // mostrava "+0" de sobra sem dizer por que: parece buraco de calculo quando e decisao do
+  // cenario — estoque no teto, fabrica produzindo o que vende. O numero nao mudou; o que
+  // faltava era ele se explicar.
   const nivelarCom = (limitarAcumulado: boolean) => {
+    const noTeto: boolean[] = [];
     let necAcum = 0;
     let dispAcum = 0;
-    return meses.map((m) => {
+    // Mesma abertura que a linha do Disponivel usa, para o teto morder o numero que a
+    // tela mostra e nao um parente dele.
+    let dispCorrente = disponivelHoje;
+    const producoes = meses.map((m, i) => {
+      noTeto.push(false);
       dispAcum += m.diasDisponiveis;
       const diasPeloMes = m.diasDisponiveis * tetoDoModo;
       const diasPeloAcumulado = limitarAcumulado
         ? Math.max(0, dispAcum * tetoDoModo - necAcum)
         : Infinity;
       const dias = Math.min(diasPeloMes, diasPeloAcumulado);
-      const peloTeto = m.capacidadePecas * (dias / (m.diasDisponiveis || 1));
+      // A CAPACIDADE EM PECAS JA CONTEM O EM-PROCESSO, e isso muda o teto.
+      //
+      // Ela sai de `pecasCarga = (lote - gerouOP) + processo` dividido pelos dias que essa
+      // carga pede: e a saida TOTAL do mes, nao a producao nova. Entao o que cabe de
+      // producao nova e a capacidade MENOS o que ja esta na costura — somar os dois era
+      // contar as mesmas pecas duas vezes. Em dez/26 isso dava 114.288 de capacidade mais
+      // 17.064 de processo, 131.352 de saida num mes que aguenta 114.288.
+      //
+      // A invariante da tela passa a ser uma so: o que ENTRA no mes nunca passa da
+      // capacidade do mes.
+      const processoMes = Number(m.emProcessoMes || 0);
+      const saidaDoMes = m.capacidadePecas * (dias / (m.diasDisponiveis || 1));
+      const peloTeto = Math.max(0, saidaDoMes - processoMes);
 
       // Mes em curso: ja esta rodando, entao nem o teto o levanta — o que vai sair dele e
       // o plano que esta na rua.
+      // Teto em MESES de venda futura: a referencia e a media dos proximos meses, nao um
+      // numero fixo, senao o teto aperta na alta e sobra na baixa.
+      const tetoEstoque = coberturaMaxMeses * mediaProximos(i);
+      const cabeAinda = limitarPorCobertura
+        ? Math.max(0, tetoEstoque + demandaTotal(m) - dispCorrente - processoMes)
+        : Infinity;
+      const registrar = (producao: number) => {
+        dispCorrente += producao + processoMes - demandaTotal(m);
+        return producao;
+      };
+
+      // Mes em curso: vale o plano que esta na rua, mas ele tambem nao fura a capacidade.
+      // Novembro pedia 62.158 de plano restante com 82.059 ja na costura: juntos, 144.217
+      // de saida contra 130.824 que o mes aguenta. O plano nao e intocavel contra a fisica.
       if (m.mesCorrente) {
         necAcum += m.diasNecessarios;
-        return m.producao;
+        return registrar(Math.min(m.producao, peloTeto));
       }
       // Demais meses do plano lancado: o plano e PISO, nao teto. A fabrica puxa trabalho
       // para frente quando sobra capacidade, e faz isso de verdade — em out/2026 ja havia
       // 53 mil pecas do lote de NOVEMBRO em processo. Fixar no plano fazia o disponivel
       // despencar num mes que na pratica nao despenca: novembro mostrava -69 mil de sobra
       // com 134 mil de capacidade ociosa ao lado.
+      // O plano e PISO, a capacidade e TETO — e o teto ganha quando os dois brigam. Antes,
+      // um plano acima da capacidade era mantido como estava; com o em-processo na conta
+      // isso voltaria a furar o mes. Plano que nao cabe nao vira estoque, vira atraso, e e
+      // a ocupacao acima de 100% ao lado que conta essa historia.
       if (m.travado) {
-        if (peloTeto <= m.producao) {
-          necAcum += m.diasNecessarios;
-          return m.producao;
-        }
-        // Produzindo acima do plano, os dias sobem na mesma proporcao.
-        necAcum += m.diasNecessarios * (m.producao > 0 ? peloTeto / m.producao : 1);
-        return peloTeto;
+        necAcum += dias;
+        return registrar(peloTeto);
       }
-      necAcum += dias;
-      return peloTeto;
+      // Mes LIVRE. No modo de cobertura o teto de estoque corta o que a capacidade
+      // permitiria; nos demais, a capacidade manda sozinha.
+      const produzir = Math.min(peloTeto, cabeAinda);
+      noTeto[i] = limitarPorCobertura && cabeAinda < peloTeto;
+      necAcum += dias * (peloTeto > 0 ? produzir / peloTeto : 0);
+      return registrar(produzir);
     });
+    return { producoes, noTeto };
   };
-  const planoNivelado = nivelarCom(modo === 'acumulado');
+  const { producoes: planoNivelado, noTeto: limitadoPorTeto } = nivelarCom(modo === 'acumulado');
   const estoqueNivelado = trajetoria(planoNivelado);
   const totalNivelado = planoNivelado.reduce((s, p) => s + p, 0);
 
@@ -358,21 +475,26 @@ export default function CapacidadeVsVenda({
   });
 
   const ultimo = linhas[linhas.length - 1];
-  const referenciaOutubro = linhas[0]?.mes === 'out/26' ? REFERENCIA_OUTUBRO_2026 : null;
-  // Outubro parte do disponível consolidado informado, que JÁ abate carteira e plano.
-  // A única diferença a aplicar é o que falta vender além da capacidade restante.
-  // Os meses seguintes caminham a partir desse fechamento, sem reaplicar outubro.
-  const sobraTabela = (l: typeof linhas[number], i: number) =>
-    i === 0 && referenciaOutubro
-      ? l.capacidadePecas - demandaTotal(l)
-      : l.producao - demandaTotal(l);
+  // Todo mes anda igual: entra o que a fabrica produz, sai a demanda. O primeiro mes deixou
+  // de ser excecao — ele usava a capacidade CHEIA em vez da producao, e so enquanto o
+  // horizonte comecasse em out/26; com a partida vindo da matriz, a regra passa a ser uma so.
+  //
+  // O EM-PROCESSO ENTRA COMO PRODUCAO, e isso mudou junto com a partida. Enquanto o
+  // disponivel partia do estoque FISICO (`estoque_disponivel` = atual + processo), as 99 mil
+  // pecas em processo ja vinham creditadas na abertura e nao podiam entrar de novo. A
+  // partida nova e o estoque ATUAL menos o pedido pendente — processo nenhum dentro — entao
+  // elas precisam pingar no mes em que terminam, senao somem da conta: novembro abria em
+  // 192.035 e fechava em 124.368 porque 82.059 pecas ja cortadas nao apareciam em lugar
+  // nenhum.
+  const entraNoMes = (l: typeof linhas[number]) => l.producao + Number(l.emProcessoMes || 0);
+  const sobraTabela = (l: typeof linhas[number]) => entraNoMes(l) - demandaTotal(l);
   // Disponivel de ABERTURA do horizonte. Estava escrito duas vezes (aqui e no
   // `disponivelPlano` abaixo); virou const para as duas series partirem do mesmo ponto, e
   // porque a razao do estoque fisico precisa dele tambem.
-  const disponivelAbertura = referenciaOutubro?.disponivel ?? aberturaEstoque - carteiraProjetada[0];
+  const disponivelAbertura = disponivelHoje;
   const disponivelTabela = linhas.reduce<number[]>((valores, l, i) => {
     const anterior = i === 0 ? disponivelAbertura : valores[i - 1];
-    valores.push(anterior + sobraTabela(l, i));
+    valores.push(anterior + sobraTabela(l));
     return valores;
   }, []);
   // DISPONIVEL PELO PLANO.
@@ -395,27 +517,28 @@ export default function CapacidadeVsVenda({
       return valores;
     }
     const anterior = i === 0 ? disponivelAbertura : (valores[i - 1] ?? disponivelTabela[i - 1]);
-    const entra = l.producaoAtual + (l.mesCorrente ? emProcessoAtual : 0);
+    const entra = l.producaoAtual + Number(l.emProcessoMes || 0);
     valores.push(anterior + entra - demandaTotal(l));
     return valores;
   }, []);
-  // ESTOQUE FISICO PREVISTO.
+  // ESTOQUE FISICO PREVISTO — a trajetoria do estoque, nao um multiplo do disponivel.
   //
-  // O Disponivel ja abate a carteira pendente. O fisico (estoque + processo, sem abater
-  // pedido) nao tinha previsao que caminhasse junto: a linha "Estoque (s/ abater pedidos)"
-  // da tabela saia de `l.estoque`, que parte de `aberturaEstoque` e anda pela producao —
-  // regua DIFERENTE da do `disponivelTabela`, que parte do disponivel consolidado de
-  // out/26 e usa a capacidade no primeiro mes. As duas discordavam entre si.
+  // Esta linha ja foi `disponivel x razao fisico/disponivel de hoje`, uma premissa, porque
+  // as duas series andavam em reguas diferentes e discordavam entre si. Nao andam mais: com
+  // a partida do disponivel vinda da matriz, as duas se movem pelo MESMO evento, e a unica
+  // diferenca e o ponto de onde saem e o em-processo.
   //
-  // A conta pedida pelo PCP: a razao fisico/disponivel de HOJE, mantida o horizonte todo.
-  // E premissa, nao medicao — supoe que a carteira cresce junto com o estoque. Se ela ficar
-  // parada enquanto o estoque sobe, este numero exagera (a alternativa aditiva,
-  // `disponivel + carteira`, foi considerada e descartada na decisao).
+  //   fisico      = estoque + processo        anda por  producao - demanda
+  //   disponivel  = estoque - pendente        anda por  producao + processo - demanda
   //
-  // Nao substitui `l.estoque` nem `trajetoria`: aqueles alimentam o nivelamento, e mexer
-  // neles mudaria o plano nivelado. Esta serie e so de exibicao.
-  const razaoFisico = disponivelAbertura > 0 ? aberturaEstoque / disponivelAbertura : 1;
-  const fisicoPrevisto = disponivelTabela.map((v) => v * razaoFisico);
+  // O processo aparece no disponivel e nao no fisico porque no fisico ele JA ESTA contado:
+  // peca que sai da costura nao muda o fisico, so muda de prateleira. Manter a razao fixa
+  // fazia o fisico subir junto com essa conversao e contar as mesmas pecas duas vezes — em
+  // nov/26 daria 462 mil quando a conta do estoque da 363 mil.
+  //
+  // Por isso a serie agora e `l.estoque` direto, que e a trajetoria que o nivelamento ja
+  // usa. Uma regua so para as duas linhas, e nenhuma premissa no meio.
+  const fisicoPrevisto = linhas.map((l) => l.estoque);
 
   const desvioMeta = disponivelTabela[disponivelTabela.length - 1] - metaEstoqueFinal;
   const menorDisponivel = Math.min(...disponivelTabela);
@@ -608,6 +731,7 @@ export default function CapacidadeVsVenda({
               <span className="font-normal text-[11px] opacity-75">({fmt(capacidadeDiariaAtual!)}/dia)</span>
             </span>
           )}
+          {controleCabecalho}
           <button
             onClick={() => setMostrarAjustes((v) => !v)}
             title="Ajustes do relatório: leitura do plano e cobertura da carteira"
@@ -625,6 +749,43 @@ export default function CapacidadeVsVenda({
 
       {/* Cobertura da carteira. Em dias porque e o prazo que a operacao enxerga; o medido
           na carteira de hoje fica ao lado, como ancora. */}
+      {/* A regua do teto so faz sentido no modo que a usa. */}
+      {limitarPorCobertura && (
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-indigo-50/50 px-5 py-2 text-xs text-indigo-900">
+        <span className="font-semibold">Teto de estoque</span>
+        <label className="flex items-center gap-2">
+          <input
+            type="range"
+            min={0.5}
+            max={6}
+            step={0.5}
+            value={coberturaMaxMeses}
+            onChange={(e) => setCoberturaMaxMeses(Number(e.target.value))}
+            className="h-1 w-40 accent-indigo-600"
+          />
+          <strong className="w-20 tabular-nums">{coberturaMaxMeses.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} meses</strong>
+          <span className="text-indigo-700">de venda futura</span>
+        </label>
+        <span
+          className="cursor-help text-indigo-700 decoration-dotted underline-offset-4 [text-decoration-line:underline]"
+          title="Nos meses sem plano lançado, a produção para quando o disponível alcança esta cobertura. Sem o teto, 'capacidade cheia' produz todo mês o que a fábrica aguenta (~170 mil) contra uma venda de ~122 mil, e a sobra vira estoque que nunca para de crescer. Mês com plano lançado não é tocado: ali o plano é piso e quem decidiu foi o PCP."
+        >
+          por que isto existe
+        </span>
+        <span className="text-indigo-700">
+          no fim do horizonte: <strong>{fmt(disponivelTabela[disponivelTabela.length - 1])}</strong> peças disponíveis
+        </span>
+        <span className="text-indigo-700">
+          hoje o disponível já cobre{' '}
+          <strong>
+            {(mediaProximos(0) > 0 ? disponivelHoje / mediaProximos(0) : 0)
+              .toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+          </strong>{' '}
+          meses — abaixo disso o teto freia a fábrica desde o primeiro mês
+        </span>
+      </div>
+      )}
+
       {mostrarAjustes && (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-rose-50/60 px-5 py-2 text-xs text-rose-900">
         <span className="font-semibold">Carteira pendente</span>
@@ -662,6 +823,7 @@ export default function CapacidadeVsVenda({
                 { id: 'capacidade', rotulo: 'Capacidade cheia', dica: 'Produzimos tudo o que a fábrica aguenta: a capacidade do mês é o que entra no estoque' },
               { id: 'atual', rotulo: 'Plano atual', dica: 'O plano como está hoje, sem nivelar' },
                 { id: 'mes', rotulo: `${pct(limiteOcupacao)} no mês`, dica: `Nenhum mês passa de ${pct(limiteOcupacao)} dos próprios dias` },
+                { id: 'cobertura', rotulo: 'Teto de estoque', dica: `Fabrica cheia, mas a producao para quando o disponivel alcanca ${coberturaMaxMeses.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} meses de venda futura. Mes com plano lancado nao e tocado.` },
                 { id: 'acumulado', rotulo: `${pct(limiteOcupacao)} acumulado`, dica: `A fábrica no conjunto não passa de ${pct(limiteOcupacao)}: os meses reais já entregam 95%, então os projetados entram abaixo para puxar a média` },
               ] as const).map((op) => (
                 <button
@@ -975,7 +1137,7 @@ export default function CapacidadeVsVenda({
                       if (!(f > 0)) return null;
                       return (
                         <text x={xr} y={yr} textAnchor={anchor} fontSize="9" fontWeight="700" fill="#6366f1" fontFamily="ui-monospace, monospace">
-                          <title>{`${l.mes}: ${pct(valor / f)} do estoque físico está disponível — o resto é carteira já comprometida. Físico previsto pela proporção de hoje (${razaoFisico.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}× o disponível), que é premissa e não medição.`}</title>
+                          <title>{`${l.mes}: ${pct(valor / f)} do estoque físico está disponível — o resto é carteira já comprometida. Físico é estoque + processo, sem abater a carteira; o disponível já a abate.`}</title>
                           {pct(valor / f)}
                         </text>
                       );
@@ -1220,7 +1382,7 @@ export default function CapacidadeVsVenda({
                   id: 'planoResto',
                   rotulo: 'restante (ainda sem OP)',
                   pai: 'plano',
-                  dica: 'A parte do plano que ainda nao virou OP — e o que de fato ainda vai ENTRAR no estoque, e por isso o numero que a linha Producao usa. O resto do plano ja esta em processo e ja esta contado no estoque. Em percentual: quanto do plano do mes ainda esta por lancar.',
+                  dica: 'A parte do plano que ainda nao virou OP, e o numero que a linha Producao usa. O que ja virou OP esta na linha de baixo, em processo. As duas entram no disponivel: a partida dele e o estoque ATUAL, que ainda nao conta o que esta na costura.',
                   celula: (l: typeof linhas[number]) => {
                     if (!l.planoCompleto) return <span className="text-gray-300">—</span>;
                     const resto = l.producaoAtual;
@@ -1232,6 +1394,17 @@ export default function CapacidadeVsVenda({
                       </>
                     );
                   },
+                },
+                {
+                  id: 'planoProcesso',
+                  rotulo: 'já em processo (termina no mês)',
+                  pai: 'plano',
+                  dica: `Peças já cortadas, na costura, que terminam neste mês — pelo período do lote em que estão. Hoje são ${fmt(emProcessoAtual)} peças em processo no total. Elas entram no disponível junto com a produção: a partida do disponível é o estoque ATUAL menos o pedido pendente, e estoque atual não inclui o que ainda está na fábrica.`,
+                  celula: (l: typeof linhas[number]) => (
+                    Number(l.emProcessoMes || 0) > 0
+                      ? <span className="tabular-nums text-violet-600">{fmt(l.emProcessoMes || 0)}</span>
+                      : <span className="text-gray-300">—</span>
+                  ),
                 },
                 {
                   id: 'planoNec',
@@ -1328,11 +1501,19 @@ export default function CapacidadeVsVenda({
                   id: 'sobra',
                   rotulo: 'Sobra do mês (entra − sai)',
                   forte: true,
+                  dica: 'O que move o Disponível de um mês para o outro: o que entra (a produção do cenário mais as peças que já estavam na costura e terminam no mês) menos a Venda total do topo. O que entra nunca passa da Capacidade do mês — ela já embute terminar o que está na linha. Passe o mouse no número para ver a conta aberta.',
                   celula: (l: typeof linhas[number]) => {
-                    const d = sobraTabela(l, linhas.indexOf(l));
+                    const d = sobraTabela(l);
+                    // Sobra zero no modo de teto nao e buraco de calculo: e o estoque parado
+                    // na cobertura de politica, com a fabrica produzindo o que vende. Sem
+                    // dizer isso, o "+0" parecia defeito.
+                    const freado = limitadoPorTeto[linhas.indexOf(l)];
+                    const proc = Number(l.emProcessoMes || 0);
+                    const conta = `${fmt(l.producao)} de produção${proc > 0 ? ` + ${fmt(proc)} já em processo` : ''} − ${fmt(demandaTotal(l))} de venda`;
                     return (
-                      <span className={d >= 0 ? 'text-emerald-700' : 'text-red-700'}>
+                      <span className={d >= 0 ? 'text-emerald-700' : 'text-red-700'} title={conta}>
                         {d >= 0 ? '+' : '−'}{fmt(Math.abs(d))}
+                        {freado && <div className="text-[10px] font-normal text-indigo-500">no teto de estoque</div>}
                       </span>
                     );
                   },
@@ -1391,9 +1572,9 @@ export default function CapacidadeVsVenda({
                   id: 'fisico',
                   rotulo: 'Estoque físico previsto (s/ abater pedidos)',
                   pai: 'info',
-                  dica: 'Estoque físico (estoque + processo, SEM abater a carteira pendente), previsto a partir do Disponível pela proporção de hoje: físico ÷ disponível na abertura, mantida o horizonte todo. É PREMISSA, não medição — ela supõe que a carteira cresce junto com o estoque; se a carteira ficar parada enquanto o estoque sobe, este número exagera. Vinha de outra régua antes, e por isso discordava do gráfico.',
+                  dica: 'Estoque físico (estoque + processo, SEM abater a carteira pendente). Parte da posição de hoje e anda pela produção menos a venda. Não soma o em-processo de novo: peça que sai da costura já estava contada aqui, só muda de prateleira — é por isso que o Disponível ao lado sobe nos meses em que o processo termina e esta linha não.',
                   celula: (l: typeof linhas[number]) => (
-                    <span className="text-slate-700" title={`${razaoFisico.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}× o disponível`}>
+                    <span className="text-slate-700" title="estoque + processo, sem abater a carteira pendente">
                       {fmt(fisicoPrevisto[linhas.indexOf(l)])}
                     </span>
                   ),

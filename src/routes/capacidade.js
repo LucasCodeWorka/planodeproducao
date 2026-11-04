@@ -15,14 +15,46 @@ const DEFAULT_REAL_GROUP_IDS = [82, 83, 101, 102, 103, 104, 105, 106, 107, 108, 
 // Grupos descontinuados em 2026-10-14 (commit "Desativa grupos de capacidade
 // descontinuados"). Mantidos aqui so para o comparativo "cenario anterior";
 // capacidade_grupos.json e a unica fonte da capacidade ATIVA.
+// CELULAS QUE NAO RODAM MAIS. Ficam aqui, e nao apagadas do banco, por tres razoes: o
+// `capacidadeDiariaTotalAnterior` precisa delas para mostrar o "antes"; a desativacao
+// sobrevive a um "salvar" da tela de capacidade, que reescreve a tabela inteira; e voltar
+// uma celula e apagar uma linha daqui, sem mexer em dado nenhum.
+//
+// MARCELO FREITAS e PAULO BRUNO entraram em 04/11/2026, informados pelo PCP: so Gledson e
+// Iana seguem costurando. Juntas somavam 4.360 min/dia medidos — 7,9% da capacidade — e
+// estavam infladas duas vezes: a media sai de `minutos / dias COM movimento`, e as duas
+// tiveram movimento em 23 de ~63 dias da janela (contra 62-64 das celulas internas). Ou
+// seja, o sistema pegava o ritmo dos dias em que elas ainda rodavam e o aplicava a todos os
+// dias do horizonte.
 const GRUPOS_DESATIVADOS = [
   { grupo: "08 - PROGRESSO SO BASICO", tipo: "", capacidade_diaria: 303603 },
   { grupo: "OFICINA - ATILA", tipo: "", capacidade_diaria: 701748 },
+  { grupo: "OFICINA - MARCELO FREITAS", tipo: "", capacidade_diaria: 701705 },
+  { grupo: "OFICINA - PAULO BRUNO", tipo: "", capacidade_diaria: 701748 },
+  // Cadastrada e sem producao nenhuma em ago-out/2026 — zero minutos nos tres meses. Ja
+  // somava zero na capacidade (a medicao manda), mas cadastrada ela recebia rateio de carga
+  // na ocupacao por grupo: uma celula com carga e sem capacidade distorce a leitura.
+  { grupo: "03 - EXCELENCIA SU BASICO", tipo: "", capacidade_diaria: 303603 },
+];
+const NOMES_DESATIVADOS = new Set(GRUPOS_DESATIVADOS.map((g) => g.grupo));
+
+// CELULAS QUE PRODUZEM E NAO ESTAVAM NO CADASTRO.
+//
+// O contrario do caso acima, e mais perigoso: a celula roda, o ERP registra, e o sistema
+// nao enxerga — entao a fabrica parece menor do que e. `08 - ESPERANCA CA BASICO` (cd 101)
+// costurou nos TRES meses da janela, 21 dias em cada, 2.252 min/dia de media, e estava fora
+// da capacidade por nao constar na tabela.
+//
+// Entra aqui, no fonte, pelo mesmo motivo das desativadas: sobrevive ao "salvar" da tela e
+// ao disco efemero do Render. O `capacidade_diaria` abaixo e so fallback — havendo medicao
+// do ERP, e ela que vale.
+const GRUPOS_EXTRA = [
+  { grupo: "08 - ESPERANCA CA BASICO", tipo: "", capacidade_diaria: 2252 },
 ];
 const realCapacityCache = { data: null, timestamp: 0 };
 
 // Cache para dias-resumo (evita recalcular a cada requisição)
-const diasResumoCache = { data: null, timestamp: 0 };
+const diasResumoCache = { data: null, timestamp: 0, comParada: false };
 const DIAS_RESUMO_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 function auth(req, res, next) {
@@ -72,12 +104,23 @@ function normalizarGrupos(rows) {
       tipo: String(r.tipo || "").trim().toUpperCase(),
       capacidade_diaria: Number(r.capacidade_diaria || 0),
     }))
-    .filter((r) => r.grupo && Number.isFinite(r.capacidade_diaria) && r.capacidade_diaria > 0)
+    // Celula desativada sai aqui, no unico funil por onde todo mundo le os grupos — assim
+    // nao ha caminho (banco, arquivo, cache) que a traga de volta por engano.
+    .filter((r) => r.grupo && !NOMES_DESATIVADOS.has(r.grupo) && Number.isFinite(r.capacidade_diaria) && r.capacidade_diaria > 0)
     .sort((a, b) => a.grupo.localeCompare(b.grupo));
 }
 
+// Acrescenta as celulas do fonte que o cadastro nao tem, sem duplicar as que ja vieram.
+// Fica junto de `normalizarGrupos` de proposito: os dois ajustes — tirar a desativada e pôr
+// a que faltava — precisam valer em TODO caminho de leitura, nao so no do banco.
+function comGruposExtra(linhas) {
+  const vistos = new Set(linhas.map((g) => g.grupo));
+  const faltantes = GRUPOS_EXTRA.filter((g) => !vistos.has(g.grupo));
+  return faltantes.length ? normalizarGrupos([...linhas, ...faltantes]) : linhas;
+}
+
 function readGruposDoArquivo() {
-  return normalizarGrupos(readJson(GRUPOS_FILE, { data: [] })?.data);
+  return comGruposExtra(normalizarGrupos(readJson(GRUPOS_FILE, { data: [] })?.data));
 }
 
 const gruposCache = { data: null, timestamp: 0 };
@@ -90,7 +133,7 @@ async function readGrupos(pool) {
   if (!pool) return readGruposDoArquivo();
   try {
     const r = await pool.query("SELECT grupo, tipo, capacidade_diaria FROM app_capacidade_grupos");
-    const linhas = normalizarGrupos(r.rows);
+    const linhas = comGruposExtra(normalizarGrupos(r.rows));
     if (linhas.length === 0) {
       const doArquivo = readGruposDoArquivo();
       if (doArquivo.length > 0) await writeGrupos(pool, doArquivo);
@@ -897,6 +940,72 @@ router.get("/config", auth, async (req, res) => {
 
 // Minutos realmente produzidos por grupo. Meses fechados usam o cache diário;
 // o mês atual usa os movimentos do ERP até ontem.
+// ── GET /api/capacidade/min-peca-medido ─────────────────────────────────────────
+// MINUTOS POR PECA QUE A FABRICA DE FATO GASTA.
+//
+// A capacidade em PECAS saia de `cargaDemanda / demanda` — o mix da projecao de cada mes.
+// Isso fazia o teto da fabrica andar junto com a projecao: medido em 05/11/2026, a tela
+// usava 7,13 min/peca em dez/26 e 5,86 no MESMO mes de 2027, e 5,60 em fev/27. A faixa que
+// a fabrica realmente pratica e 6,38 a 6,68. Ou seja, a "capacidade" variava 27% por causa
+// do que se planeja VENDER, e os dois extremos estavam fora de tudo que ela ja entregou.
+//
+// Aqui o numero e medido, pelas MESMAS duas fontes que ja sustentam o resto da conta:
+//   minutos — `pcp_cache_eficiencia_dia`, a mesma do nivel de capacidade
+//   pecas   — `vr_cdf_movopi` com tp_historicomov = 51, a mesma que a rota /real usa para
+//             o mes corrente (ali o campo `pecas` existe; nos meses fechados vinha zerado)
+//
+// Janela: os meses FECHADOS mais recentes (3 por padrao), nas mesmas celulas de capacidade.
+// Medido em 05/11/2026 sobre ago-out: 3.359.751 min / 512.422 pecas = 6,56 min/peca.
+router.get("/min-peca-medido", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    const meses = Math.min(12, Math.max(1, Number(req.query.meses) || 3));
+    const ids = DEFAULT_REAL_GROUP_IDS.map(String);
+    const r = await pool.query(`
+      WITH janela AS (
+        SELECT DATE_TRUNC('month', CURRENT_DATE)::date AS fim,
+               (DATE_TRUNC('month', CURRENT_DATE) - ($2::int || ' months')::interval)::date AS ini
+      ),
+      min_mes AS (
+        SELECT DATE_TRUNC('month', e.dt_ref)::date AS mes,
+               SUM(COALESCE(e.tempo_produzido_min, 0))::float AS minutos
+          FROM pcp_cache_eficiencia_dia e, janela j
+         WHERE e.cd_grupo::text = ANY($1::text[])
+           AND e.dt_ref >= j.ini AND e.dt_ref < j.fim
+         GROUP BY 1
+      ),
+      pc_mes AS (
+        SELECT DATE_TRUNC('month', m.dt_movimento)::date AS mes,
+               SUM(COALESCE(m.qt_movimento, 0))::float AS pecas
+          FROM vr_cdf_movopi m, janela j
+         WHERE m.tp_historicomov = 51 AND m.in_estorno = 'F'
+           AND m.cd_localorigem::text = ANY($1::text[])
+           AND m.dt_movimento >= j.ini AND m.dt_movimento < j.fim
+         GROUP BY 1
+      )
+      SELECT mm.mes, mm.minutos, COALESCE(pm.pecas, 0)::float AS pecas
+        FROM min_mes mm LEFT JOIN pc_mes pm USING (mes)
+       ORDER BY mm.mes
+    `, [ids, meses]);
+
+    const porMes = r.rows.map((x) => ({
+      mes: (x.mes instanceof Date ? x.mes.toISOString() : String(x.mes)).slice(0, 7),
+      minutos: Number(x.minutos) || 0,
+      pecas: Number(x.pecas) || 0,
+      minPeca: Number(x.pecas) > 0 ? Number((Number(x.minutos) / Number(x.pecas)).toFixed(4)) : null,
+    }));
+    const minutos = porMes.reduce((s, x) => s + x.minutos, 0);
+    const pecas = porMes.reduce((s, x) => s + x.pecas, 0);
+    // Razao das SOMAS, nao media das razoes: o mes grande tem que pesar mais que o pequeno.
+    const minPeca = pecas > 0 ? Number((minutos / pecas).toFixed(4)) : null;
+    res.json({ success: true, minPeca, minutos, pecas, meses: porMes });
+  } catch (err) {
+    console.error("[capacidade] min-peca-medido:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get("/real", auth, async (req, res) => {
   try {
     const pool = req.app.get("pool");
@@ -1445,7 +1554,12 @@ router.get("/dias-resumo", async (req, res) => {
   try {
     // Verificar cache (válido por 5 minutos)
     const forceRefresh = req.query.refresh === 'true';
-    if (!forceRefresh && diasResumoCache.data && (Date.now() - diasResumoCache.timestamp) < DIAS_RESUMO_CACHE_TTL) {
+    // PARADA DE FABRICA como CENARIO: `?ferias=1` desconta as ferias coletivas declaradas
+    // em PARADAS dos dias disponiveis. O cache e por cenario — sem a chave, ligar o botao
+    // devolvia a resposta sem ferias que ja estava guardada.
+    const comParada = req.query.ferias === '1' || req.query.ferias === 'true';
+    if (!forceRefresh && diasResumoCache.data && diasResumoCache.comParada === comParada
+        && (Date.now() - diasResumoCache.timestamp) < DIAS_RESUMO_CACHE_TTL) {
       return res.json({ ...diasResumoCache.data, fromCache: true });
     }
 
@@ -1648,14 +1762,14 @@ router.get("/dias-resumo", async (req, res) => {
     // em 84,4% quando era 90,8%. Os demais períodos são meses inteiros e seguem na config,
     // que é onde a operação cadastra coletiva e paradas.
     const hojeDias = new Date();
-    const maCalculado = diasDisponiveisDoPeriodo(periodos.MA, hojeDias);
+    const maCalculado = diasDisponiveisDoPeriodo(periodos.MA, hojeDias, comParada);
     const maConfig = Number(dias[String(periodos.MA)] || 0);
     const diasDisponiveis = {
       MA: maCalculado,
-      PX: diasDisponiveisDoPeriodo(periodos.PX, hojeDias),
-      UL: diasDisponiveisDoPeriodo(periodos.UL, hojeDias),
-      QT: diasDisponiveisDoPeriodo(periodos.QT, hojeDias),
-      QU: diasDisponiveisDoPeriodo(periodos.QU, hojeDias),
+      PX: diasDisponiveisDoPeriodo(periodos.PX, hojeDias, comParada),
+      UL: diasDisponiveisDoPeriodo(periodos.UL, hojeDias, comParada),
+      QT: diasDisponiveisDoPeriodo(periodos.QT, hojeDias, comParada),
+      QU: diasDisponiveisDoPeriodo(periodos.QU, hojeDias, comParada),
     };
 
     // Preparar resposta e salvar no cache
@@ -1703,6 +1817,7 @@ router.get("/dias-resumo", async (req, res) => {
 
     // Salvar no cache
     diasResumoCache.data = responseData;
+    diasResumoCache.comParada = comParada;
     diasResumoCache.timestamp = Date.now();
 
     return res.json(responseData);
@@ -2010,6 +2125,9 @@ router.get('/gap-mensal', auth, async (req, res) => {
 // as partes caras e sao exatamente as mesmas.
 let ocupGrupoCache = { chave: null, data: null, timestamp: 0 };
 
+// Mix de producao no ERP: `prd_classificacao`, `cd_tipoclas = 29`.
+const MIX_PRODUCAO_TIPOCLAS = 29;
+
 // AGRUPAMENTO DOS GRUPOS DE PRODUTO EM FAMILIAS DE PRODUCAO.
 //
 // Definido pelo Fagner em 03/11/2026, olhando a planilha de analise de capacidade que ele
@@ -2090,7 +2208,20 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
     const ate = String(req.query.ate || atePadrao).slice(0, 10);
     const aplicarAprovadas = String(req.query.aplicar_aprovadas ?? 'false') === 'true';
     const loteId = String(req.query.lote_id || '').trim();
-    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}`;
+    // COMO A CARGA ENCONTRA A CELULA. Duas leituras, de proposito:
+    //
+    //   cadastro (padrao) — pelo `app_capacidade_grupo_refs`, o cadastro manual de
+    //     referencia -> celula, com heranca por tipo de produto para quem nao esta la.
+    //   mix — pela classificacao 29 do ERP (mix de producao): o produto tem um mix, e a
+    //     carga vai para as celulas que comprovadamente produzem aquele mix.
+    //
+    // Nenhuma das duas e obviamente certa. O cadastro carrega erros de digitacao e
+    // defasagem; o mix depende de quais referencias ja foram cadastradas para revelar o
+    // que cada celula faz. Medido em 03/11/2026, elas discordam em 886.188 minutos — 19,3%
+    // da carga esta hoje numa celula que, pelo mix, nao deveria fazer aquele produto. Por
+    // isso as duas ficam disponiveis lado a lado, em vez de uma ser escolhida no escuro.
+    const alocacao = String(req.query.alocacao || 'cadastro').trim().toLowerCase() === 'mix' ? 'mix' : 'cadastro';
+    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}|${alocacao}`;
 
     if (ocupGrupoCache.data && ocupGrupoCache.chave === chaveCache && (Date.now() - ocupGrupoCache.timestamp) < GAP_CACHE_TTL) {
       return res.json({ ...ocupGrupoCache.data, fromCache: true });
@@ -2198,7 +2329,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
     // Quem herdou, para a tela poder dizer que a capacidade veio de palpite e nao de
     // cadastro. Herdado e melhor que nada, mas nao e a mesma coisa que cadastrado.
     const refsHerdaram = new Set();
-    const celulasDaRef = (ref) => {
+    const celulasPorCadastro = (ref) => {
       const proprio = celulasPorRef.get(ref);
       if (proprio && proprio.length) return proprio;
       const herdado = dominantesPorTipo.get(tipoPorRef.get(ref));
@@ -2207,6 +2338,54 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
         return herdado;
       }
       return [];
+    };
+
+    // ── ALOCACAO PELO MIX DE PRODUCAO (classificacao 29) ────────────────────────────
+    //
+    // O ERP classifica cada produto num mix (CA BASICO, SO LUXE, SC BASICO, SO ANATOMIC...).
+    // Cruzando isso com as referencias ja cadastradas em cada celula, o proprio sistema diz
+    // o que cada celula faz — e o resultado reproduz o relatorio "Locais de estoque e mix
+    // de classificacao" do TOTVS sem precisar dele: a CONQUISTA aparece fazendo SC BASICO e
+    // a ALEGRIA fazendo SO LINHA NOITE, que e o que o relatorio diz, apesar dos nomes delas
+    // sugerirem outra coisa.
+    //
+    // A leitura vem de `vr_prd_produtoclas` e nao de `f_dic_prd_classificacao`: a view e
+    // uma tabela indexada, a funcao e chamada por linha.
+    let mixPorRef = new Map();
+    let celulasPorMix = new Map();
+    if (alocacao === 'mix') {
+      const r = await pool.query(
+        `SELECT cd_produto::TEXT AS id, UPPER(TRIM(ds_classificacao)) AS mix
+           FROM public.vr_prd_produtoclas
+          WHERE cd_tipoclas::int = $1 AND COALESCE(ds_classificacao, '') <> ''`,
+        [MIX_PRODUCAO_TIPOCLAS]
+      );
+      const mixPorProduto = new Map(r.rows.map((x) => [String(x.id), String(x.mix)]));
+      for (const item of matrizRows) {
+        const ref = String(item?.produto?.referencia || '').trim().toUpperCase();
+        const mix = mixPorProduto.get(String(item?.produto?.idproduto || ''));
+        if (ref && mix && !mixPorRef.has(ref)) mixPorRef.set(ref, mix);
+      }
+      // Celula -> mixes que ela comprovadamente produz, pelas referencias cadastradas nela.
+      for (const [ref, celulas] of celulasPorRef) {
+        const mix = mixPorRef.get(ref);
+        if (!mix) continue;
+        for (const celula of celulas) {
+          const atual = celulasPorMix.get(mix) || new Set();
+          atual.add(celula);
+          celulasPorMix.set(mix, atual);
+        }
+      }
+    }
+
+    const celulasDaRef = (ref) => {
+      if (alocacao !== 'mix') return celulasPorCadastro(ref);
+      const mix = mixPorRef.get(ref);
+      const porMix = mix ? celulasPorMix.get(mix) : null;
+      if (porMix && porMix.size) return [...porMix];
+      // Sem mix, ou mix que nenhuma celula cadastrada produz: cai no cadastro, para a carga
+      // nao desaparecer da conta so porque a classificacao falta.
+      return celulasPorCadastro(ref);
     };
 
     // EM PROCESSO tambem ocupa a fabrica, e por isso entra no `tempoAcumulado` do
@@ -2460,6 +2639,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
       ate,
       aplicarAprovadas,
       loteId: loteId || null,
+      alocacao,
       temMedida,
       capacidadeDiariaTotal: Number(capacidadeDiariaTotal.toFixed(2)),
       periodos,

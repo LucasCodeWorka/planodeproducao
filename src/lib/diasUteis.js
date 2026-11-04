@@ -86,6 +86,42 @@ function diasUteisRestantesNoMes(ano, mes, hoje = new Date()) {
 const DIAS_FIXOS_POR_MES = { 12: 18, 1: 20 };
 
 /**
+ * PARADAS DE FABRICA (ferias coletivas), por periodo declarado com datas.
+ *
+ * Datas, nao um numero de dias: "10 dias de ferias" nao quer dizer 10 dias de producao
+ * perdidos. Fev/2027, de 05 a 14, sao 10 dias corridos que custam so 4 de fabrica — 06, 07,
+ * 13 e 14 sao fim de semana e 08 e 09 ja sao Carnaval, feriado que a conta ja descontava.
+ * Deixar alguem digitar "10" tiraria 6 dias que nunca existiram.
+ *
+ * Espelhado em `frontend/app/lib/feriados.ts`. Para acrescentar uma parada, ponha as datas
+ * aqui e la — o resto se calcula.
+ */
+const PARADAS = [
+  { nome: 'Férias coletivas', ano: 2027, inicio: [2, 5], fim: [2, 14] },
+];
+
+/** Dias de fabrica que uma parada tira do mes. So conta dia que seria trabalhado. */
+function diasDeParadaNoMes(ano, mes) {
+  const feriados = new Set(
+    feriadosDoAno(ano).filter((f) => f.getUTCMonth() === mes - 1).map((f) => f.getUTCDate())
+  );
+  let n = 0;
+  for (const p of PARADAS) {
+    if (p.ano !== ano) continue;
+    const [mi, di] = p.inicio;
+    const [mf, df] = p.fim;
+    const d = new Date(Date.UTC(ano, mi - 1, di));
+    const fim = new Date(Date.UTC(ano, mf - 1, df));
+    while (d <= fim) {
+      const w = d.getUTCDay();
+      if (d.getUTCMonth() === mes - 1 && w >= 1 && w <= 5 && !feriados.has(d.getUTCDate())) n += 1;
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+  }
+  return n;
+}
+
+/**
  * Dias de fabrica que ainda restam no mes corrente.
  *
  * Nao e so contar dia de semana: dezembro e janeiro tem coletiva, e o total do mes ja vem
@@ -102,9 +138,13 @@ function diasDeFabricaRestantes(ano, mes, hoje = new Date()) {
   return Math.round((totalFabrica * restantesCalendario) / totalCalendario);
 }
 
-/** Dias de fabrica do mes inteiro: o fixo da coletiva, ou os dias uteis do calendario. */
-function diasDeFabricaNoMes(ano, mes) {
-  return DIAS_FIXOS_POR_MES[mes] ?? diasUteisNoMes(ano, mes);
+/**
+ * Dias de fabrica do mes inteiro: o fixo da coletiva, ou os dias uteis do calendario.
+ * `comParada` desconta as ferias declaradas em PARADAS — e cenario, entra so quando pedido.
+ */
+function diasDeFabricaNoMes(ano, mes, comParada = false) {
+  const base = DIAS_FIXOS_POR_MES[mes] ?? diasUteisNoMes(ano, mes);
+  return comParada ? Math.max(0, base - diasDeParadaNoMes(ano, mes)) : base;
 }
 
 /**
@@ -125,15 +165,21 @@ function anoDoPeriodo(mesPeriodo, hoje = new Date()) {
  * o relogio (dizia 12 dias de outubro quando faltavam 7) nem o calendario (dizia 21 dias
  * em novembro/2026, que tem 19 — Finados cai na segunda e Consciencia Negra na sexta).
  */
-function diasDisponiveisDoPeriodo(mesPeriodo, hoje = new Date()) {
+function diasDisponiveisDoPeriodo(mesPeriodo, hoje = new Date(), comParada = false) {
   const mes = Number(mesPeriodo);
   if (!mes) return 0;
   const ano = anoDoPeriodo(mes, hoje);
   const ehMesCorrente = mes === hoje.getMonth() + 1 && ano === hoje.getFullYear();
-  return ehMesCorrente ? diasDeFabricaRestantes(ano, mes, hoje) : diasDeFabricaNoMes(ano, mes);
+  if (ehMesCorrente) {
+    const rest = diasDeFabricaRestantes(ano, mes, hoje);
+    return comParada ? Math.max(0, rest - diasDeParadaNoMes(ano, mes)) : rest;
+  }
+  return diasDeFabricaNoMes(ano, mes, comParada);
 }
 
 module.exports = {
+  PARADAS,
+  diasDeParadaNoMes,
   feriadosDoAno,
   feriadosUteisNoMes,
   diasUteisNoMes,

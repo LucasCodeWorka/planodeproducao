@@ -1,14 +1,14 @@
 ﻿'use client';
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, LayoutGrid, RefreshCw, TriangleAlert } from 'lucide-react';
+import { CalendarOff, ChevronDown, ChevronRight, LayoutGrid, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import PainelCapacidade, { type ResumoDiasCapacidade } from '../components/PainelCapacidade';
 import CapacidadeVsVenda, { MesCapacidadeVenda } from '../components/CapacidadeVsVenda';
 import OcupacaoPorGrupo, { type GrupoOcupacao } from '../components/OcupacaoPorGrupo';
 import ProjetadoVsRealizado, { type MesFechado } from '../components/ProjetadoVsRealizado';
-import { diasDeFabricaNoMes, diasUteisNoMes } from '../lib/feriados';
+import { diasDeFabricaNoMes, diasDeParadaNoMes, diasUteisNoMes, paradasDoMes } from '../lib/feriados';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
 import { CRESCIMENTO_FABRICA_PADRAO, fatorFabricaMes } from '../lib/regraProjecao';
@@ -152,6 +152,10 @@ export default function VisaoGeral2Page() {
   const [temposPorGrupo, setTemposPorGrupo] = useState<TempoGrupo[]>([]);
   const [ocupacaoGrupo, setOcupacaoGrupo] = useState<{ dados: GrupoOcupacao[]; capacidadeDiariaTotal: number; temMedida: boolean } | null>(null);
   const [fechamento, setFechamento] = useState<{ ano: number; meses: MesFechado[] } | null>(null);
+  // Como a ocupacao acha a celula de cada carga. Comeca no cadastro, que e a leitura
+  // que a Sugestao de Plano ja usa — trocar o padrao faria duas telas discordarem.
+  const [alocacaoOcup, setAlocacaoOcup] = useState<'cadastro' | 'mix'>('cadastro');
+  const [carregandoOcup, setCarregandoOcup] = useState(false);
   // Minuto por peca da Move: a media das referencias que a fabrica JA produz, ponderada
   // pelo numero de referencias de cada grupo. Da 8,96.
   //
@@ -178,8 +182,13 @@ export default function VisaoGeral2Page() {
   // que nao existe mais. E o `nivel` daqui que define a capacidade em pecas — a capacidade
   // diaria do dias-resumo se cancela na conta da tabela.
   const [indiceMensalAtual, setIndiceMensalAtual] = useState<{ nivel: number; data: Record<string, number> } | null>(null);
+  // PARADA DE FABRICA como cenario. Nasce DESLIGADO: ferias coletivas sao decisao, e a
+  // tela tem que abrir no mundo como ele esta, nao num mundo que alguem talvez escolha.
+  const [comFerias, setComFerias] = useState(false);
+  // Minutos por peca MEDIDOS na fabrica (ago-out/26: 6,5566). null = ainda nao carregou.
+  const [minPecaMedido, setMinPecaMedido] = useState<number | null>(null);
   const indiceMensal = indiceMensalAtual;
-  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; diasCompletosMes: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; elLancadaPorMes: Record<string, { quantidade: number; skus: number }>; loteId: string; lotePeriodos: string[]; planoSimuladoPorPeriodo: Record<string, number>; coberturaSimuladaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
+  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; disponivelAtual: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; diasCompletosMes: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; elLancadaPorMes: Record<string, { quantidade: number; skus: number }>; loteId: string; lotePeriodos: string[]; planoSimuladoPorPeriodo: Record<string, number>; coberturaSimuladaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   // Cache das respostas que não mudam com o cenário (matriz, capacidade, curva ABC,
   // cortes mínimos, gravado e agenda). Preview e edição limitada carregam uma base neutra;
@@ -596,6 +605,19 @@ export default function VisaoGeral2Page() {
         posicao.estoqueDisponivel += Number(r.estoques?.estoque_disponivel || 0);
         posicao.emProcesso += Number(r.estoques?.em_processo || 0);
       }
+      // DISPONIVEL DE HOJE, pela MESMA conta do painel principal: estoque menos pedido
+      // pendente, SKU a SKU, somando so quem esta positivo. Quem ja esta negativo nao
+      // empresta saldo para quem esta sobrando — por isso o `max(0, ...)` por SKU e nao na
+      // soma. Medido em 04/11/2026: 192.035, contra 168.390 do liquido puro; a diferenca
+      // sao 23.645 de negativo que a soma simples esconderia.
+      //
+      // Este numero substitui a constante `REFERENCIA_OUTUBRO_2026 = 192541` que estava
+      // chumbada no grafico: era exatamente esta conta, congelada em outubro, e por isso a
+      // base do Disponivel pulou quando o mes virou.
+      const disponivelAtual = ((matrix.data || []) as MatrixRow[]).reduce((sum, r) => {
+        const liquido = Number(r.estoques?.estoque_atual || 0) - Number(r.demanda?.pedidos_pendentes || 0);
+        return sum + (liquido > 0 ? liquido : 0);
+      }, 0);
       const initial = items.reduce((sum, item) => sum + Number(matrixById.get(String(item.idproduto))?.estoques?.estoque_disponivel || 0), 0);
       // Estoque FÍSICO da mesma população que a projeção cobre (os permanentes do preview).
       // Os cards do topo somam a matriz inteira, que é outra população — por isso os dois
@@ -909,7 +931,7 @@ export default function VisaoGeral2Page() {
       const diasUteisRestantes = capacidadeDiariaTotal > 0 ? cargaRestanteMA / capacidadeDiariaTotal : 0;
       const previsaoTermino = diasUteisRestantes > 0 ? addDiasUteis(hoje, diasUteisRestantes).toISOString().slice(0, 10) : null;
 
-      setRawData({ anoBase, anoDestino, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, planoMatrizPorPeriodo, demandaRestantePorMes, demandaCheiaPorMes, vendaRealMesCorrente, diasCompletosMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, elLancadaPorMes, coberturaPorPeriodo, planoPorMesReal, loteId, lotePeriodos, planoSimuladoPorPeriodo, coberturaSimuladaPorPeriodo, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
+      setRawData({ anoBase, anoDestino, disponivelAtual, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, planoMatrizPorPeriodo, demandaRestantePorMes, demandaCheiaPorMes, vendaRealMesCorrente, diasCompletosMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, elLancadaPorMes, coberturaPorPeriodo, planoPorMesReal, loteId, lotePeriodos, planoSimuladoPorPeriodo, coberturaSimuladaPorPeriodo, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao carregar visão macro'); }
     finally { setLoading(false); }
   }
@@ -933,7 +955,14 @@ export default function VisaoGeral2Page() {
     } catch { /* silencioso: mantém os valores padrão */ }
   }
 
-  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); }, [router]);
+  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); carregarMinPecaMedido(); }, [router]);
+  // Trocar o cenario de parada rebusca so os DIAS: a carga nao muda, quem muda e o
+  // denominador. Na primeira renderizacao o efeito de cima ja buscou, entao pula.
+  const feriasMontou = useRef(false);
+  useEffect(() => {
+    if (!feriasMontou.current) { feriasMontou.current = true; return; }
+    carregarCapacidade(comFerias);
+  }, [comFerias]);
 
   async function carregarIndiceMensal() {
     const buscar = async (sufixo: string) => {
@@ -947,6 +976,20 @@ export default function VisaoGeral2Page() {
       }
     };
     setIndiceMensalAtual(await buscar(''));
+  }
+
+  // MIN/PECA MEDIDO NA FABRICA. Substitui o mix da projecao como divisor da capacidade em
+  // pecas — ver o comentario em `minutosPorPeca`, abaixo. Falha em silencio: sem ele a
+  // conta cai no comportamento antigo em vez de a tela morrer.
+  async function carregarMinPecaMedido() {
+    try {
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/min-peca-medido`, { headers: authHeaders() });
+      const p = await r.json();
+      if (!r.ok || !p?.success || !(Number(p.minPeca) > 0)) return;
+      setMinPecaMedido(Number(p.minPeca));
+    } catch {
+      /* mantem o fallback */
+    }
   }
 
   async function carregarEdicaoLimitada(forcar = false) {
@@ -979,9 +1022,11 @@ export default function VisaoGeral2Page() {
     }
   }
 
-  async function carregarCapacidade() {
+  async function carregarCapacidade(ferias = comFerias) {
     try {
-      const r = await fetchNoCache(`${API_URL}/api/capacidade/dias-resumo`, { headers: authHeaders() }, 300000);
+      // `ferias=1` desconta a parada dos dias disponiveis. O backend cacheia por cenario,
+      // entao ligar e desligar o botao nao devolve a resposta do outro.
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/dias-resumo${ferias ? '?ferias=1' : ''}`, { headers: authHeaders() }, 300000);
       const p = await r.json();
       if (!r.ok || !p?.success) throw new Error(p?.error || `HTTP ${r.status}`);
       setResumoDias({
@@ -1015,23 +1060,27 @@ export default function VisaoGeral2Page() {
   //
   // Segue o MESMO `lote_id` da cobertura simulada, senao o detalhe contaria uma historia e
   // o total outra na mesma tela.
-  async function carregarOcupacaoPorGrupo(lote?: string) {
+  async function carregarOcupacaoPorGrupo(lote?: string, modo: 'cadastro' | 'mix' = 'cadastro') {
+    setCarregandoOcup(true);
     try {
-      const sufixo = lote ? `?lote_id=${encodeURIComponent(lote)}` : '';
-      const r = await fetchNoCache(`${API_URL}/api/capacidade/ocupacao-por-grupo-produto${sufixo}`, { headers: authHeaders() }, 300000);
+      const q = new URLSearchParams({ alocacao: modo });
+      if (lote) q.set('lote_id', lote);
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/ocupacao-por-grupo-produto?${q}`, { headers: authHeaders() }, 300000);
       const p = await r.json();
       if (r.ok && p?.success && Array.isArray(p.dados)) {
         setOcupacaoGrupo({ dados: p.dados, capacidadeDiariaTotal: Number(p.capacidadeDiariaTotal || 0), temMedida: p.temMedida !== false });
       }
     } catch {
       setOcupacaoGrupo(null);
+    } finally {
+      setCarregandoOcup(false);
     }
   }
   useEffect(() => {
     // `rawData` e a origem; `data` (o cenario derivado) so existe mais abaixo no arquivo.
-    carregarOcupacaoPorGrupo(rawData?.loteId || undefined);
+    carregarOcupacaoPorGrupo(rawData?.loteId || undefined, alocacaoOcup);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [rawData?.loteId]);
+  }, [rawData?.loteId, alocacaoOcup]);
 
   // Fechamento dos meses que ja passaram. Independente do resto: o horizonte rola e leva o
   // mes fechado embora, e e justamente ele que diz se a projecao acertou.
@@ -1151,8 +1200,12 @@ export default function VisaoGeral2Page() {
       const demanda = dadosCenario.baseSkus.reduce((sum, s) => sum + Number(s.projecoes?.[mes] || 0), 0);
       const producaoPorCurva: Record<Curva, number> = { A: 0, B: 0, C: 0, D: 0 };
       let producao = 0; let carga = 0;
+      // Carga da DEMANDA: minutos que a venda projetada do mes pede. Serve para converter
+      // a capacidade em pecas sem depender do que se decidiu produzir — ver abaixo.
+      let cargaDemanda = 0;
       for (const s of dadosCenario.baseSkus) {
         const venda = Number(s.projecoes?.[mes] || 0);
+        cargaDemanda += venda * s.tempo;
         const atual = Number(corrente.get(s.id) || 0);
         // Piso em C x estoque mínimo. C sai da curva do SKU (política) ou do alvo único
         // escolhido na tela. Somar por curva aqui garante que os filhos fechem com o pai.
@@ -1181,15 +1234,49 @@ export default function VisaoGeral2Page() {
       // necessarios sairem sem sentido. Sem a medida carregada, fica zero — melhor em branco
       // do que um numero que nao existe na fabrica.
       const capDiariaMedida = Number(resumoDiasEfetivo?.capacidadeDiaria || 0);
-      const diasDisponiveis = Number(dadosCenario.diasPorMes[index] || 0);
+      // A PARADA entra aqui, e nao no `diasPorMes` gravado: o botao tem que responder sem
+      // refazer a carga inteira da tela. `diasPorMes` segue sendo o calendario puro.
+      const diasDisponiveis = Math.max(0, Number(dadosCenario.diasPorMes[index] || 0)
+        - (comFerias ? diasDeParadaNoMes(dadosCenario.anoDestino, index + 1) : 0));
       const capacidade = capDiariaMedida * diasDisponiveis;
       const estoque = Array.from(corrente.values()).reduce((sum, v) => sum + v, 0);
       const diasNecessarios = capDiariaMedida > 0 ? carga / capDiariaMedida : 0;
-      const minutosPorPeca = producao > 0 ? carga / producao : 0;
+      // MINUTOS POR PECA PELO MIX DA DEMANDA, nao da producao.
+      //
+      // A capacidade e desenhada como TETO: quantas pecas a fabrica aguenta. Mas ela vinha
+      // de `carga / producao`, o mix do que a SIMULACAO decidiu fazer — entao o teto se
+      // mexia junto com o plano. Medido entre 03 e 04/11/2026: so por ter corrigido a
+      // demanda do mes corrente, dezembro passou de 9,24 para 7,79 min/peca e a capacidade
+      // "aumentou" de 107.973 para 128.144 pecas sem a fabrica ter mudado nada. Uma
+      // referencia que anda quando a decisao anda nao serve de referencia.
+      //
+      // O mix da DEMANDA responde a pergunta certa — "quantas pecas DO QUE PRECISAMOS
+      // VENDER caberiam?" — e so muda quando a projecao ou os tempos de costura mudam.
+      // Sem demanda no mes (nao deve acontecer), cai no mix da producao.
+      // MIN/PECA: o MEDIDO na fabrica, nao o mix de mes nenhum.
+      //
+      // Ja saiu de `carga / producao` (o mix do que a SIMULACAO decidiu fazer) e depois de
+      // `cargaDemanda / demanda` (o mix da PROJECAO). As duas versoes tinham o mesmo vicio:
+      // o teto da fabrica andava junto com uma decisao nossa. Medido em 05/11/2026, a tela
+      // usava 7,13 min/peca em dez/26 e 5,86 no MESMO mes de 2027, e 5,60 em fev/27 — numa
+      // fabrica que pratica de 6,38 a 6,68. Fevereiro aparecia com 148.501 pecas de
+      // capacidade usando um ritmo 15% melhor do que ela ja conseguiu.
+      //
+      // Agora vem de `/api/capacidade/min-peca-medido`: minutos trabalhados sobre pecas
+      // produzidas nos meses fechados, as MESMAS fontes que sustentam o nivel de
+      // capacidade. A capacidade em pecas passa a variar so com dias uteis e sazonalidade —
+      // nunca com a projecao.
+      //
+      // Sem a medida carregada, cai no mix da demanda, que era o comportamento anterior.
+      const minutosPorPeca = Number(minPecaMedido || 0) > 0
+        ? Number(minPecaMedido)
+        : (demanda > 0 && cargaDemanda > 0
+            ? cargaDemanda / demanda
+            : (producao > 0 ? carga / producao : 0));
       const capacidadePecas = minutosPorPeca > 0 ? capacidade / minutosPorPeca : 0;
       return { mes, demanda, producao, producaoPorCurva, estoque, cobertura: demanda > 0 ? estoque / demanda : 0, carga, capacidade, capacidadePecas, diasDisponiveis, diasNecessarios, utilizacao: capacidade > 0 ? (carga / capacidade) * 100 : 0 };
     });
-  }, [dadosCenario, resumoDiasEfetivo, modoCobertura, multiplicadorCobertura, coberturaPorCurva, coberturaMaxPorCurva]);
+  }, [dadosCenario, resumoDiasEfetivo, modoCobertura, multiplicadorCobertura, coberturaPorCurva, coberturaMaxPorCurva, minPecaMedido, comFerias]);
   // `data` continua com o mesmo formato de antes, então todos os consumidores de
   // `data.meses` seguem funcionando sem alteração.
   const data = useMemo(() => (dadosCenario ? { ...dadosCenario, meses } : null), [dadosCenario, meses]);
@@ -1468,7 +1555,7 @@ export default function VisaoGeral2Page() {
           Number(data.planoPorMesReal?.[`${ano}-${String(mes).padStart(2, '0')}`]?.qtdLote || 0),
           Number(data.planoMatrizPorPeriodo?.[p] || 0),
         ),
-        diasDisponiveisMes: diasDeFabricaNoMes(ano, mes),
+        diasDisponiveisMes: diasDeFabricaNoMes(ano, mes, comFerias),
         // Cobertura em DIAS, da mesma fonte do card da tela principal: necessarios e
         // disponiveis somados desde o primeiro mes, o gap entre eles e a ocupacao que a
         // divisao dos dois da. Positivo no gap = falta dia de fabrica.
@@ -1492,6 +1579,9 @@ export default function VisaoGeral2Page() {
         travado: true,
         // MA e o mes em curso: ja esta rodando, entao nem o teto de capacidade o levanta.
         mesCorrente: p === 'MA',
+        // Pecas ja em processo que terminam NESTE periodo. Vao para o disponivel como
+        // producao: a partida do disponivel e o estoque atual, que ainda nao as contem.
+        emProcessoMes: Number(data.processoPorPeriodo[p] || 0),
       });
     }
 
@@ -1878,7 +1968,7 @@ export default function VisaoGeral2Page() {
   return <div className="min-h-screen bg-gray-100"><Sidebar onCollapse={setCollapsed} /><main className={`${collapsed ? 'ml-20' : 'ml-64'} p-6 transition-all`}>
     <div className="flex items-start justify-between mb-6"><div><p className="text-xs uppercase tracking-widest text-gray-500">Planejamento agregado</p><h1 className="text-2xl font-bold text-gray-900">Visão Geral 2 (teste)</h1><p className="text-sm text-gray-500 mt-1">Projeção {data?.anoDestino || new Date().getFullYear() + 1}.1 usando permanentes com venda em 6m ou 3m.</p></div>
       <div className="flex items-center gap-3">
-        <button onClick={() => { carregar(true); carregarCapacidade(); carregarEdicaoLimitada(true); carregarIndiceMensal(); }} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
+        <button onClick={() => { carregar(true); carregarCapacidade(); carregarEdicaoLimitada(true); carregarIndiceMensal(); carregarMinPecaMedido(); }} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
       </div>
     </div>
     {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -2011,6 +2101,7 @@ export default function VisaoGeral2Page() {
         <CapacidadeVsVenda
           meses={relatorioCapacidade.linhas}
           aberturaEstoque={relatorioCapacidade.abertura}
+          disponivelAtual={data.disponivelAtual}
           pedidosPendentes={relatorioCapacidade.pedidosPendentes}
           emProcessoAtual={data.posicao.emProcesso}
           capacidadeDiariaAtual={resumoDias?.capacidadeDiaria}
@@ -2018,6 +2109,34 @@ export default function VisaoGeral2Page() {
           onCenarioFabrica={setCenarioFabrica}
           /* Entre o grafico e a tabela: e onde o controle fica junto dos numeros que ele
              muda. Em cima do grafico o PCP marcava a caixa e nao via nada acontecer. */
+          /* PARADA DE FABRICA. O rotulo traz os dias que ela custa DE VERDADE, nao os
+             corridos: 05 a 14/02 sao dez dias de calendario e QUATRO de producao, porque o
+             fim de semana e o Carnaval ja estavam fora da conta. Mostrar "10 dias" faria o
+             PCP descontar seis dias que nunca existiram. */
+          controleCabecalho={(() => {
+            const ano = new Date().getFullYear() + 1;
+            const custo = diasDeParadaNoMes(ano, 2);
+            const p0 = paradasDoMes(ano, 2)[0];
+            if (!p0 || custo <= 0) return null;
+            const dd = (x: readonly [number, number]) => `${String(x[1]).padStart(2, '0')}/${String(x[0]).padStart(2, '0')}`;
+            return (
+              <button
+                onClick={() => setComFerias((v) => !v)}
+                title={`${p0.nome}: ${dd(p0.inicio)} a ${dd(p0.fim)}/${ano}. São 10 dias corridos, mas custam ${custo} dias de fábrica — 06, 07, 13 e 14 caem em fim de semana e 08 e 09 são Carnaval, que a conta já descontava. Fevereiro vai de 18 para ${18 - custo} dias.`}
+                className={`inline-flex items-center gap-1.5 rounded border px-3 py-2 text-xs font-semibold transition-colors ${
+                  comFerias
+                    ? 'border-amber-300 bg-amber-50 text-amber-800'
+                    : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <CalendarOff size={14} />
+                Férias fev
+                <span className={`font-mono text-[11px] font-normal ${comFerias ? 'text-amber-700' : 'text-gray-400'}`}>
+                  −{custo}d
+                </span>
+              </button>
+            );
+          })()}
           controles={(
             <div className="flex w-full max-w-full flex-wrap items-center gap-x-3 gap-y-2 overflow-hidden rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm">
               <label className="flex items-center gap-2 font-semibold text-sky-900">
@@ -2058,6 +2177,9 @@ export default function VisaoGeral2Page() {
           capacidadeDiariaTotal={ocupacaoGrupo.capacidadeDiariaTotal}
           temMedida={ocupacaoGrupo.temMedida}
           comSimulacao={Boolean(data.loteId)}
+          alocacao={alocacaoOcup}
+          onAlocacao={setAlocacaoOcup}
+          carregando={carregandoOcup}
         />
       )}
 
