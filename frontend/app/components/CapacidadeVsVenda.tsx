@@ -527,8 +527,14 @@ export default function CapacidadeVsVenda({
   // Sugestao de Plano filtra PERMANENTE e PERMANENTE COR NOVA — entao a EL entra sempre
   // pela projecao de venda dela, que e o plano dela.
   const planoDoMes = (l: Pick<MesCapacidadeVenda, 'planoCompleto' | 'planoPrevisto' | 'planoEl'>) => {
-    const base = Number(l.planoCompleto || 0) || Number(l.planoPrevisto || 0);
-    return base + Number(l.planoEl || 0);
+    // MES COM LOTE LANCADO JA TEM A EDICAO LIMITADA DENTRO. O lote vem do ERP, e la a EL e
+    // emitida normalmente — a matriz tem 116.590 pecas dela no plano. Quem nao emite EL e a
+    // SUGESTAO de Plano, que filtra PERMANENTE e PERMANENTE COR NOVA; por isso ela falta so
+    // onde o plano ainda nao existe. Somar nos dois casos contava duas vezes de nov/26 a
+    // jun/27 e inflava justamente os meses que ja estavam certos.
+    const emitido = Number(l.planoCompleto || 0);
+    if (emitido > 0) return emitido;
+    return Number(l.planoPrevisto || 0) + Number(l.planoEl || 0);
   };
   // OCUPACAO DO PLANO, acumulada, na MESMA base que o grafico desenha.
   //
@@ -958,8 +964,7 @@ export default function CapacidadeVsVenda({
               caminho. */}
           {(() => {
             const emitido = linhas.reduce((t, l) => t + Number(l.planoCompleto || 0), 0);
-            const previsto = linhas.reduce((t, l) => t + (l.planoCompleto ? 0 : Number(l.planoPrevisto || 0)), 0)
-              + linhas.reduce((t, l) => t + Number(l.planoEl || 0), 0);
+            const previsto = linhas.reduce((t, l) => t + (l.planoCompleto ? 0 : planoDoMes(l)), 0);
             if (previsto <= 0) return null;
             return (
               <span title="Plano emitido (lote lançado ou simulação salva) mais o previsto dos meses que ainda não foram emitidos. O previsto sai da necessidade por SKU contra a projeção de venda e inclui edição limitada.">
@@ -1601,7 +1606,9 @@ export default function CapacidadeVsVenda({
                   valor: (l: MesCapacidadeVenda) => Number(l.planoEl || 0),
                   dica: 'A edição limitada nasce e morre na estação: não se repõe, então não há cobertura a calcular — o que a fábrica precisa produzir é o que ela vai vender. Por isso o plano de EL É a projeção de venda dela. Entra somada ao plano do mês inclusive onde há lote lançado, porque o lote só tem permanente: a Sugestão de Plano filtra PERMANENTE e PERMANENTE COR NOVA e nunca emitiu uma peça de EL.',
                   celula: (l: typeof linhas[number]) => (
-                    Number(l.planoEl || 0) > 0
+                    // So onde ela foi de fato SOMADA. Em mes com lote, a EL ja esta dentro
+                    // do plano e repetir o numero aqui sugeriria que ele entra por fora.
+                    !l.planoCompleto && Number(l.planoEl || 0) > 0
                       ? <span className="tabular-nums text-amber-600">{fmt(l.planoEl || 0)}</span>
                       : <span className="text-gray-300">—</span>
                   ),
