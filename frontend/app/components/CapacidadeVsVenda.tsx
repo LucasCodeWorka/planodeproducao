@@ -906,6 +906,22 @@ export default function CapacidadeVsVenda({
             Produção no horizonte: <strong>{fmt(totalAtual)}</strong> → <strong>{fmt(totalNivelado)}</strong>
             {' '}({totalNivelado >= totalAtual ? '+' : ''}{fmt(totalNivelado - totalAtual)})
           </span>
+          {/* PLANO DO HORIZONTE: o que ja foi emitido mais o que ainda falta emitir. E o
+              numero que a diretoria pede — "quanto vamos ter de plano no ano" — e ele so
+              existe se a parte prevista entrar, porque hoje o plano real acaba no meio do
+              caminho. */}
+          {(() => {
+            const emitido = linhas.reduce((t, l) => t + Number(l.planoCompleto || 0), 0);
+            const previsto = linhas.reduce((t, l) => t + (l.planoCompleto ? 0 : Number(l.planoPrevisto || 0)), 0);
+            if (previsto <= 0) return null;
+            return (
+              <span title="Plano emitido (lote lançado ou simulação salva) mais o previsto dos meses que ainda não foram emitidos. O previsto sai da necessidade por SKU contra a projeção de venda e inclui edição limitada.">
+                Plano no horizonte: <strong>{fmt(emitido)}</strong> emitido
+                {' '}+ <strong>{fmt(previsto)}</strong> previsto
+                {' '}= <strong>{fmt(emitido + previsto)}</strong>
+              </span>
+            );
+          })()}
           <span>
             Ocupação acumulada ao fim: <strong>{pct(ultimo.ocupacaoAcum)}</strong>
             {' '}· teto {modo === 'acumulado' ? 'no acumulado' : 'no mês'}
