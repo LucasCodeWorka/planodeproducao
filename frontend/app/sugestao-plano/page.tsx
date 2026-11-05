@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar';
 import { EstoqueLojaDisponivelAggregado, PeriodosPlano, Planejamento, ProjecoesMap } from '../types';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
+import { PERIODOS_PLANO, campoDoPeriodo, ordemDoPeriodo, type PeriodoPlano } from '../lib/periodos';
 import { OP_MIN_REGRAS_FIXAS, RegraOpMinRow } from '../lib/opMinRules';
 import { projecaoMesPlanejamento } from '../lib/projecao';
 
@@ -35,18 +36,12 @@ function logTempoSugestao(label: string, startedAt: number, extra?: string) {
   console.log(`[sugestao-plano] ${label}: ${elapsed.toFixed(1)}ms${extra ? ` — ${extra}` : ''}`);
 }
 
-// Rotulos posicionais do plano, iguais aos do ERP (`pcp_lotepv.cd_auxiliar`) e ao
-// PERIODOS_PLANO do backend: MA = mes atual, PX = proximo, UL = o seguinte, e dali pelo
-// ordinal — quarto, quinto, sexto, setimo, oitavo, nono.
-//
-// ST ja existia no ERP (producao abr/2027) e estava fora da lista, entao o plano dele era
-// invisivel. OT e NV entraram para o PCP emitir ate junho sem esperar a janela rolar.
-const PERIODOS = ['MA', 'PX', 'UL', 'QT', 'QU', 'SX', 'ST', 'OT', 'NV'] as const;
-type PeriodoAlvo = typeof PERIODOS[number];
-/** Campo do plano na matriz e no row: 'QU' -> 'qu'. */
-const campoDoPeriodo = (p: PeriodoAlvo) => p.toLowerCase() as Lowercase<PeriodoAlvo>;
-/** Quantos periodos a frente: MA = 0, PX = 1, ... NV = 8. */
-const ordemDoPeriodo = (p: PeriodoAlvo) => PERIODOS.indexOf(p);
+// A lista vem de `lib/periodos.ts`, a fonte unica do frontend — era a DECIMA copia escrita
+// a mao, e parava em NV. Com ela fixa aqui, estender o horizonte para dezembro do ano
+// seguinte mudava a Visao Geral e deixava a tela que EMITE o plano sem os cinco periodos
+// novos: dava para ver a necessidade e nao dava para lanca-la.
+const PERIODOS = PERIODOS_PLANO;
+type PeriodoAlvo = PeriodoPlano;
 /**
  * Mes (1-12) de um periodo, a partir do mes do MA. Os periodos sao consecutivos, entao o
  * mes sai da propria posicao na lista — antes QT, QU e SX eram calculados a mao com

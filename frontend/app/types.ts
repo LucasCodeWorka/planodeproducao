@@ -1,4 +1,4 @@
-export interface Produto {
+﻿export interface Produto {
   cd_seqgrupo: string;
   idproduto: string;
   apresentacao: string;
@@ -97,6 +97,11 @@ export interface PeriodosPlano {
   ST?: number; // sétimo mês
   OT?: number; // oitavo mês
   NV?: number; // nono mês
+  DZ?: number; // décimo
+  ON?: number; // décimo primeiro
+  DO?: number; // décimo segundo
+  DT?: number; // décimo terceiro
+  QZ?: number; // décimo quarto — fecha dezembro do ano seguinte
 }
 
 /** Excedente de estoque das lojas por produto */
