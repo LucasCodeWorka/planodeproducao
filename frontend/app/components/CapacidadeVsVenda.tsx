@@ -1539,6 +1539,18 @@ export default function CapacidadeVsVenda({
                   },
                 },
                 {
+                  id: 'planoEl',
+                  rotulo: 'edição limitada (projeção)',
+                  pai: 'plano',
+                  valor: (l: MesCapacidadeVenda) => Number(l.planoEl || 0),
+                  dica: 'A edição limitada nasce e morre na estação: não se repõe, então não há cobertura a calcular — o que a fábrica precisa produzir é o que ela vai vender. Por isso o plano de EL É a projeção de venda dela. Entra somada ao plano do mês inclusive onde há lote lançado, porque o lote só tem permanente: a Sugestão de Plano filtra PERMANENTE e PERMANENTE COR NOVA e nunca emitiu uma peça de EL.',
+                  celula: (l: typeof linhas[number]) => (
+                    Number(l.planoEl || 0) > 0
+                      ? <span className="tabular-nums text-amber-600">{fmt(l.planoEl || 0)}</span>
+                      : <span className="text-gray-300">—</span>
+                  ),
+                },
+                {
                   valor: (l: MesCapacidadeVenda) => Number(l.emProcessoMes || 0),
                   id: 'planoProcesso',
                   rotulo: 'já em processo (termina no mês)',
