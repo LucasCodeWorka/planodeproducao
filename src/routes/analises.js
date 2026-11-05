@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const { readCacheByKey, writeCacheByKey } = require("../cache/matrizCache");
 const { calcularCurvaAbcReferencias } = require("../services/curvaAbcService");
-const { calcularPeriodosPlano } = require("../services/periodoPlanoService");
+const { calcularPeriodosPlano, PERIODOS_PLANO } = require("../services/periodoPlanoService");
 
 const router = express.Router();
 
@@ -591,7 +591,11 @@ function tipoAlteracao(delta, qtdDe, qtdAte) {
   return "SEM_ALTERACAO";
 }
 
-const PERIODOS_PLANO = ["MA", "PX", "UL", "QT", "QU"];
+// A lista vem do `periodoPlanoService`, nao mais escrita aqui. Esta copia tinha CINCO
+// periodos enquanto o resto do sistema ja trabalhava com nove: a Sugestao de Plano e as
+// simulacoes simplesmente nao enxergavam SX, ST, OT e NV, e a emissao em bloco parava onde
+// esta linha parava. E a ultima das cinco copias divergentes que o servico foi criado para
+// matar — o comentario de la ja avisava que elas discordavam entre si no mesmo dia.
 
 function startOfMonth(date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -656,10 +660,10 @@ router.get("/snapshot-lotes/comparativo", auth, async (req, res) => {
     const pool = req.app.get("pool");
     const dataDe = req.query.de ? String(req.query.de).slice(0, 10) : null;
     const dataAte = req.query.ate ? String(req.query.ate).slice(0, 10) : null;
-    const periodos = String(req.query.periodos || "MA,PX,UL,QT,QU")
+    const periodos = String(req.query.periodos || PERIODOS_PLANO.join(","))
       .split(",")
       .map((p) => p.trim().toUpperCase())
-      .filter((p) => ["MA", "PX", "UL", "QT", "QU"].includes(p));
+      .filter((p) => PERIODOS_PLANO.includes(p));
     const apenasAlterados = req.query.apenas_alterados !== "false";
     const limit = Math.min(Number(req.query.limit) || 1000, 5000);
 
@@ -851,7 +855,7 @@ router.get("/snapshot-lotes/impacto", auth, async (req, res) => {
     const pool = req.app.get("pool");
     const dataDe = req.query.de ? String(req.query.de).slice(0, 10) : null;
     const dataAte = req.query.ate ? String(req.query.ate).slice(0, 10) : null;
-    const periodos = String(req.query.periodos || "MA,PX,UL,QT,QU")
+    const periodos = String(req.query.periodos || PERIODOS_PLANO.join(","))
       .split(",")
       .map((p) => p.trim().toUpperCase())
       .filter((p) => PERIODOS_PLANO.includes(p));
@@ -1290,7 +1294,7 @@ router.get("/snapshot-lotes/impacto-rapido", auth, async (req, res) => {
     const pool = req.app.get("pool");
     const dataDe = req.query.de ? String(req.query.de).slice(0, 10) : null;
     const dataAte = req.query.ate ? String(req.query.ate).slice(0, 10) : null;
-    const periodos = String(req.query.periodos || "MA,PX,UL,QT,QU")
+    const periodos = String(req.query.periodos || PERIODOS_PLANO.join(","))
       .split(",")
       .map((p) => p.trim().toUpperCase())
       .filter((p) => PERIODOS_PLANO.includes(p));
@@ -1800,7 +1804,9 @@ router.get("/snapshot-lotes/rotacao-anual", auth, async (req, res) => {
     const todosSkus = Array.from(new Set(Array.from(estados.values()).flatMap((mapa) => Array.from(mapa.keys()).map((key) => key.split("|")[0]))));
     const producaoPorLote = await queryProducaoPorLotes(pool, todosLotes, todosSkus);
     const rotacao = { preservados: 0, alterados: 0, inseridos: 0, produzidos: 0, limbos: 0, pecasLimbo: 0, pecasProduzidas: 0, skusAfetados: new Set() };
-    const transferencias = [{ de: "PX", para: "MA" }, { de: "UL", para: "PX" }, { de: "QT", para: "UL" }, { de: "QU", para: "QT" }];
+    // Quando o mes vira, cada periodo herda o conteudo do seguinte. Derivado da lista, para
+    // nao travar nos cinco primeiros.
+    const transferencias = PERIODOS_PLANO.slice(1).map((p, i) => ({ de: p, para: PERIODOS_PLANO[i] }));
     const transicoes = transicoesBase.map((item) => {
       const antes = estados.get(item.antes.snapshotAt) || new Map();
       const depois = estados.get(item.depois.snapshotAt) || new Map();
@@ -2262,7 +2268,9 @@ router.get("/snapshot-lotes/evolucao-anual", auth, async (req, res) => {
       const meses = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
       const mesCompetencia = {};
-      const offsets = { MA: 1, PX: 2, UL: 3, QT: 4, QU: 5 };
+      // Offset 1-based na ordem da lista, em vez de um mapa escrito a mao que envelhecia
+      // a cada periodo novo.
+      const offsets = Object.fromEntries(PERIODOS_PLANO.map((p, i) => [p, i + 1]));
       for (const periodo of PERIODOS_PLANO) {
         const mesIdx = (mesBase + offsets[periodo]) % 12;
         const anoComp = mesBase + offsets[periodo] > 11 ? anoBase + 1 : anoBase;

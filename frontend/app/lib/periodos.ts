@@ -1,6 +1,8 @@
-// Rotulos posicionais do plano, na mesma ordem do ERP (`pcp_lotepv.cd_auxiliar`):
+﻿// Rotulos posicionais do plano, na mesma ordem do ERP (`pcp_lotepv.cd_auxiliar`):
 // MA = mes atual, PX = proximo, UL = o seguinte, e dali pelo ordinal — QT quarto,
-// QU quinto, SX sexto, ST setimo, OT oitavo, NV nono.
+// QU quinto, SX sexto, ST setimo, OT oitavo, NV nono, DZ dez, ON onze, DO doze, DT treze,
+// QZ quatorze. Catorze posicoes a partir do mes corrente cobrem ate dezembro do ano
+// seguinte, que e o horizonte que a diretoria pediu em 05/11/2026.
 //
 // Espelha `src/services/periodoPlanoService.js`, que e a fonte do backend. O frontend nao
 // tinha equivalente: a lista estava escrita a mao em nove telas, cada uma parando num
@@ -16,7 +18,9 @@
 // Tela nova deve importar daqui. Tela que mostra DE PROPOSITO menos periodos (orcamento de
 // MP so olha quatro, por exemplo) pode fatiar esta lista — o que nao pode e reescreve-la,
 // porque ai ela deixa de acompanhar quando o horizonte cresce.
-export const PERIODOS_PLANO = ['MA', 'PX', 'UL', 'QT', 'QU', 'SX', 'ST', 'OT', 'NV'] as const;
+export const PERIODOS_PLANO = [
+  'MA', 'PX', 'UL', 'QT', 'QU', 'SX', 'ST', 'OT', 'NV', 'DZ', 'ON', 'DO', 'DT', 'QZ',
+] as const;
 
 export type PeriodoPlano = typeof PERIODOS_PLANO[number];
 
@@ -27,7 +31,7 @@ export const campoDoPeriodo = (p: PeriodoPlano) => p.toLowerCase() as CampoPerio
 
 export const ordemDoPeriodo = (p: PeriodoPlano) => PERIODOS_PLANO.indexOf(p);
 
-/** Soma os nove periodos de um registro de plano, ignorando campo ausente. */
+/** Soma todos os periodos de um registro de plano, ignorando campo ausente. */
 export function somaPeriodos(plano: Partial<Record<CampoPeriodo, number>> | null | undefined): number {
   if (!plano) return 0;
   return PERIODOS_PLANO.reduce((total, p) => total + Math.round(Number(plano[campoDoPeriodo(p)] || 0)), 0);

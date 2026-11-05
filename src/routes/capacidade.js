@@ -2,7 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const { calcularPeriodosPlano, PERIODOS_PLANO } = require("../services/periodoPlanoService");
-const { diasDeFabricaRestantes, diasDisponiveisDoPeriodo } = require("../lib/diasUteis");
+const { diasDeFabricaRestantes, diasDisponiveisDoPeriodo, diasDisponiveisDaData } = require("../lib/diasUteis");
 
 const router = express.Router();
 
@@ -287,6 +287,10 @@ async function writeGrupoRefs(pool, data) {
 // Mesma lista do serviço de períodos: MA..NV. Estava congelada em cinco aqui, então o
 // em-processo de SX em diante nunca era atribuído ao período certo.
 const PERIODOS_LOTE = PERIODOS_PLANO;
+// Campos minusculos do plano, como a matriz os entrega (`plano.ma`, `plano.qz`).
+const CAMPOS_PLANO = PERIODOS_PLANO.map((p) => p.toLowerCase());
+/** Objeto de plano zerado, com TODOS os periodos. */
+const planoZerado = () => Object.fromEntries(CAMPOS_PLANO.map((c) => [c, 0]));
 
 /**
  * Em processo por REFERENCIA e por PERIODO do plano.
@@ -311,11 +315,23 @@ async function carregarProcessoPorRefPeriodo(pool, matrizRows, periodos, hoje = 
   const mapa = new Map();
   if (!pool) return { mapa, ok: false };
 
-  // mes (1-12) -> periodo do plano, pela propria tabela de periodos ja calculada
-  const periodoDoMes = new Map();
+  // ANO-MES -> periodo, nao mes -> periodo.
+  //
+  // O lote traz o ano no proprio rotulo ("2026-11"), e a chave precisa usa-lo. Com nove
+  // periodos o mes era unico e a simplificacao passava; com CATORZE, novembro aparece duas
+  // vezes (MA = nov/26 e DT = nov/27) e o ultimo sobrescrevia o primeiro no mapa — os lotes
+  // de novembro e dezembro DESTE ano iam parar em DT e QZ, do ano que vem, e os periodos do
+  // meio ficavam zerados. Medido em 05/11/2026 antes do conserto: DT com 5,9 dias de carga
+  // e MA com a carga de dois meses faltando.
+  // Aceita o objeto inteiro de `calcularPeriodosPlano` ou so o mapa de meses — neste caso
+  // as datas sao recalculadas aqui, para nenhum chamador ficar com a chave sem ano.
+  const datasPer = periodos?.datas || calcularPeriodosPlano(hoje).datas;
+  const periodoDoAnoMes = new Map();
   for (const p of PERIODOS_LOTE) {
-    const mes = Number(periodos?.[p] || 0);
-    if (mes) periodoDoMes.set(mes, p);
+    const d = datasPer?.[p];
+    if (d instanceof Date) {
+      periodoDoAnoMes.set(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, p);
+    }
   }
 
   try {
@@ -356,7 +372,7 @@ async function carregarProcessoPorRefPeriodo(pool, matrizRows, periodos, hoje = 
       if (!anoLote || !mesLote) continue;
       // Lote de mes ja passado: o trabalho esta sendo feito AGORA, entao pesa no mes corrente.
       const atrasado = anoLote < anoHoje || (anoLote === anoHoje && mesLote < mesHoje);
-      const periodo = atrasado ? "MA" : periodoDoMes.get(mesLote);
+      const periodo = atrasado ? "MA" : periodoDoAnoMes.get(`${anoLote}-${String(mesLote).padStart(2, '0')}`);
       if (!periodo) continue;
 
       for (const chave of [
@@ -1203,7 +1219,7 @@ router.get("/matriz", auth, async (req, res) => {
       // Agregar por referência
       for (const chave of [refPadrao, refSistema]) {
         if (!chave) continue;
-        const atual = planoPorRefMap.get(chave) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
+        const atual = planoPorRefMap.get(chave) || planoZerado();
         atual.ma += planoMA;
         atual.px += planoPX;
         atual.ul += planoUL;
@@ -1245,7 +1261,7 @@ router.get("/matriz", auth, async (req, res) => {
       const referencia = row.referencia.toUpperCase();
       const grupo = row.grupo.toUpperCase();
       const idreferencia = seqgrupoPorRefMap.get(referencia) || '';
-      const planoBase = planoPorRefMap.get(referencia) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
+      const planoBase = planoPorRefMap.get(referencia) || planoZerado();
       const tempo = tempoPorRef.get(idreferencia) || 0;
       const processoBase = processoPorRefMap.get(referencia) || 0;
       const gruposDaRef = gruposPorRef.get(referencia) || [];
@@ -1621,20 +1637,14 @@ router.get("/dias-resumo", async (req, res) => {
       const refPadrao = String(item?.produto?.referencia || '').trim().toUpperCase();
       const refSistema = String(item?.produto?.cd_seqgrupo || '').trim().toUpperCase();
       const emProcesso = Number(item?.estoques?.em_processo || 0);
-      const planoMA = Number(item?.plano?.ma || 0);
-      const planoPX = Number(item?.plano?.px || 0);
-      const planoUL = Number(item?.plano?.ul || 0);
-      const planoQT = Number(item?.plano?.qt || 0);
-      const planoQU = Number(item?.plano?.qu || 0);
-
+      // Todos os campos do plano, nao os cinco primeiros. Esta leitura parava em QU: a
+      // matriz entregava o plano de SX em diante e ele era descartado aqui, entao a carga
+      // daqueles periodos saia zero e a tela mostrava mes com dia disponivel e nada para
+      // fazer — como se a fabrica estivesse livre de abril em diante.
       for (const chave of [refPadrao, refSistema]) {
         if (!chave) continue;
-        const atual = planoPorRefMap.get(chave) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0 };
-        atual.ma += planoMA;
-        atual.px += planoPX;
-        atual.ul += planoUL;
-        atual.qt += planoQT;
-        atual.qu += planoQU;
+        const atual = planoPorRefMap.get(chave) || planoZerado();
+        for (const campo of CAMPOS_PLANO) atual[campo] += Number(item?.plano?.[campo] || 0);
         planoPorRefMap.set(chave, atual);
 
         const processoAtual = processoPorRefMap.get(chave) || 0;
@@ -1671,10 +1681,13 @@ router.get("/dias-resumo", async (req, res) => {
     // 8. Calcular cargas totais
     // `processo` guarda o total (para o resumo) e `processoPorPeriodo` a abertura que vai
     // para os dias. Sem a abertura, tudo cai no MA, como era antes.
+    // Os baldes nascem da LISTA. Escritos a mao, eles paravam em QU: do sexto periodo em
+    // diante a carga caia num campo `undefined` e os dias necessarios saiam zero — a tela
+    // mostrava meses com dia disponivel e nenhuma carga, como se a fabrica estivesse livre.
     let cargaTotal = {
       processo: 0,
-      processoPorPeriodo: { MA: 0, PX: 0, UL: 0, QT: 0, QU: 0 },
-      MA: 0, PX: 0, UL: 0, QT: 0, QU: 0,
+      processoPorPeriodo: Object.fromEntries(PERIODOS_PLANO.map((p) => [p, 0])),
+      ...Object.fromEntries(PERIODOS_PLANO.map((p) => [p, 0])),
     };
     const somarProcesso = (referencia, tempo, totalDaRef) => {
       cargaTotal.processo += tempo * totalDaRef;
@@ -1700,7 +1713,7 @@ router.get("/dias-resumo", async (req, res) => {
     for (const row of grupoRefs) {
       const referencia = row.referencia.toUpperCase();
       const idreferencia = seqgrupoPorRefMap.get(referencia) || '';
-      const planoBase = planoPorRefMap.get(referencia) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0 };
+      const planoBase = planoPorRefMap.get(referencia) || planoZerado();
       const tempo = tempoPorRef.get(idreferencia) || 0;
       const processoBase = processoPorRefMap.get(referencia) || 0;
       const gruposDaRef = gruposPorRef.get(referencia) || [];
@@ -1713,11 +1726,7 @@ router.get("/dias-resumo", async (req, res) => {
       if (!primeiroGrupo) continue;
 
       somarProcesso(referencia, tempo, processoBase);
-      cargaTotal.MA += tempo * planoBase.ma;
-      cargaTotal.PX += tempo * planoBase.px;
-      cargaTotal.UL += tempo * planoBase.ul;
-      cargaTotal.QT += tempo * planoBase.qt;
-      cargaTotal.QU += tempo * planoBase.qu;
+      for (const per of PERIODOS_PLANO) cargaTotal[per] += tempo * Number(planoBase[per.toLowerCase()] || 0);
     }
 
     // Referencias sem grupo de capacidade mapeado tambem ocupam fabrica. A tela de Capacidade
@@ -1729,13 +1738,9 @@ router.get("/dias-resumo", async (req, res) => {
       const idreferencia = seqgrupoPorRefMap.get(referencia) || '';
       const tempo = tempoPorRef.get(idreferencia) || 0;
       if (!tempo) continue;
-      const planoBase = planoPorRefMap.get(referencia) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0 };
+      const planoBase = planoPorRefMap.get(referencia) || planoZerado();
       somarProcesso(referencia, tempo, processoPorRefMap.get(referencia) || 0);
-      cargaTotal.MA += tempo * planoBase.ma;
-      cargaTotal.PX += tempo * planoBase.px;
-      cargaTotal.UL += tempo * planoBase.ul;
-      cargaTotal.QT += tempo * planoBase.qt;
-      cargaTotal.QU += tempo * planoBase.qu;
+      for (const per of PERIODOS_PLANO) cargaTotal[per] += tempo * Number(planoBase[per.toLowerCase()] || 0);
     }
 
     // 9. Calcular dias necessários e acumulados, dada uma capacidade diária total.
@@ -1744,20 +1749,18 @@ router.get("/dias-resumo", async (req, res) => {
     function calcularDias(capacidadeDiaria) {
       // Cada periodo leva a carga do SEU em-processo, nao o MA levando a de todos.
       const proc = cargaTotal.processoPorPeriodo;
-      const diasNecessarios = {
-        MA: capacidadeDiaria > 0 ? (proc.MA + cargaTotal.MA) / capacidadeDiaria : 0,
-        PX: capacidadeDiaria > 0 ? (proc.PX + cargaTotal.PX) / capacidadeDiaria : 0,
-        UL: capacidadeDiaria > 0 ? (proc.UL + cargaTotal.UL) / capacidadeDiaria : 0,
-        QT: capacidadeDiaria > 0 ? (proc.QT + cargaTotal.QT) / capacidadeDiaria : 0,
-        QU: capacidadeDiaria > 0 ? (proc.QU + cargaTotal.QU) / capacidadeDiaria : 0,
-      };
-      const diasAcumulado = {
-        MA: diasNecessarios.MA,
-        PX: diasNecessarios.MA + diasNecessarios.PX,
-        UL: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL,
-        QT: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL + diasNecessarios.QT,
-        QU: diasNecessarios.MA + diasNecessarios.PX + diasNecessarios.UL + diasNecessarios.QT + diasNecessarios.QU,
-      };
+      // Derivados da LISTA, nao escritos periodo a periodo. Esta funcao parava em QU: a
+      // tela recebia `periodos` com os catorze e `diasNecessarios` com cinco, entao do
+      // sexto em diante nao havia denominador nenhum para a ocupacao.
+      const diasNecessarios = {};
+      const diasAcumulado = {};
+      let acum = 0;
+      for (const p of PERIODOS_PLANO) {
+        const d = capacidadeDiaria > 0 ? ((proc[p] || 0) + (cargaTotal[p] || 0)) / capacidadeDiaria : 0;
+        diasNecessarios[p] = d;
+        acum += d;
+        diasAcumulado[p] = acum;
+      }
       return { diasNecessarios, diasAcumulado };
     }
 
@@ -1776,32 +1779,19 @@ router.get("/dias-resumo", async (req, res) => {
     const hojeDias = new Date();
     const maCalculado = diasDisponiveisDoPeriodo(periodos.MA, hojeDias, comParada);
     const maConfig = Number(dias[String(periodos.MA)] || 0);
-    const diasDisponiveis = {
-      MA: maCalculado,
-      PX: diasDisponiveisDoPeriodo(periodos.PX, hojeDias, comParada),
-      UL: diasDisponiveisDoPeriodo(periodos.UL, hojeDias, comParada),
-      QT: diasDisponiveisDoPeriodo(periodos.QT, hojeDias, comParada),
-      QU: diasDisponiveisDoPeriodo(periodos.QU, hojeDias, comParada),
-    };
+    // Pela DATA do periodo, nao pelo numero do mes: com catorze posicoes novembro aparece
+    // duas vezes (MA = nov/26, DT = nov/27) e a deducao pelo mes dava 2026 para os dois.
+    const datasPeriodo = calcularPeriodosPlano(hojeDias).datas;
+    const diasDisponiveis = Object.fromEntries(
+      PERIODOS_PLANO.map((p) => [p, p === 'MA' ? maCalculado : diasDisponiveisDaData(datasPeriodo[p], hojeDias, comParada)])
+    );
 
     // Preparar resposta e salvar no cache
     const responseData = {
       success: true,
       capacidadeDiaria: capacidadeDiariaTotal,
-      diasNecessarios: {
-        MA: Number(diasNecessarios.MA.toFixed(1)),
-        PX: Number(diasNecessarios.PX.toFixed(1)),
-        UL: Number(diasNecessarios.UL.toFixed(1)),
-        QT: Number(diasNecessarios.QT.toFixed(1)),
-        QU: Number(diasNecessarios.QU.toFixed(1)),
-      },
-      diasAcumulado: {
-        MA: Number(diasAcumulado.MA.toFixed(1)),
-        PX: Number(diasAcumulado.PX.toFixed(1)),
-        UL: Number(diasAcumulado.UL.toFixed(1)),
-        QT: Number(diasAcumulado.QT.toFixed(1)),
-        QU: Number(diasAcumulado.QU.toFixed(1)),
-      },
+      diasNecessarios: Object.fromEntries(PERIODOS_PLANO.map((p) => [p, Number((diasNecessarios[p] || 0).toFixed(1))])),
+      diasAcumulado: Object.fromEntries(PERIODOS_PLANO.map((p) => [p, Number((diasAcumulado[p] || 0).toFixed(1))])),
       diasDisponiveis,
       // De onde saiu o MA, para quem for conferir: o calendario manda, mas o que estava
       // cadastrado continua visivel. Divergencia grande aqui e sinal de config esquecida.
@@ -1810,20 +1800,8 @@ router.get("/dias-resumo", async (req, res) => {
       // Cenario anterior: capacidade com os grupos descontinuados (Progresso, Oficina
       // Atila) somados de volta, para comparar com o atual na Visao Geral 2.
       capacidadeDiariaAnterior: capacidadeDiariaTotalAnterior,
-      diasNecessariosAnterior: {
-        MA: Number(diasNecessariosAnterior.MA.toFixed(1)),
-        PX: Number(diasNecessariosAnterior.PX.toFixed(1)),
-        UL: Number(diasNecessariosAnterior.UL.toFixed(1)),
-        QT: Number(diasNecessariosAnterior.QT.toFixed(1)),
-        QU: Number(diasNecessariosAnterior.QU.toFixed(1)),
-      },
-      diasAcumuladoAnterior: {
-        MA: Number(diasAcumuladoAnterior.MA.toFixed(1)),
-        PX: Number(diasAcumuladoAnterior.PX.toFixed(1)),
-        UL: Number(diasAcumuladoAnterior.UL.toFixed(1)),
-        QT: Number(diasAcumuladoAnterior.QT.toFixed(1)),
-        QU: Number(diasAcumuladoAnterior.QU.toFixed(1)),
-      },
+      diasNecessariosAnterior: Object.fromEntries(PERIODOS_PLANO.map((p) => [p, Number((diasNecessariosAnterior[p] || 0).toFixed(1))])),
+      diasAcumuladoAnterior: Object.fromEntries(PERIODOS_PLANO.map((p) => [p, Number((diasAcumuladoAnterior[p] || 0).toFixed(1))])),
       gruposDesativados: GRUPOS_DESATIVADOS.map((g) => g.grupo),
     };
 
@@ -2065,7 +2043,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
       const idreferencia = seqgrupoPorRef.get(row.referencia) || '';
       const tempo = Number(tempoPorRef.get(idreferencia) || 0);
       if (!tempo) continue;
-      const base = planoPorRef.get(row.referencia) || { ma: 0, px: 0, ul: 0, qt: 0, qu: 0, sx: 0 };
+      const base = planoPorRef.get(row.referencia) || planoZerado();
       const gruposDaRef = gruposPorRef.get(row.referencia) || [];
       const totalRateio = gruposDaRef.reduce((acc, g) => acc + (capacidadeConfigPorGrupo.get(g) || 0), 0);
       const rateio = gruposDaRef.length <= 1
@@ -2107,7 +2085,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
       tempoAcumulado += carga[chave.toLowerCase()] + (cargaProcesso[chave] || 0);
       // Dias do calendario, nao da config: o mes em curso entra so com o que falta, e os
       // feriados de cada mes sao descontados no ano certo.
-      diasAcumulados += diasDisponiveisDoPeriodo(periodos[chave], hoje, comParada);
+      diasAcumulados += diasDisponiveisDaData(calcularPeriodosPlano(hoje).datas[chave], hoje, comParada);
       const diasNecessarios = capacidadeDiariaTotal > 0 ? tempoAcumulado / capacidadeDiariaTotal : 0;
       meses.push({
         periodo: chave,
@@ -2418,7 +2396,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
     // SKUs dividem a mesma. Somar por SKU contaria o processo tantas vezes quantas forem as
     // cores e tamanhos daquela referencia.
     const { mapa: processoPorRefPeriodo, ok: processoPorPeriodoOk } =
-      await carregarProcessoPorRefPeriodo(pool, matrizRows, calcularPeriodosPlano(hoje).meses, hoje);
+      await carregarProcessoPorRefPeriodo(pool, matrizRows, calcularPeriodosPlano(hoje), hoje);
     const processoPorRef = new Map();
     const grupoDaRef = new Map();
     const tempoDaRef = new Map();
@@ -2554,7 +2532,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
     const diasPorPeriodo = {};
     let diasAcum = 0;
     for (const per of PERIODOS_PLANO) {
-      diasAcum += diasDisponiveisDoPeriodo(periodos[per], hoje, comParada);
+      diasAcum += diasDisponiveisDaData(calcularPeriodosPlano(hoje).datas[per], hoje, comParada);
       diasPorPeriodo[per] = diasAcum;
     }
 

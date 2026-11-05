@@ -5,7 +5,17 @@
 // ST ja existia no ERP com producao prevista para abr/2027 e estava fora desta lista, entao
 // o sistema inteiro ignorava um periodo que a fabrica ja tinha. OT e NV foram acrescentados
 // para o PCP conseguir emitir ate junho na mesma rodada, em vez de esperar a janela rolar.
-const PERIODOS_PLANO = ['MA', 'PX', 'UL', 'QT', 'QU', 'SX', 'ST', 'OT', 'NV'];
+//
+// DZ..QZ entraram em 05/11/2026, a pedido da diretoria: planejar ate o fim do ano seguinte
+// numa rodada so. As siglas vieram do PCP e sao as que o Fagner digita no ERP — DZ (dez),
+// ON (onze), DO (doze), DT (treze), QZ (quatorze). Nao e escolha nossa: se divergirem do
+// que o ERP grava em `cd_auxiliar`, o sistema procura um rotulo que ninguem cria e o
+// periodo some da tela sem erro nenhum.
+//
+// Catorze posicoes a partir do mes corrente cobrem ate dezembro do ano seguinte.
+const PERIODOS_PLANO = [
+  'MA', 'PX', 'UL', 'QT', 'QU', 'SX', 'ST', 'OT', 'NV', 'DZ', 'ON', 'DO', 'DT', 'QZ',
+];
 
 /**
  * Períodos do plano de produção (MA/PX/UL/QT/QU/SX), a partir de uma data de referência

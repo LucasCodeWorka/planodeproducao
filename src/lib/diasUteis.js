@@ -177,8 +177,30 @@ function diasDisponiveisDoPeriodo(mesPeriodo, hoje = new Date(), comParada = fal
   return diasDeFabricaNoMes(ano, mes, comParada);
 }
 
+/**
+ * Dias de fabrica de um periodo, pela DATA dele — nao pelo numero do mes.
+ *
+ * `diasDisponiveisDoPeriodo` recebe so o mes (1-12) e deduz o ano comparando com o mes
+ * corrente. Isso bastava enquanto o horizonte tinha nove posicoes, mas com catorze o mesmo
+ * mes aparece DUAS vezes: em 05/11/2026, MA e nov/26 e DT e nov/27. A deducao devolvia 2026
+ * para os dois, e nov/27 vinha com os 17 dias que restam DESTE novembro em vez dos 19 do
+ * mes inteiro. Quem tem a data certa e `calcularPeriodosPlano().datas`.
+ */
+function diasDisponiveisDaData(data, hoje = new Date(), comParada = false) {
+  if (!(data instanceof Date) || Number.isNaN(data.getTime())) return 0;
+  const ano = data.getFullYear();
+  const mes = data.getMonth() + 1;
+  const ehMesCorrente = mes === hoje.getMonth() + 1 && ano === hoje.getFullYear();
+  if (ehMesCorrente) {
+    const rest = diasDeFabricaRestantes(ano, mes, hoje);
+    return comParada ? Math.max(0, rest - diasDeParadaNoMes(ano, mes)) : rest;
+  }
+  return diasDeFabricaNoMes(ano, mes, comParada);
+}
+
 module.exports = {
   PARADAS,
+  diasDisponiveisDaData,
   diasDeParadaNoMes,
   feriadosDoAno,
   feriadosUteisNoMes,
