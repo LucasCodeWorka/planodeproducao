@@ -2239,7 +2239,11 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
     // da carga esta hoje numa celula que, pelo mix, nao deveria fazer aquele produto. Por
     // isso as duas ficam disponiveis lado a lado, em vez de uma ser escolhida no escuro.
     const alocacao = String(req.query.alocacao || 'cadastro').trim().toLowerCase() === 'mix' ? 'mix' : 'cadastro';
-    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}|${alocacao}`;
+    // PARADA DE FABRICA, o mesmo parametro das outras duas rotas de capacidade. Sem ele
+    // esta tabela ficava intacta enquanto a de cima e o grafico ja reagiam ao botao — e o
+    // rodape dela promete "tem que bater com a ocupacao da tabela acima".
+    const comParada = req.query.ferias === '1' || req.query.ferias === 'true';
+    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}|${alocacao}|${comParada}`;
 
     if (ocupGrupoCache.data && ocupGrupoCache.chave === chaveCache && (Date.now() - ocupGrupoCache.timestamp) < GAP_CACHE_TTL) {
       return res.json({ ...ocupGrupoCache.data, fromCache: true });
@@ -2550,7 +2554,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
     const diasPorPeriodo = {};
     let diasAcum = 0;
     for (const per of PERIODOS_PLANO) {
-      diasAcum += diasDisponiveisDoPeriodo(periodos[per], hoje);
+      diasAcum += diasDisponiveisDoPeriodo(periodos[per], hoje, comParada);
       diasPorPeriodo[per] = diasAcum;
     }
 

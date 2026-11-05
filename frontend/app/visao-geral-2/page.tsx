@@ -983,7 +983,11 @@ export default function VisaoGeral2Page() {
     if (!feriasMontou.current) { feriasMontou.current = true; return; }
     let vivo = true;
     setRecalculandoParada(true);
-    Promise.all([carregarCapacidade(comFerias), carregarGapParada(comFerias)])
+    Promise.all([
+      carregarCapacidade(comFerias),
+      carregarGapParada(comFerias),
+      carregarOcupacaoPorGrupo(rawData?.loteId || undefined, alocacaoOcup, comFerias),
+    ])
       .finally(() => { if (vivo) setRecalculandoParada(false); });
     return () => { vivo = false; };
   }, [comFerias]);
@@ -1184,11 +1188,15 @@ export default function VisaoGeral2Page() {
   //
   // Segue o MESMO `lote_id` da cobertura simulada, senao o detalhe contaria uma historia e
   // o total outra na mesma tela.
-  async function carregarOcupacaoPorGrupo(lote?: string, modo: 'cadastro' | 'mix' = 'cadastro') {
+  async function carregarOcupacaoPorGrupo(lote?: string, modo: 'cadastro' | 'mix' = 'cadastro', ferias = comFerias) {
     setCarregandoOcup(true);
     try {
       const q = new URLSearchParams({ alocacao: modo });
       if (lote) q.set('lote_id', lote);
+      // Mesma parada da tabela de cima. O rodape desta tela promete que o total "tem que
+      // bater com a ocupacao da tabela acima" — sem este parametro ela ficava intacta
+      // enquanto a de cima ja reagia, e a promessa virava mentira.
+      if (ferias) q.set('ferias', '1');
       const r = await fetchNoCache(`${API_URL}/api/capacidade/ocupacao-por-grupo-produto?${q}`, { headers: authHeaders() }, 300000);
       const p = await r.json();
       if (r.ok && p?.success && Array.isArray(p.dados)) {
