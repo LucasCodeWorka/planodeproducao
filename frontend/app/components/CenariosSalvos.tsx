@@ -67,6 +67,9 @@ const LINHAS = [
 
 export default function CenariosSalvos({ cenarios, aberto, carregando, mesesHoje, onAbrir, onApagar, onFechar, verFoto, onVerFoto }: Props) {
   const [confirmando, setConfirmando] = useState<string | number | null>(null);
+  // A tabela mes a mes nasce RECOLHIDA. Ela e densa e serve para auditar um numero
+  // especifico; quem abre o painel quer escolher a foto, nao varrer 14 colunas de cara.
+  const [verTabela, setVerTabela] = useState(false);
 
   const salvos = aberto?.leitura?.meses || [];
   // Casa pelo ROTULO do mes ("nov/26"), nao pela posicao: o horizonte rola, e a foto de
@@ -146,8 +149,14 @@ export default function CenariosSalvos({ cenarios, aberto, carregando, mesesHoje
                 poe a TELA INTEIRA naquele dia — relatorio, grafico e ocupacao por grupo —
                 que e como se confere se a memoria bate com o que a tela mostrava. */}
             <button
+              onClick={() => setVerTabela((v) => !v)}
+              className="ml-auto rounded border border-gray-300 bg-white px-3 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              {verTabela ? 'Ocultar comparação mês a mês' : 'Ver comparação mês a mês'}
+            </button>
+            <button
               onClick={() => onVerFoto(!verFoto)}
-              className={`ml-auto rounded border px-3 py-1 text-[11px] font-semibold transition-colors ${
+              className={`rounded border px-3 py-1 text-[11px] font-semibold transition-colors ${
                 verFoto
                   ? 'border-amber-400 bg-amber-100 text-amber-900'
                   : 'border-indigo-300 bg-white text-indigo-800 hover:bg-indigo-50'
@@ -163,6 +172,7 @@ export default function CenariosSalvos({ cenarios, aberto, carregando, mesesHoje
             </div>
           )}
 
+          {verTabela && (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500">
@@ -210,6 +220,7 @@ export default function CenariosSalvos({ cenarios, aberto, carregando, mesesHoje
               </tbody>
             </table>
           </div>
+          )}
         </>
       )}
     </div>

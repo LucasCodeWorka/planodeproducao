@@ -9,6 +9,7 @@ import CapacidadeVsVenda, { MesCapacidadeVenda } from '../components/CapacidadeV
 import OcupacaoPorGrupo, { type GrupoOcupacao } from '../components/OcupacaoPorGrupo';
 import ProjetadoVsRealizado, { type MesFechado } from '../components/ProjetadoVsRealizado';
 import CenariosSalvos, { type CenarioSalvo } from '../components/CenariosSalvos';
+import ResumoMudancas from '../components/ResumoMudancas';
 import { diasDeFabricaNoMes, diasDeParadaNoMes, diasUteisNoMes, paradasDoMes } from '../lib/feriados';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
@@ -2310,6 +2311,22 @@ export default function VisaoGeral2Page() {
             </button>
           </div>
         </div>
+      )}
+      {/* RESUMO EM TEXTO, logo abaixo da faixa. A marca celula a celula diz ONDE mudou; isto
+          diz O QUE mudou, sem obrigar a varrer a tabela para montar a historia. */}
+      {modoFoto && marcarMudancas && relatorioCapacidade && cenarioAberto?.leitura?.meses && (
+        <ResumoMudancas
+          foto={cenarioAberto.leitura.meses}
+          hoje={relatorioCapacidade.linhas}
+          parametrosFoto={(cenarioAberto.parametros || {}) as Record<string, unknown>}
+          parametrosHoje={{
+            capacidadeDiaria: Number(resumoDiasEfetivo?.capacidadeDiaria || 0),
+            minPecaMedido,
+            cenarioFabrica,
+            comFerias,
+          }}
+          nomeFoto={cenarioAberto.nome}
+        />
       )}
       {painelCenarios && relatorioCapacidade && (
         <CenariosSalvos
