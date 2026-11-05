@@ -686,6 +686,45 @@ export default function CapacidadeVsVenda({
       .join(' ');
   };
 
+  // LINHA FANTASMA DO OUTRO DIA.
+  //
+  // No modo foto a tela mostra o dia salvo, e sem referencia nao da para ver o tamanho da
+  // mudanca: em fev/27 a capacidade sai de 103.381 (com ferias) para 132.918 (sem), e a
+  // curva sozinha nao conta isso. O fantasma desenha o OUTRO lado, pontilhado e apagado,
+  // com um circulo vazado so nos meses que de fato diferem.
+  //
+  // So as tres series de DADO (venda, plano, capacidade). O Disponivel e derivado do
+  // nivelamento do modo escolhido, e recalcula-lo para o outro lado daria uma curva que
+  // nunca existiu em tela nenhuma — pior que nao desenhar.
+  const linhasComp = linhas.map((l) => compPorMes.get(l.mes) || null);
+  const serieComp = (c: MesCapacidadeVenda): (number | null)[] => [
+    demandaTotal(c),
+    c.planoCompleto ? Number(c.planoCompleto) : null,
+    c.capacidadePecas,
+    null,
+  ];
+  const caminhoComp = (indice: number) => {
+    let novoTraco = true;
+    return linhasComp
+      .map((c, i) => {
+        const v = c ? serieComp(c)[indice] : null;
+        if (v === null) { novoTraco = true; return ''; }
+        const comando = novoTraco ? 'M' : 'L';
+        novoTraco = false;
+        return `${comando} ${x(i).toFixed(1)} ${ySerie(indice, v).toFixed(1)}`;
+      })
+      .filter(Boolean)
+      .join(' ');
+  };
+  // Um ponto so merece marca quando a diferenca e visivel na leitura: 1 peca nao e mudanca.
+  const mudouNoPonto = (indice: number, i: number) => {
+    const c = linhasComp[i];
+    if (!c) return false;
+    const a = serieComp(c)[indice];
+    const b = serie(linhas[i], i)[indice];
+    return a !== null && b !== null && Math.abs(a - b) >= 1;
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg mb-6 overflow-hidden">
       <div className="px-5 py-4 border-b flex items-center justify-between gap-2">
@@ -887,6 +926,12 @@ export default function CapacidadeVsVenda({
       <div className="px-5 py-4 border-b">
         <div aria-label="Legenda do gráfico" className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
           <span className="font-semibold text-gray-800">Legenda</span>
+          {temComparacao && (
+            <span className="inline-flex items-center gap-2 font-semibold text-fuchsia-700">
+              <span className="w-6 border-t-2 border-dotted border-fuchsia-600" aria-hidden="true" />
+              {rotuloComparacao} (referência) — o círculo marca o mês que mudou
+            </span>
+          )}
           <span className="inline-flex items-center gap-2">
             <span className="w-6 border-t-[3px] border-amber-500" aria-hidden="true" />
             Projeção de venda (Em linha)
@@ -981,6 +1026,27 @@ export default function CapacidadeVsVenda({
           )}
           {/* Ordem de DESENHO, nao de faixa: a capacidade vai por baixo (tracejada, de
               fundo) e o plano por cima, para nao sumir sob o disponivel no modo comparado. */}
+          {/* FANTASMA do outro dia: atras das curvas, apagado, so para dar tamanho a
+              mudanca. O circulo vazado marca o mes que diferiu, e o rotulo diz o valor de
+              la — sem ele o fantasma vira enfeite. */}
+          {temComparacao && [iVenda, iPlano, iCapacidade].map((idx) => (
+            <g key={`fantasma-${idx}`}>
+              <path d={caminhoComp(idx)} fill="none" stroke="#c026d3" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.55" />
+              {linhasComp.map((c, i) => {
+                if (!c || !mudouNoPonto(idx, i)) return null;
+                const v = serieComp(c)[idx];
+                if (v === null) return null;
+                return (
+                  <g key={`fp-${idx}-${i}`}>
+                    <circle cx={x(i)} cy={ySerie(idx, v)} r="3.5" fill="#fff" stroke="#c026d3" strokeWidth="1.5" />
+                    <text x={x(i)} y={ySerie(idx, v) + 13} textAnchor="middle" fontSize="9" fill="#c026d3" fontFamily="ui-monospace, monospace">
+                      {fmt(v)}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          ))}
           <path d={caminho(iCapacidade)} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 4" />
           <path d={caminho(iVenda)} fill="none" stroke="#f59e0b" strokeWidth="2.5" />
           {/* ESTOQUE FISICO PREVISTO, acima do disponivel e na mesma faixa. Azul claro: e
@@ -1711,12 +1777,12 @@ export default function CapacidadeVsVenda({
                           ehFilho ? 'py-2 text-xs' : 'py-3'
                         } ${
                           i === primeiroProjetado && primeiroProjetado > 0 ? 'border-l-2 border-l-amber-400 border-dashed' : ''
-                        } ${mudou ? 'bg-amber-50/80 ring-1 ring-inset ring-amber-200' : ''}`}
+                        } ${mudou ? 'bg-fuchsia-50 ring-1 ring-inset ring-fuchsia-300' : ''}`}
                       >
                         {linha.celula(l)}
                         {mudou && (
-                          <div className="text-[10px] font-semibold text-amber-700">
-                            {vAgora! > vOutro! ? '+' : '−'}{fmt(Math.abs(vAgora! - vOutro!))}
+                          <div className="text-[10px] font-semibold text-fuchsia-700">
+                            Δ {vAgora! > vOutro! ? '+' : '−'}{fmt(Math.abs(vAgora! - vOutro!))}
                           </div>
                         )}
                       </td>

@@ -978,6 +978,7 @@ export default function VisaoGeral2Page() {
   useEffect(() => {
     if (!feriasMontou.current) { feriasMontou.current = true; return; }
     carregarCapacidade(comFerias);
+    carregarGapParada(comFerias);
   }, [comFerias]);
 
   async function carregarIndiceMensal() {
@@ -1071,6 +1072,30 @@ export default function VisaoGeral2Page() {
     } finally {
       setSalvandoCenario(false);
     }
+  }
+
+  // GAP DO PLANO sob o cenario de parada. A ocupacao e o gap da linha "Plano (completo)"
+  // vem da `gap-mensal`, nao do calculo da tela — entao ligar as ferias mudava a capacidade
+  // em pecas e deixava o "97% · -2,12d" de fevereiro intacto: dois numeros contando
+  // historias diferentes na mesma linha.
+  //
+  // Rebusca so este pedaco e costura em `rawData`. Recarregar a tela inteira custaria o
+  // minuto da `carregar()` para trocar uma caixinha.
+  async function carregarGapParada(ferias: boolean) {
+    try {
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/gap-mensal${ferias ? '?ferias=1' : ''}`, { headers: authHeaders() }, 300000);
+      const p = await r.json();
+      if (!r.ok || !Array.isArray(p?.meses)) return;
+      const cobertura: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }> = {};
+      for (const m of p.meses) {
+        const per = String(m?.periodo || '').trim().toUpperCase();
+        if (!per) continue;
+        const nec = Number(m?.diasNecessarios || 0);
+        const disp = Number(m?.diasDisponiveis || 0);
+        cobertura[per] = { nec, disp, gap: Number(m?.gap || 0), ocup: disp > 0 ? nec / disp : null };
+      }
+      setRawData((d) => (d ? { ...d, coberturaPorPeriodo: cobertura } : d));
+    } catch { /* fica o gap anterior, que e melhor que tela vazia */ }
   }
 
   async function carregarMinPecaMedido() {

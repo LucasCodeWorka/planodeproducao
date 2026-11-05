@@ -1940,7 +1940,13 @@ router.get('/gap-mensal', auth, async (req, res) => {
     // Lote de simulacao a sobrepor, aprovado ou nao. Entra na chave do cache para a tela
     // com e sem simulacao nao se contaminarem.
     const loteId = String(req.query.lote_id || '').trim();
-    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}`;
+    // PARADA DE FABRICA, mesmo parametro do dias-resumo. Sem isto a linha "Plano (completo)"
+    // seguia mostrando 97% e -2,12d em fevereiro com as ferias ligadas: o percentual e o gap
+    // saem DAQUI, nao do calculo da tela, entao ligar o botao mudava a capacidade em pecas e
+    // deixava a ocupacao do plano intacta — dois numeros contando historias diferentes na
+    // mesma linha. Entra na chave do cache, senao o cenario anterior volta.
+    const comParada = req.query.ferias === '1' || req.query.ferias === 'true';
+    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}|${comParada}`;
 
     if (gapMensalCache.data && gapMensalCache.chave === chaveCache && (Date.now() - gapMensalCache.timestamp) < GAP_CACHE_TTL) {
       return res.json({ ...gapMensalCache.data, fromCache: true });
@@ -2101,7 +2107,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
       tempoAcumulado += carga[chave.toLowerCase()] + (cargaProcesso[chave] || 0);
       // Dias do calendario, nao da config: o mes em curso entra so com o que falta, e os
       // feriados de cada mes sao descontados no ano certo.
-      diasAcumulados += diasDisponiveisDoPeriodo(periodos[chave], hoje);
+      diasAcumulados += diasDisponiveisDoPeriodo(periodos[chave], hoje, comParada);
       const diasNecessarios = capacidadeDiariaTotal > 0 ? tempoAcumulado / capacidadeDiariaTotal : 0;
       meses.push({
         periodo: chave,
