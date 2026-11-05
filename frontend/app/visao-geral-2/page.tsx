@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarOff, Camera, ChevronDown, ChevronRight, History, LayoutGrid, RefreshCw, TriangleAlert } from 'lucide-react';
+import { CalendarOff, Camera, ChevronDown, ChevronRight, History, LayoutGrid, Loader2, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import PainelCapacidade, { type ResumoDiasCapacidade } from '../components/PainelCapacidade';
@@ -200,6 +200,10 @@ export default function VisaoGeral2Page() {
   const [painelCenarios, setPainelCenarios] = useState(false);
   const [verFoto, setVerFoto] = useState(false);
   const [marcarMudancas, setMarcarMudancas] = useState(true);
+  // Trocar a parada refaz duas rotas (dias-resumo e gap-mensal) e leva alguns segundos. Sem
+  // sinal, o clique parece nao ter funcionado e o PCP clica de novo — e aí ve o numero
+  // pular duas vezes.
+  const [recalculandoParada, setRecalculandoParada] = useState(false);
   const [avisoCenario, setAvisoCenario] = useState<string | null>(null);
   // Minutos por peca MEDIDOS na fabrica (ago-out/26: 6,5566). null = ainda nao carregou.
   const [minPecaMedido, setMinPecaMedido] = useState<number | null>(null);
@@ -977,8 +981,11 @@ export default function VisaoGeral2Page() {
   const feriasMontou = useRef(false);
   useEffect(() => {
     if (!feriasMontou.current) { feriasMontou.current = true; return; }
-    carregarCapacidade(comFerias);
-    carregarGapParada(comFerias);
+    let vivo = true;
+    setRecalculandoParada(true);
+    Promise.all([carregarCapacidade(comFerias), carregarGapParada(comFerias)])
+      .finally(() => { if (vivo) setRecalculandoParada(false); });
+    return () => { vivo = false; };
   }, [comFerias]);
 
   async function carregarIndiceMensal() {
@@ -2309,6 +2316,9 @@ export default function VisaoGeral2Page() {
           onVerFoto={setVerFoto}
         />
       )}
+      {/* Enquanto a parada recalcula, o bloco inteiro fica apagado e sem clique: numero
+          velho com aparencia de novo e pior do que tela vazia. */}
+      <div className={recalculandoParada ? 'pointer-events-none opacity-50 transition-opacity' : 'transition-opacity'}>
       {relatorioEfetivo && (
         <CapacidadeVsVenda
           meses={relatorioEfetivo.linhas}
@@ -2375,6 +2385,7 @@ export default function VisaoGeral2Page() {
             return (
               <button
                 onClick={() => setComFerias((v) => !v)}
+                disabled={recalculandoParada}
                 title={`${p0.nome}: ${dd(p0.inicio)} a ${dd(p0.fim)}/${ano}. São 10 dias corridos, mas custam ${custo} dias de fábrica — 06, 07, 13 e 14 caem em fim de semana e 08 e 09 são Carnaval, que a conta já descontava. Fevereiro vai de 18 para ${18 - custo} dias.`}
                 className={`inline-flex items-center gap-1.5 rounded border px-3 py-2 text-xs font-semibold transition-colors ${
                   comFerias
@@ -2382,10 +2393,12 @@ export default function VisaoGeral2Page() {
                     : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                <CalendarOff size={14} />
+                {recalculandoParada
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <CalendarOff size={14} />}
                 Férias fev
                 <span className={`font-mono text-[11px] font-normal ${comFerias ? 'text-amber-700' : 'text-gray-400'}`}>
-                  −{custo}d
+                  {recalculandoParada ? 'recalculando…' : `−${custo}d`}
                 </span>
               </button>
             );
@@ -2437,6 +2450,7 @@ export default function VisaoGeral2Page() {
           carregando={carregandoOcup}
         />
       )}
+      </div>
 
       {/* Tabela da Visao Geral OCULTA, nao removida. Para reexibir, troque a chave no
           topo do arquivo. */}
