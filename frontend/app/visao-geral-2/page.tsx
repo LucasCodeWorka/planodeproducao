@@ -1716,6 +1716,9 @@ export default function VisaoGeral2Page() {
         travado: true,
         // MA e o mes em curso: ja esta rodando, entao nem o teto de capacidade o levanta.
         mesCorrente: p === 'MA',
+        // Mes com lote lancado tambem leva a EL: o lote so tem permanente, porque a
+        // Sugestao de Plano nunca emitiu edicao limitada.
+        planoEl: ano === anoBase ? elTravado(mes) : el(mes),
         // Pecas ja em processo que terminam NESTE periodo. Vao para o disponivel como
         // producao: a partida do disponivel e o estoque atual, que ainda nao as contem.
         emProcessoMes: Number(data.processoPorPeriodo[p] || 0),
@@ -1781,10 +1784,10 @@ export default function VisaoGeral2Page() {
           return { demandaFabrica: c.fabrica, demandaLojas: c.lojas, demandaLojasPermanentes: c.lojasPermanentes, demandaLojasEdicaoLimitada: c.lojasEdicaoLimitada };
         })(),
         producao: m.producao + demandaEl,
-        // PLANO PREVISTO: a mesma necessidade que alimenta a producao acima, exposta como
-        // estimativa do plano que ainda vai ser emitido. Inclui edicao limitada, que a
-        // Sugestao de Plano nao emite — sem ela a previsao ficaria menor que a carga.
-        planoPrevisto: m.producao + demandaEl,
+        // PLANO PREVISTO: so os PERMANENTES. A edicao limitada entra por `planoEl`, somada
+        // ao plano do mes tenha ele lote ou nao — somar aqui tambem contaria duas vezes.
+        planoPrevisto: m.producao,
+        planoEl: demandaEl,
         // PLANO LANCADO num mes que a tabela trata como projetado. A linha "Plano (completo)"
         // so existia ate janeiro, porque os periodos fechados vao de MA a QT e fevereiro em
         // diante era so simulacao. Mas o plano de fevereiro foi emitido (131.550 pecas em

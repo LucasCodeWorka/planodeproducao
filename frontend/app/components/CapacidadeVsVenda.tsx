@@ -115,6 +115,16 @@ export type MesCapacidadeVenda = {
    *  PERMANENTE COR NOVA). Sao 1.318 SKUs, 44% da matriz — sem eles a previsao do plano
    *  ficaria menor que a carga que a propria tela ja conta na capacidade. */
   planoPrevisto?: number;
+  /** PLANO DE EDICAO LIMITADA = a projecao de venda dela no mes, e so isso.
+   *
+   *  EL nasce e morre na estacao: nao se repoe, entao nao ha cobertura a calcular. O que a
+   *  fabrica precisa produzir e o que vai vender. Decisao do PCP em 05/11/2026, depois de
+   *  constatar que a Sugestao de Plano filtra PERMANENTE e PERMANENTE COR NOVA e portanto
+   *  nunca emitiu uma peca de EL — 1.318 SKUs, 44% da matriz.
+   *
+   *  Entra SOMADO ao plano do mes, tenha ele lote lancado ou nao: a carga de EL ja contava
+   *  na capacidade desta tela, e era so o plano que a ignorava. */
+  planoEl?: number;
   /** Peças JA EM PROCESSO que terminam neste mês (pelo período do lote em que estão).
    *  Entram no disponível como produção: já foram cortadas, mas ainda não viraram estoque.
    *  Disjuntas do `producao` — o plano da matriz é necessidade, e a necessidade já desconta
@@ -510,6 +520,13 @@ export default function CapacidadeVsVenda({
   // elas precisam pingar no mes em que terminam, senao somem da conta: novembro abria em
   // 192.035 e fechava em 124.368 porque 82.059 pecas ja cortadas nao apareciam em lugar
   // nenhum.
+  // PLANO DO MES, com a edicao limitada dentro. O lote lancado so tem permanente — a
+  // Sugestao de Plano filtra PERMANENTE e PERMANENTE COR NOVA — entao a EL entra sempre
+  // pela projecao de venda dela, que e o plano dela.
+  const planoDoMes = (l: Pick<MesCapacidadeVenda, 'planoCompleto' | 'planoPrevisto' | 'planoEl'>) => {
+    const base = Number(l.planoCompleto || 0) || Number(l.planoPrevisto || 0);
+    return base + Number(l.planoEl || 0);
+  };
   const entraNoMes = (l: typeof linhas[number]) => l.producao + Number(l.emProcessoMes || 0);
   const sobraTabela = (l: typeof linhas[number]) => entraNoMes(l) - demandaTotal(l);
   // Disponivel de ABERTURA do horizonte. Estava escrito duas vezes (aqui e no
@@ -582,7 +599,7 @@ export default function CapacidadeVsVenda({
   const SERIE_COR_TEXTO = ['#b45309', '#6d28d9', '#64748b', '#4f46e5'];
   const serie = (l: typeof linhas[number], i: number): (number | null)[] => [
     demandaTotal(l),
-    l.planoCompleto ? Number(l.planoCompleto) : (Number(l.planoPrevisto || 0) > 0 ? Number(l.planoPrevisto) : null),
+    planoDoMes(l) > 0 ? planoDoMes(l) : null,
     l.capacidadePecas,
     disponivelTabela[i],
   ];
@@ -912,7 +929,8 @@ export default function CapacidadeVsVenda({
               caminho. */}
           {(() => {
             const emitido = linhas.reduce((t, l) => t + Number(l.planoCompleto || 0), 0);
-            const previsto = linhas.reduce((t, l) => t + (l.planoCompleto ? 0 : Number(l.planoPrevisto || 0)), 0);
+            const previsto = linhas.reduce((t, l) => t + (l.planoCompleto ? 0 : Number(l.planoPrevisto || 0)), 0)
+              + linhas.reduce((t, l) => t + Number(l.planoEl || 0), 0);
             if (previsto <= 0) return null;
             return (
               <span title="Plano emitido (lote lançado ou simulação salva) mais o previsto dos meses que ainda não foram emitidos. O previsto sai da necessidade por SKU contra a projeção de venda e inclui edição limitada.">
@@ -1450,15 +1468,16 @@ export default function CapacidadeVsVenda({
                     // italico, com o rotulo "prev", para ninguem confundir estimativa com
                     // lote emitido: o travessao de antes nao dizia se o mes estava vazio
                     // por decisao ou por ainda nao ter chegado a vez dele.
+                    const total = planoDoMes(l);
+                    const el = Number(l.planoEl || 0);
                     if (!l.planoCompleto) {
-                      const prev = Number(l.planoPrevisto || 0);
-                      if (prev <= 0) return <span className="text-gray-300">—</span>;
+                      if (total <= 0) return <span className="text-gray-300">—</span>;
                       return (
                         <span
                           className="italic text-gray-500"
-                          title={`Plano PREVISTO, ainda não emitido: ${fmt(prev)} peças. Sai da necessidade por SKU calculada contra a projeção de venda (mesmo mês do ano anterior), somada à edição limitada. É estimativa, não compromisso.`}
+                          title={`Plano PREVISTO, ainda não emitido: ${fmt(Number(l.planoPrevisto || 0))} de permanente + ${fmt(el)} de edição limitada = ${fmt(total)}. O permanente sai da necessidade por SKU contra a projeção de venda; a edição limitada É a projeção de venda dela. Estimativa, não compromisso.`}
                         >
-                          {fmt(prev)}
+                          {fmt(total)}
                           <span className="ml-1 align-top text-[9px] font-semibold not-italic text-gray-400">prev</span>
                         </span>
                       );
@@ -1480,7 +1499,7 @@ export default function CapacidadeVsVenda({
                           className={l.planoSimulado ? 'font-semibold text-red-600' : 'font-semibold text-violet-700'}
                           title={l.planoSimulado ? 'SIMULAÇÃO — plano sugerido e salvo na Sugestão de Plano, ainda não aprovado nem implantado no ERP.' : undefined}
                         >
-                          {fmt(l.planoCompleto)}{l.planoSimulado && <span className="ml-1 text-[9px] font-bold align-top">SIM</span>}
+                          {fmt(total)}{l.planoSimulado && <span className="ml-1 text-[9px] font-bold align-top">SIM</span>}
                         </span>
                         {gap !== undefined && gap !== null && (
                           <div
