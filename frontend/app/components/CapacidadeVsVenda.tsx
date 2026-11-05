@@ -686,12 +686,10 @@ export default function CapacidadeVsVenda({
       .join(' ');
   };
 
-  // LINHA FANTASMA DO OUTRO DIA.
+  // O OUTRO DIA, so onde ele difere.
   //
   // No modo foto a tela mostra o dia salvo, e sem referencia nao da para ver o tamanho da
-  // mudanca: em fev/27 a capacidade sai de 103.381 (com ferias) para 132.918 (sem), e a
-  // curva sozinha nao conta isso. O fantasma desenha o OUTRO lado, pontilhado e apagado,
-  // com um circulo vazado so nos meses que de fato diferem.
+  // mudanca: em fev/27 a capacidade sai de 103.381 (com ferias) para 132.918 (sem).
   //
   // So as tres series de DADO (venda, plano, capacidade). O Disponivel e derivado do
   // nivelamento do modo escolhido, e recalcula-lo para o outro lado daria uma curva que
@@ -703,19 +701,6 @@ export default function CapacidadeVsVenda({
     c.capacidadePecas,
     null,
   ];
-  const caminhoComp = (indice: number) => {
-    let novoTraco = true;
-    return linhasComp
-      .map((c, i) => {
-        const v = c ? serieComp(c)[indice] : null;
-        if (v === null) { novoTraco = true; return ''; }
-        const comando = novoTraco ? 'M' : 'L';
-        novoTraco = false;
-        return `${comando} ${x(i).toFixed(1)} ${ySerie(indice, v).toFixed(1)}`;
-      })
-      .filter(Boolean)
-      .join(' ');
-  };
   // Um ponto so merece marca quando a diferenca e visivel na leitura: 1 peca nao e mudanca.
   const mudouNoPonto = (indice: number, i: number) => {
     const c = linhasComp[i];
@@ -929,7 +914,7 @@ export default function CapacidadeVsVenda({
           {temComparacao && (
             <span className="inline-flex items-center gap-2 font-semibold text-fuchsia-700">
               <span className="w-6 border-t-2 border-dotted border-fuchsia-600" aria-hidden="true" />
-              {rotuloComparacao} (referência) — o círculo marca o mês que mudou
+{rotuloComparacao} (referência) — o traço liga ao valor de lá, só nos meses que mudaram
             </span>
           )}
           <span className="inline-flex items-center gap-2">
@@ -1026,22 +1011,27 @@ export default function CapacidadeVsVenda({
           )}
           {/* Ordem de DESENHO, nao de faixa: a capacidade vai por baixo (tracejada, de
               fundo) e o plano por cima, para nao sumir sob o disponivel no modo comparado. */}
-          {/* FANTASMA do outro dia: atras das curvas, apagado, so para dar tamanho a
-              mudanca. O circulo vazado marca o mes que diferiu, e o rotulo diz o valor de
-              la — sem ele o fantasma vira enfeite. */}
+          {/* O MOVIMENTO, nao a curva inteira.
+              A primeira versao desenhava a linha do outro dia por cima, de ponta a ponta —
+              e como a maioria dos meses e identica, aquilo duplicava todas as curvas para
+              mostrar tres ou quatro diferencas, com os rotulos se atropelando. Agora so o
+              que mudou aparece: um traco ligando o valor de hoje ao do outro dia e um
+              circulo vazado na ponta. Sem rotulo: o numero ja esta no resumo em texto e na
+              tabela, e repeti-lo aqui era exatamente o que embolava a leitura. */}
           {temComparacao && [iVenda, iPlano, iCapacidade].map((idx) => (
-            <g key={`fantasma-${idx}`}>
-              <path d={caminhoComp(idx)} fill="none" stroke="#c026d3" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.55" />
+            <g key={`mudou-${idx}`}>
               {linhasComp.map((c, i) => {
                 if (!c || !mudouNoPonto(idx, i)) return null;
-                const v = serieComp(c)[idx];
-                if (v === null) return null;
+                const vOutro = serieComp(c)[idx];
+                const vAgora = serie(linhas[i], i)[idx];
+                if (vOutro === null || vAgora === null) return null;
+                const yA = ySerie(idx, vAgora);
+                const yO = ySerie(idx, vOutro);
                 return (
-                  <g key={`fp-${idx}-${i}`}>
-                    <circle cx={x(i)} cy={ySerie(idx, v)} r="3.5" fill="#fff" stroke="#c026d3" strokeWidth="1.5" />
-                    <text x={x(i)} y={ySerie(idx, v) + 13} textAnchor="middle" fontSize="9" fill="#c026d3" fontFamily="ui-monospace, monospace">
-                      {fmt(v)}
-                    </text>
+                  <g key={`mv-${idx}-${i}`}>
+                    <title>{`${linhas[i].mes} · ${SERIE_NOMES[idx]}: ${fmt(vAgora)} agora, ${fmt(vOutro)} em ${rotuloComparacao} (${vAgora > vOutro ? '+' : '−'}${fmt(Math.abs(vAgora - vOutro))})`}</title>
+                    <line x1={x(i)} y1={yA} x2={x(i)} y2={yO} stroke="#c026d3" strokeWidth="1.5" strokeDasharray="2 2" opacity="0.8" />
+                    <circle cx={x(i)} cy={yO} r="3" fill="#fff" stroke="#c026d3" strokeWidth="1.5" />
                   </g>
                 );
               })}
