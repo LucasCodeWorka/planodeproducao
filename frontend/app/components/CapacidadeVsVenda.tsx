@@ -530,6 +530,32 @@ export default function CapacidadeVsVenda({
     const base = Number(l.planoCompleto || 0) || Number(l.planoPrevisto || 0);
     return base + Number(l.planoEl || 0);
   };
+  // OCUPACAO DO PLANO, acumulada, na MESMA base que o grafico desenha.
+  //
+  // Antes isto vinha da `gap-mensal`, que conhece apenas o plano LANCADO. Depois que a tela
+  // passou a desenhar tambem o previsto e a edicao limitada, os dois deixaram de falar do
+  // mesmo plano: em 05/11/2026 a capacidade do horizonte era 2.043.680 pecas contra
+  // 1.990.903 de plano — 52.777 de folga, uns 6,6 dias a 8.000 pecas/dia —, e o rotulo
+  // dizia "-81d". Nao era erro de conta: eram duas contas diferentes no mesmo grafico.
+  //
+  // Agora sai das PECAS que estao na tela: plano acumulado contra capacidade acumulada, e o
+  // gap em dias pela propria produtividade do horizonte (capacidade / dias). Bate com o que
+  // qualquer um faz no papel olhando os dois totais das faixas.
+  const planoAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + planoDoMes(l), 0);
+  const capacidadeAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + Number(l.capacidadePecas || 0), 0);
+  const diasAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + Number(l.diasDisponiveis || 0), 0);
+  const ocupPlanoAcum = (i: number) => {
+    const cap = capacidadeAcumAte(i);
+    return cap > 0 ? planoAcumAte(i) / cap : null;
+  };
+  const gapPlanoDias = (i: number) => {
+    const dias = diasAcumAte(i);
+    const cap = capacidadeAcumAte(i);
+    if (!(dias > 0) || !(cap > 0)) return null;
+    // Pecas por dia do horizonte ate aqui — o divisor que transforma a sobra de pecas em
+    // dias de fabrica.
+    return (planoAcumAte(i) - cap) / (cap / dias);
+  };
   const entraNoMes = (l: typeof linhas[number]) => l.producao + Number(l.emProcessoMes || 0);
   const sobraTabela = (l: typeof linhas[number]) => entraNoMes(l) - demandaTotal(l);
   // Disponivel de ABERTURA do horizonte. Estava escrito duas vezes (aqui e no
@@ -1244,9 +1270,8 @@ export default function CapacidadeVsVenda({
                       // mesmo rotulo, sem o leitor saber qual esta vendo, e pior do que nao
                       // mostrar — e a leitura da faixa de Capacidade logo abaixo ja responde
                       // isso para os meses projetados.
-                      if (l.semPlanoEmitido || !l.planoCompleto) return null;
-                      const ocup = l.ocupAcumPlano;
-                      const gap = l.gapAcumPlano;
+                      const ocup = ocupPlanoAcum(i) ?? undefined;
+                      const gap = gapPlanoDias(i) ?? undefined;
                       if (ocup === undefined && gap === undefined) return null;
                       return (
                         <text x={xr} y={yr} textAnchor={anchor} fontSize="9" fontWeight="700" fontFamily="ui-monospace, monospace">
@@ -1521,8 +1546,9 @@ export default function CapacidadeVsVenda({
                     // fala do que FALTA — duas perguntas na mesma celula. Os campos
                     // (`planoCompletoDias`, `planoDiasAcum`, `planoDispAcum`) seguem
                     // calculados, so nao sao exibidos.
-                    const gap = l.gapAcumPlano;
-                    const ocup = l.ocupAcumPlano;
+                    const i = linhas.indexOf(l);
+                    const gap = gapPlanoDias(i) ?? undefined;
+                    const ocup = ocupPlanoAcum(i) ?? undefined;
                     return (
                       <>
                         <span
@@ -1533,7 +1559,7 @@ export default function CapacidadeVsVenda({
                         </span>
                         {gap !== undefined && gap !== null && (
                           <div
-                            title="Ocupação e gap ACUMULADOS desde o primeiro mês: dias necessários contra dias de fábrica. Acima de 100% a carga não cabe e transborda para o mês seguinte. Mesmos números da Cobertura do Plano."
+                            title="Ocupação e gap ACUMULADOS do plano desenhado nesta tela — emitido, previsto e edição limitada — contra a capacidade acumulada. O gap em dias vem da própria produtividade do horizonte (capacidade ÷ dias). Acima de 100% a carga não cabe e transborda."
                             className="font-mono text-[10px] font-bold tabular-nums"
                           >
                             {ocup !== undefined && ocup !== null && (
