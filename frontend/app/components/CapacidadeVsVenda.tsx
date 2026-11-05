@@ -705,14 +705,22 @@ export default function CapacidadeVsVenda({
           {onCenarioFabrica && cenarioFabrica !== undefined && (
             <div className="flex shrink-0 items-center gap-1.5 rounded border border-gray-200 bg-gray-50 px-3 py-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Cenário fábrica</span>
-              {([0, 0.05, 0.10] as const).map((c, i) => (
+              {/* QUEDA TAMBEM E CENARIO. O seletor so oferecia crescimento, e a casa nao
+                  esta crescendo: jan-out de 2026 vendeu 1.655.736 contra 1.883.306 em 2025,
+                  -12,1%. Projetar 2027 so com 0%, +5% ou +10% obrigava a fingir estabilidade
+                  num ano de retracao. -10% cobre a tendencia medida. */}
+              {([-0.10, -0.05, 0, 0.05, 0.10] as const).map((c, i) => (
                 <button
                   key={c}
                   onClick={() => onCenarioFabrica(c)}
-                  title={`${c === 0 ? 'Padrão: ' : ''}fábrica +${Math.round(c * 100)}% sobre o mesmo mês do ano anterior. Abril e maio ficam sempre em +20% (sinistro).`}
-                  className={`rounded px-2 py-1 text-xs font-semibold transition ${cenarioFabrica === c ? 'bg-slate-800 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+                  title={`${c === 0 ? 'Padrão: ' : ''}fábrica ${c > 0 ? '+' : ''}${Math.round(c * 100)}% sobre o mesmo mês do ano anterior. Abril e maio ficam sempre em +20% (sinistro).${c < 0 ? ' Medido em 2026: a casa caiu 12,1% contra 2025 (jan-out).' : ''}`}
+                  className={`rounded px-2 py-1 text-xs font-semibold transition ${
+                    cenarioFabrica === c
+                      ? c < 0 ? 'bg-rose-700 text-white' : 'bg-slate-800 text-white'
+                      : `${c < 0 ? 'text-rose-700' : 'text-gray-600'} hover:bg-gray-200`
+                  }`}
                 >
-                  {i + 1} · {Math.round(c * 100)}%
+                  {i + 1} · {c > 0 ? '+' : ''}{Math.round(c * 100)}%
                 </button>
               ))}
             </div>
