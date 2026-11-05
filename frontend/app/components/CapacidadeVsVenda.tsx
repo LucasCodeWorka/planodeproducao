@@ -1021,6 +1021,18 @@ export default function CapacidadeVsVenda({
               <text x={L - 8} y={faixa.topo + 17} textAnchor="end" fontSize="11" fontWeight="600" fill={SERIE_COR_TEXTO[indice]}>
                 {SERIE_NOMES[indice]}
               </text>
+              {/* TOTAL DA FAIXA, debaixo do nome dela.
+                  Venda, Plano e Capacidade sao FLUXO: somam-se no horizonte. O Disponivel e
+                  SALDO — somar estoque de meses diferentes nao significa nada —, entao ali
+                  vale o ultimo ponto, que e onde o horizonte termina. */}
+              <text x={L - 8} y={faixa.topo + 31} textAnchor="end" fontSize="10" fontWeight="700" fill={SERIE_COR_TEXTO[indice]} fontFamily="ui-monospace, monospace" opacity="0.85">
+                {indice === iDisponivel
+                  ? fmt(disponivelTabela[disponivelTabela.length - 1] ?? 0)
+                  : fmt(linhas.reduce((t, l, i2) => t + (serie(l, i2)[indice] ?? 0), 0))}
+              </text>
+              <text x={L - 8} y={faixa.topo + 42} textAnchor="end" fontSize="8" fill="#9ca3af">
+                {indice === iDisponivel ? 'no fim' : 'no horizonte'}
+              </text>
             </g>
           ))}
           {linhas.map((l, i) => (
