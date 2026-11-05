@@ -526,7 +526,7 @@ export default function CapacidadeVsVenda({
   // PLANO DO MES, com a edicao limitada dentro. O lote lancado so tem permanente — a
   // Sugestao de Plano filtra PERMANENTE e PERMANENTE COR NOVA — entao a EL entra sempre
   // pela projecao de venda dela, que e o plano dela.
-  const planoDoMes = (l: Pick<MesCapacidadeVenda, 'planoCompleto' | 'planoPrevisto' | 'planoEl'>) => {
+  const planoDoMes = (l: Pick<MesCapacidadeVenda, 'planoCompleto' | 'planoPrevisto' | 'planoEl' | 'planoSimulado'>) => {
     // QUEM JA TEM EDICAO LIMITADA DENTRO E O LOTE DO ERP — e so ele.
     //
     //   lote lancado  -> ja tem EL. O Fagner emite EL direto no ERP: medido na matriz,
