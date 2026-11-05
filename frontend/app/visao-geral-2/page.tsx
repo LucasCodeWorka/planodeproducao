@@ -210,7 +210,7 @@ export default function VisaoGeral2Page() {
   // Minutos por peca MEDIDOS na fabrica (ago-out/26: 6,5566). null = ainda nao carregou.
   const [minPecaMedido, setMinPecaMedido] = useState<number | null>(null);
   const indiceMensal = indiceMensalAtual;
-  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; disponivelAtual: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; diasCompletosMes: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; elLancadaPorMes: Record<string, { quantidade: number; skus: number }>; loteId: string; lotePeriodos: string[]; planoSimuladoPorPeriodo: Record<string, number>; coberturaSimuladaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
+  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; disponivelAtual: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; diasCompletosMes: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; elLancadaPorMes: Record<string, { quantidade: number; skus: number }>; loteId: string; lotePeriodos: string[]; planoSimuladoPorPeriodo: Record<string, number>; coberturaSimuladaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null; semPlano?: boolean }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   // Cache das respostas que não mudam com o cenário (matriz, capacidade, curva ABC,
   // cortes mínimos, gravado e agenda). Preview e edição limitada carregam uma base neutra;
@@ -436,13 +436,13 @@ export default function VisaoGeral2Page() {
       // que os originam. Guardar so o gap e recalcular o resto na tabela foi o que fez a
       // Ocupacao acumulada discordar dos dias — aqui `ocup`, `gap`, `nec` e `disp` sao a
       // mesma divisao vista de quatro jeitos, e nao podem se contradizer.
-      const coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }> = {};
+      const coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null; semPlano?: boolean }> = {};
       for (const m of (gapMensalJson?.meses || [])) {
         const p = String(m?.periodo || '').trim().toUpperCase();
         if (!p) continue;
         const nec = Number(m?.diasNecessarios || 0);
         const disp = Number(m?.diasDisponiveis || 0);
-        coberturaPorPeriodo[p] = { nec, disp, gap: Number(m?.gap || 0), ocup: disp > 0 ? nec / disp : null };
+        coberturaPorPeriodo[p] = { nec, disp, gap: Number(m?.gap || 0), ocup: disp > 0 ? nec / disp : null, semPlano: Boolean(m?.semPlano) };
       }
       const planoMesRealJson = planoMesRealResponse.ok ? await planoMesRealResponse.json() : null;
       const planoPorMesReal = (planoMesRealJson?.data || {}) as Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number }>;
@@ -1700,6 +1700,7 @@ export default function VisaoGeral2Page() {
         dispAcumPlano: data.coberturaPorPeriodo?.[p]?.disp,
         gapAcumPlano: data.coberturaPorPeriodo?.[p]?.gap,
         ocupAcumPlano: data.coberturaPorPeriodo?.[p]?.ocup ?? undefined,
+        semPlanoEmitido: data.coberturaPorPeriodo?.[p]?.semPlano,
         planoCompletoDias: pecasCarga > 0 && diasNecessarios > 0
           ? (diasNecessarios / fatorFalta) * (Math.max(
               Number(data.planoPorMesReal?.[`${ano}-${String(mes).padStart(2, '0')}`]?.qtdLote || 0),

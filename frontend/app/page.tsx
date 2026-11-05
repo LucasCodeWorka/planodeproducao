@@ -511,10 +511,15 @@ export default function Home() {
       if (!res.ok) return;
       const data = await res.json();
       if (!data?.success || !Array.isArray(data.meses)) return;
+      // PERIODO SEM PLANO EMITIDO NAO MOSTRA GAP. A rota so conhece o plano lancado: num
+      // periodo que ninguem emitiu, a carga nao cresce e os dias continuam somando, entao o
+      // gap infla sozinho. Com o horizonte em catorze isso ficou grosseiro — jul a dez/27
+      // sairiam com -63d, -85d, -106d... ate -164d, medindo a ausencia de plano e nao o
+      // plano. A marca vem da propria rota (`semPlano`), nao de regra inventada aqui.
       const mapa: Record<string, number> = {};
       for (const m of data.meses) {
         const periodo = String(m?.periodo || '');
-        if (periodo) mapa[periodo] = Number(m?.gap || 0);
+        if (periodo && !m?.semPlano) mapa[periodo] = Number(m?.gap || 0);
       }
       setGapPorPeriodo(mapa);
     } catch { /* silencioso: sem gap o card só não mostra o indicador */ }

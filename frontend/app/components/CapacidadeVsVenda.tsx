@@ -76,6 +76,9 @@ export type MesCapacidadeVenda = {
   /** Ocupação acumulada da MESMA conta do `gapAcumPlano`: necessários ÷ disponíveis, os
    * dois acumulados. Vem pronta da rota, não é recalculada aqui, pra não divergir dela. */
   ocupAcumPlano?: number;
+  /** A `gap-mensal` nao recebeu carga nova neste periodo: ninguem emitiu plano nele. A
+   *  ocupacao e o gap acima medem a AUSENCIA de plano, nao o plano — entao nao se exibem. */
+  semPlanoEmitido?: boolean;
   /** As duas parcelas que originam o gap e a ocupação, para abrir no subnível: dias de
    * fábrica que a carga pede e dias que o calendário oferece, ambos acumulados. */
   necAcumPlano?: number;
@@ -1215,6 +1218,21 @@ export default function CapacidadeVsVenda({
                     // (`ocupAcumPlano`/`gapAcumPlano`) de proposito — recalcular por aqui
                     // daria um numero proximo e diferente, e a tela voltaria a "nao bater".
                     if (indice === iPlano) {
+                      // SO ONDE HA PLANO EMITIDO. `ocupAcumPlano` e `gapAcumPlano` vem da
+                      // `gap-mensal`, que conhece apenas o plano LANCADO. Nos meses em que
+                      // nada foi emitido ela nao ganha carga nova, entao a ocupacao fica
+                      // parada e o gap so cresce porque os dias continuam somando: em
+                      // 05/11/2026 a tela mostrava 75% e -44,5d sob um plano previsto de
+                      // 147.539 pecas, depois 75% e -55,2d, depois 71% e -81d — percentuais
+                      // quase iguais sob planos que vao de 147 mil a 78 mil. Aquilo nao
+                      // media o plano desenhado; media a ausencia do outro.
+                      //
+                      // A ocupacao do previsto existe e e a da propria tela (`ocupacaoAcum`,
+                      // que ja soma a edicao limitada nos dias). Mas misturar as duas no
+                      // mesmo rotulo, sem o leitor saber qual esta vendo, e pior do que nao
+                      // mostrar — e a leitura da faixa de Capacidade logo abaixo ja responde
+                      // isso para os meses projetados.
+                      if (l.semPlanoEmitido || !l.planoCompleto) return null;
                       const ocup = l.ocupAcumPlano;
                       const gap = l.gapAcumPlano;
                       if (ocup === undefined && gap === undefined) return null;

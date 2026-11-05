@@ -2087,6 +2087,17 @@ router.get('/gap-mensal', auth, async (req, res) => {
       // feriados de cada mes sao descontados no ano certo.
       diasAcumulados += diasDisponiveisDaData(calcularPeriodosPlano(hoje).datas[chave], hoje, comParada);
       const diasNecessarios = capacidadeDiariaTotal > 0 ? tempoAcumulado / capacidadeDiariaTotal : 0;
+      // PERIODO SEM PLANO EMITIDO, marcado na FONTE.
+      //
+      // Esta rota so conhece o plano lancado. Num periodo que ninguem emitiu, a carga nao
+      // cresce e os dias continuam somando — entao a ocupacao cai e o gap infla sozinhos,
+      // sem que nada tenha acontecido na fabrica. Medido em 05/11/2026 com o horizonte em
+      // catorze: jul a dez/27 saiam com 65%, 58%, 52%, 48%, 44%, 41% e gap indo a -81 dias,
+      // numeros que nao mediam plano nenhum — mediam a ausencia dele.
+      //
+      // A marca vem daqui, e nao de cada tela, porque sao tres consumidores (o grafico, a
+      // tabela e os cards da tela principal) e cada um inventaria a sua regra.
+      const cargaDoPeriodo = carga[chave.toLowerCase()] + (cargaProcesso[chave] || 0);
       meses.push({
         periodo: chave,
         mes: periodos[chave],
@@ -2094,6 +2105,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
         diasNecessarios: Number(diasNecessarios.toFixed(2)),
         diasDisponiveis: diasAcumulados,
         gap: Number((diasNecessarios - diasAcumulados).toFixed(2)),
+        semPlano: cargaDoPeriodo <= 0,
       });
     }
 
