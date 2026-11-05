@@ -1734,13 +1734,25 @@ export default function VisaoGeral2Page() {
     // Plano escondia isso por acidente, porque nao desenha gap onde nao ha plano; a linha
     // da Liebe Move nao escondia, e foi ela que revelou.
     //
-    // Periodo com mes >= mesMA pertence ao ano BASE e ja foi desenhado no laco de
-    // PERIODOS_CAPACIDADE. So os de mes < mesMA caem no ano destino e valem aqui.
+    // O filtro era `mes < mesMA`: periodo com mes >= o do MA pertenceria ao ano BASE e ja
+    // teria sido desenhado no laco de PERIODOS_CAPACIDADE. Isso valia enquanto o horizonte
+    // cabia em doze meses. Com CATORZE periodos ele passou a derrubar os dois ultimos: em
+    // 05/11/2026 o MA e novembro (11), e DT (nov/27) e QZ (dez/27) tem mes 11 e 12 — nao
+    // sao menores que 11, entao sumiam do mapa. As simulacoes de nov/27 (97.420) e dez/27
+    // (64.170) estavam salvas e nao chegavam na tela.
+    //
+    // Agora a posicao na LISTA decide: os periodos do ano base sao os primeiros, ate o
+    // primeiro que vira o ano. Dali em diante e ano destino, por mais longe que va.
+    const ordemMA = PERIODOS_PLANO.indexOf('MA');
     const periodoDoMes: Record<number, string> = {};
-    for (const [per, mes] of Object.entries(resumoDiasEfetivo.periodos || {})) {
-      const n = Number(mes || 0);
-      if (n >= 1 && n <= 12 && n < mesMA) periodoDoMes[n] = String(per).trim().toUpperCase();
-    }
+    PERIODOS_PLANO.forEach((per, i) => {
+      const n = Number(resumoDiasEfetivo.periodos?.[per] || 0);
+      if (n < 1 || n > 12) return;
+      // Quantos meses a frente do MA este periodo esta, e em que ano isso cai.
+      const offset = i - ordemMA;
+      const anoDoPer = mesMA - 1 + offset >= 12 ? 1 : 0;
+      if (anoDoPer === 1 && !periodoDoMes[n]) periodoDoMes[n] = per;
+    });
     const ultimoFechado = Number(resumoDiasEfetivo.periodos?.QT || 0);
     data.meses.forEach((m, i) => {
       const mes = i + 1;
