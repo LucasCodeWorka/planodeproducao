@@ -152,6 +152,10 @@ export default function VisaoGeral2Page() {
   const [temposPorGrupo, setTemposPorGrupo] = useState<TempoGrupo[]>([]);
   const [ocupacaoGrupo, setOcupacaoGrupo] = useState<{ dados: GrupoOcupacao[]; capacidadeDiariaTotal: number; temMedida: boolean } | null>(null);
   const [fechamento, setFechamento] = useState<{ ano: number; meses: MesFechado[] } | null>(null);
+  // Comeca CARREGANDO, nao vazio. O bloco tem busca propria e a rota e lenta; ate ela
+  // responder a tela simplesmente nao desenhava nada ali, e isso se parece com deploy que
+  // nao subiu — foi exatamente a leitura que o PCP fez no Render em 05/11/2026.
+  const [carregandoFechamento, setCarregandoFechamento] = useState(true);
   // Como a ocupacao acha a celula de cada carga. Comeca no cadastro, que e a leitura
   // que a Sugestao de Plano ja usa — trocar o padrao faria duas telas discordarem.
   const [alocacaoOcup, setAlocacaoOcup] = useState<'cadastro' | 'mix'>('cadastro');
@@ -1092,6 +1096,8 @@ export default function VisaoGeral2Page() {
       if (r.ok && p?.success && Array.isArray(p.meses)) setFechamento({ ano: p.ano, meses: p.meses });
     } catch {
       setFechamento(null);
+    } finally {
+      setCarregandoFechamento(false);
     }
   }
   useEffect(() => { carregarFechamento(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
@@ -2093,9 +2099,25 @@ export default function VisaoGeral2Page() {
 
       {/* O passado antes do futuro: o mes fechado e a referencia contra a qual se le o
           horizonte logo abaixo. */}
-      {fechamento && fechamento.meses.length > 0 && (
+      {carregandoFechamento ? (
+        <div className="mb-6 animate-pulse rounded-lg border border-gray-200 bg-white px-5 py-4">
+          <div className="flex items-baseline justify-between gap-2">
+            <div>
+              <div className="h-4 w-72 rounded bg-gray-200" />
+              <div className="mt-2 h-3 w-96 rounded bg-gray-100" />
+            </div>
+            <div className="h-6 w-20 rounded bg-gray-200" />
+          </div>
+          <div className="mt-4 space-y-2">
+            <div className="h-3 w-full rounded bg-gray-100" />
+            <div className="h-3 w-full rounded bg-gray-100" />
+            <div className="h-3 w-5/6 rounded bg-gray-100" />
+          </div>
+          <div className="mt-3 text-[11px] text-gray-400">Carregando projetado × realizado dos meses fechados…</div>
+        </div>
+      ) : fechamento && fechamento.meses.length > 0 ? (
         <ProjetadoVsRealizado ano={fechamento.ano} meses={fechamento.meses} />
-      )}
+      ) : null}
 
       {relatorioCapacidade && (
         <CapacidadeVsVenda

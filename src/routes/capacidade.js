@@ -956,11 +956,21 @@ router.get("/config", auth, async (req, res) => {
 //
 // Janela: os meses FECHADOS mais recentes (3 por padrao), nas mesmas celulas de capacidade.
 // Medido em 05/11/2026 sobre ago-out: 3.359.751 min / 512.422 pecas = 6,56 min/peca.
+// Cache longo de proposito: a janela sao meses FECHADOS, entao o numero so muda na virada
+// do mes. Sem ele a consulta levava 22s em cada carregamento da Visao Geral 2 — e como o
+// frontend busca isto na abertura, a tela inteira esperava. `?refresh=true` forca.
+const minPecaCache = { porMeses: new Map() };
+const MIN_PECA_TTL = 6 * 60 * 60 * 1000;
+
 router.get("/min-peca-medido", auth, async (req, res) => {
   try {
     const pool = req.app.get("pool");
     if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
     const meses = Math.min(12, Math.max(1, Number(req.query.meses) || 3));
+    const cacheado = minPecaCache.porMeses.get(meses);
+    if (req.query.refresh !== 'true' && cacheado && Date.now() - cacheado.timestamp < MIN_PECA_TTL) {
+      return res.json({ ...cacheado.data, fromCache: true });
+    }
     const ids = DEFAULT_REAL_GROUP_IDS.map(String);
     const r = await pool.query(`
       WITH janela AS (
@@ -999,7 +1009,9 @@ router.get("/min-peca-medido", auth, async (req, res) => {
     const pecas = porMes.reduce((s, x) => s + x.pecas, 0);
     // Razao das SOMAS, nao media das razoes: o mes grande tem que pesar mais que o pequeno.
     const minPeca = pecas > 0 ? Number((minutos / pecas).toFixed(4)) : null;
-    res.json({ success: true, minPeca, minutos, pecas, meses: porMes });
+    const resposta = { success: true, minPeca, minutos, pecas, meses: porMes };
+    minPecaCache.porMeses.set(meses, { data: resposta, timestamp: Date.now() });
+    res.json(resposta);
   } catch (err) {
     console.error("[capacidade] min-peca-medido:", err.message);
     res.status(500).json({ success: false, error: err.message });
