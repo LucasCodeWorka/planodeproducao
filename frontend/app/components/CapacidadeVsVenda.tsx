@@ -527,14 +527,20 @@ export default function CapacidadeVsVenda({
   // Sugestao de Plano filtra PERMANENTE e PERMANENTE COR NOVA — entao a EL entra sempre
   // pela projecao de venda dela, que e o plano dela.
   const planoDoMes = (l: Pick<MesCapacidadeVenda, 'planoCompleto' | 'planoPrevisto' | 'planoEl'>) => {
-    // MES COM LOTE LANCADO JA TEM A EDICAO LIMITADA DENTRO. O lote vem do ERP, e la a EL e
-    // emitida normalmente — a matriz tem 116.590 pecas dela no plano. Quem nao emite EL e a
-    // SUGESTAO de Plano, que filtra PERMANENTE e PERMANENTE COR NOVA; por isso ela falta so
-    // onde o plano ainda nao existe. Somar nos dois casos contava duas vezes de nov/26 a
-    // jun/27 e inflava justamente os meses que ja estavam certos.
+    // QUEM JA TEM EDICAO LIMITADA DENTRO E O LOTE DO ERP — e so ele.
+    //
+    //   lote lancado  -> ja tem EL. O Fagner emite EL direto no ERP: medido na matriz,
+    //                    nov/26 tem 11.090 pecas de EL dentro das 65.122 do plano (17%),
+    //                    dez/26 tem 44.160 de 98.962 (45%). Somar por cima conta duas vezes.
+    //   SIMULACAO     -> NAO tem. Ela sai da Sugestao de Plano, que filtra PERMANENTE e
+    //                    PERMANENTE COR NOVA e nunca emitiu uma peca de EL.
+    //   sem plano     -> NAO tem, pelo mesmo motivo: o previsto e necessidade de permanente.
+    //
+    // E por isso que a distincao nao pode ser "tem plano ou nao": tem que ser a ORIGEM dele.
     const emitido = Number(l.planoCompleto || 0);
-    if (emitido > 0) return emitido;
-    return Number(l.planoPrevisto || 0) + Number(l.planoEl || 0);
+    if (emitido > 0 && !l.planoSimulado) return emitido;
+    const base = emitido > 0 ? emitido : Number(l.planoPrevisto || 0);
+    return base + Number(l.planoEl || 0);
   };
   // OCUPACAO DO PLANO, acumulada, na MESMA base que o grafico desenha.
   //
@@ -1608,7 +1614,7 @@ export default function CapacidadeVsVenda({
                   celula: (l: typeof linhas[number]) => (
                     // So onde ela foi de fato SOMADA. Em mes com lote, a EL ja esta dentro
                     // do plano e repetir o numero aqui sugeriria que ele entra por fora.
-                    !l.planoCompleto && Number(l.planoEl || 0) > 0
+                    (!l.planoCompleto || l.planoSimulado) && Number(l.planoEl || 0) > 0
                       ? <span className="tabular-nums text-amber-600">{fmt(l.planoEl || 0)}</span>
                       : <span className="text-gray-300">—</span>
                   ),
