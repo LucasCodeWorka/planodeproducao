@@ -103,6 +103,18 @@ export type MesCapacidadeVenda = {
   travado?: boolean;
   /** Mês em curso: já está rodando, então nem o piso sobe — vale o plano como está. */
   mesCorrente?: boolean;
+  /** PLANO QUE AINDA NAO EXISTE, estimado.
+   *
+   *  Mes sem lote lancado aparecia sem plano nenhum — e o PCP nao tem como enxergar o que
+   *  vai ter de produzir no ano. Isto e a necessidade por SKU calculada pela politica de
+   *  estoque contra a projecao de venda (que sai do mesmo mes do ano anterior), somada a
+   *  edicao limitada. E estimativa declarada, nao compromisso: so aparece onde nao ha plano
+   *  de verdade, e sempre marcada como prevista.
+   *
+   *  Inclui EDICAO LIMITADA, que a Sugestao de Plano nunca emite (ela filtra PERMANENTE e
+   *  PERMANENTE COR NOVA). Sao 1.318 SKUs, 44% da matriz — sem eles a previsao do plano
+   *  ficaria menor que a carga que a propria tela ja conta na capacidade. */
+  planoPrevisto?: number;
   /** Peças JA EM PROCESSO que terminam neste mês (pelo período do lote em que estão).
    *  Entram no disponível como produção: já foram cortadas, mas ainda não viraram estoque.
    *  Disjuntas do `producao` — o plano da matriz é necessidade, e a necessidade já desconta
@@ -570,7 +582,7 @@ export default function CapacidadeVsVenda({
   const SERIE_COR_TEXTO = ['#b45309', '#6d28d9', '#64748b', '#4f46e5'];
   const serie = (l: typeof linhas[number], i: number): (number | null)[] => [
     demandaTotal(l),
-    l.planoCompleto ? Number(l.planoCompleto) : null,
+    l.planoCompleto ? Number(l.planoCompleto) : (Number(l.planoPrevisto || 0) > 0 ? Number(l.planoPrevisto) : null),
     l.capacidadePecas,
     disponivelTabela[i],
   ];
@@ -1417,7 +1429,24 @@ export default function CapacidadeVsVenda({
                   expansivel: true,
                   dica: 'Plano como foi lançado: o que já virou OP mais o lote que falta, pelo mês do próprio lote. Embaixo, a ocupação ACUMULADA e o gap em dias — os mesmos números da Cobertura do Plano na tela principal, vindos da mesma conta: dias necessários somados desde o primeiro mês contra os dias de fábrica somados. 207% em outubro é a carga que resta contra os dias que restam; janeiro em 92% é o conjunto, já carregando o atraso de outubro. Em VERMELHO com o marcador SIM é SIMULAÇÃO: plano sugerido e salvo na Sugestão de Plano, ainda não aprovado nem implantado no ERP — a ocupação e o gap ao lado já consideram ela.',
                   celula: (l: typeof linhas[number]) => {
-                    if (!l.planoCompleto) return <span className="text-gray-300">—</span>;
+                    // Sem plano lancado, mostra o PREVISTO — a necessidade calculada
+                    // contra a projecao de venda, com edicao limitada dentro. Em cinza e
+                    // italico, com o rotulo "prev", para ninguem confundir estimativa com
+                    // lote emitido: o travessao de antes nao dizia se o mes estava vazio
+                    // por decisao ou por ainda nao ter chegado a vez dele.
+                    if (!l.planoCompleto) {
+                      const prev = Number(l.planoPrevisto || 0);
+                      if (prev <= 0) return <span className="text-gray-300">—</span>;
+                      return (
+                        <span
+                          className="italic text-gray-500"
+                          title={`Plano PREVISTO, ainda não emitido: ${fmt(prev)} peças. Sai da necessidade por SKU calculada contra a projeção de venda (mesmo mês do ano anterior), somada à edição limitada. É estimativa, não compromisso.`}
+                        >
+                          {fmt(prev)}
+                          <span className="ml-1 align-top text-[9px] font-semibold not-italic text-gray-400">prev</span>
+                        </span>
+                      );
+                    }
                     // Abaixo do numero, o GAP ACUMULADO em dias — o mesmo +6,45d / -5,09d
                     // que a Cobertura do Plano mostra na tela principal, e vindo da mesma
                     // rota (`/api/capacidade/gap-mensal`) de proposito: calcular por aqui

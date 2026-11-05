@@ -1781,6 +1781,10 @@ export default function VisaoGeral2Page() {
           return { demandaFabrica: c.fabrica, demandaLojas: c.lojas, demandaLojasPermanentes: c.lojasPermanentes, demandaLojasEdicaoLimitada: c.lojasEdicaoLimitada };
         })(),
         producao: m.producao + demandaEl,
+        // PLANO PREVISTO: a mesma necessidade que alimenta a producao acima, exposta como
+        // estimativa do plano que ainda vai ser emitido. Inclui edicao limitada, que a
+        // Sugestao de Plano nao emite — sem ela a previsao ficaria menor que a carga.
+        planoPrevisto: m.producao + demandaEl,
         // PLANO LANCADO num mes que a tabela trata como projetado. A linha "Plano (completo)"
         // so existia ate janeiro, porque os periodos fechados vao de MA a QT e fevereiro em
         // diante era so simulacao. Mas o plano de fevereiro foi emitido (131.550 pecas em
