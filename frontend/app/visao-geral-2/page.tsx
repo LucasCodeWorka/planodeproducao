@@ -13,6 +13,7 @@ import ResumoMudancas from '../components/ResumoMudancas';
 import { diasDeFabricaNoMes, diasDeParadaNoMes, diasUteisNoMes, paradasDoMes } from '../lib/feriados';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
+import { PERIODOS_PLANO, campoDoPeriodo } from '../lib/periodos';
 import { CRESCIMENTO_FABRICA_PADRAO, fatorFabricaMes } from '../lib/regraProjecao';
 import { MIN_PECA_MOVE_PADRAO, TOTAL_ANO_MOVE, pecasMove } from '../lib/liebeMove';
 
@@ -665,14 +666,15 @@ export default function VisaoGeral2Page() {
       // O `planoRestantePorPeriodo` acima varre so a populacao de permanentes do preview e
       // soma a edicao limitada por fora; quem nao caiu em nenhuma das duas sumia. Dezembro
       // vinha 107.070 em vez de 111.910 (4.840 a menos) e janeiro 138.230 em vez de 140.430.
+      // Todos os periodos, nao os quatro primeiros. Esta soma parava em QT: a linha "Plano
+      // (completo)" so tinha de onde tirar numero ate janeiro, e dali em diante dependia do
+      // lote lancado por mes — por isso mes sem lote aparecia sem plano nenhum no grafico,
+      // mesmo com a matriz tendo planejado para ele.
       const planoMatrizPorPeriodo = ((): Record<string, number> => {
-        const acc: Record<string, number> = { MA: 0, PX: 0, UL: 0, QT: 0 };
+        const acc: Record<string, number> = Object.fromEntries(PERIODOS_PLANO.map((p) => [p, 0]));
         for (const r of (matrix.data || []) as MatrixRow[]) {
-          const pl = r?.plano || {};
-          acc.MA += Number(pl.ma || 0);
-          acc.PX += Number(pl.px || 0);
-          acc.UL += Number(pl.ul || 0);
-          acc.QT += Number(pl.qt || 0);
+          const pl = (r?.plano || {}) as Record<string, number>;
+          for (const per of PERIODOS_PLANO) acc[per] += Number(pl[campoDoPeriodo(per)] || 0);
         }
         return acc;
       })();
