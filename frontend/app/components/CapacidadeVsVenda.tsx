@@ -134,6 +134,11 @@ type Props = {
   /** Controle que entra na LINHA do cabeçalho, junto de "Capacidade atual" e "Ajustes".
    *  Diferente de `controles`, que desenha numa faixa abaixo do título. */
   controleCabecalho?: ReactNode;
+  /** Leitura de OUTRO dia, para marcar o que mudou. Casa pelo rótulo do mês, nunca pela
+   *  posição: o horizonte rola e comparar por índice poria dezembro contra novembro. */
+  mesesComparacao?: MesCapacidadeVenda[];
+  /** Como chamar o outro lado na tela ("hoje", "a foto de 05/11"). */
+  rotuloComparacao?: string;
 };
 
 // Cobertura PADRAO da carteira, em dias de venda. O medido na carteira de hoje da ~40
@@ -165,6 +170,8 @@ export default function CapacidadeVsVenda({
   onCenarioFabrica,
   controles,
   controleCabecalho,
+  mesesComparacao,
+  rotuloComparacao = 'hoje',
 }: Props) {
   // Tres leituras, nao duas: o plano como esta, o nivelado com teto no MES e o nivelado com
   // teto no ACUMULADO. Os dois nivelamentos respondem a perguntas diferentes — "nenhum mes
@@ -474,6 +481,11 @@ export default function CapacidadeVsVenda({
     };
   });
 
+  // O QUE MUDOU. Mapa por rotulo de mes: so os meses que existem nos dois lados entram, e
+  // os que sairam do horizonte simplesmente nao recebem marca — melhor sem marca do que com
+  // uma marca comparando mes errado.
+  const compPorMes = new Map((mesesComparacao || []).map((m) => [m.mes, m]));
+  const temComparacao = compPorMes.size > 0;
   const ultimo = linhas[linhas.length - 1];
   // Todo mes anda igual: entra o que a fabrica produz, sai a demanda. O primeiro mes deixou
   // de ser excecao — ele usava a capacidade CHEIA em vez da producao, e so enquanto o
@@ -1202,6 +1214,7 @@ export default function CapacidadeVsVenda({
             {(() => {
               const defs = [
                 {
+                  valor: (l: MesCapacidadeVenda) => demandaTotal(l),
                   id: 'venda',
                   rotulo: 'Projeção de venda (Em linha)',
                   forte: true,
@@ -1334,12 +1347,14 @@ export default function CapacidadeVsVenda({
                     ),
                 },
                 {
+                  valor: (l: MesCapacidadeVenda) => l.capacidadePecas,
                   id: 'capacidade',
                   rotulo: 'Capacidade',
                   forte: true,
                   celula: (l: typeof linhas[number]) => <span className="text-gray-600">{fmt(l.capacidadePecas)}</span>,
                 },
                 {
+                  valor: (l: MesCapacidadeVenda) => Number(l.planoCompleto || 0),
                   id: 'plano',
                   rotulo: 'Plano (completo)',
                   forte: true,
@@ -1404,6 +1419,7 @@ export default function CapacidadeVsVenda({
                   },
                 },
                 {
+                  valor: (l: MesCapacidadeVenda) => Number(l.emProcessoMes || 0),
                   id: 'planoProcesso',
                   rotulo: 'já em processo (termina no mês)',
                   pai: 'plano',
@@ -1415,6 +1431,7 @@ export default function CapacidadeVsVenda({
                   ),
                 },
                 {
+                  valor: (l: MesCapacidadeVenda) => l.diasNecessarios,
                   id: 'planoNec',
                   rotulo: 'dias necessários (acum.)',
                   pai: 'plano',
@@ -1430,6 +1447,7 @@ export default function CapacidadeVsVenda({
                   },
                 },
                 {
+                  valor: (l: MesCapacidadeVenda) => l.diasDisponiveis,
                   id: 'planoDisp',
                   rotulo: 'dias de fábrica (acum.)',
                   pai: 'plano',
@@ -1677,18 +1695,33 @@ export default function CapacidadeVsVenda({
                         </>
                       )}
                     </td>
-                    {linhas.map((l, i) => (
+                    {linhas.map((l, i) => {
+                      // MARCA DE MUDANCA. So nas linhas que expoem um `valor` — as de DADO.
+                      // As derivadas (sobra, disponivel) se movem por consequencia dessas, e
+                      // marcar todas pintaria a tabela inteira sem dizer a origem de nada.
+                      const outro = 'valor' in linha && temComparacao ? compPorMes.get(l.mes) : undefined;
+                      const vAgora = outro && 'valor' in linha ? linha.valor(l) : null;
+                      const vOutro = outro && 'valor' in linha ? linha.valor(outro) : null;
+                      const mudou = vAgora !== null && vOutro !== null && Math.abs(vAgora - vOutro) >= 1;
+                      return (
                       <td
                         key={l.mes}
+                        title={mudou ? `Em ${rotuloComparacao}: ${fmt(vOutro!)} (${vAgora! > vOutro! ? '+' : '−'}${fmt(Math.abs(vAgora! - vOutro!))})` : undefined}
                         className={`px-3 text-center font-mono whitespace-nowrap ${
                           ehFilho ? 'py-2 text-xs' : 'py-3'
                         } ${
                           i === primeiroProjetado && primeiroProjetado > 0 ? 'border-l-2 border-l-amber-400 border-dashed' : ''
-                        }`}
+                        } ${mudou ? 'bg-amber-50/80 ring-1 ring-inset ring-amber-200' : ''}`}
                       >
                         {linha.celula(l)}
+                        {mudou && (
+                          <div className="text-[10px] font-semibold text-amber-700">
+                            {vAgora! > vOutro! ? '+' : '−'}{fmt(Math.abs(vAgora! - vOutro!))}
+                          </div>
+                        )}
                       </td>
-                    ))}
+                      );
+                    })}
                   </tr>
                 );
               });

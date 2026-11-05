@@ -1,13 +1,14 @@
 ﻿'use client';
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarOff, ChevronDown, ChevronRight, LayoutGrid, RefreshCw, TriangleAlert } from 'lucide-react';
+import { CalendarOff, Camera, ChevronDown, ChevronRight, History, LayoutGrid, RefreshCw, TriangleAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import PainelCapacidade, { type ResumoDiasCapacidade } from '../components/PainelCapacidade';
 import CapacidadeVsVenda, { MesCapacidadeVenda } from '../components/CapacidadeVsVenda';
 import OcupacaoPorGrupo, { type GrupoOcupacao } from '../components/OcupacaoPorGrupo';
 import ProjetadoVsRealizado, { type MesFechado } from '../components/ProjetadoVsRealizado';
+import CenariosSalvos, { type CenarioSalvo } from '../components/CenariosSalvos';
 import { diasDeFabricaNoMes, diasDeParadaNoMes, diasUteisNoMes, paradasDoMes } from '../lib/feriados';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
@@ -189,6 +190,17 @@ export default function VisaoGeral2Page() {
   // PARADA DE FABRICA como cenario. Nasce DESLIGADO: ferias coletivas sao decisao, e a
   // tela tem que abrir no mundo como ele esta, nao num mundo que alguem talvez escolha.
   const [comFerias, setComFerias] = useState(false);
+  // FOTO DO CENARIO. Guarda o que a tela mostra HOJE, para comparar depois — o horizonte
+  // rola, lote e baixado, capacidade e remedida, e a mesma tela conta outra historia na
+  // semana seguinte. Sem foto, "estava 75%" vira discussao sem prova.
+  const [salvandoCenario, setSalvandoCenario] = useState(false);
+  const [cenarios, setCenarios] = useState<CenarioSalvo[]>([]);
+  const [cenarioAberto, setCenarioAberto] = useState<CenarioSalvo | null>(null);
+  const [carregandoCenario, setCarregandoCenario] = useState(false);
+  const [painelCenarios, setPainelCenarios] = useState(false);
+  const [verFoto, setVerFoto] = useState(false);
+  const [marcarMudancas, setMarcarMudancas] = useState(true);
+  const [avisoCenario, setAvisoCenario] = useState<string | null>(null);
   // Minutos por peca MEDIDOS na fabrica (ago-out/26: 6,5566). null = ainda nao carregou.
   const [minPecaMedido, setMinPecaMedido] = useState<number | null>(null);
   const indiceMensal = indiceMensalAtual;
@@ -959,7 +971,7 @@ export default function VisaoGeral2Page() {
     } catch { /* silencioso: mantém os valores padrão */ }
   }
 
-  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); carregarMinPecaMedido(); }, [router]);
+  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); carregarMinPecaMedido(); listarCenarios(); }, [router]);
   // Trocar o cenario de parada rebusca so os DIAS: a carga nao muda, quem muda e o
   // denominador. Na primeira renderizacao o efeito de cima ja buscou, entao pula.
   const feriasMontou = useRef(false);
@@ -985,6 +997,82 @@ export default function VisaoGeral2Page() {
   // MIN/PECA MEDIDO NA FABRICA. Substitui o mix da projecao como divisor da capacidade em
   // pecas — ver o comentario em `minutosPorPeca`, abaixo. Falha em silencio: sem ele a
   // conta cai no comportamento antigo em vez de a tela morrer.
+  async function listarCenarios() {
+    try {
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/cenarios`, { headers: authHeaders() }, 60000);
+      const p = await r.json();
+      if (r.ok && p?.success && Array.isArray(p.data)) setCenarios(p.data);
+    } catch { /* lista vazia e um estado valido */ }
+  }
+
+  async function abrirCenario(id: string | number) {
+    setCarregandoCenario(true);
+    try {
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/cenarios/${id}`, { headers: authHeaders() }, 120000);
+      const p = await r.json();
+      if (r.ok && p?.success) { setCenarioAberto(p.data); setVerFoto(false); }
+    } catch { setCenarioAberto(null); } finally { setCarregandoCenario(false); }
+  }
+
+  async function apagarCenario(id: string | number) {
+    try {
+      await fetchNoCache(`${API_URL}/api/capacidade/cenarios/${id}`, { method: 'DELETE', headers: authHeaders() }, 60000);
+      if (String(cenarioAberto?.id) === String(id)) setCenarioAberto(null);
+      listarCenarios();
+    } catch { /* o botao volta ao normal sozinho */ }
+  }
+
+  async function salvarCenario() {
+    if (!relatorioCapacidade || salvandoCenario) return;
+    const sugestao = `Cenário ${new Date().toLocaleDateString('pt-BR')}`;
+    const nome = window.prompt('Nome da foto deste cenário:', sugestao);
+    if (!nome) return;
+    setSalvandoCenario(true);
+    setAvisoCenario(null);
+    try {
+      // PARAMETROS junto da LEITURA, sempre. Ocupacao de 70% com 53.300 min/dia nao se
+      // compara com 70% a 57.660 — sem os parametros do dia, a foto engana em vez de provar.
+      const parametros = {
+        capacidadeDiaria: Number(resumoDiasEfetivo?.capacidadeDiaria || 0),
+        minPecaMedido,
+        cenarioFabrica,
+        comFerias,
+        modoCobertura,
+        multiplicadorCobertura,
+        anoBase: data?.anoDestino ? data.anoDestino - 1 : null,
+        anoDestino: data?.anoDestino ?? null,
+        loteId: data?.loteId ?? null,
+        periodos: resumoDiasEfetivo?.periodos ?? {},
+      };
+      const leitura = {
+        abertura: relatorioCapacidade.abertura,
+        pedidosPendentes: relatorioCapacidade.pedidosPendentes,
+        emProcesso: data?.posicao?.emProcesso ?? null,
+        // As linhas inteiras: e o que a tela desenhou, e o unico jeito de a comparacao
+        // futura olhar mes a mes em vez de so o total.
+        meses: relatorioCapacidade.linhas,
+        ocupacaoPorGrupo: ocupacaoGrupo?.dados ?? null,
+        fechamento,
+      };
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/cenarios`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, parametros, leitura }),
+      }, 120000);
+      const p = await r.json();
+      if (!r.ok || !p?.success) throw new Error(p?.error || `HTTP ${r.status}`);
+      setAvisoCenario(`Salvo: ${p.data.nome} (#${p.data.id})`);
+      // Abre o painel ja com a foto nova na lista: salvar sem ver onde foi parar nao prova
+      // nada, e foi exatamente a duvida que o PCP levantou.
+      await listarCenarios();
+      setPainelCenarios(true);
+    } catch (e) {
+      setAvisoCenario(`Falhou: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSalvandoCenario(false);
+    }
+  }
+
   async function carregarMinPecaMedido() {
     try {
       const r = await fetchNoCache(`${API_URL}/api/capacidade/min-peca-medido`, { headers: authHeaders() });
@@ -1744,6 +1832,35 @@ export default function VisaoGeral2Page() {
     };
   }, [resumoDiasEfetivo, data, projEdicaoLimitada, elDetalhe, elDetalheBase, indiceMensal, cenarioFabrica, incluirMove, minPecaMove]);
 
+  // MODO FOTO. Com um cenario salvo aberto e o modo ligado, a tela inteira passa a ler a
+  // foto em vez de hoje: as mesmas linhas, a mesma abertura, a mesma ocupacao por grupo.
+  // Nao e um "comparativo ao lado" — e a tela daquele dia, porque e assim que se confere se
+  // o que esta na memoria bate com o que a tela mostrava.
+  //
+  // A leitura de HOJE continua disponivel em `relatorioCapacidade`, e e dela que sai a
+  // sobreposicao do que mudou.
+  const modoFoto = Boolean(verFoto && cenarioAberto?.leitura?.meses?.length);
+  const relatorioEfetivo = useMemo(() => {
+    if (!relatorioCapacidade) return null;
+    if (!modoFoto) return relatorioCapacidade;
+    const l = cenarioAberto!.leitura!;
+    return {
+      linhas: l.meses as MesCapacidadeVenda[],
+      abertura: Number(l.abertura ?? relatorioCapacidade.abertura),
+      pedidosPendentes: Number(l.pedidosPendentes ?? relatorioCapacidade.pedidosPendentes),
+    };
+  }, [relatorioCapacidade, modoFoto, cenarioAberto]);
+
+  // A ocupacao por grupo tambem tem foto. Sem isto a tabela de baixo seguiria mostrando
+  // hoje embaixo de um cabecalho que diz "voce esta vendo 05/11" — a pior das misturas.
+  const ocupacaoEfetiva = useMemo(() => {
+    if (!modoFoto) return ocupacaoGrupo;
+    const dados = (cenarioAberto?.leitura as { ocupacaoPorGrupo?: GrupoOcupacao[] } | undefined)?.ocupacaoPorGrupo;
+    if (!dados?.length) return null;
+    const cap = Number((cenarioAberto?.parametros as Record<string, number>)?.capacidadeDiaria || 0);
+    return { dados, capacidadeDiariaTotal: cap, temMedida: cap > 0 };
+  }, [modoFoto, cenarioAberto, ocupacaoGrupo]);
+
   const ultimo = data?.meses[data.meses.length - 1];
   const primeiroNegativo = data?.meses.find((m) => m.estoque < 0);
   // Agrupamento visual por semestre (pedido do usuário): 4 meses (set-dez do ano corrente) +
@@ -2119,12 +2236,65 @@ export default function VisaoGeral2Page() {
         <ProjetadoVsRealizado ano={fechamento.ano} meses={fechamento.meses} />
       ) : null}
 
-      {relatorioCapacidade && (
+      {/* MODO FOTO: a faixa fica fixa no topo e e deliberadamente chamativa. Ler numero de
+          uma data achando que e de hoje e pior do que nao ter a foto. */}
+      {modoFoto && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-amber-400 bg-amber-50 px-5 py-3">
+          <div className="text-sm text-amber-900">
+            <strong>Você está vendo a foto “{cenarioAberto?.nome}”</strong>
+            <span className="ml-2 text-amber-700">
+              salva em {cenarioAberto ? new Date(cenarioAberto.criado_em).toLocaleString('pt-BR') : ''} ·
+              capacidade {Math.round(Number((cenarioAberto?.parametros as Record<string, number>)?.capacidadeDiaria || 0)).toLocaleString('pt-BR')} min/dia
+            </span>
+            <div className="text-xs text-amber-700">
+              Toda a tela abaixo — relatório, gráfico e ocupação por grupo — está mostrando aquele dia, não hoje.
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMarcarMudancas((v) => !v)}
+              title="Marca em âmbar, célula a célula, tudo que mudou entre esta foto e hoje — com o delta embaixo do número."
+              className={`rounded border px-3 py-2 text-xs font-semibold ${
+                marcarMudancas
+                  ? 'border-amber-500 bg-amber-200 text-amber-900'
+                  : 'border-amber-400 bg-white text-amber-900 hover:bg-amber-100'
+              }`}
+            >
+              {marcarMudancas ? 'Marcando o que mudou' : 'Mostrar o que mudou'}
+            </button>
+            <button
+              onClick={() => setVerFoto(false)}
+              className="rounded border border-amber-400 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+            >
+              Voltar para hoje
+            </button>
+          </div>
+        </div>
+      )}
+      {painelCenarios && relatorioCapacidade && (
+        <CenariosSalvos
+          cenarios={cenarios}
+          aberto={cenarioAberto}
+          carregando={carregandoCenario}
+          mesesHoje={relatorioCapacidade.linhas}
+          onAbrir={abrirCenario}
+          onApagar={apagarCenario}
+          onFechar={() => setPainelCenarios(false)}
+          verFoto={verFoto}
+          onVerFoto={setVerFoto}
+        />
+      )}
+      {relatorioEfetivo && (
         <CapacidadeVsVenda
-          meses={relatorioCapacidade.linhas}
-          aberturaEstoque={relatorioCapacidade.abertura}
+          meses={relatorioEfetivo.linhas}
+          // No modo foto o outro lado e HOJE: as celulas que mudaram ficam marcadas em
+          // ambar com o delta embaixo, e a dica diz quanto era. Fora do modo foto nao ha
+          // comparacao, entao nada e marcado.
+          mesesComparacao={modoFoto && marcarMudancas ? relatorioCapacidade?.linhas : undefined}
+          rotuloComparacao="hoje"
+          aberturaEstoque={relatorioEfetivo.abertura}
           disponivelAtual={data.disponivelAtual}
-          pedidosPendentes={relatorioCapacidade.pedidosPendentes}
+          pedidosPendentes={relatorioEfetivo.pedidosPendentes}
           emProcessoAtual={data.posicao.emProcesso}
           capacidadeDiariaAtual={resumoDias?.capacidadeDiaria}
           cenarioFabrica={cenarioFabrica}
@@ -2135,7 +2305,43 @@ export default function VisaoGeral2Page() {
              corridos: 05 a 14/02 sao dez dias de calendario e QUATRO de producao, porque o
              fim de semana e o Carnaval ja estavam fora da conta. Mostrar "10 dias" faria o
              PCP descontar seis dias que nunca existiram. */
-          controleCabecalho={(() => {
+          controleCabecalho={(
+            <>
+            {/* FOTO DO CENARIO, ao lado dos controles que a produzem — e deles que a foto
+                depende, entao o botao mora junto. */}
+            <button
+              onClick={salvarCenario}
+              disabled={salvandoCenario}
+              title={avisoCenario || 'Guarda o que esta tela mostra HOJE — as linhas mes a mes, a ocupação por grupo e os parâmetros que produziram a leitura — para comparar depois. O horizonte rola e a mesma tela conta outra história na semana seguinte.'}
+              className={`inline-flex items-center gap-1.5 rounded border px-3 py-2 text-xs font-semibold transition-colors ${
+                avisoCenario?.startsWith('Salvo')
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                  : avisoCenario
+                    ? 'border-red-300 bg-red-50 text-red-800'
+                    : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+              } ${salvandoCenario ? 'opacity-60' : ''}`}
+            >
+              <Camera size={14} />
+              {salvandoCenario ? 'Salvando…' : 'Salvar cenário'}
+            </button>
+            <button
+              onClick={() => setPainelCenarios((v) => !v)}
+              title="Abre as fotos já salvas e põe a escolhida ao lado da leitura de hoje, mês a mês."
+              className={`inline-flex items-center gap-1.5 rounded border px-3 py-2 text-xs font-semibold transition-colors ${
+                painelCenarios
+                  ? 'border-indigo-300 bg-indigo-50 text-indigo-800'
+                  : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <History size={14} />
+              Cenários
+              {cenarios.length > 0 && (
+                <span className={`font-mono text-[11px] font-normal ${painelCenarios ? 'text-indigo-600' : 'text-gray-400'}`}>
+                  {cenarios.length}
+                </span>
+              )}
+            </button>
+            {(() => {
             const ano = new Date().getFullYear() + 1;
             const custo = diasDeParadaNoMes(ano, 2);
             const p0 = paradasDoMes(ano, 2)[0];
@@ -2158,7 +2364,9 @@ export default function VisaoGeral2Page() {
                 </span>
               </button>
             );
-          })()}
+            })()}
+            </>
+          )}
           controles={(
             <div className="flex w-full max-w-full flex-wrap items-center gap-x-3 gap-y-2 overflow-hidden rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm">
               <label className="flex items-center gap-2 font-semibold text-sky-900">
@@ -2193,11 +2401,11 @@ export default function VisaoGeral2Page() {
 
       {/* Abertura da tabela acima, por grupo de produto. O total dela tem que reproduzir a
           ocupacao do conjunto — e a reconciliacao fica visivel no rodape de proposito. */}
-      {ocupacaoGrupo && ocupacaoGrupo.dados.length > 0 && (
+      {ocupacaoEfetiva && ocupacaoEfetiva.dados.length > 0 && (
         <OcupacaoPorGrupo
-          dados={ocupacaoGrupo.dados}
-          capacidadeDiariaTotal={ocupacaoGrupo.capacidadeDiariaTotal}
-          temMedida={ocupacaoGrupo.temMedida}
+          dados={ocupacaoEfetiva.dados}
+          capacidadeDiariaTotal={ocupacaoEfetiva.capacidadeDiariaTotal}
+          temMedida={ocupacaoEfetiva.temMedida}
           comSimulacao={Boolean(data.loteId)}
           alocacao={alocacaoOcup}
           onAlocacao={setAlocacaoOcup}

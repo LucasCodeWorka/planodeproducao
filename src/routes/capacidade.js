@@ -2762,4 +2762,97 @@ router.get('/indice-mensal', auth, async (req, res) => {
   }
 });
 
+// ── CENARIOS SALVOS ─────────────────────────────────────────────────────────────
+// FOTO DA LEITURA DE UM DIA, para comparar depois.
+//
+// O horizonte rola, o plano e emitido aos poucos, lotes sao baixados e a capacidade e
+// remedida: a mesma tela, amanha, conta outra historia. Em 04/11/2026 um lote de outubro foi
+// baixado com 96.067 pecas e a carga caiu 588 mil minutos de um dia para o outro — e nao
+// havia como provar o que a tela dizia antes. Sem foto, "estava 75%" vira discussao.
+//
+// E FOTO, nao cenario reeditavel: guarda o que a tela mostrava, com os parametros que a
+// produziram ao lado, para a comparacao ser honesta (ocupacao de 70% com 53.300 min/dia nao
+// se compara com 70% a 57.660). Reabrir e continuar editando e outra coisa, e nao e esta.
+async function garantirTabelaCenarios(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_cenarios (
+      id          BIGSERIAL PRIMARY KEY,
+      nome        TEXT NOT NULL,
+      observacao  TEXT NOT NULL DEFAULT '',
+      criado_em   TIMESTAMP NOT NULL DEFAULT NOW(),
+      parametros  JSONB NOT NULL DEFAULT '{}'::jsonb,
+      leitura     JSONB NOT NULL DEFAULT '{}'::jsonb
+    )
+  `);
+  await pool.query("CREATE INDEX IF NOT EXISTS app_cenarios_criado_em ON app_cenarios (criado_em DESC)");
+}
+
+// Lista as fotos, SEM a leitura: ela e grande e a lista so precisa do cabecalho.
+router.get("/cenarios", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    await garantirTabelaCenarios(pool);
+    const limite = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
+    const r = await pool.query(
+      "SELECT id, nome, observacao, criado_em, parametros FROM app_cenarios ORDER BY criado_em DESC LIMIT $1",
+      [limite]
+    );
+    res.json({ success: true, data: r.rows });
+  } catch (err) {
+    console.error("[capacidade] cenarios lista:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get("/cenarios/:id", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    await garantirTabelaCenarios(pool);
+    const r = await pool.query("SELECT * FROM app_cenarios WHERE id = $1", [Number(req.params.id)]);
+    if (!r.rows.length) return res.status(404).json({ success: false, error: "Cenário não encontrado" });
+    res.json({ success: true, data: r.rows[0] });
+  } catch (err) {
+    console.error("[capacidade] cenario:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post("/cenarios", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    const nome = String(req.body?.nome || "").trim();
+    if (!nome) return res.status(400).json({ success: false, error: "nome é obrigatório" });
+    const parametros = req.body?.parametros && typeof req.body.parametros === "object" ? req.body.parametros : {};
+    const leitura = req.body?.leitura && typeof req.body.leitura === "object" ? req.body.leitura : {};
+    await garantirTabelaCenarios(pool);
+    const r = await pool.query(
+      "INSERT INTO app_cenarios (nome, observacao, parametros, leitura) VALUES ($1, $2, $3, $4) RETURNING id, nome, criado_em",
+      [nome.slice(0, 200), String(req.body?.observacao || "").slice(0, 2000), parametros, leitura]
+    );
+    res.json({ success: true, data: r.rows[0] });
+  } catch (err) {
+    console.error("[capacidade] salvar cenario:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Apagar e explicito e so por id. Foto errada se apaga; foto velha NAO — ela e justamente
+// o que permite dizer o que a tela mostrava naquele dia.
+router.delete("/cenarios/:id", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    await garantirTabelaCenarios(pool);
+    const r = await pool.query("DELETE FROM app_cenarios WHERE id = $1 RETURNING id", [Number(req.params.id)]);
+    if (!r.rows.length) return res.status(404).json({ success: false, error: "Cenário não encontrado" });
+    res.json({ success: true, data: r.rows[0] });
+  } catch (err) {
+    console.error("[capacidade] apagar cenario:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
