@@ -204,7 +204,12 @@ export default function VisaoGeral2Page() {
   // A carga extra muda junto com o cenario da tela. As funcoes de busca leem dela por REF
   // para nao entrarem na lista de dependencias de cada efeito e dispararem recarga em
   // cascata — quem decide quando rebuscar continua sendo o botao.
+  // Espelho em ESTADO da carga extra. O memo que a calcula nasce depois, no arquivo, e
+  // efeito nao pode depender de variavel declarada abaixo — sem o espelho a tabela de baixo
+  // carregava uma vez sem a carga extra e nunca mais, e o grafico mostrava 112% onde ela
+  // mostrava 124%. O ref serve so de valor corrente para quem e chamado a mao.
   const cargaExtraRef = useRef('');
+  const [extraParaRotas, setExtraParaRotas] = useState('');
   const [marcarMudancas, setMarcarMudancas] = useState(true);
   // Trocar a parada refaz duas rotas (dias-resumo e gap-mensal) e leva alguns segundos. Sem
   // sinal, o clique parece nao ter funcionado e o PCP clica de novo — e aí ve o numero
@@ -1223,9 +1228,13 @@ export default function VisaoGeral2Page() {
   }
   useEffect(() => {
     // `rawData` e a origem; `data` (o cenario derivado) so existe mais abaixo no arquivo.
-    carregarOcupacaoPorGrupo(rawData?.loteId || undefined, alocacaoOcup);
+    //
+    // `cargaExtraParam` entra como DEPENDENCIA, nao por ref: ele so fica pronto depois do
+    // min/peca medido e do relatorio, e sem isto a tabela carregava uma vez sem a carga
+    // extra e nunca mais — o grafico mostrava 112% e ela 124% no mesmo mes.
+    carregarOcupacaoPorGrupo(rawData?.loteId || undefined, alocacaoOcup, comFerias, extraParaRotas);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [rawData?.loteId, alocacaoOcup]);
+  }, [rawData?.loteId, alocacaoOcup, extraParaRotas]);
 
   // Fechamento dos meses que ja passaram. Independente do resto: o horizonte rola e leva o
   // mes fechado embora, e e justamente ele que diz se a projecao acertou.
@@ -1957,10 +1966,14 @@ export default function VisaoGeral2Page() {
   const cargaExtraParam = useMemo(() => {
     if (!relatorioCapacidade || !resumoDiasEfetivo) return '';
     const minPeca = Number(minPecaMedido || 0);
+    // PELA POSICAO, nao pelo numero do mes. Com catorze periodos novembro e dezembro
+    // aparecem duas vezes (MA/DT e PX/QZ), e `find` por mes devolvia sempre o primeiro: DT
+    // e QZ herdavam as linhas de nov/26 e dez/26, que tem lote real e portanto extra zero.
+    // As linhas estao na mesma ordem dos periodos, entao o indice e a chave certa.
     const partes: string[] = [];
-    for (const [per, mes] of Object.entries(resumoDiasEfetivo.periodos || {})) {
-      const linha = relatorioCapacidade.linhas.find((l) => l.mesNumero === Number(mes));
-      if (!linha) continue;
+    PERIODOS_PLANO.forEach((per, idx) => {
+      const linha = relatorioCapacidade.linhas[idx];
+      if (!linha) return;
       // Move: tem min/peca proprio, medido nas referencias dela.
       const minMove = Number(linha.movePecas || 0) * Number(linha.moveMinPeca || minPeca || 0);
       // EL e previsto: so onde foram SOMADOS ao plano — mes com lote do ERP ja os contem.
@@ -1968,16 +1981,17 @@ export default function VisaoGeral2Page() {
       const somaPrev = !linha.planoCompleto ? Number(linha.planoPrevisto || 0) : 0;
       const extra = minMove + (somaEl + somaPrev) * minPeca;
       if (extra > 0) partes.push(`${per}:${Math.round(extra)}`);
-    }
+    });
     return partes.join(',');
   }, [relatorioCapacidade, resumoDiasEfetivo, minPecaMedido]);
 
+  // O ref precisa estar atualizado ANTES do efeito da ocupacao rodar — por isso sincroniza
+  // durante a renderizacao, nao dentro de outro efeito.
+  cargaExtraRef.current = cargaExtraParam;
   useEffect(() => {
-    if (cargaExtraRef.current === cargaExtraParam) return;
-    cargaExtraRef.current = cargaExtraParam;
+    setExtraParaRotas(cargaExtraParam);
     if (!relatorioCapacidade) return;
     carregarGapParada(comFerias, cargaExtraParam);
-    carregarOcupacaoPorGrupo(rawData?.loteId || undefined, alocacaoOcup, comFerias, cargaExtraParam);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [cargaExtraParam]);
 
