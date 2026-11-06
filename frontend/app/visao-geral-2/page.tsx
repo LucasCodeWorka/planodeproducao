@@ -2445,6 +2445,7 @@ export default function VisaoGeral2Page() {
           // comparacao, entao nada e marcado.
           mesesComparacao={modoFoto && marcarMudancas ? relatorioCapacidade?.linhas : undefined}
           rotuloComparacao="hoje"
+          cargaExtraMin={cargaExtraParam.split(',').reduce((t, x) => t + (Number(x.split(':')[1]) || 0), 0)}
           aberturaEstoque={relatorioEfetivo.abertura}
           disponivelAtual={data.disponivelAtual}
           pedidosPendentes={relatorioEfetivo.pedidosPendentes}

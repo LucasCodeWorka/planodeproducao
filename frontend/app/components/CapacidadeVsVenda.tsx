@@ -164,6 +164,10 @@ type Props = {
   /** Leitura de OUTRO dia, para marcar o que mudou. Casa pelo rótulo do mês, nunca pela
    *  posição: o horizonte rola e comparar por índice poria dezembro contra novembro. */
   mesesComparacao?: MesCapacidadeVenda[];
+  /** Carga extra (Move, edicao limitada, previsto) que a tela mandou para as rotas, em
+   *  minutos. Fica VISIVEL no cabecalho porque o sintoma de ela nao chegar — as duas
+   *  tabelas divergindo — e indistinguivel de erro de conta. */
+  cargaExtraMin?: number;
   /** Como chamar o outro lado na tela ("hoje", "a foto de 05/11"). */
   rotuloComparacao?: string;
 };
@@ -198,6 +202,7 @@ export default function CapacidadeVsVenda({
   controles,
   controleCabecalho,
   mesesComparacao,
+  cargaExtraMin,
   rotuloComparacao = 'hoje',
 }: Props) {
   // Tres leituras, nao duas: o plano como esta, o nivelado com teto no MES e o nivelado com
@@ -978,6 +983,13 @@ export default function CapacidadeVsVenda({
               </span>
             );
           })()}
+          <span
+            title="Carga de Liebe Move, edição limitada e plano previsto que esta tela enviou às rotas de capacidade. Sem ela, esta tabela e a Ocupação por grupo medem planos diferentes e não fecham."
+            className={Number(cargaExtraMin || 0) > 0 ? '' : 'text-red-700'}
+          >
+            Carga extra enviada: <strong>{fmt(Number(cargaExtraMin || 0))}</strong> min
+            {!(Number(cargaExtraMin || 0) > 0) && ' — NÃO chegou'}
+          </span>
           <span>
             Ocupação acumulada ao fim: <strong>{pct(ultimo.ocupacaoAcum)}</strong>
             {' '}· teto {modo === 'acumulado' ? 'no acumulado' : 'no mês'}
