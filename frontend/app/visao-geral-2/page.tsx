@@ -201,6 +201,10 @@ export default function VisaoGeral2Page() {
   const [carregandoCenario, setCarregandoCenario] = useState(false);
   const [painelCenarios, setPainelCenarios] = useState(false);
   const [verFoto, setVerFoto] = useState(false);
+  // A carga extra muda junto com o cenario da tela. As funcoes de busca leem dela por REF
+  // para nao entrarem na lista de dependencias de cada efeito e dispararem recarga em
+  // cascata — quem decide quando rebuscar continua sendo o botao.
+  const cargaExtraRef = useRef('');
   const [marcarMudancas, setMarcarMudancas] = useState(true);
   // Trocar a parada refaz duas rotas (dias-resumo e gap-mensal) e leva alguns segundos. Sem
   // sinal, o clique parece nao ter funcionado e o PCP clica de novo — e aí ve o numero
@@ -1095,9 +1099,12 @@ export default function VisaoGeral2Page() {
   //
   // Rebusca so este pedaco e costura em `rawData`. Recarregar a tela inteira custaria o
   // minuto da `carregar()` para trocar uma caixinha.
-  async function carregarGapParada(ferias: boolean) {
+  async function carregarGapParada(ferias: boolean, extra = cargaExtraRef.current) {
     try {
-      const r = await fetchNoCache(`${API_URL}/api/capacidade/gap-mensal${ferias ? '?ferias=1' : ''}`, { headers: authHeaders() }, 300000);
+      const q = new URLSearchParams();
+      if (ferias) q.set('ferias', '1');
+      if (extra) q.set('extra', extra);
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/gap-mensal${q.toString() ? `?${q}` : ''}`, { headers: authHeaders() }, 300000);
       const p = await r.json();
       if (!r.ok || !Array.isArray(p?.meses)) return;
       const cobertura: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }> = {};
@@ -1191,7 +1198,7 @@ export default function VisaoGeral2Page() {
   //
   // Segue o MESMO `lote_id` da cobertura simulada, senao o detalhe contaria uma historia e
   // o total outra na mesma tela.
-  async function carregarOcupacaoPorGrupo(lote?: string, modo: 'cadastro' | 'mix' = 'cadastro', ferias = comFerias) {
+  async function carregarOcupacaoPorGrupo(lote?: string, modo: 'cadastro' | 'mix' = 'cadastro', ferias = comFerias, extra = cargaExtraRef.current) {
     setCarregandoOcup(true);
     try {
       const q = new URLSearchParams({ alocacao: modo });
@@ -1200,6 +1207,9 @@ export default function VisaoGeral2Page() {
       // bater com a ocupacao da tabela acima" — sem este parametro ela ficava intacta
       // enquanto a de cima ja reagia, e a promessa virava mentira.
       if (ferias) q.set('ferias', '1');
+      // Move, EL e previsto — ver `cargaExtraParam`. Sem isto a tabela de baixo mede outro
+      // plano que a de cima, e o rodape dela promete o contrario.
+      if (extra) q.set('extra', extra);
       const r = await fetchNoCache(`${API_URL}/api/capacidade/ocupacao-por-grupo-produto?${q}`, { headers: authHeaders() }, 300000);
       const p = await r.json();
       if (r.ok && p?.success && Array.isArray(p.dados)) {
@@ -1639,6 +1649,7 @@ export default function VisaoGeral2Page() {
         + Number(data.processoPorPeriodo[p] || 0);
       linhas.push({
         mes: `${MES_ABREV[mes - 1]}/${String(ano).slice(2)}`,
+        mesNumero: mes,
         // No ano base a demanda vem da projecao gravada (mes corrente pro-rata pelos dias
         // uteis que faltam); de janeiro em diante, da projecao desta tela.
         demanda: ano === anoBase
@@ -1782,6 +1793,7 @@ export default function VisaoGeral2Page() {
       const demandaEl = el(mes);
       linhas.push({
         mes: `${m.mes}/${String(data.anoDestino).slice(2)}`,
+        mesNumero: mes,
         demanda: m.demanda,
         demandaEl,
         baseLancada: Number(data.projOrigem[m.mes]?.lancada || 0),
@@ -1932,6 +1944,42 @@ export default function VisaoGeral2Page() {
     const cap = Number((cenarioAberto?.parametros as Record<string, number>)?.capacidadeDiaria || 0);
     return { dados, capacidadeDiariaTotal: cap, temMedida: cap > 0 };
   }, [modoFoto, cenarioAberto, ocupacaoGrupo]);
+
+  // CARGA EXTRA PARA AS ROTAS, em minutos por periodo.
+  //
+  // A tabela de cima media "plano + Move + edicao limitada + previsto"; a Ocupacao por grupo
+  // e o card mediam so o plano do ERP. O rodape daquela tabela promete bater com esta, e
+  // nunca batia — nao por erro de conta, mas porque tres pedacos da carga nascem AQUI e a
+  // rota nao os conhecia.
+  //
+  // Em vez de uma quarta conta, a tela manda o que sabe, em minutos. Fica uma conta so, do
+  // lado do banco, e as duas tabelas leem dela.
+  const cargaExtraParam = useMemo(() => {
+    if (!relatorioCapacidade || !resumoDiasEfetivo) return '';
+    const minPeca = Number(minPecaMedido || 0);
+    const partes: string[] = [];
+    for (const [per, mes] of Object.entries(resumoDiasEfetivo.periodos || {})) {
+      const linha = relatorioCapacidade.linhas.find((l) => l.mesNumero === Number(mes));
+      if (!linha) continue;
+      // Move: tem min/peca proprio, medido nas referencias dela.
+      const minMove = Number(linha.movePecas || 0) * Number(linha.moveMinPeca || minPeca || 0);
+      // EL e previsto: so onde foram SOMADOS ao plano — mes com lote do ERP ja os contem.
+      const somaEl = (!linha.planoCompleto || linha.planoSimulado) ? Number(linha.planoEl || 0) : 0;
+      const somaPrev = !linha.planoCompleto ? Number(linha.planoPrevisto || 0) : 0;
+      const extra = minMove + (somaEl + somaPrev) * minPeca;
+      if (extra > 0) partes.push(`${per}:${Math.round(extra)}`);
+    }
+    return partes.join(',');
+  }, [relatorioCapacidade, resumoDiasEfetivo, minPecaMedido]);
+
+  useEffect(() => {
+    if (cargaExtraRef.current === cargaExtraParam) return;
+    cargaExtraRef.current = cargaExtraParam;
+    if (!relatorioCapacidade) return;
+    carregarGapParada(comFerias, cargaExtraParam);
+    carregarOcupacaoPorGrupo(rawData?.loteId || undefined, alocacaoOcup, comFerias, cargaExtraParam);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [cargaExtraParam]);
 
   const ultimo = data?.meses[data.meses.length - 1];
   const primeiroNegativo = data?.meses.find((m) => m.estoque < 0);

@@ -128,6 +128,8 @@ export type MesCapacidadeVenda = {
    *  Entra SOMADO ao plano do mes, tenha ele lote lancado ou nao: a carga de EL ja contava
    *  na capacidade desta tela, e era so o plano que a ignorava. */
   planoEl?: number;
+  /** Mes 1-12, para casar a linha com o periodo do plano sem reparsear o rotulo. */
+  mesNumero?: number;
   /** Peças JA EM PROCESSO que terminam neste mês (pelo período do lote em que estão).
    *  Entram no disponível como produção: já foram cortadas, mas ainda não viraram estoque.
    *  Disjuntas do `producao` — o plano da matriz é necessidade, e a necessidade já desconta
@@ -553,21 +555,17 @@ export default function CapacidadeVsVenda({
   // Agora sai das PECAS que estao na tela: plano acumulado contra capacidade acumulada, e o
   // gap em dias pela propria produtividade do horizonte (capacidade / dias). Bate com o que
   // qualquer um faz no papel olhando os dois totais das faixas.
-  const planoAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + planoDoMes(l), 0);
-  const capacidadeAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + Number(l.capacidadePecas || 0), 0);
-  const diasAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + Number(l.diasDisponiveis || 0), 0);
-  const ocupPlanoAcum = (i: number) => {
-    const cap = capacidadeAcumAte(i);
-    return cap > 0 ? planoAcumAte(i) / cap : null;
-  };
-  const gapPlanoDias = (i: number) => {
-    const dias = diasAcumAte(i);
-    const cap = capacidadeAcumAte(i);
-    if (!(dias > 0) || !(cap > 0)) return null;
-    // Pecas por dia do horizonte ate aqui — o divisor que transforma a sobra de pecas em
-    // dias de fabrica.
-    return (planoAcumAte(i) - cap) / (cap / dias);
-  };
+  // FONTE UNICA. Cheguei a recalcular isto aqui, em pecas, porque a rota media so o plano
+  // emitido e divergia do que a tela desenha. Aquilo trocou um problema por outro: a rota
+  // conta MINUTOS com o tempo real de cada SKU e o em-processo; a conta em pecas usava um
+  // min/peca medio e o lote cheio, incluindo o que ja virou OP. Duas definicoes de carga,
+  // duas de plano, e a Ocupacao por grupo — que le a rota — continuava sem bater.
+  //
+  // Agora a rota recebe a carga que falta (Move, edicao limitada e previsto) pelo parametro
+  // `extra`, entao ela conhece o plano INTEIRO. Volta a ser a unica fonte, e as tres
+  // leituras — grafico, tabela e Ocupacao por grupo — saem do mesmo numero.
+  const ocupPlanoAcum = (i: number) => linhas[i]?.ocupAcumPlano ?? null;
+  const gapPlanoDias = (i: number) => linhas[i]?.gapAcumPlano ?? null;
   const entraNoMes = (l: typeof linhas[number]) => l.producao + Number(l.emProcessoMes || 0);
   const sobraTabela = (l: typeof linhas[number]) => entraNoMes(l) - demandaTotal(l);
   // Disponivel de ABERTURA do horizonte. Estava escrito duas vezes (aqui e no

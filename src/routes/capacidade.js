@@ -1576,6 +1576,28 @@ function somarCapacidadeDiaria(grupos, capacidadeRealPorGrupo) {
   return total;
 }
 
+
+// CARGA EXTRA, em minutos por periodo.
+//
+// Move, edicao limitada e plano previsto nascem no NAVEGADOR: a Move e simulacao da tela, a
+// EL vem da projecao propria e o previsto e necessidade calculada ali. A rota so conhece o
+// plano do ERP, entao a tabela de cima media "plano + Move + EL + previsto" e a de baixo
+// media so o plano — as duas nunca fechavam, e o rodape promete que fecham.
+//
+// Em vez de ensinar a rota a calcular tudo de novo (tres fontes, duas delas fora do banco),
+// a tela manda o que ela ja sabe, em MINUTOS, no formato `MA:0,PX:0,NV:812345`. Minuto e a
+// unidade da rota; converter aqui so criaria uma quarta versao do min/peca.
+function parseCargaExtra(texto) {
+  const mapa = {};
+  for (const parte of String(texto || '').split(',')) {
+    const [per, valor] = parte.split(':');
+    const chave = String(per || '').trim().toUpperCase();
+    const min = Number(valor);
+    if (chave && Number.isFinite(min) && min > 0) mapa[chave] = (mapa[chave] || 0) + min;
+  }
+  return mapa;
+}
+
 // ── GET /api/capacidade/dias-resumo ─────────────────────────────────────────────
 // Endpoint otimizado com cache de 5 minutos (sem autenticacao para uso no dashboard)
 router.get("/dias-resumo", async (req, res) => {
@@ -1924,7 +1946,9 @@ router.get('/gap-mensal', auth, async (req, res) => {
     // deixava a ocupacao do plano intacta — dois numeros contando historias diferentes na
     // mesma linha. Entra na chave do cache, senao o cenario anterior volta.
     const comParada = req.query.ferias === '1' || req.query.ferias === 'true';
-    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}|${comParada}`;
+    const cargaExtra = parseCargaExtra(req.query.extra);
+    const chaveExtra = Object.entries(cargaExtra).map(([k, v]) => `${k}:${Math.round(v)}`).sort().join(',');
+    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}|${comParada}|${chaveExtra}`;
 
     if (gapMensalCache.data && gapMensalCache.chave === chaveCache && (Date.now() - gapMensalCache.timestamp) < GAP_CACHE_TTL) {
       return res.json({ ...gapMensalCache.data, fromCache: true });
@@ -2082,7 +2106,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
     let diasAcumulados = 0;
     const meses = [];
     for (const chave of PERIODOS_PLANO) {
-      tempoAcumulado += carga[chave.toLowerCase()] + (cargaProcesso[chave] || 0);
+      tempoAcumulado += carga[chave.toLowerCase()] + (cargaProcesso[chave] || 0) + (cargaExtra[chave] || 0);
       // Dias do calendario, nao da config: o mes em curso entra so com o que falta, e os
       // feriados de cada mes sao descontados no ano certo.
       diasAcumulados += diasDisponiveisDaData(calcularPeriodosPlano(hoje).datas[chave], hoje, comParada);
@@ -2097,7 +2121,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
       //
       // A marca vem daqui, e nao de cada tela, porque sao tres consumidores (o grafico, a
       // tabela e os cards da tela principal) e cada um inventaria a sua regra.
-      const cargaDoPeriodo = carga[chave.toLowerCase()] + (cargaProcesso[chave] || 0);
+      const cargaDoPeriodo = carga[chave.toLowerCase()] + (cargaProcesso[chave] || 0) + (cargaExtra[chave] || 0);
       meses.push({
         periodo: chave,
         mes: periodos[chave],
@@ -2233,7 +2257,9 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
     // esta tabela ficava intacta enquanto a de cima e o grafico ja reagiam ao botao — e o
     // rodape dela promete "tem que bater com a ocupacao da tabela acima".
     const comParada = req.query.ferias === '1' || req.query.ferias === 'true';
-    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}|${alocacao}|${comParada}`;
+    const cargaExtra = parseCargaExtra(req.query.extra);
+    const chaveExtra = Object.entries(cargaExtra).map(([k, v]) => `${k}:${Math.round(v)}`).sort().join(',');
+    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}|${alocacao}|${comParada}|${chaveExtra}`;
 
     if (ocupGrupoCache.data && ocupGrupoCache.chave === chaveCache && (Date.now() - ocupGrupoCache.timestamp) < GAP_CACHE_TTL) {
       return res.json({ ...ocupGrupoCache.data, fromCache: true });
@@ -2586,6 +2612,30 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
       return saida.sort((a, b) => b.cargaFamiliaMin - a.cargaFamiliaMin);
     };
 
+    // A CARGA EXTRA entra rateada entre as familias pela participacao de CADA PERIODO.
+    //
+    // Move, edicao limitada e previsto vem da tela como um numero so por periodo, sem
+    // familia — a Move e simulacao agregada, a EL e projecao por canal e o previsto e
+    // necessidade somada. Nao da para saber a familia de cada peca, entao o rateio segue a
+    // mesma logica que ja divide a CAPACIDADE das celulas: quem carrega mais, recebe mais.
+    //
+    // Pela participacao do PERIODO e nao do horizonte, porque a Move e a EL tem estacao: a
+    // Move e forte no primeiro semestre, a EL some em junho. Ratear pela media do horizonte
+    // espalharia uma carga de verao por meses de inverno.
+    const cargaTotalPorPeriodo = {};
+    for (const per of PERIODOS_PLANO) {
+      cargaTotalPorPeriodo[per] = [...porGrupoProduto.values()].reduce((t, v) => t + (v.carga[per] || 0), 0);
+    }
+    const extraDaFamilia = (v, per) => {
+      const extra = cargaExtra[per] || 0;
+      if (!extra) return 0;
+      const total = cargaTotalPorPeriodo[per];
+      // Periodo sem carga nenhuma: divide igualmente, senao a carga extra sumiria — e e
+      // justamente nos periodos sem plano emitido que o previsto e a EL existem.
+      if (!(total > 0)) return extra / Math.max(1, porGrupoProduto.size);
+      return extra * ((v.carga[per] || 0) / total);
+    };
+
     const dados = [...porGrupoProduto.entries()]
       .map(([grupo, v]) => {
         const capDiaria = Number(capDiariaGrupo.get(grupo) || 0);
@@ -2593,7 +2643,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
         let semCelulaAcum = 0;
         let pecasAcum = 0;
         const meses = PERIODOS_PLANO.map((per) => {
-          cargaAcum += v.carga[per];
+          cargaAcum += v.carga[per] + extraDaFamilia(v, per);
           semCelulaAcum += v.cargaSemCelula[per];
           pecasAcum += v.pecas[per];
           const capacidadeMin = capDiaria * diasPorPeriodo[per];
