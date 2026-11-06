@@ -1034,6 +1034,62 @@ router.get("/min-peca-medido", auth, async (req, res) => {
   }
 });
 
+// ── GET /api/capacidade/min-peca-move ───────────────────────────────────────────
+// MINUTOS POR PECA DA LIEBE MOVE, pelos tempos dela.
+//
+// A tela usava a media das referencias que a fabrica JA produz (8,97 min) como procuracao,
+// porque a Move era estudo e nao tinha tempo cadastrado. Agora tem — 176 dos 252 SKUs —,
+// entao o numero passa a sair dos tempos dela mesma.
+//
+// SKU SEM TEMPO CONTA ZERO, por decisao do PCP (06/11/2026). E conservador no sentido
+// errado: subestima a carga e faz a fabrica parecer mais folgada do que esta. Por isso a
+// rota devolve os tres numeros — com os faltantes como zero, so dos medidos, e quantos
+// faltam — e a tela mostra a cobertura ao lado, para ninguem ler o valor sem saber que
+// 30% dos SKUs entraram como se nao dessem trabalho nenhum.
+router.get("/min-peca-move", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    const r = await pool.query(`
+      WITH move AS (
+        SELECT a.cd_produto FROM vr_prd_produto a
+         WHERE a.cd_produto < 1000000
+           AND UPPER(TRIM(COALESCE(f_dic_prd_classificacao(a.cd_produto,'DS'::text,20::bigint),''))) = 'LIEBE MOVE'
+      ),
+      t AS (
+        SELECT m.cd_produto,
+               COALESCE((
+                 SELECT SUM(COALESCE(NULLIF(s.hr_tempo,0), o.hr_tempopadrao*1440))::float
+                   FROM mv_prd_referencia_produto p
+                   JOIN vr_cdf_seqope s ON s.cd_seqgrupo = p.cd_seqgrupo
+                   JOIN vr_cdf_operac o ON o.cd_operacao = s.cd_operacao
+                  WHERE p.cd_produto = m.cd_produto AND o.cd_tipooperacao IN (1,3,4)
+               ), 0)::float AS min
+          FROM move m
+      )
+      SELECT COUNT(*)::int AS skus,
+             COUNT(*) FILTER (WHERE min > 0)::int AS com_tempo,
+             COALESCE(AVG(min), 0)::float AS media_com_zero,
+             COALESCE(AVG(min) FILTER (WHERE min > 0), 0)::float AS media_medidos
+        FROM t`);
+    const x = r.rows[0];
+    res.json({
+      success: true,
+      skus: x.skus,
+      comTempo: x.com_tempo,
+      semTempo: x.skus - x.com_tempo,
+      cobertura: x.skus > 0 ? Number((x.com_tempo / x.skus).toFixed(4)) : 0,
+      // O que a tela usa: faltante entra como zero.
+      minPeca: Number(Number(x.media_com_zero).toFixed(4)),
+      // Para conferencia: so os que tem tempo.
+      minPecaMedidos: Number(Number(x.media_medidos).toFixed(4)),
+    });
+  } catch (err) {
+    console.error("[capacidade] min-peca-move:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get("/real", auth, async (req, res) => {
   try {
     const pool = req.app.get("pool");

@@ -176,11 +176,16 @@ export default function VisaoGeral2Page() {
   //
   // Se um dia a Move tiver tempo proprio cadastrado, ele entra pelo mesmo caminho de todo o
   // resto e esta conta sai.
+  // Os tempos da PROPRIA Move ganham de tudo. Antes a tela usava a media das referencias
+  // que a fabrica ja produz (8,97) como procuracao, porque a Move era estudo e nao tinha
+  // tempo cadastrado. Agora tem. Quem nao tem entra como zero, a pedido do PCP — e e por
+  // isso que a cobertura aparece ao lado do numero.
   const minPecaMove = useMemo(() => {
+    if (moveMedido && moveMedido.minPeca > 0) return moveMedido.minPeca;
     const refs = temposPorGrupo.reduce((a, t) => a + t.referencias, 0);
     if (!refs) return MIN_PECA_MOVE_PADRAO;
     return temposPorGrupo.reduce((a, t) => a + t.min_peca_medio * t.referencias, 0) / refs;
-  }, [temposPorGrupo]);
+  }, [temposPorGrupo, moveMedido]);
   // Perfil sazonal da produtividade diaria, por mes do calendario. Sem ele a capacidade
   // do ultimo mes fechado vale para os 15 meses do horizonte, e a variacao real de 14%
   // entre o melhor e o pior mes some.
@@ -220,6 +225,9 @@ export default function VisaoGeral2Page() {
   const [avisoCenario, setAvisoCenario] = useState<string | null>(null);
   // Minutos por peca MEDIDOS na fabrica (ago-out/26: 6,5566). null = ainda nao carregou.
   const [minPecaMedido, setMinPecaMedido] = useState<number | null>(null);
+  // Min/peca da Liebe Move pelos tempos DELA. `semTempo` entra como zero, por decisao do
+  // PCP — por isso a cobertura viaja junto e aparece na tela.
+  const [moveMedido, setMoveMedido] = useState<{ minPeca: number; comTempo: number; skus: number } | null>(null);
   const indiceMensal = indiceMensalAtual;
   const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; disponivelAtual: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; diasCompletosMes: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; elLancadaPorMes: Record<string, { quantidade: number; skus: number }>; loteId: string; lotePeriodos: string[]; planoSimuladoPorPeriodo: Record<string, number>; coberturaSimuladaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null; semPlano?: boolean }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number; qtdLoteNoFiltro?: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
@@ -989,7 +997,7 @@ export default function VisaoGeral2Page() {
     } catch { /* silencioso: mantém os valores padrão */ }
   }
 
-  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); carregarMinPecaMedido(); listarCenarios(); }, [router]);
+  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); carregarMinPecaMedido(); carregarMinPecaMove(); listarCenarios(); }, [router]);
   // Trocar o cenario de parada rebusca so os DIAS: a carga nao muda, quem muda e o
   // denominador. Na primeira renderizacao o efeito de cima ja buscou, entao pula.
   const feriasMontou = useRef(false);
@@ -1124,6 +1132,15 @@ export default function VisaoGeral2Page() {
       }
       setRawData((d) => (d ? { ...d, coberturaPorPeriodo: cobertura } : d));
     } catch { /* fica o gap anterior, que e melhor que tela vazia */ }
+  }
+
+  async function carregarMinPecaMove() {
+    try {
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/min-peca-move`, { headers: authHeaders() }, 120000);
+      const p = await r.json();
+      if (!r.ok || !p?.success || !(Number(p.minPeca) > 0)) return;
+      setMoveMedido({ minPeca: Number(p.minPeca), comTempo: Number(p.comTempo), skus: Number(p.skus) });
+    } catch { /* mantem a media das referencias que a fabrica ja produz */ }
   }
 
   async function carregarMinPecaMedido() {
@@ -2227,7 +2244,7 @@ export default function VisaoGeral2Page() {
   return <div className="min-h-screen bg-gray-100"><Sidebar onCollapse={setCollapsed} /><main className={`${collapsed ? 'ml-20' : 'ml-64'} p-6 transition-all`}>
     <div className="flex items-start justify-between mb-6"><div><p className="text-xs uppercase tracking-widest text-gray-500">Planejamento agregado</p><h1 className="text-2xl font-bold text-gray-900">Visão Geral 2 (teste)</h1><p className="text-sm text-gray-500 mt-1">Projeção {data?.anoDestino || new Date().getFullYear() + 1}.1 usando permanentes com venda em 6m ou 3m.</p></div>
       <div className="flex items-center gap-3">
-        <button onClick={() => { carregar(true); carregarCapacidade(); carregarEdicaoLimitada(true); carregarIndiceMensal(); carregarMinPecaMedido(); }} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
+        <button onClick={() => { carregar(true); carregarCapacidade(); carregarEdicaoLimitada(true); carregarIndiceMensal(); carregarMinPecaMedido(); carregarMinPecaMove(); }} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
       </div>
     </div>
     {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -2548,7 +2565,18 @@ export default function VisaoGeral2Page() {
                 className="text-xs text-gray-600"
                 title="A Liebe Move ainda não tem tempo de costura cadastrado. Enquanto não tiver, vale a média das referências que a fábrica já produz com tempo medido."
               >
-                tempo medido das {temposPorGrupo.reduce((a, t) => a + t.referencias, 0) || 223} referências que a fábrica já produz
+                {moveMedido && moveMedido.minPeca > 0 ? (
+                  <>
+                    tempo da própria Move, {moveMedido.comTempo} de {moveMedido.skus} SKUs cadastrados
+                    {moveMedido.comTempo < moveMedido.skus && (
+                      <strong className="ml-1 text-amber-700">
+                        — os {moveMedido.skus - moveMedido.comTempo} sem tempo entram como zero, então a carga está subestimada
+                      </strong>
+                    )}
+                  </>
+                ) : (
+                  <>tempo medido das {temposPorGrupo.reduce((a, t) => a + t.referencias, 0) || 223} referências que a fábrica já produz</>
+                )}
               </span>
               {/* Mapeamento familia -> grupo. Fica aberto, nao escondido atras de um
                   "avancado": e a premissa que decide a resposta, e quem le a tela precisa
