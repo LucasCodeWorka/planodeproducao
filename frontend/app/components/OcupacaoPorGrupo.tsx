@@ -62,6 +62,8 @@ export type GrupoOcupacao = {
   refsSemCelula: RefSemCelula[];
   /** Os grupos de costura que fabricam a família, os de maior carga primeiro. */
   celulas: CelulaDaFamilia[];
+  /** Capacidade órfã realocada para esta família, só na tela. Ver FAMILIA_DA_CAPACIDADE_ORFA. */
+  recebeuOrfa?: number;
   meses: MesGrupo[];
 };
 
@@ -128,9 +130,70 @@ function confiavel(g: GrupoOcupacao) {
   return Number(g.fatiaSemCelula || 0) <= LIMITE_SEM_CELULA;
 }
 
-export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedida, comSimulacao, alocacao, onAlocacao, carregando, ocupacaoAlvo }: Props) {
+// CAPACIDADE ORFA — a celula que tem medicao e nenhuma referencia cadastrada.
+//
+// `08 - ESPERANCA CA BASICO` produz de verdade (23.856 pecas em 60 dias, 100% CALCA) e nao
+// tem uma unica referencia vinculada em `app_capacidade_grupo_refs`. Sem referencia ela nao
+// carrega nada, entao nao entra em familia nenhuma: os 2.252 min/dia dela aparecem no total
+// da fabrica (53.300) e somem na soma das familias (51.049).
+//
+// O PCP pediu para ve-la dentro de SUTIA — e simulacao de onde a capacidade faria falta,
+// nao afirmacao sobre a fabrica. Por isso e SO VISUAL: nenhum dado e gravado, e a realocacao
+// vive aqui, na renderizacao.
+//
+// ATENCAO ao ler: a Esperanca costura CALCA hoje. Mostra-la em SUTIA responde "e se ela
+// passasse para la", nao "ela esta la". A tela diz isso na dica da linha.
+const FAMILIA_DA_CAPACIDADE_ORFA = 'SUTIA';
+
+export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaTotal, temMedida, comSimulacao, alocacao, onAlocacao, carregando, ocupacaoAlvo }: Props) {
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
   const [verOutros, setVerOutros] = useState(false);
+
+  // A orfa e o que sobra: total da fabrica menos a soma das familias. Nao precisa a rota
+  // dizer quem e — se a diferenca existe, e capacidade sem dono.
+  const capacidadeOrfa = useMemo(() => {
+    const somaFamilias = dadosBrutos.reduce((a, g) => a + Number(g.capacidadeDiaria || 0), 0);
+    return Math.max(0, capacidadeDiariaTotal - somaFamilias);
+  }, [dadosBrutos, capacidadeDiariaTotal]);
+
+  const dados = useMemo(() => {
+    if (!(capacidadeOrfa > 0)) return dadosBrutos;
+    return dadosBrutos.map((g) => {
+      if (g.grupo !== FAMILIA_DA_CAPACIDADE_ORFA) return g;
+      const capNova = Number(g.capacidadeDiaria || 0) + capacidadeOrfa;
+      return {
+        ...g,
+        capacidadeDiaria: capNova,
+        fatiaCapacidade: capacidadeDiariaTotal > 0 ? capNova / capacidadeDiariaTotal : g.fatiaCapacidade,
+        recebeuOrfa: capacidadeOrfa,
+        // Ocupacao e gap recalculados com a capacidade nova — senao a linha mostraria mais
+        // min/dia e o mesmo percentual, que e o pior dos dois mundos.
+        celulas: [
+          ...g.celulas,
+          {
+            celula: '08 - ESPERANCA CA BASICO  (realocada, só nesta tela)',
+            capacidadeDiaria: capacidadeOrfa,
+            cargaFamiliaMin: 0,
+            cargaCelulaMin: 0,
+            fatiaDaFamilia: 0,
+            ocupacaoCelula: 0,
+            semCapacidade: false,
+          },
+        ],
+        meses: g.meses.map((m) => {
+          const capMin = capNova * Number(m.diasDisponiveis || 0);
+          const nec = capNova > 0 ? Number(m.cargaAcumMin || 0) / capNova : 0;
+          return {
+            ...m,
+            capacidadeMin: capMin,
+            diasNecessarios: nec,
+            ocupacao: capMin > 0 ? Number(m.cargaAcumMin || 0) / capMin : null,
+            gapDias: nec - Number(m.diasDisponiveis || 0),
+          };
+        }),
+      };
+    });
+  }, [dadosBrutos, capacidadeOrfa, capacidadeDiariaTotal]);
 
   const periodos = dados[0]?.meses || [];
 
@@ -187,7 +250,7 @@ export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedi
   const principais = dados.filter(visivel);
   const outros = dados.filter((g) => !visivel(g));
 
-  if (!dados.length) return null;
+  if (!dadosBrutos.length) return null;
 
   const linhaGrupo = (g: GrupoOcupacao) => {
     const aberto = abertos[g.grupo] === true;
@@ -208,6 +271,16 @@ export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedi
             <div className="pl-5 text-[10px] font-normal text-gray-400">
               {pct(g.fatiaCapacidade)} da fábrica · {fmt(g.capacidadeDiaria)} min/dia
             </div>
+            {/* A realocacao tem que ser DITA, nao deduzida. A Esperanca costura calca hoje;
+                mostra-la aqui responde "e se ela passasse para ca", nao "ela esta ca". */}
+            {Number(g.recebeuOrfa || 0) > 0 && (
+              <div
+                className="pl-5 text-[10px] font-semibold text-amber-700"
+                title="A célula 08 - ESPERANÇA tem capacidade medida no ERP e NENHUMA referência cadastrada, então não pertence a família nenhuma — os minutos dela apareciam no total da fábrica e sumiam na soma das famílias. Aqui ela está somada a esta família A PEDIDO DO PCP, só na tela: nenhum dado foi alterado. Atenção: ela costura CALÇA hoje (23.856 peças em 60 dias, 100%). Isto responde 'e se ela passasse para cá', não 'ela está aqui'."
+              >
+                inclui {fmt(g.recebeuOrfa || 0)} min/dia da Esperança — simulação visual, ela costura calça hoje
+              </div>
+            )}
           </td>
           {g.meses.map((m, i) => {
             const vazio = semPlano[i];
