@@ -180,6 +180,9 @@ export default function VisaoGeral2Page() {
   // que a fabrica ja produz (8,97) como procuracao, porque a Move era estudo e nao tinha
   // tempo cadastrado. Agora tem. Quem nao tem entra como zero, a pedido do PCP — e e por
   // isso que a cobertura aparece ao lado do numero.
+  // Min/peca da Liebe Move pelos tempos DELA. `semTempo` entra como zero, por decisao do
+  // PCP — por isso a cobertura viaja junto e aparece na tela.
+  const [moveMedido, setMoveMedido] = useState<{ minPeca: number; comTempo: number; skus: number } | null>(null);
   const minPecaMove = useMemo(() => {
     if (moveMedido && moveMedido.minPeca > 0) return moveMedido.minPeca;
     const refs = temposPorGrupo.reduce((a, t) => a + t.referencias, 0);
@@ -225,9 +228,6 @@ export default function VisaoGeral2Page() {
   const [avisoCenario, setAvisoCenario] = useState<string | null>(null);
   // Minutos por peca MEDIDOS na fabrica (ago-out/26: 6,5566). null = ainda nao carregou.
   const [minPecaMedido, setMinPecaMedido] = useState<number | null>(null);
-  // Min/peca da Liebe Move pelos tempos DELA. `semTempo` entra como zero, por decisao do
-  // PCP — por isso a cobertura viaja junto e aparece na tela.
-  const [moveMedido, setMoveMedido] = useState<{ minPeca: number; comTempo: number; skus: number } | null>(null);
   const indiceMensal = indiceMensalAtual;
   const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; disponivelAtual: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; diasCompletosMes: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; elLancadaPorMes: Record<string, { quantidade: number; skus: number }>; loteId: string; lotePeriodos: string[]; planoSimuladoPorPeriodo: Record<string, number>; coberturaSimuladaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null; semPlano?: boolean }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number; qtdLoteNoFiltro?: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
