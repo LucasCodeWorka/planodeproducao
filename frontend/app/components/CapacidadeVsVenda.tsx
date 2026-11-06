@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Factory, Search, SlidersHorizontal, TrendingUp } from 'lucide-react';
 import { DIAS_FIXOS_POR_MES } from '../lib/feriados';
 import AnaliseProjecaoModal from './AnaliseProjecaoModal';
@@ -168,6 +168,10 @@ type Props = {
    *  minutos. Fica VISIVEL no cabecalho porque o sintoma de ela nao chegar — as duas
    *  tabelas divergindo — e indistinguivel de erro de conta. */
   cargaExtraMin?: number;
+  /** Avisa a pagina da ocupacao acumulada do PLANO, periodo a periodo, na conta em pecas
+   *  desta tela. A Ocupacao por grupo usa isto para fechar com o que esta aqui: ela calcula
+   *  em minutos e por familia, e sem um alvo comum as duas nunca batem. */
+  onOcupacaoPlano?: (v: (number | null)[]) => void;
   /** Como chamar o outro lado na tela ("hoje", "a foto de 05/11"). */
   rotuloComparacao?: string;
 };
@@ -203,6 +207,7 @@ export default function CapacidadeVsVenda({
   controleCabecalho,
   mesesComparacao,
   cargaExtraMin,
+  onOcupacaoPlano,
   rotuloComparacao = 'hoje',
 }: Props) {
   // Tres leituras, nao duas: o plano como esta, o nivelado com teto no MES e o nivelado com
@@ -569,8 +574,31 @@ export default function CapacidadeVsVenda({
   // Agora a rota recebe a carga que falta (Move, edicao limitada e previsto) pelo parametro
   // `extra`, entao ela conhece o plano INTEIRO. Volta a ser a unica fonte, e as tres
   // leituras — grafico, tabela e Ocupacao por grupo — saem do mesmo numero.
-  const ocupPlanoAcum = (i: number) => linhas[i]?.ocupAcumPlano ?? null;
-  const gapPlanoDias = (i: number) => linhas[i]?.gapAcumPlano ?? null;
+  // EM PECAS, contra os dois totais que estao na propria tela.
+  //
+  // Ja tentei duas vezes ler isto da `gap-mensal` e as duas deram errado, por motivos
+  // diferentes: ela nao conhece a carga extra (Move, edicao limitada, previsto) e a chamada
+  // que alimenta esta tela nao manda o `lote_id`, entao perde as simulacoes de jul a dez/27
+  // inteiras. O resultado foi 74% onde a conta da tela da 90%.
+  //
+  // A conta em pecas tem uma virtude que a outra nao tem: QUALQUER UM CONFERE. Os dois
+  // totais estao desenhados ao lado das faixas — 1.807.519 de plano sobre 2.018.304 de
+  // capacidade da 89,6%. Precisao em minutos com tempo por SKU e melhor na teoria e inutil
+  // se o numero nao se explica para quem le.
+  const planoAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + planoDoMes(l), 0);
+  const capacidadeAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + Number(l.capacidadePecas || 0), 0);
+  const diasAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + Number(l.diasDisponiveis || 0), 0);
+  const ocupPlanoAcum = (i: number) => {
+    const cap = capacidadeAcumAte(i);
+    return cap > 0 ? planoAcumAte(i) / cap : null;
+  };
+  const gapPlanoDias = (i: number) => {
+    const dias = diasAcumAte(i);
+    const cap = capacidadeAcumAte(i);
+    if (!(dias > 0) || !(cap > 0)) return null;
+    // A sobra de pecas vira dias pela produtividade do proprio horizonte.
+    return (planoAcumAte(i) - cap) / (cap / dias);
+  };
   const entraNoMes = (l: typeof linhas[number]) => l.producao + Number(l.emProcessoMes || 0);
   const sobraTabela = (l: typeof linhas[number]) => entraNoMes(l) - demandaTotal(l);
   // Disponivel de ABERTURA do horizonte. Estava escrito duas vezes (aqui e no
@@ -624,6 +652,15 @@ export default function CapacidadeVsVenda({
   // Por isso a serie agora e `l.estoque` direto, que e a trajetoria que o nivelamento ja
   // usa. Uma regua so para as duas linhas, e nenhuma premissa no meio.
   const fisicoPrevisto = linhas.map((l) => l.estoque);
+
+  // Publica a leitura para a tabela de baixo. Em efeito, nao no render, para nao avisar o
+  // pai no meio da renderizacao dele.
+  const ocupPlanoSerie = linhas.map((_, i) => ocupPlanoAcum(i));
+  const ocupPlanoChave = ocupPlanoSerie.map((v) => (v === null ? '' : v.toFixed(4))).join('|');
+  useEffect(() => {
+    onOcupacaoPlano?.(ocupPlanoSerie);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [ocupPlanoChave]);
 
   const desvioMeta = disponivelTabela[disponivelTabela.length - 1] - metaEstoqueFinal;
   const menorDisponivel = Math.min(...disponivelTabela);

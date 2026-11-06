@@ -210,6 +210,8 @@ export default function VisaoGeral2Page() {
   // mostrava 124%. O ref serve so de valor corrente para quem e chamado a mao.
   const cargaExtraRef = useRef('');
   const [extraParaRotas, setExtraParaRotas] = useState('');
+  // Leitura do plano que a Capacidade x Venda publica, para a Ocupacao por grupo se alinhar.
+  const [ocupPlanoDaTela, setOcupPlanoDaTela] = useState<(number | null)[]>([]);
   const [marcarMudancas, setMarcarMudancas] = useState(true);
   // Trocar a parada refaz duas rotas (dias-resumo e gap-mensal) e leva alguns segundos. Sem
   // sinal, o clique parece nao ter funcionado e o PCP clica de novo — e aí ve o numero
@@ -2446,6 +2448,7 @@ export default function VisaoGeral2Page() {
           mesesComparacao={modoFoto && marcarMudancas ? relatorioCapacidade?.linhas : undefined}
           rotuloComparacao="hoje"
           cargaExtraMin={cargaExtraParam.split(',').reduce((t, x) => t + (Number(x.split(':')[1]) || 0), 0)}
+          onOcupacaoPlano={setOcupPlanoDaTela}
           aberturaEstoque={relatorioEfetivo.abertura}
           disponivelAtual={data.disponivelAtual}
           pedidosPendentes={relatorioEfetivo.pedidosPendentes}
@@ -2567,6 +2570,7 @@ export default function VisaoGeral2Page() {
           alocacao={alocacaoOcup}
           onAlocacao={setAlocacaoOcup}
           carregando={carregandoOcup}
+          ocupacaoAlvo={ocupPlanoDaTela}
         />
       )}
       </div>

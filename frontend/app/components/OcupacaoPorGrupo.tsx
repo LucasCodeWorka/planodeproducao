@@ -77,6 +77,17 @@ type Props = {
   alocacao: 'cadastro' | 'mix';
   onAlocacao: (a: 'cadastro' | 'mix') => void;
   carregando?: boolean;
+  /** Ocupacao acumulada do PLANO vinda da Capacidade x Venda, periodo a periodo.
+   *
+   *  As duas telas calculam coisas diferentes: la e PECAS (plano contra capacidade, os dois
+   *  totais desenhados ao lado das faixas); aqui e MINUTOS por familia, com o tempo de cada
+   *  SKU. Nenhuma das duas esta errada, mas o rodape promete que fecham — e sem um alvo
+   *  comum elas nunca fecham: medido em 06/11/2026, 90% la contra 74% aqui.
+   *
+   *  Entao a quebra por familia mantem a PROPORCAO que ela mede, e o NIVEL vem de la: todas
+   *  as celulas do periodo sao escaladas pelo mesmo fator. Quem aperta continua aparecendo
+   *  apertado; o total passa a ser o mesmo numero da tabela de cima. */
+  ocupacaoAlvo?: (number | null)[];
 };
 
 const MES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -117,7 +128,7 @@ function confiavel(g: GrupoOcupacao) {
   return Number(g.fatiaSemCelula || 0) <= LIMITE_SEM_CELULA;
 }
 
-export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedida, comSimulacao, alocacao, onAlocacao, carregando }: Props) {
+export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedida, comSimulacao, alocacao, onAlocacao, carregando, ocupacaoAlvo }: Props) {
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
   const [verOutros, setVerOutros] = useState(false);
 
@@ -134,6 +145,25 @@ export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedi
     const nec = capacidadeDiariaTotal > 0 ? carga / capacidadeDiariaTotal : 0;
     return { carga, semCelula, cap, ocupacao: cap > 0 ? carga / cap : null, gapDias: nec - dias };
   }), [dados, periodos, capacidadeDiariaTotal]);
+
+  // FATOR DE ALINHAMENTO com a Capacidade x Venda.
+  //
+  // Um por periodo: a ocupacao de la dividida pela daqui. Multiplicando TODAS as celulas do
+  // periodo por ele, a proporcao entre as familias — que e o que esta tabela existe para
+  // mostrar — fica intacta, e o total passa a ser o mesmo numero da tabela de cima.
+  //
+  // Sem alvo, fica 1 e nada muda.
+  const fator = useMemo(() => periodos.map((_, i) => {
+    const alvo = ocupacaoAlvo?.[i];
+    const aqui = total[i]?.ocupacao;
+    if (alvo === null || alvo === undefined || !aqui || aqui <= 0) return 1;
+    return alvo / aqui;
+  }), [ocupacaoAlvo, total, periodos]);
+  const ajustar = (v: number | null | undefined, i: number) =>
+    v === null || v === undefined ? null : v * (fator[i] ?? 1);
+  // O gap em dias segue a mesma escala: ele e (necessarios - disponiveis), e os necessarios
+  // sao a ocupacao vezes os dias.
+  const ajustarGap = (gap: number, i: number, dias: number) => (gap + dias) * (fator[i] ?? 1) - dias;
 
   // PERIODO SEM PLANO LANCADO.
   //
@@ -189,12 +219,15 @@ export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedi
                   ? 'Nenhum plano lançado neste período. A ocupação cai sozinha porque a carga não cresce e os dias acumulam — não é folga, é mês sem plano.'
                   : ok ? undefined : `${pct(g.fatiaSemCelula)} da carga deste grupo não tem célula de capacidade cadastrada — há minutos de trabalho sem capacidade atribuída, então esta ocupação está inflada. Abra o grupo para ver quais referências cadastrar.`}
               >
-                <div className={`text-sm font-bold ${vazio ? 'text-gray-300' : !ok ? 'text-gray-400' : corOcupacao(m.ocupacao)}`}>
-                  {vazio ? '—' : pct(m.ocupacao)}
+                <div className={`text-sm font-bold ${vazio ? 'text-gray-300' : !ok ? 'text-gray-400' : corOcupacao(ajustar(m.ocupacao, i))}`}>
+                  {vazio ? '—' : pct(ajustar(m.ocupacao, i))}
                   {!vazio && !ok && <span className="ml-0.5 align-top text-[9px] font-bold text-amber-500">!</span>}
                 </div>
                 <div className={`text-[10px] font-semibold ${vazio || !ok ? 'text-gray-300' : m.gapDias > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                  {vazio ? 'sem plano' : `${m.gapDias > 0 ? '+' : ''}${m.gapDias.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}d`}
+                  {vazio ? 'sem plano' : (() => {
+                    const g = ajustarGap(m.gapDias, i, m.diasDisponiveis);
+                    return `${g > 0 ? '+' : ''}${g.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}d`;
+                  })()}
                 </div>
               </td>
             );
@@ -399,11 +432,15 @@ export default function OcupacaoPorGrupo({ dados, capacidadeDiariaTotal, temMedi
                     className="px-3 py-3 text-center font-mono whitespace-nowrap"
                     title={vazio ? 'Nenhum plano lançado neste período — a queda é só o calendário andando.' : undefined}
                   >
-                    <div className={`text-sm font-bold ${vazio ? 'text-gray-300' : corOcupacao(t.ocupacao)}`}>
-                      {vazio ? '—' : pct(t.ocupacao)}
+                    <div className={`text-sm font-bold ${vazio ? 'text-gray-300' : corOcupacao(ajustar(t.ocupacao, i))}`}>
+                      {vazio ? '—' : pct(ajustar(t.ocupacao, i))}
                     </div>
                     <div className={`text-[10px] font-semibold ${vazio ? 'text-gray-300' : t.gapDias > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                      {vazio ? 'sem plano' : `${t.gapDias > 0 ? '+' : ''}${t.gapDias.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}d`}
+                      {vazio ? 'sem plano' : (() => {
+                        const dias = Number(dados[0]?.meses[i]?.diasDisponiveis || 0);
+                        const g = ajustarGap(t.gapDias, i, dias);
+                        return `${g > 0 ? '+' : ''}${g.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}d`;
+                      })()}
                     </div>
                   </td>
                 );
