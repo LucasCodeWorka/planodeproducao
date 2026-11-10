@@ -182,6 +182,8 @@ export default function VisaoGeral2Page() {
   // isso que a cobertura aparece ao lado do numero.
   // Min/peca da Liebe Move pelos tempos DELA. `semTempo` entra como zero, por decisao do
   // PCP — por isso a cobertura viaja junto e aparece na tela.
+  // Estoque fisico que fica fora do recorte planejavel — soma na linha de estoque.
+  const [estoqueFora, setEstoqueFora] = useState(0);
   const [moveMedido, setMoveMedido] = useState<{ minPeca: number; comTempo: number; skus: number } | null>(null);
   const minPecaMove = useMemo(() => {
     if (moveMedido && moveMedido.minPeca > 0) return moveMedido.minPeca;
@@ -229,7 +231,7 @@ export default function VisaoGeral2Page() {
   // Minutos por peca MEDIDOS na fabrica (ago-out/26: 6,5566). null = ainda nao carregou.
   const [minPecaMedido, setMinPecaMedido] = useState<number | null>(null);
   const indiceMensal = indiceMensalAtual;
-  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; disponivelAtual: number; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; diasCompletosMes: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; elLancadaPorMes: Record<string, { quantidade: number; skus: number }>; loteId: string; lotePeriodos: string[]; planoSimuladoPorPeriodo: Record<string, number>; coberturaSimuladaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null; semPlano?: boolean }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number; qtdLoteNoFiltro?: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
+  const [rawData, setRawData] = useState<{ anoBase: number; anoDestino: number; disponivelAtual: number; disponivelCurvaHoje: Record<string, number>; skus: number; estoqueInicial: number; emProcesso: number; pedidosPendentes: number; estoqueFimDezembro: number; planoAteDezembro: number; capacidadeDiaria: number; baseSkus: BaseSku[]; capacidadePorMes: number[]; diasPorMes: number[]; pctContinuidade: PctContinuidade; vendas: VendasCanal; vendasHistoricas: VendasCanal; totalizadores: Record<string, Totalizador>; totalizadoresModeloBase: Record<string, Totalizador>; projecaoTotal: number[]; projecaoBaseCompleta: Record<string, number>; projecaoMatrizTotal: number[]; estoqueBaseReal: number; estoqueFisicoItems: number; agendaWip: Record<string, number>; agendaPendente: Record<string, number>; agendaMeta: { wipVencido: number }; posicao: Posicao; planoPeriodos: Record<string, PlanoPeriodo>; planoPorCurva: PlanoCurva; planoRestantePorPeriodo: Record<string, number>; planoMatrizPorPeriodo: Record<string, number>; demandaRestantePorMes: Record<string, number>; demandaCheiaPorMes: Record<string, number>; vendaRealMesCorrente: number; diasCompletosMes: number; elEstoque: number; elPendentes: number; elPlanoPorPeriodo: Record<string, number>; elDemandaPorMes: Record<string, number>; elLancadaPorMes: Record<string, { quantidade: number; skus: number }>; loteId: string; lotePeriodos: string[]; planoSimuladoPorPeriodo: Record<string, number>; coberturaSimuladaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null }>; coberturaPorPeriodo: Record<string, { nec: number; disp: number; gap: number; ocup: number | null; semPlano?: boolean }>; planoPorMesReal: Record<string, { qtdLote: number; qtdGerouOp: number; qtdProcesso: number; qtdLoteNoFiltro?: number }>; fracaoMesBase: number; elRestanteMesCorrente: number | null; projOrigem: Record<string, { lancada: number; modelo: number }>; origemBasePorMes: Record<string, { lancada: number; modelo: number }> } & ProcessoCapacidade | null>(null);
 
   // Cache das respostas que não mudam com o cenário (matriz, capacidade, curva ABC,
   // cortes mínimos, gravado e agenda). Preview e edição limitada carregam uma base neutra;
@@ -659,6 +661,17 @@ export default function VisaoGeral2Page() {
         const liquido = Number(r.estoques?.estoque_atual || 0) - Number(r.demanda?.pedidos_pendentes || 0);
         return sum + (liquido > 0 ? liquido : 0);
       }, 0);
+      // DISPONIVEL DE HOJE ABERTO POR CURVA, pela MESMA conta acima — por SKU, so positivos.
+      // Serve de proporcao para abrir a linha do Disponivel mes a mes: o modelo nao projeta
+      // estoque por curva, entao a abertura e a fatia de HOJE mantida no horizonte. E
+      // premissa declarada, nao medicao, e a tela diz isso na dica.
+      const disponivelCurvaHoje: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
+      for (const r of (matrix.data || []) as MatrixRow[]) {
+        const liquido = Number(r.estoques?.estoque_atual || 0) - Number(r.demanda?.pedidos_pendentes || 0);
+        if (liquido <= 0) continue;
+        const c = curvaPorRef.get(norm(r.produto?.referencia)) || 'B';
+        disponivelCurvaHoje[c] = (disponivelCurvaHoje[c] || 0) + liquido;
+      }
       const initial = items.reduce((sum, item) => sum + Number(matrixById.get(String(item.idproduto))?.estoques?.estoque_disponivel || 0), 0);
       // Estoque FÍSICO da mesma população que a projeção cobre (os permanentes do preview).
       // Os cards do topo somam a matriz inteira, que é outra população — por isso os dois
@@ -973,7 +986,7 @@ export default function VisaoGeral2Page() {
       const diasUteisRestantes = capacidadeDiariaTotal > 0 ? cargaRestanteMA / capacidadeDiariaTotal : 0;
       const previsaoTermino = diasUteisRestantes > 0 ? addDiasUteis(hoje, diasUteisRestantes).toISOString().slice(0, 10) : null;
 
-      setRawData({ anoBase, anoDestino, disponivelAtual, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, planoMatrizPorPeriodo, demandaRestantePorMes, demandaCheiaPorMes, vendaRealMesCorrente, diasCompletosMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, elLancadaPorMes, coberturaPorPeriodo, planoPorMesReal, loteId, lotePeriodos, planoSimuladoPorPeriodo, coberturaSimuladaPorPeriodo, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
+      setRawData({ anoBase, anoDestino, disponivelAtual, disponivelCurvaHoje, skus: items.length, estoqueInicial: initial, estoqueBaseReal: initial, estoqueFisicoItems, agendaWip, agendaPendente, agendaMeta, posicao, emProcesso: process, pedidosPendentes, estoqueFimDezembro, planoAteDezembro: planToDecember, capacidadeDiaria: capacidadeDiariaTotal, baseSkus, capacidadePorMes, diasPorMes, pctContinuidade, vendas, vendasHistoricas, totalizadores, totalizadoresModeloBase, projecaoTotal, projecaoBaseCompleta, projecaoMatrizTotal, planoPeriodos, planoPorCurva, planoRestantePorPeriodo, planoMatrizPorPeriodo, demandaRestantePorMes, demandaCheiaPorMes, vendaRealMesCorrente, diasCompletosMes, elEstoque, elPendentes, elPlanoPorPeriodo, elDemandaPorMes, elLancadaPorMes, coberturaPorPeriodo, planoPorMesReal, loteId, lotePeriodos, planoSimuladoPorPeriodo, coberturaSimuladaPorPeriodo, fracaoMesBase: fracaoMesCorrente(), elRestanteMesCorrente, projOrigem, origemBasePorMes, processoPorPeriodo, leadTimeDias, cargaRestanteMA, capacidadeRestanteMes, minutosExecutadosMesAtual, diasUteisRestantes, previsaoTermino });
     } catch (e) { setError(e instanceof Error ? e.message : 'Erro ao carregar visão macro'); }
     finally { setLoading(false); }
   }
@@ -997,7 +1010,7 @@ export default function VisaoGeral2Page() {
     } catch { /* silencioso: mantém os valores padrão */ }
   }
 
-  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); carregarMinPecaMedido(); carregarMinPecaMove(); listarCenarios(); }, [router]);
+  useEffect(() => { if (!getToken()) { router.replace('/login'); return; } carregar(); buscarCfgCurvas(); carregarCapacidade(); carregarEdicaoLimitada(); carregarIndiceMensal(); carregarMinPecaMedido(); carregarMinPecaMove(); carregarEstoqueLiebe(); listarCenarios(); }, [router]);
   // Trocar o cenario de parada rebusca so os DIAS: a carga nao muda, quem muda e o
   // denominador. Na primeira renderizacao o efeito de cima ja buscou, entao pula.
   const feriasMontou = useRef(false);
@@ -1014,18 +1027,33 @@ export default function VisaoGeral2Page() {
     return () => { vivo = false; };
   }, [comFerias]);
 
+  // INDICE MENSAL. Ele carrega o nivel de capacidade e a sazonalidade, e o modo como ele
+  // falhava era perigoso: sem indice, `fatorNivel` vira 1 e `idx` vira 1 em todo mes — a
+  // capacidade SOBE 4,7% e fica achatada, igual em todo mes de mesmo numero de dias. Em
+  // 06/11/2026 isso deu 100 mil pecas a mais no disponivel do fim do horizonte, sem um
+  // aviso na tela. Numero errado em silencio e pior que tela vazia.
+  //
+  // Duas defesas: TENTA DE NOVO (a tela dispara ~20 buscas no mesmo host e o navegador
+  // limita conexoes simultaneas — a lenta da vez e quem cai) e NAO APAGA o valor bom, para
+  // uma falha depois da primeira carga nao derrubar a leitura que ja estava certa.
   async function carregarIndiceMensal() {
     const buscar = async (sufixo: string) => {
-      try {
-        const r = await fetchNoCache(`${API_URL}/api/capacidade/indice-mensal${sufixo}`, { headers: authHeaders() });
-        const p = await r.json();
-        if (!r.ok || !p?.success) return null;
-        return { nivel: Number(p.nivel || 0), data: p.data || {} };
-      } catch {
-        return null;
+      for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+        try {
+          const r = await fetchNoCache(`${API_URL}/api/capacidade/indice-mensal${sufixo}`, { headers: authHeaders() }, 120000);
+          const p = await r.json();
+          if (r.ok && p?.success && p.data && Object.keys(p.data).length) {
+            return { nivel: Number(p.nivel || 0), data: p.data as Record<string, number> };
+          }
+        } catch { /* tenta de novo */ }
+        await new Promise((ok) => setTimeout(ok, 1500 * (tentativa + 1)));
       }
+      return null;
     };
-    setIndiceMensalAtual(await buscar(''));
+    const novo = await buscar('');
+    // So substitui se veio bom. Falhou e ja havia um? Fica o anterior.
+    if (novo) setIndiceMensalAtual(novo);
+    else setIndiceMensalAtual((anterior) => anterior);
   }
 
   // MIN/PECA MEDIDO NA FABRICA. Substitui o mix da projecao como divisor da capacidade em
@@ -1132,6 +1160,14 @@ export default function VisaoGeral2Page() {
       }
       setRawData((d) => (d ? { ...d, coberturaPorPeriodo: cobertura } : d));
     } catch { /* fica o gap anterior, que e melhor que tela vazia */ }
+  }
+
+  async function carregarEstoqueLiebe() {
+    try {
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/estoque-liebe`, { headers: authHeaders() }, 120000);
+      const p = await r.json();
+      if (r.ok && p?.success && Number(p.fora) >= 0) setEstoqueFora(Number(p.fora));
+    } catch { /* fica zero: a linha volta a mostrar so o recorte planejavel */ }
   }
 
   async function carregarMinPecaMove() {
@@ -2244,7 +2280,7 @@ export default function VisaoGeral2Page() {
   return <div className="min-h-screen bg-gray-100"><Sidebar onCollapse={setCollapsed} /><main className={`${collapsed ? 'ml-20' : 'ml-64'} p-6 transition-all`}>
     <div className="flex items-start justify-between mb-6"><div><p className="text-xs uppercase tracking-widest text-gray-500">Planejamento agregado</p><h1 className="text-2xl font-bold text-gray-900">Visão Geral 2 (teste)</h1><p className="text-sm text-gray-500 mt-1">Projeção {data?.anoDestino || new Date().getFullYear() + 1}.1 usando permanentes com venda em 6m ou 3m.</p></div>
       <div className="flex items-center gap-3">
-        <button onClick={() => { carregar(true); carregarCapacidade(); carregarEdicaoLimitada(true); carregarIndiceMensal(); carregarMinPecaMedido(); carregarMinPecaMove(); }} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
+        <button onClick={() => { carregar(true); carregarCapacidade(); carregarEdicaoLimitada(true); carregarIndiceMensal(); carregarMinPecaMedido(); carregarMinPecaMove(); carregarEstoqueLiebe(); }} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
       </div>
     </div>
     {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -2466,6 +2502,9 @@ export default function VisaoGeral2Page() {
           rotuloComparacao="hoje"
           cargaExtraMin={cargaExtraParam.split(',').reduce((t, x) => t + (Number(x.split(':')[1]) || 0), 0)}
           onOcupacaoPlano={setOcupPlanoDaTela}
+          estoqueForaDoPlano={estoqueFora}
+          indiceCarregado={Boolean(indiceMensal && Object.keys(indiceMensal.data || {}).length)}
+          disponivelCurvaHoje={data.disponivelCurvaHoje}
           aberturaEstoque={relatorioEfetivo.abertura}
           disponivelAtual={data.disponivelAtual}
           pedidosPendentes={relatorioEfetivo.pedidosPendentes}

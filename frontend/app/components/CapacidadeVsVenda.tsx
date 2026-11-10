@@ -168,6 +168,24 @@ type Props = {
    *  minutos. Fica VISIVEL no cabecalho porque o sintoma de ela nao chegar — as duas
    *  tabelas divergindo — e indistinguivel de erro de conta. */
   cargaExtraMin?: number;
+  /** Estoque fisico da LIEBE que fica FORA do recorte planejavel (EM LINHA + NOVA COLECAO).
+   *
+   *  Medido em 06/11/2026: 27.835 pecas, quase todas em EM LINHA NAO COMPRAR MP e
+   *  OPORTUNIDADE ATE 1 ANO. Elas existem no armazem e a linha de estoque fisico tem que
+   *  mostra-las — quem le aquela linha quer o armazem inteiro, nao o recorte do plano.
+   *
+   *  Entra como parcela FIXA, igual em todos os meses: produto sem plano e sem projecao nao
+   *  tem como caminhar por `+ producao - venda`, porque os dois termos sao zero para ele.
+   *  Desce sozinho conforme for vendido, porque a rota le o estoque de hoje a cada carga. */
+  estoqueForaDoPlano?: number;
+  /** false = o indice mensal nao carregou. Sem ele a capacidade perde a correcao de nivel
+   *  e a sazonalidade: sobe ~4,7% e fica igual em todo mes de mesmo numero de dias. A tela
+   *  precisa DIZER isso — a falha e silenciosa e vale 100 mil pecas no fim do horizonte. */
+  indiceCarregado?: boolean;
+  /** Disponivel de HOJE por curva ABC, em pecas. Vira a PROPORCAO que abre a linha do
+   *  Disponivel mes a mes — o modelo nao projeta estoque por curva, entao a fatia de hoje
+   *  e mantida no horizonte. E premissa declarada, nao medicao. */
+  disponivelCurvaHoje?: Record<string, number>;
   /** Avisa a pagina da ocupacao acumulada do PLANO, periodo a periodo, na conta em pecas
    *  desta tela. A Ocupacao por grupo usa isto para fechar com o que esta aqui: ela calcula
    *  em minutos e por familia, e sem um alvo comum as duas nunca batem. */
@@ -207,6 +225,9 @@ export default function CapacidadeVsVenda({
   controleCabecalho,
   mesesComparacao,
   cargaExtraMin,
+  estoqueForaDoPlano = 0,
+  indiceCarregado = true,
+  disponivelCurvaHoje,
   onOcupacaoPlano,
   rotuloComparacao = 'hoje',
 }: Props) {
@@ -651,7 +672,9 @@ export default function CapacidadeVsVenda({
   //
   // Por isso a serie agora e `l.estoque` direto, que e a trajetoria que o nivelamento ja
   // usa. Uma regua so para as duas linhas, e nenhuma premissa no meio.
-  const fisicoPrevisto = linhas.map((l) => l.estoque);
+  // O FISICO e o armazem inteiro: a trajetoria do recorte planejavel mais o que esta fora
+  // dele. A parcela de fora e constante — ver `estoqueForaDoPlano`.
+  const fisicoPrevisto = linhas.map((l) => l.estoque + Number(estoqueForaDoPlano || 0));
 
   // Publica a leitura para a tabela de baixo. Em efeito, nao no render, para nao avisar o
   // pai no meio da renderizacao dele.
@@ -662,8 +685,20 @@ export default function CapacidadeVsVenda({
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [ocupPlanoChave]);
 
+  // Fatia de cada curva no disponivel de HOJE. Se a soma for zero (curva nao carregou), as
+  // sublinhas somem em vez de mostrar divisao por zero.
+  const CURVAS = ['A', 'B', 'C', 'D'] as const;
+  const totalCurvaHoje = CURVAS.reduce((t, c) => t + Number(disponivelCurvaHoje?.[c] || 0), 0);
+  const fatiaCurva = (c: string) => (totalCurvaHoje > 0 ? Number(disponivelCurvaHoje?.[c] || 0) / totalCurvaHoje : 0);
+
   const desvioMeta = disponivelTabela[disponivelTabela.length - 1] - metaEstoqueFinal;
   const menorDisponivel = Math.min(...disponivelTabela);
+  // PICO E VALE do disponivel, para marcar no grafico. O olho acha o pico sozinho numa
+  // curva de catorze pontos, mas o VALE e o que decide — e ele costuma cair no meio, onde
+  // a linha esta mais achatada e ninguem repara. Indices, nao valores: dois meses com o
+  // mesmo numero pintariam os dois, e aqui interessa UM de cada.
+  const iMenorDisponivel = disponivelTabela.indexOf(menorDisponivel);
+  const iMaiorDisponivel = disponivelTabela.indexOf(Math.max(...disponivelTabela));
   const primeiroProjetado = linhas.findIndex((l) => !l.travado);
 
   // As tres curvas sao os tres pilares: o que sai (venda), o que entra (capacidade) e o
@@ -697,7 +732,11 @@ export default function CapacidadeVsVenda({
   // viewBox de 880 renderiza enorme numa tela larga. Alargar o viewBox para 1200 e achatar
   // a altura encolhe a fonte e deita o grafico de uma vez so, sem mexer em cada tamanho.
   // O T maior abre espaco para o rotulo da capacidade acima da linha tracejada.
-  const L = 80;
+  // Calha da esquerda. Era 80 e so precisava caber o nome da faixa; o TOTAL que entrou
+  // embaixo dele e um numero de seis digitos em monoespacada, e o rotulo do primeiro ponto
+  // e centrado em x(0) = L — ele invadia a calha e cobria o total ("302.128" em cima de
+  // "336.740"). 120 da folga para os dois sem apertar o grafico, que tem 1200 de largura.
+  const L = 120;
   const R = 20;
   const T = 28;
   const B = 32;
@@ -998,6 +1037,14 @@ export default function CapacidadeVsVenda({
       </div>
       )}
 
+      {!indiceCarregado && (
+        <div className="border-b-2 border-red-400 bg-red-50 px-5 py-2 text-xs font-semibold text-red-800">
+          O índice mensal de capacidade não carregou. Sem ele a capacidade perde a correção
+          de nível e a sazonalidade — ela aparece ~4,7% MAIOR e igual em todo mês de mesmo
+          número de dias, e o disponível do fim do horizonte infla junto. Use “Atualizar”
+          antes de ler estes números.
+        </div>
+      )}
       {nivelar && (
         <div className="px-5 py-2 bg-indigo-50 border-b border-indigo-200 text-xs text-indigo-900 flex flex-wrap gap-x-6 gap-y-1">
           <span>
@@ -1027,6 +1074,11 @@ export default function CapacidadeVsVenda({
             Carga extra enviada: <strong>{fmt(Number(cargaExtraMin || 0))}</strong> min
             {!(Number(cargaExtraMin || 0) > 0) && ' — NÃO chegou'}
           </span>
+          {Number(estoqueForaDoPlano || 0) > 0 && (
+            <span title="Peças da Liebe que existem no armazém mas estão fora do recorte planejável (EM LINHA NÃO COMPRAR MP, OPORTUNIDADE, TERCEIROS…). Entram fixas na linha de estoque físico: não têm plano nem projeção para caminhar, e descem sozinhas conforme são vendidas, porque a leitura é refeita a cada carga.">
+              Estoque fora do plano: <strong>{fmt(estoqueForaDoPlano!)}</strong> peças
+            </span>
+          )}
           <span>
             Ocupação acumulada ao fim: <strong>{pct(ultimo.ocupacaoAcum)}</strong>
             {' '}· teto {modo === 'acumulado' ? 'no acumulado' : 'no mês'}
@@ -1102,19 +1154,22 @@ export default function CapacidadeVsVenda({
             <g key={indice}>
               <rect x={L} y={faixa.topo} width={W - L - R} height={faixaAltura} fill={indice % 2 ? '#f8fafc' : '#ffffff'} />
               <line x1={L} x2={W - R} y1={faixa.topo + faixaAltura} y2={faixa.topo + faixaAltura} stroke="#e5e7eb" />
-              <text x={L - 8} y={faixa.topo + 17} textAnchor="end" fontSize="11" fontWeight="600" fill={SERIE_COR_TEXTO[indice]}>
+              <text x={2} y={faixa.topo + 17} textAnchor="start" fontSize="11" fontWeight="600" fill={SERIE_COR_TEXTO[indice]}>
                 {SERIE_NOMES[indice]}
               </text>
               {/* TOTAL DA FAIXA, debaixo do nome dela.
                   Venda, Plano e Capacidade sao FLUXO: somam-se no horizonte. O Disponivel e
                   SALDO — somar estoque de meses diferentes nao significa nada —, entao ali
                   vale o ultimo ponto, que e onde o horizonte termina. */}
-              <text x={L - 8} y={faixa.topo + 31} textAnchor="end" fontSize="10" fontWeight="700" fill={SERIE_COR_TEXTO[indice]} fontFamily="ui-monospace, monospace" opacity="0.85">
+              {/* Encostado na BORDA da calha (x=0), nao em L-8: o rotulo do primeiro ponto e
+                  centrado em x(0)=L e avanca para dentro dela. Alinhado a esquerda, o total
+                  usa o comeco do espaco e o ponto usa o fim — nao se encontram. */}
+              <text x={2} y={faixa.topo + 31} textAnchor="start" fontSize="10" fontWeight="700" fill={SERIE_COR_TEXTO[indice]} fontFamily="ui-monospace, monospace" opacity="0.85">
                 {indice === iDisponivel
                   ? fmt(disponivelTabela[disponivelTabela.length - 1] ?? 0)
                   : fmt(linhas.reduce((t, l, i2) => t + (serie(l, i2)[indice] ?? 0), 0))}
               </text>
-              <text x={L - 8} y={faixa.topo + 42} textAnchor="end" fontSize="8" fill="#9ca3af">
+              <text x={2} y={faixa.topo + 42} textAnchor="start" fontSize="8" fill="#9ca3af">
                 {indice === iDisponivel ? 'no fim' : 'no horizonte'}
               </text>
             </g>
@@ -1261,9 +1316,28 @@ export default function CapacidadeVsVenda({
               {modoGrafico === 'isolado' ? serie(l, i).map((valor, indice) => (
                 valor === null ? null : (
                 <g key={indice}>
-                  <circle cx={x(i)} cy={ySerie(indice, valor)} r="4" fill="#fff" stroke={SERIE_COR[indice]} strokeWidth="2">
-                    <title>{`${l.mes} · ${SERIE_NOMES[indice]}: ${fmt(valor)} peças`}</title>
-                  </circle>
+                  {(() => {
+                    // Na faixa do Disponivel, o pico fica verde e o vale vermelho. Nas
+                    // outras series o ponto segue a cor da propria linha.
+                    const ehPico = indice === iDisponivel && i === iMaiorDisponivel;
+                    const ehVale = indice === iDisponivel && i === iMenorDisponivel;
+                    const cor = ehPico ? '#059669' : ehVale ? '#dc2626' : SERIE_COR[indice];
+                    return (
+                      <circle
+                        cx={x(i)}
+                        cy={ySerie(indice, valor)}
+                        r={ehPico || ehVale ? 6 : 4}
+                        fill={ehPico || ehVale ? cor : '#fff'}
+                        stroke={cor}
+                        strokeWidth="2"
+                      >
+                        <title>
+                          {`${l.mes} · ${SERIE_NOMES[indice]}: ${fmt(valor)} peças`}
+                          {ehPico ? ' — maior do horizonte' : ehVale ? ' — menor do horizonte' : ''}
+                        </title>
+                      </circle>
+                    );
+                  })()}
                   {/* O primeiro ponto escreve para a DIREITA do marcador. Centralizado, um
                       numero de 6 digitos passa da borda e vira "72.602" no lugar de
                       "202.602"; ancorado em x(0)-10 ele cobria o marcador e encostava no
@@ -1796,12 +1870,25 @@ export default function CapacidadeVsVenda({
                   id: 'disponivel',
                   rotulo: 'Disponível fim do mês',
                   forte: true,
+                  expansivel: true,
                   celula: (l: typeof linhas[number]) => (
                     <span className={`font-semibold ${disponivelTabela[linhas.indexOf(l)] < 0 ? 'text-red-700' : 'text-gray-900'}`}>
                       {fmt(disponivelTabela[linhas.indexOf(l)])}
                     </span>
                   ),
                 },
+                ...(totalCurvaHoje > 0 ? CURVAS.map((c) => ({
+                  id: `disponivel-${c}`,
+                  rotulo: `curva ${c}`,
+                  pai: 'disponivel',
+                  dica: `Fatia da curva ${c} no disponível de hoje: ${pct(fatiaCurva(c))} (${fmt(Number(disponivelCurvaHoje?.[c] || 0))} peças), mantida ao longo do horizonte. O modelo projeta o estoque do conjunto, não por curva — então esta abertura é PREMISSA, não medição: ela supõe que o mix de curvas do estoque não muda. Se a fábrica produzir desproporcionalmente numa curva, a realidade se afasta disto.`,
+                  celula: (l: typeof linhas[number]) => (
+                    <span className="tabular-nums text-gray-900">
+                      {fmt(disponivelTabela[linhas.indexOf(l)] * fatiaCurva(c))}
+                      <div className="text-[10px] text-gray-600">{pct(fatiaCurva(c))}</div>
+                    </span>
+                  ),
+                })) : []),
                 {
                   id: 'info',
                   rotulo: 'Informativo',
@@ -1846,9 +1933,14 @@ export default function CapacidadeVsVenda({
                   id: 'fisico',
                   rotulo: 'Estoque físico previsto (s/ abater pedidos)',
                   pai: 'info',
-                  dica: 'Estoque físico (estoque + processo, SEM abater a carteira pendente). Parte da posição de hoje e anda pela produção menos a venda. Não soma o em-processo de novo: peça que sai da costura já estava contada aqui, só muda de prateleira — é por isso que o Disponível ao lado sobe nos meses em que o processo termina e esta linha não.',
+                  dica: 'Estoque físico de TODA a Liebe (estoque + processo, SEM abater a carteira pendente). São duas parcelas: a do recorte planejável — EM LINHA e NOVA COLEÇÃO —, que parte da posição de hoje e anda pela produção menos a venda; e a de FORA dele (EM LINHA NÃO COMPRAR MP, OPORTUNIDADE, TERCEIROS…), que entra fixa porque não tem plano nem projeção para caminhar, e desce sozinha conforme é vendida, já que a leitura é refeita a cada carga. Não soma o em-processo de novo: peça que sai da costura já estava contada aqui, só muda de prateleira — é por isso que o Disponível ao lado sobe nos meses em que o processo termina e esta linha não.',
                   celula: (l: typeof linhas[number]) => (
-                    <span className="text-slate-700" title="estoque + processo, sem abater a carteira pendente">
+                    <span
+                      className="text-slate-700"
+                      title={Number(estoqueForaDoPlano || 0) > 0
+                        ? `${fmt(l.estoque)} do recorte planejável + ${fmt(estoqueForaDoPlano!)} de fora dele (não comprar MP, oportunidade, terceiros) = ${fmt(fisicoPrevisto[linhas.indexOf(l)])}. Estoque + processo, sem abater a carteira.`
+                        : 'estoque + processo, sem abater a carteira pendente'}
+                    >
                       {fmt(fisicoPrevisto[linhas.indexOf(l)])}
                     </span>
                   ),

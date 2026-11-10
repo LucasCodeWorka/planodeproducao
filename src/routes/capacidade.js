@@ -35,6 +35,11 @@ const GRUPOS_DESATIVADOS = [
   // somava zero na capacidade (a medicao manda), mas cadastrada ela recebia rateio de carga
   // na ocupacao por grupo: uma celula com carga e sem capacidade distorce a leitura.
   { grupo: "03 - EXCELENCIA SU BASICO", tipo: "", capacidade_diaria: 303603 },
+  // IANA saiu em 09/11/2026, informada pelo PCP. Com ela, acabam as oficinas externas: de
+  // Gledson, Iana, Marcelo Freitas, Paulo Bruno e Atila nao sobra nenhuma, e a Liebe passa a
+  // costurar so nas celulas internas. Valia 2.534 min/dia medidos, e como as outras estava
+  // inflada pela media sobre dias COM movimento: 39 de ~63 dias na janela.
+  { grupo: "OFICINA - IANA", tipo: "", capacidade_diaria: 701748 },
 ];
 const NOMES_DESATIVADOS = new Set(GRUPOS_DESATIVADOS.map((g) => g.grupo));
 
@@ -1046,6 +1051,64 @@ router.get("/min-peca-medido", auth, async (req, res) => {
 // rota devolve os tres numeros — com os faltantes como zero, so dos medidos, e quantos
 // faltam — e a tela mostra a cobertura ao lado, para ninguem ler o valor sem saber que
 // 30% dos SKUs entraram como se nao dessem trabalho nenhum.
+// ── GET /api/capacidade/estoque-liebe ───────────────────────────────────────────
+// ESTOQUE FISICO DE TODA A LIEBE, nao so do recorte planejavel.
+//
+// A matriz trabalha com EM LINHA + NOVA COLECAO, que e o universo que se planeja. Mas o
+// armazem tem mais: medido em 06/11/2026, 27.881 pecas em status que a tela ignorava —
+// 17.108 de EM LINHA NAO COMPRAR MP e 9.910 de OPORTUNIDADE ATE 1 ANO, principalmente.
+// Quem olha a linha de estoque fisico quer o armazem inteiro, nao o recorte do plano.
+//
+// Esse excedente NAO e projetado: produto sem plano e sem projecao nao tem como caminhar
+// pela regra `+ producao - venda`, porque os dois termos sao zero para ele. Entra como
+// parcela fixa, e desce sozinho conforme for vendido — a rota le o estoque de hoje a cada
+// chamada, entao a venda daqueles SKUs aparece na proxima carga sem ninguem fazer nada.
+router.get("/estoque-liebe", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    const r = await pool.query(`
+      WITH base AS (
+        SELECT p.cd_produto,
+               UPPER(TRIM(TRANSLATE(COALESCE(f_dic_prd_classificacao(p.cd_produto,'DS'::text,27::bigint),''),
+                 'ÁÀÂÃÄáàâãäÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÕÖóòôõöÚÙÛÜúùûüÇç',
+                 'AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuCc'))) AS status,
+               COALESCE(mv.estoque_bruto::FLOAT, 0) AS estoque
+          FROM vr_prd_prdgrade p
+          LEFT JOIN mv_pcp_estoque_atual mv ON mv.cd_produto::BIGINT = p.cd_produto::BIGINT
+         WHERE p.cd_produto < 1000000
+           AND UPPER(COALESCE(p.nm_produto,'')) NOT LIKE '%MEIA DE SEDA%'
+           AND UPPER(TRIM(COALESCE(p.ds_tamanho,''))) <> 'PT 99'
+           AND f_dic_prd_classificacao(p.cd_produto,'DS'::text,20::bigint) = 'LIEBE'
+      )
+      SELECT COALESCE(NULLIF(status,''),'(sem status)') AS status,
+             COUNT(*) FILTER (WHERE estoque <> 0)::int AS skus,
+             SUM(estoque)::float AS estoque
+        FROM base GROUP BY 1 HAVING SUM(estoque) <> 0 ORDER BY 3 DESC`);
+
+    const PLANEJAVEL = new Set(["EM LINHA", "NOVA COLECAO"]);
+    let total = 0;
+    let planejavel = 0;
+    const porStatus = r.rows.map((x) => {
+      const v = Number(x.estoque) || 0;
+      total += v;
+      if (PLANEJAVEL.has(x.status)) planejavel += v;
+      return { status: x.status, skus: x.skus, estoque: Math.round(v) };
+    });
+    res.json({
+      success: true,
+      total: Math.round(total),
+      planejavel: Math.round(planejavel),
+      // O que a tela de planejamento nao enxerga e precisa somar na linha de estoque.
+      fora: Math.round(total - planejavel),
+      porStatus,
+    });
+  } catch (err) {
+    console.error("[capacidade] estoque-liebe:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get("/min-peca-move", auth, async (req, res) => {
   try {
     const pool = req.app.get("pool");
@@ -2958,6 +3021,192 @@ router.delete("/cenarios/:id", auth, async (req, res) => {
   } catch (err) {
     console.error("[capacidade] apagar cenario:", err.message);
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── GET /api/capacidade/lista-vs-producao ──────────────────────────────────────
+//
+// A LISTA CONTRA O QUE A FABRICA FEZ.
+//
+// `app_capacidade_grupo_refs` responde "onde esta peca PODE ser feita" — e esta certa
+// nisso, e cadastro de capacidade. O resto do sistema a le como "onde esta peca VAI ser
+// feita" e divide a carga entre todos os grupos cadastrados. Sao perguntas diferentes, e a
+// diferenca nao e pequena: medido em 09/11/2026, 54% dos vinculos nunca produziram aquela
+// referencia em 6 meses, e o grupo que de fato a costura concentra 85% da producao dela.
+//
+// Esta rota poe as duas lado a lado, sem opiniao: para cada referencia, quem a lista diz
+// que faz e quem o ERP registra que fez. Nao altera nada e nao entra em nenhuma outra conta
+// — e instrumento de diagnostico do cadastro.
+//
+// Janela: meses FECHADOS. O mes corrente esta pela metade e puniria quem ainda vai produzir.
+const listaVsProducaoCache = { data: null, timestamp: 0, meses: 0 };
+const LISTA_VS_PRODUCAO_TTL = 30 * 60 * 1000;
+
+router.get("/lista-vs-producao", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    const meses = Math.min(24, Math.max(1, Number(req.query.meses) || 6));
+    const cache = listaVsProducaoCache;
+    if (req.query.refresh !== "true" && cache.data && cache.meses === meses
+        && Date.now() - cache.timestamp < LISTA_VS_PRODUCAO_TTL) {
+      return res.json({ ...cache.data, fromCache: true });
+    }
+
+    const ids = DEFAULT_REAL_GROUP_IDS.map(String);
+
+    // 1. O que cada grupo FINALIZOU, por referencia, nos meses fechados.
+    //    `tp_historicomov = 51` e a baixa de peca acabada; sem o filtro de locais a consulta
+    //    traz movimento entre depositos e infla ~10x.
+    const producao = await pool.query(`
+      SELECT m.cd_localorigem::text AS cd_local,
+             UPPER(TRIM(COALESCE(f_dic_prd_nivel(m.cd_produto, 'CD'::bpchar), '')))::text AS referencia,
+             SUM(COALESCE(m.qt_movimento, 0))::float AS pecas
+        FROM vr_cdf_movopi m
+       WHERE m.tp_historicomov = 51
+         AND m.in_estorno = 'F'
+         AND m.cd_localorigem::text = ANY($1::text[])
+         AND m.dt_movimento >= DATE_TRUNC('month', CURRENT_DATE - ($2::int || ' months')::interval)::date
+         AND m.dt_movimento <  DATE_TRUNC('month', CURRENT_DATE)::date
+       GROUP BY 1, 2
+    `, [ids, meses]);
+
+    // 2. Nome de cada local, que e como o cadastro chama o grupo.
+    const locais = await pool.query(
+      `SELECT cd_local::text AS cd_local, UPPER(TRIM(ds_local::text)) AS ds_local
+         FROM pcp_cache_locais WHERE cd_local::text = ANY($1::text[])`, [ids]);
+    const nomeDoLocal = new Map(locais.rows.map((r) => [r.cd_local, r.ds_local]));
+
+    // 3. Plano lancado por referencia, para pesar a divergencia em pecas.
+    const plano = await pool.query(`
+      SELECT UPPER(TRIM(COALESCE(f_dic_prd_nivel(a.cd_produto, 'CD'::bpchar), '')))::text AS referencia,
+             SUM(COALESCE(a.qt_lote, 0))::float AS pecas
+        FROM vr_pcp_lotepl2 a
+        JOIN pcp_lotepv p ON a.nr_lote = p.nr_lote
+       WHERE p.tp_situacao = 1
+         AND UPPER(p.cd_auxiliar) = ANY($1::text[])
+       GROUP BY 1
+    `, [PERIODOS_PLANO]);
+    const planoPorRef = new Map(plano.rows.map((r) => [r.referencia, Number(r.pecas || 0)]));
+
+    const cadastro = await readGrupoRefs(pool);
+    const gruposDaRef = new Map();   // referencia -> Set(grupo)
+    const refsDoGrupo = new Map();   // grupo -> Set(referencia)
+    for (const { grupo, referencia } of cadastro) {
+      if (!gruposDaRef.has(referencia)) gruposDaRef.set(referencia, new Set());
+      gruposDaRef.get(referencia).add(grupo);
+      if (!refsDoGrupo.has(grupo)) refsDoGrupo.set(grupo, new Set());
+      refsDoGrupo.get(grupo).add(referencia);
+    }
+
+    const produzidoPorRef = new Map(); // referencia -> Map(grupo -> pecas)
+    for (const row of producao.rows) {
+      const ref = row.referencia;
+      if (!ref) continue;
+      const grupo = nomeDoLocal.get(row.cd_local) || row.cd_local;
+      if (!produzidoPorRef.has(ref)) produzidoPorRef.set(ref, new Map());
+      const porGrupo = produzidoPorRef.get(ref);
+      porGrupo.set(grupo, (porGrupo.get(grupo) || 0) + Number(row.pecas || 0));
+    }
+
+    // 4. Uma linha por referencia: o que a lista diz, o que a fabrica fez.
+    const referencias = [];
+    for (const ref of new Set([...gruposDaRef.keys(), ...produzidoPorRef.keys()])) {
+      const feito = produzidoPorRef.get(ref) || new Map();
+      const listada = gruposDaRef.get(ref) || new Set();
+      const total = Array.from(feito.values()).reduce((a, b) => a + b, 0);
+      let dono = null;
+      for (const [g, p] of feito) if (dono === null || p > feito.get(dono)) dono = g;
+      referencias.push({
+        referencia: ref,
+        pecasProduzidas: Math.round(total),
+        pecasPlano: Math.round(planoPorRef.get(ref) || 0),
+        dono,
+        pecasDono: dono ? Math.round(feito.get(dono)) : 0,
+        concentracaoDono: total > 0 && dono ? feito.get(dono) / total : null,
+        donoEstaNaLista: dono ? listada.has(dono) : null,
+        gruposNaLista: Array.from(listada).sort(),
+        gruposQueProduziram: Array.from(feito.entries())
+          .map(([grupo, pecas]) => ({ grupo, pecas: Math.round(pecas), naLista: listada.has(grupo) }))
+          .sort((a, b) => b.pecas - a.pecas),
+      });
+    }
+    referencias.sort((a, b) => b.pecasProduzidas - a.pecasProduzidas);
+
+    // 5. Uma linha por grupo: quantos vinculos a producao confirma.
+    const grupos = [];
+    for (const grupo of new Set([...refsDoGrupo.keys(), ...nomeDoLocal.values()])) {
+      const listadas = refsDoGrupo.get(grupo) || new Set();
+      let confirmados = 0;
+      for (const ref of listadas) {
+        if ((produzidoPorRef.get(ref)?.get(grupo) || 0) > 0) confirmados += 1;
+      }
+      const produzidas = [];
+      let pecas = 0;
+      for (const [ref, porGrupo] of produzidoPorRef) {
+        const p = porGrupo.get(grupo) || 0;
+        if (p > 0) { produzidas.push(ref); pecas += p; }
+      }
+      const foraDaLista = produzidas.filter((ref) => !listadas.has(ref));
+      let pecasForaDaLista = 0;
+      for (const ref of foraDaLista) pecasForaDaLista += produzidoPorRef.get(ref).get(grupo);
+      grupos.push({
+        grupo,
+        ativo: !NOMES_DESATIVADOS.has(grupo),
+        vinculos: listadas.size,
+        confirmados,
+        fantasmas: listadas.size - confirmados,
+        refsProduzidas: produzidas.length,
+        pecasProduzidas: Math.round(pecas),
+        refsForaDaLista: foraDaLista.length,
+        pecasForaDaLista: Math.round(pecasForaDaLista),
+        planoForaDaLista: Math.round(foraDaLista.reduce((s, r) => s + (planoPorRef.get(r) || 0), 0)),
+      });
+    }
+    grupos.sort((a, b) => b.pecasProduzidas - a.pecasProduzidas);
+
+    // 6. Os numeros que resumem a divergencia.
+    const comProducao = referencias.filter((r) => r.pecasProduzidas > 0);
+    let confirmados = 0;
+    for (const { grupo, referencia } of cadastro) {
+      if ((produzidoPorRef.get(referencia)?.get(grupo) || 0) > 0) confirmados += 1;
+    }
+    const concentracoes = comProducao.map((r) => r.concentracaoDono).filter((x) => x !== null);
+    const distribuicaoPlano = {};
+    for (const [ref, pecas] of planoPorRef) {
+      const quantos = (gruposDaRef.get(ref) || new Set()).size;
+      const faixa = quantos === 0 ? "0" : quantos >= 6 ? "6+" : String(quantos);
+      distribuicaoPlano[faixa] = (distribuicaoPlano[faixa] || 0) + pecas;
+    }
+    for (const faixa of Object.keys(distribuicaoPlano)) {
+      distribuicaoPlano[faixa] = Math.round(distribuicaoPlano[faixa]);
+    }
+
+    const resumo = {
+      meses,
+      vinculos: cadastro.length,
+      referenciasNaLista: gruposDaRef.size,
+      gruposPorReferencia: gruposDaRef.size > 0 ? cadastro.length / gruposDaRef.size : 0,
+      vinculosConfirmados: confirmados,
+      vinculosFantasmas: cadastro.length - confirmados,
+      pctFantasmas: cadastro.length > 0 ? (cadastro.length - confirmados) / cadastro.length : 0,
+      referenciasProduzidas: comProducao.length,
+      concentracaoMediaDono: concentracoes.length
+        ? concentracoes.reduce((a, b) => a + b, 0) / concentracoes.length
+        : null,
+      donoForaDaLista: comProducao.filter((r) => r.donoEstaNaLista === false).length,
+      planoTotal: Math.round(Array.from(planoPorRef.values()).reduce((a, b) => a + b, 0)),
+      distribuicaoPlano,
+    };
+
+    const payload = { success: true, resumo, grupos, referencias };
+    listaVsProducaoCache.data = payload;
+    listaVsProducaoCache.timestamp = Date.now();
+    listaVsProducaoCache.meses = meses;
+    return res.json(payload);
+  } catch (error) {
+    console.error("[capacidade/lista-vs-producao] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao comparar lista e produção", details: error.message });
   }
 });
 

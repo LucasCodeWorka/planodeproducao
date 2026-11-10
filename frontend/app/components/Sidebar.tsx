@@ -39,6 +39,7 @@ const GRUPOS_NAV = [
     itens: [
       { href: '/capacidade', label: 'Capacidade', Icon: Gauge },
       { href: '/capacidade-matriz', label: 'Matriz Capacidade', Icon: Gauge },
+      { href: '/lista-vs-producao', label: 'Lista × Produção', Icon: GitCompareArrows },
     ],
   },
   {
