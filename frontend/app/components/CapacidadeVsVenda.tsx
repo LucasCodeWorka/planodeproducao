@@ -178,6 +178,8 @@ type Props = {
    *  tem como caminhar por `+ producao - venda`, porque os dois termos sao zero para ele.
    *  Desce sozinho conforme for vendido, porque a rota le o estoque de hoje a cada carga. */
   estoqueForaDoPlano?: number;
+  /** Estoque fisico de hoje, marca LIEBE inteira. Ancora a linha do fisico. */
+  estoqueFisicoHoje?: number;
   /** false = o indice mensal nao carregou. Sem ele a capacidade perde a correcao de nivel
    *  e a sazonalidade: sobe ~4,7% e fica igual em todo mes de mesmo numero de dias. A tela
    *  precisa DIZER isso — a falha e silenciosa e vale 100 mil pecas no fim do horizonte. */
@@ -226,6 +228,7 @@ export default function CapacidadeVsVenda({
   mesesComparacao,
   cargaExtraMin,
   estoqueForaDoPlano = 0,
+  estoqueFisicoHoje = 0,
   indiceCarregado = true,
   disponivelCurvaHoje,
   onOcupacaoPlano,
@@ -672,9 +675,23 @@ export default function CapacidadeVsVenda({
   //
   // Por isso a serie agora e `l.estoque` direto, que e a trajetoria que o nivelamento ja
   // usa. Uma regua so para as duas linhas, e nenhuma premissa no meio.
-  // O FISICO e o armazem inteiro: a trajetoria do recorte planejavel mais o que esta fora
-  // dele. A parcela de fora e constante — ver `estoqueForaDoPlano`.
-  const fisicoPrevisto = linhas.map((l) => l.estoque + Number(estoqueForaDoPlano || 0));
+  // O FISICO COMECA NO FISICO DE HOJE.
+  //
+  // `l.estoque` nao e estoque fisico: e uma posicao projetada por SKU — parte de
+  // `estoque_disponivel` (que ja soma o em-processo), tira os pendentes, soma os planos de
+  // MA a QT e tira a venda projetada ate dezembro. Somar a parcela de fora em cima disso
+  // dava 337.575 em nov/26 quando o armazem tinha 353.553: a soma estava certa, a base nao
+  // era fisica.
+  //
+  // Agora a serie e ancorada no fisico medido hoje (`/api/capacidade/estoque-liebe`,
+  // marca LIEBE inteira) e dai caminha com os MESMOS degraus mes a mes da projecao. Sem a
+  // medida carregada, cai no comportamento antigo — melhor a trajetoria velha do que
+  // nenhuma linha.
+  const baseProjetada = linhas.length > 0 ? Number(linhas[0].estoque || 0) : 0;
+  const ancora = Number(estoqueFisicoHoje || 0);
+  const fisicoPrevisto = linhas.map((l) => (ancora > 0
+    ? ancora + (Number(l.estoque || 0) - baseProjetada)
+    : Number(l.estoque || 0) + Number(estoqueForaDoPlano || 0)));
 
   // Publica a leitura para a tabela de baixo. Em efeito, nao no render, para nao avisar o
   // pai no meio da renderizacao dele.
@@ -1074,9 +1091,9 @@ export default function CapacidadeVsVenda({
             Carga extra enviada: <strong>{fmt(Number(cargaExtraMin || 0))}</strong> min
             {!(Number(cargaExtraMin || 0) > 0) && ' — NÃO chegou'}
           </span>
-          {Number(estoqueForaDoPlano || 0) > 0 && (
-            <span title="Peças da Liebe que existem no armazém mas estão fora do recorte planejável (EM LINHA NÃO COMPRAR MP, OPORTUNIDADE, TERCEIROS…). Entram fixas na linha de estoque físico: não têm plano nem projeção para caminhar, e descem sozinhas conforme são vendidas, porque a leitura é refeita a cada carga.">
-              Estoque fora do plano: <strong>{fmt(estoqueForaDoPlano!)}</strong> peças
+          {Number(estoqueFisicoHoje || 0) > 0 && (
+            <span title="Estoque físico de hoje, marca LIEBE inteira, lido do ERP a cada carregamento — inclui o que está fora do recorte planejável (EM LINHA NÃO COMPRAR MP, OPORTUNIDADE, TERCEIROS…). A linha do físico começa aqui e caminha com os degraus da projeção.">
+              Estoque físico hoje: <strong>{fmt(estoqueFisicoHoje!)}</strong> peças
             </span>
           )}
           <span>

@@ -184,6 +184,8 @@ export default function VisaoGeral2Page() {
   // PCP — por isso a cobertura viaja junto e aparece na tela.
   // Estoque fisico que fica fora do recorte planejavel — soma na linha de estoque.
   const [estoqueFora, setEstoqueFora] = useState(0);
+  // Estoque fisico de HOJE, a marca LIEBE inteira. E onde a linha do fisico comeca.
+  const [estoqueFisicoHoje, setEstoqueFisicoHoje] = useState(0);
   const [moveMedido, setMoveMedido] = useState<{ minPeca: number; comTempo: number; skus: number } | null>(null);
   const minPecaMove = useMemo(() => {
     if (moveMedido && moveMedido.minPeca > 0) return moveMedido.minPeca;
@@ -1167,6 +1169,7 @@ export default function VisaoGeral2Page() {
       const r = await fetchNoCache(`${API_URL}/api/capacidade/estoque-liebe`, { headers: authHeaders() }, 120000);
       const p = await r.json();
       if (r.ok && p?.success && Number(p.fora) >= 0) setEstoqueFora(Number(p.fora));
+      if (r.ok && p?.success && Number(p.total) > 0) setEstoqueFisicoHoje(Number(p.total));
     } catch { /* fica zero: a linha volta a mostrar so o recorte planejavel */ }
   }
 
@@ -2503,6 +2506,7 @@ export default function VisaoGeral2Page() {
           cargaExtraMin={cargaExtraParam.split(',').reduce((t, x) => t + (Number(x.split(':')[1]) || 0), 0)}
           onOcupacaoPlano={setOcupPlanoDaTela}
           estoqueForaDoPlano={estoqueFora}
+          estoqueFisicoHoje={estoqueFisicoHoje}
           indiceCarregado={Boolean(indiceMensal && Object.keys(indiceMensal.data || {}).length)}
           disponivelCurvaHoje={data.disponivelCurvaHoje}
           aberturaEstoque={relatorioEfetivo.abertura}
