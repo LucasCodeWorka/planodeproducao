@@ -1301,27 +1301,9 @@ export default function CapacidadeVsVenda({
           {modoGrafico === 'isolado' && (
             <path d={caminhoFisico()} fill="none" stroke="#a5b4fc" strokeWidth="2.5" strokeLinejoin="round" />
           )}
-          {/* TETO DA DIRETORIA, tracejado vermelho atravessando a faixa do Disponivel. So
-              aparece quando cai DENTRO da faixa desenhada — um teto fora da escala viraria
-              uma linha colada na borda, que mente sobre a distancia. */}
-          {modoGrafico === 'isolado' && tetoEstoque > 0
-            && tetoEstoque >= faixas[iDisponivel].minimo
-            && tetoEstoque <= faixas[iDisponivel].maximo && (
-            <g>
-              <line
-                x1={x(0)} x2={x(linhas.length - 1)}
-                y1={ySerie(iDisponivel, tetoEstoque)} y2={ySerie(iDisponivel, tetoEstoque)}
-                stroke="#dc2626" strokeWidth="1.5" strokeDasharray="6 4"
-              />
-              <text
-                x={x(linhas.length - 1)} y={ySerie(iDisponivel, tetoEstoque) - 5}
-                textAnchor="end" fontSize="10" fontWeight="700" fill="#dc2626"
-                fontFamily="ui-monospace, monospace"
-              >
-                {`teto ${fmt(tetoEstoque)}`}
-              </text>
-            </g>
-          )}
+          {/* O teto NAO vira linha no grafico. Os pontos vermelhos ja dizem quais meses
+              passam dele, e o rodape diz o numero — um tracejado a mais so disputa espaco
+              com as curvas. */}
           <path d={caminho(iDisponivel)} fill="none" stroke="#4f46e5" strokeWidth="3.5" strokeLinejoin="round" />
           {/* Pontilhado BEM claro de proposito. Com a segunda linha de rotulo (ocupacao e
               gap) a faixa do Plano ficou a mais carregada das quatro, e o roxo forte
