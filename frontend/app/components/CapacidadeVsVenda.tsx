@@ -151,6 +151,8 @@ type Props = {
   metaEstoqueFinal?: number;
   /** Teto de estoque disponivel definido pela diretoria. Acima dele o periodo fica vermelho. */
   tetoDisponivel?: number;
+  /** O mesmo teto aberto por curva. Soma 220.000, o teto do conjunto. */
+  tetoPorCurva?: Record<'A' | 'B' | 'C' | 'D', number>;
   /** Teto de ocupacao (0-1). Limita o plano nos dois modos de nivelamento. */
   limiteOcupacao?: number;
   /** Capacidade diária da fábrica hoje, só para exibição. */
@@ -222,6 +224,11 @@ export default function CapacidadeVsVenda({
   emProcessoAtual,
   metaEstoqueFinal = 100000,
   tetoDisponivel = 220000,
+  // Limites por curva passados pela diretoria em 11/11/2026, em meses de cobertura e em
+  // pecas: A 0,70 mes · B 2 · C 3 · D 4. Em pecas a lista veio 87.000 / 86.300 / 30.000 /
+  // 14.000 = 217.300, e o PCP fechou nos 220.000 do conjunto pondo os 2.700 que faltavam
+  // na curva A e trocando A e B de lugar.
+  tetoPorCurva = { A: 89000, B: 87000, C: 30000, D: 14000 },
   limiteOcupacao = 0.9,
   capacidadeDiariaAtual,
   cenarioFabrica,
@@ -1943,13 +1950,21 @@ export default function CapacidadeVsVenda({
                   id: `disponivel-${c}`,
                   rotulo: `curva ${c}`,
                   pai: 'disponivel',
-                  dica: `Fatia da curva ${c} no disponível de hoje: ${pct(fatiaCurva(c))} (${fmt(Number(disponivelCurvaHoje?.[c] || 0))} peças), mantida ao longo do horizonte. O modelo projeta o estoque do conjunto, não por curva — então esta abertura é PREMISSA, não medição: ela supõe que o mix de curvas do estoque não muda. Se a fábrica produzir desproporcionalmente numa curva, a realidade se afasta disto.`,
-                  celula: (l: typeof linhas[number]) => (
-                    <span className="tabular-nums text-gray-900">
-                      {fmt(disponivelTabela[linhas.indexOf(l)] * fatiaCurva(c))}
-                      <div className="text-[10px] text-gray-600">{pct(fatiaCurva(c))}</div>
-                    </span>
-                  ),
+                  dica: `Teto desta curva: ${fmt(Number(tetoPorCurva?.[c] || 0))} peças — acima dele o número fica vermelho com o excedente ao lado. Fatia da curva ${c} no disponível de hoje: ${pct(fatiaCurva(c))} (${fmt(Number(disponivelCurvaHoje?.[c] || 0))} peças), mantida ao longo do horizonte. O modelo projeta o estoque do conjunto, não por curva — então esta abertura é PREMISSA, não medição: ela supõe que o mix de curvas do estoque não muda. Se a fábrica produzir desproporcionalmente numa curva, a realidade se afasta disto.`,
+                  celula: (l: typeof linhas[number]) => {
+                    const valor = disponivelTabela[linhas.indexOf(l)] * fatiaCurva(c);
+                    const limite = Number(tetoPorCurva?.[c] || 0);
+                    const passou = limite > 0 && valor > limite;
+                    return (
+                      <span className={`tabular-nums ${passou ? 'font-semibold text-red-700' : 'text-gray-900'}`}>
+                        {fmt(valor)}
+                        <div className="text-[10px] text-gray-600">
+                          {pct(fatiaCurva(c))}
+                          {passou && <span className="ml-1 text-red-700">+{fmt(valor - limite)}</span>}
+                        </div>
+                      </span>
+                    );
+                  },
                 })) : []),
                 {
                   id: 'info',
