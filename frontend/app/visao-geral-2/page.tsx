@@ -659,10 +659,16 @@ export default function VisaoGeral2Page() {
       // Este numero substitui a constante `REFERENCIA_OUTUBRO_2026 = 192541` que estava
       // chumbada no grafico: era exatamente esta conta, congelada em outubro, e por isso a
       // base do Disponivel pulou quando o mes virou.
-      const disponivelAtual = ((matrix.data || []) as MatrixRow[]).reduce((sum, r) => {
-        const liquido = Number(r.estoques?.estoque_atual || 0) - Number(r.demanda?.pedidos_pendentes || 0);
-        return sum + (liquido > 0 ? liquido : 0);
-      }, 0);
+      //
+      // DECISAO DO PCP (11/11/2026): o grafico parte do MESMO numero do card, que e o
+      // liquido simples — estoque total menos carteira total. A conta por SKU com
+      // `max(0, ...)` descrita acima dava 194.623 contra 186.110 do card, e duas leituras
+      // de "disponivel hoje" na mesma tela nao se sustentam numa conversa. A diferenca sao
+      // 8.513 pecas de SKUs cuja carteira passa do estoque; elas voltam a ser contadas como
+      // divida, nao como zero.
+      const disponivelAtual = ((matrix.data || []) as MatrixRow[]).reduce((sum, r) => (
+        sum + Number(r.estoques?.estoque_atual || 0) - Number(r.demanda?.pedidos_pendentes || 0)
+      ), 0);
       // DISPONIVEL DE HOJE ABERTO POR CURVA, pela MESMA conta acima — por SKU, so positivos.
       // Serve de proporcao para abrir a linha do Disponivel mes a mes: o modelo nao projeta
       // estoque por curva, entao a abertura e a fatia de HOJE mantida no horizonte. E
@@ -1166,7 +1172,10 @@ export default function VisaoGeral2Page() {
 
   async function carregarEstoqueLiebe() {
     try {
-      const r = await fetchNoCache(`${API_URL}/api/capacidade/estoque-liebe`, { headers: authHeaders() }, 120000);
+      // 4 minutos: a consulta leva ~80s na primeira chamada do processo (depois e cache).
+      // Com os 120s de antes ela estourava, caia no catch, e a linha do estoque fisico
+      // perdia a ancora sem avisar ninguem.
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/estoque-liebe`, { headers: authHeaders() }, 240000);
       const p = await r.json();
       if (r.ok && p?.success && Number(p.fora) >= 0) setEstoqueFora(Number(p.fora));
       if (r.ok && p?.success && Number(p.total) > 0) setEstoqueFisicoHoje(Number(p.total));

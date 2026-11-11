@@ -1063,10 +1063,22 @@ router.get("/min-peca-medido", auth, async (req, res) => {
 // pela regra `+ producao - venda`, porque os dois termos sao zero para ele. Entra como
 // parcela fixa, e desce sozinho conforme for vendido — a rota le o estoque de hoje a cada
 // chamada, entao a venda daqueles SKUs aparece na proxima carga sem ninguem fazer nada.
+// Cache longo: mesmo com o filtro de estoque antes da classificacao a consulta leva ~80s,
+// porque f_dic_prd_classificacao custa ~12ms por chamada e sao duas por SKU com estoque.
+// Sem cache, cada carregamento da Visao Geral 2 paga isso de novo e corre o risco de
+// estourar o tempo do navegador — e quando estoura, a linha do estoque fisico perde a
+// ancora e volta a mostrar a posicao projetada, calada. `?refresh=true` forca.
+const estoqueLiebeCache = { data: null, timestamp: 0 };
+const ESTOQUE_LIEBE_TTL = 30 * 60 * 1000;
+
 router.get("/estoque-liebe", auth, async (req, res) => {
   try {
     const pool = req.app.get("pool");
     if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    if (req.query.refresh !== "true" && estoqueLiebeCache.data
+        && Date.now() - estoqueLiebeCache.timestamp < ESTOQUE_LIEBE_TTL) {
+      return res.json({ ...estoqueLiebeCache.data, fromCache: true });
+    }
     const r = await pool.query(`
       WITH base AS (
         SELECT p.cd_produto,
@@ -1075,8 +1087,16 @@ router.get("/estoque-liebe", auth, async (req, res) => {
                  'AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuCc'))) AS status,
                COALESCE(mv.estoque_bruto::FLOAT, 0) AS estoque
           FROM vr_prd_prdgrade p
-          LEFT JOIN mv_pcp_estoque_atual mv ON mv.cd_produto::BIGINT = p.cd_produto::BIGINT
-         WHERE p.cd_produto < 1000000
+          -- JOIN, nao LEFT JOIN, e com o estoque filtrado ANTES de classificar.
+          -- f_dic_prd_classificacao e cara e era chamada duas vezes para CADA produto do
+          -- cadastro, inclusive os milhares com estoque zero que nao mudam o resultado (o
+          -- GROUP BY ja os descartava no fim). A rota levava 124s — o frontend aborta em
+          -- 120, entao ela nunca chegava, a tela caia no caminho antigo e o estoque fisico
+          -- aparecia sem a parcela de fora. Os numeros sao os mesmos: quem tem estoque zero
+          -- nao soma nada.
+          JOIN mv_pcp_estoque_atual mv ON mv.cd_produto::BIGINT = p.cd_produto::BIGINT
+         WHERE COALESCE(mv.estoque_bruto, 0) <> 0
+           AND p.cd_produto < 1000000
            AND UPPER(COALESCE(p.nm_produto,'')) NOT LIKE '%MEIA DE SEDA%'
            AND UPPER(TRIM(COALESCE(p.ds_tamanho,''))) <> 'PT 99'
            AND f_dic_prd_classificacao(p.cd_produto,'DS'::text,20::bigint) = 'LIEBE'
@@ -1095,14 +1115,17 @@ router.get("/estoque-liebe", auth, async (req, res) => {
       if (PLANEJAVEL.has(x.status)) planejavel += v;
       return { status: x.status, skus: x.skus, estoque: Math.round(v) };
     });
-    res.json({
+    const payload = {
       success: true,
       total: Math.round(total),
       planejavel: Math.round(planejavel),
       // O que a tela de planejamento nao enxerga e precisa somar na linha de estoque.
       fora: Math.round(total - planejavel),
       porStatus,
-    });
+    };
+    estoqueLiebeCache.data = payload;
+    estoqueLiebeCache.timestamp = Date.now();
+    res.json(payload);
   } catch (err) {
     console.error("[capacidade] estoque-liebe:", err.message);
     res.status(500).json({ success: false, error: err.message });

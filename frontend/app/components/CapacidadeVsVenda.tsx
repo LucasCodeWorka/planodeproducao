@@ -629,9 +629,17 @@ export default function CapacidadeVsVenda({
   // `disponivelPlano` abaixo); virou const para as duas series partirem do mesmo ponto, e
   // porque a razao do estoque fisico precisa dele tambem.
   const disponivelAbertura = disponivelHoje;
+  // A PRIMEIRA COLUNA E HOJE, nao o fim do mes corrente.
+  //
+  // Ela ja somou a sobra do mes em curso e mostrava 174.170 onde o card diz 186.110 — duas
+  // leituras do mesmo dia na mesma tela. Agora o mes corrente entra com o valor de hoje e a
+  // sobra passa a contar a partir da coluna seguinte.
   const disponivelTabela = linhas.reduce<number[]>((valores, l, i) => {
-    const anterior = i === 0 ? disponivelAbertura : valores[i - 1];
-    valores.push(anterior + sobraTabela(l));
+    if (i === 0) {
+      valores.push(disponivelAbertura);
+      return valores;
+    }
+    valores.push(valores[i - 1] + sobraTabela(l));
     return valores;
   }, []);
   // DISPONIVEL PELO PLANO.
@@ -687,10 +695,16 @@ export default function CapacidadeVsVenda({
   // marca LIEBE inteira) e dai caminha com os MESMOS degraus mes a mes da projecao. Sem a
   // medida carregada, cai no comportamento antigo — melhor a trajetoria velha do que
   // nenhuma linha.
-  const baseProjetada = linhas.length > 0 ? Number(linhas[0].estoque || 0) : 0;
+  // A REGUA E A MESMA DO DISPONIVEL: as duas linhas saem de HOJE e andam pelo mesmo evento
+  // (o que entra menos o que sai, mes a mes). A unica diferenca entre elas e a carteira.
+  //
+  // Ancorar so o fisico em hoje, como fiz antes, punha as duas em reguas diferentes: a
+  // coluna nov/26 e o FIM de novembro, entao o disponivel ja mostrava 174.170 (186.110 de
+  // hoje menos a sobra do mes) enquanto o fisico mostrava 353.381, que e hoje. Agora os
+  // dois andam juntos.
   const ancora = Number(estoqueFisicoHoje || 0);
-  const fisicoPrevisto = linhas.map((l) => (ancora > 0
-    ? ancora + (Number(l.estoque || 0) - baseProjetada)
+  const fisicoPrevisto = linhas.map((l, i) => (ancora > 0
+    ? ancora + (disponivelTabela[i] - disponivelTabela[0])
     : Number(l.estoque || 0) + Number(estoqueForaDoPlano || 0)));
 
   // Publica a leitura para a tabela de baixo. Em efeito, nao no render, para nao avisar o
