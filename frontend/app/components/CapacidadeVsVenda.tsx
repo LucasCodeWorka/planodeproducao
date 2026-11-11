@@ -149,6 +149,8 @@ type Props = {
   emProcessoAtual: number;
   /** Referencia de estoque disponivel no fim do horizonte. So leitura: nao limita o plano. */
   metaEstoqueFinal?: number;
+  /** Teto de estoque disponivel definido pela diretoria. Acima dele o periodo fica vermelho. */
+  tetoDisponivel?: number;
   /** Teto de ocupacao (0-1). Limita o plano nos dois modos de nivelamento. */
   limiteOcupacao?: number;
   /** Capacidade diária da fábrica hoje, só para exibição. */
@@ -219,6 +221,7 @@ export default function CapacidadeVsVenda({
   disponivelAtual,
   emProcessoAtual,
   metaEstoqueFinal = 100000,
+  tetoDisponivel = 220000,
   limiteOcupacao = 0.9,
   capacidadeDiariaAtual,
   cenarioFabrica,
@@ -730,6 +733,16 @@ export default function CapacidadeVsVenda({
   // mesmo numero pintariam os dois, e aqui interessa UM de cada.
   const iMenorDisponivel = disponivelTabela.indexOf(menorDisponivel);
   const iMaiorDisponivel = disponivelTabela.indexOf(Math.max(...disponivelTabela));
+  // TETO DE ESTOQUE DISPONIVEL, definido pela diretoria em 11/11/2026: 220.000 pecas, que
+  // nao se pode ultrapassar. Com um teto declarado, o pico do horizonte deixa de ser
+  // noticia boa — o que interessa e QUANDO a linha passa dele. Por isso o verde do pico sai
+  // e o vermelho passa a marcar estouro; o vale fica roxo, a cor da propria serie, porque
+  // estoque baixo nao e o risco que esta regra governa.
+  const tetoEstoque = Number(tetoDisponivel || 0);
+  const estouraTeto = (i: number) => tetoEstoque > 0 && disponivelTabela[i] > tetoEstoque;
+  const periodosEstourados = disponivelTabela
+    .map((v, i) => (tetoEstoque > 0 && v > tetoEstoque ? i : -1))
+    .filter((i) => i >= 0);
   const primeiroProjetado = linhas.findIndex((l) => !l.travado);
 
   // As tres curvas sao os tres pilares: o que sai (venda), o que entra (capacidade) e o
@@ -1117,6 +1130,17 @@ export default function CapacidadeVsVenda({
           <span className={menorDisponivel < 0 ? 'text-red-700 font-semibold' : ''}>
             Menor disponível do horizonte: <strong>{fmt(menorDisponivel)}</strong>
           </span>
+          {tetoEstoque > 0 && (
+            <span
+              className={periodosEstourados.length > 0 ? 'text-red-700 font-semibold' : 'text-emerald-800'}
+              title="Teto de estoque disponível definido pela diretoria. Período acima dele aparece com o ponto vermelho no gráfico."
+            >
+              Teto de estoque: <strong>{fmt(tetoEstoque)}</strong>
+              {periodosEstourados.length > 0
+                ? ` — ultrapassa em ${periodosEstourados.map((i) => linhas[i].mes).join(', ')}`
+                : ' — não ultrapassa no horizonte'}
+            </span>
+          )}
           <span className={desvioMeta >= 0 ? 'text-emerald-800' : 'text-amber-800'}>
             Disponível ao fim: <strong>{fmt(disponivelTabela[disponivelTabela.length - 1])}</strong>
             {' '}({desvioMeta >= 0 ? '+' : ''}{fmt(desvioMeta)} vs. meta)
@@ -1277,6 +1301,27 @@ export default function CapacidadeVsVenda({
           {modoGrafico === 'isolado' && (
             <path d={caminhoFisico()} fill="none" stroke="#a5b4fc" strokeWidth="2.5" strokeLinejoin="round" />
           )}
+          {/* TETO DA DIRETORIA, tracejado vermelho atravessando a faixa do Disponivel. So
+              aparece quando cai DENTRO da faixa desenhada — um teto fora da escala viraria
+              uma linha colada na borda, que mente sobre a distancia. */}
+          {modoGrafico === 'isolado' && tetoEstoque > 0
+            && tetoEstoque >= faixas[iDisponivel].minimo
+            && tetoEstoque <= faixas[iDisponivel].maximo && (
+            <g>
+              <line
+                x1={x(0)} x2={x(linhas.length - 1)}
+                y1={ySerie(iDisponivel, tetoEstoque)} y2={ySerie(iDisponivel, tetoEstoque)}
+                stroke="#dc2626" strokeWidth="1.5" strokeDasharray="6 4"
+              />
+              <text
+                x={x(linhas.length - 1)} y={ySerie(iDisponivel, tetoEstoque) - 5}
+                textAnchor="end" fontSize="10" fontWeight="700" fill="#dc2626"
+                fontFamily="ui-monospace, monospace"
+              >
+                {`teto ${fmt(tetoEstoque)}`}
+              </text>
+            </g>
+          )}
           <path d={caminho(iDisponivel)} fill="none" stroke="#4f46e5" strokeWidth="3.5" strokeLinejoin="round" />
           {/* Pontilhado BEM claro de proposito. Com a segunda linha de rotulo (ocupacao e
               gap) a faixa do Plano ficou a mais carregada das quatro, e o roxo forte
@@ -1348,23 +1393,27 @@ export default function CapacidadeVsVenda({
                 valor === null ? null : (
                 <g key={indice}>
                   {(() => {
-                    // Na faixa do Disponivel, o pico fica verde e o vale vermelho. Nas
-                    // outras series o ponto segue a cor da propria linha.
-                    const ehPico = indice === iDisponivel && i === iMaiorDisponivel;
+                    // Na faixa do Disponivel: VERMELHO quando passa do teto da diretoria,
+                    // roxo (a cor da serie) no vale. Nas outras series o ponto segue a cor
+                    // da propria linha.
+                    const ehEstouro = indice === iDisponivel && estouraTeto(i);
+                    const ehPico = false;
                     const ehVale = indice === iDisponivel && i === iMenorDisponivel;
-                    const cor = ehPico ? '#059669' : ehVale ? '#dc2626' : SERIE_COR[indice];
+                    const cor = ehEstouro ? '#dc2626' : SERIE_COR[indice];
                     return (
                       <circle
                         cx={x(i)}
                         cy={ySerie(indice, valor)}
-                        r={ehPico || ehVale ? 6 : 4}
-                        fill={ehPico || ehVale ? cor : '#fff'}
+                        r={ehEstouro || ehVale ? 6 : 4}
+                        fill={ehEstouro || ehVale ? cor : '#fff'}
                         stroke={cor}
                         strokeWidth="2"
                       >
                         <title>
                           {`${l.mes} · ${SERIE_NOMES[indice]}: ${fmt(valor)} peças`}
-                          {ehPico ? ' — maior do horizonte' : ehVale ? ' — menor do horizonte' : ''}
+                          {ehEstouro
+                            ? ` — ${fmt(valor - tetoEstoque)} acima do teto de ${fmt(tetoEstoque)}`
+                            : ehVale ? ' — menor do horizonte' : ''}
                         </title>
                       </circle>
                     );
