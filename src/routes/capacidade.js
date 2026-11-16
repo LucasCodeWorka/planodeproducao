@@ -3233,4 +3233,585 @@ router.get("/lista-vs-producao", auth, async (req, res) => {
   }
 });
 
+// ── GET /api/capacidade/distribuicao-sugerida ──────────────────────────────────
+//
+// PARA ONDE CADA REFERENCIA DEVERIA IR.
+//
+// A Lista x Producao mostra que o cadastro nao descreve a producao: 59% dos vinculos
+// nunca rodaram, e 55% da carga acaba num grupo que nao a executou. Diagnosticar o erro
+// nao diz o que fazer. Esta rota diz: uma linha por referencia, com ate quatro grupos em
+// ordem de preferencia.
+//
+//   Grupo A = quem mais produziu a referencia nos meses fechados (a regra do PCP)
+//   B, C, D = para onde ela vai quando o A nao tem capacidade
+//
+// A distribuicao respeita a capacidade MEDIDA de cada celula: nenhuma passa de 100%. O que
+// nao couber em lugar nenhum sai nomeado em `naoCoube` — e sinal de que a fabrica nao
+// comporta o plano, e esconder isso faria a tela mentir.
+//
+// O MIX NAO VEM DO CADASTRO. A rota de ocupacao, no modo "por mix", descobre quais celulas
+// fazem cada mix olhando as referencias ja CADASTRADAS nelas (celulasPorMix, ~linha 2550) —
+// entao ela herda o erro que a Lista x Producao denuncia. Aqui a celula ganha o mix que ela
+// comprovadamente COSTUROU, lido de vr_cdf_movopi. Medido em 12/11/2026: 86,8% do plano tem
+// historico proprio e os 13,2% restantes sao cobertos pelo mix, sem nenhuma referencia orfa.
+//
+// Nada e gravado. E leitura.
+const distribuicaoCache = { data: null, timestamp: 0, chave: '' };
+const DISTRIBUICAO_TTL = 30 * 60 * 1000;
+
+const MAX_GRUPOS_POR_REF = 4;
+const ORDEM_GRUPO = ['A', 'B', 'C', 'D'];
+
+router.get("/distribuicao-sugerida", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    const meses = Math.min(24, Math.max(1, Number(req.query.meses) || 6));
+    const comParada = req.query.ferias === '1' || req.query.ferias === 'true';
+    // Carga extra que a Visao Geral 2 calcula no navegador (Liebe Move, edicao limitada,
+    // plano previsto dos meses sem lote) e manda em minutos por periodo. Ela nao tem
+    // abertura por referencia, entao nao da para distribui-la: entra como OCUPACAO PREVIA
+    // de cada celula, proporcional ao tamanho dela, reduzindo a capacidade livre. Sem isso
+    // a proposta reparte uma fabrica mais vazia do que ela estara.
+    const cargaExtra = parseCargaExtra(req.query.extra);
+    const loteId = String(req.query.lote_id || '').trim();
+    const chave = `${meses}|${comParada}|${req.query.extra || ''}|${loteId}`;
+    const cache = distribuicaoCache;
+    if (req.query.refresh !== "true" && cache.data && cache.chave === chave
+        && Date.now() - cache.timestamp < DISTRIBUICAO_TTL) {
+      return res.json({ ...cache.data, fromCache: true });
+    }
+
+    const hoje = new Date();
+    const ids = DEFAULT_REAL_GROUP_IDS.map(String);
+    const { readCache } = require('../cache/matrizCache');
+
+    // ── 1. Celulas ativas e a capacidade medida de cada uma ────────────────────
+    // `readGrupos` ja passa por `normalizarGrupos`, que descarta as desativadas e as de
+    // capacidade <= 0. Celula sem medicao no periodo fica com zero e NAO pode ser candidata:
+    // receberia carga sem ter capacidade, que foi o defeito da EXCELENCIA.
+    const grupos = await readGrupos(pool);
+    const de = new Date(hoje.getFullYear(), hoje.getMonth() - 3, 1).toISOString().slice(0, 10);
+    const ate = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+    const { porGrupo: capacidadeReal } = await consultarCapacidadeRealPorGrupo(pool, de, ate, 'media');
+    const temMedida = capacidadeReal.size > 0;
+    const capDiaria = new Map();
+    for (const g of grupos) {
+      const v = temMedida ? Number(capacidadeReal.get(g.grupo) || 0) : Number(g.capacidade_diaria || 0);
+      if (v > 0) capDiaria.set(g.grupo, v);
+    }
+    const capacidadeDiariaTotal = [...capDiaria.values()].reduce((a, b) => a + b, 0);
+
+    // ── 2. Dias do horizonte: os 14 periodos somados ───────────────────────────
+    const periodos = calcularPeriodosPlano(hoje);
+    let diasHorizonte = 0;
+    for (const per of PERIODOS_PLANO) {
+      diasHorizonte += diasDisponiveisDaData(periodos.datas[per], hoje, comParada);
+    }
+
+    // ── 3. Quem produziu o que, nos meses FECHADOS ─────────────────────────────
+    // Mesma consulta da Lista x Producao: tp_historicomov 51 e a baixa de peca acabada, e
+    // sem o filtro de locais `vr_cdf_movopi` traz movimento entre depositos (~10x).
+    const producao = await pool.query(`
+      SELECT m.cd_localorigem::text AS cd_local,
+             UPPER(TRIM(COALESCE(f_dic_prd_nivel(m.cd_produto, 'CD'::bpchar), '')))::text AS referencia,
+             SUM(COALESCE(m.qt_movimento, 0))::float AS pecas
+        FROM vr_cdf_movopi m
+       WHERE m.tp_historicomov = 51
+         AND m.in_estorno = 'F'
+         AND m.cd_localorigem::text = ANY($1::text[])
+         AND m.dt_movimento >= DATE_TRUNC('month', CURRENT_DATE - ($2::int || ' months')::interval)::date
+         AND m.dt_movimento <  DATE_TRUNC('month', CURRENT_DATE)::date
+       GROUP BY 1, 2
+    `, [ids, meses]);
+
+    const locais = await pool.query(
+      `SELECT cd_local::text AS cd_local, UPPER(TRIM(ds_local::text)) AS ds_local
+         FROM pcp_cache_locais WHERE cd_local::text = ANY($1::text[])`, [ids]);
+    const nomeDoLocal = new Map(locais.rows.map((r) => [r.cd_local, r.ds_local]));
+
+    const produzidoPorRef = new Map();   // referencia -> Map(celula -> pecas)
+    for (const row of producao.rows) {
+      const ref = row.referencia;
+      if (!ref) continue;
+      const celula = nomeDoLocal.get(row.cd_local) || row.cd_local;
+      if (!capDiaria.has(celula)) continue;   // celula parada ou sem medicao: nao e destino
+      if (!produzidoPorRef.has(ref)) produzidoPorRef.set(ref, new Map());
+      const m = produzidoPorRef.get(ref);
+      m.set(celula, (m.get(celula) || 0) + Number(row.pecas || 0));
+    }
+
+    // ── 4. Mix de producao (classificacao 29), por SKU ─────────────────────────
+    // A view indexada, nao a funcao: `f_dic_prd_classificacao` custa ~12ms por chamada.
+    const mixRows = await pool.query(
+      `SELECT cd_produto::TEXT AS id, UPPER(TRIM(ds_classificacao)) AS mix
+         FROM public.vr_prd_produtoclas
+        WHERE cd_tipoclas::int = $1 AND COALESCE(ds_classificacao, '') <> ''`,
+      [MIX_PRODUCAO_TIPOCLAS]);
+    const mixPorSku = new Map(mixRows.rows.map((r) => [String(r.id), String(r.mix)]));
+
+    // ── 5. Tempo padrao e plano dos 14 periodos, da matriz ─────────────────────
+    const temposResult = await queryTempoBaseRows(pool, {});
+    const tempoPorIdRef = new Map();
+    for (const row of temposResult.rows || []) {
+      const idreferencia = String(row.idreferencia || '').trim().toUpperCase();
+      if (!idreferencia) continue;
+      const base = resolveTempoLikePowerBi(row.hr_tempo, row.hr_tempopadrao);
+      tempoPorIdRef.set(idreferencia, (tempoPorIdRef.get(idreferencia) || 0) + (Number.isFinite(base) ? base : 0));
+    }
+
+    const matrizCache = await readCache();
+    const matrizRows = matrizCache?.data?.rows || matrizCache?.data?.data || matrizCache?.data || [];
+    const linhasMatriz = Array.isArray(matrizRows) ? matrizRows : [];
+
+    // EM PROCESSO tambem ocupa celula. A rota de ocupacao ja o soma; sem ele esta aqui
+    // mediria 5.682.425 min contra os 6.300.104 de la — os 617.679 de diferenca sao
+    // exatamente a OP aberta. Uma proposta que ignora o que ja esta na maquina reparte uma
+    // fabrica mais vazia do que ela esta.
+    const { mapa: processoPorRefPeriodo, ok: processoOk } =
+      await carregarProcessoPorRefPeriodo(pool, linhasMatriz, periodos, hoje);
+
+    // ATENCAO A CHAVE: o tempo e indexado por `cd_seqgrupo`; producao e mix usam
+    // `produto.referencia`. Sao espacos distintos, e o laco carrega os dois.
+    const planosSimulados = new Map();
+    if (loteId) {
+      for (const simulacao of await lerSimulacoesDoLote(pool, loteId)) {
+        for (const plano of simulacao.parametros.planos) {
+          const chavePlano = String(plano?.chave || '').trim();
+          if (chavePlano) planosSimulados.set(chavePlano, plano);
+        }
+      }
+      if (!planosSimulados.size) {
+        return res.status(404).json({ success: false, error: 'Não foi possível carregar os planos do lote de simulação informado.' });
+      }
+    }
+    const planoPorRef = new Map();     // referencia -> pecas por periodo
+    const processoPorRef = new Map();  // referencia -> pecas em OP aberta
+    const tempoPorRef = new Map();     // referencia -> min/peca
+    const mixPorRef = new Map();       // referencia -> mix
+    const familiaPorRef = new Map();
+    const campos = PERIODOS_PLANO.map((p) => p.toLowerCase());
+    for (const item of linhasMatriz) {
+      const produto = item?.produto || {};
+      const marca = String(produto.marca || '').trim().toUpperCase();
+      const status = String(produto.status || '').trim().toUpperCase();
+      const descricao = String(produto.produto || '').trim().toUpperCase();
+      if (marca !== 'LIEBE') continue;
+      if (!['EM LINHA', 'NOVA COLECAO'].includes(status)) continue;
+      if (descricao.includes('MEIA DE SEDA')) continue;
+      const ref = String(produto.referencia || '').trim().toUpperCase();
+      if (!ref) continue;
+      if (!familiaPorRef.has(ref)) familiaPorRef.set(ref, familiaDoProduto(produto));
+
+      // Plano PERIODO A PERIODO. O total do horizonte nao serve: a capacidade do
+      // horizonte inteiro (13,7 milhoes de min) e 2,4x a carga (5,7 milhoes), entao no
+      // agregado tudo cabe no Grupo A e o rateio nunca acontece. O aperto e mensal — a
+      // tela de ocupacao mostra SUTIA a 234% em novembro.
+      const atual = planoPorRef.get(ref) || Object.fromEntries(PERIODOS_PLANO.map((x) => [x, 0]));
+      let pecas = 0;
+      const fontePlano = planosSimulados.get(chaveDaLinha(item)) || item?.plano || {};
+      PERIODOS_PLANO.forEach((per, i) => {
+        const v = Number(fontePlano[campos[i]] || 0);
+        atual[per] += v;
+        pecas += v;
+      });
+      if (pecas > 0) planoPorRef.set(ref, atual);
+      // O em processo e por REFERENCIA e entra depois do laco: somar aqui, que roda por
+      // SKU, multiplicaria a OP aberta pelo numero de SKUs da referencia.
+      processoPorRef.set(ref, (processoPorRef.get(ref) || 0) + Number(item?.estoques?.em_processo || 0));
+
+      if (!tempoPorRef.has(ref)) {
+        const id = String(produto.cd_seqgrupo || '').trim().toUpperCase();
+        tempoPorRef.set(ref, Number(tempoPorIdRef.get(id) || 0));
+      }
+      if (!mixPorRef.has(ref)) {
+        const mix = mixPorSku.get(String(produto.idproduto || ''));
+        if (mix) mixPorRef.set(ref, mix);
+      }
+    }
+
+    // EM PROCESSO, uma vez por referencia. A rota de ocupacao soma a OP aberta a carga, e
+    // sem ela esta rota mediria 5.682.425 min contra os 6.300.104 de la. Sem a abertura por
+    // periodo carregada, tudo cai em MA — conservador e igual ao resto do sistema.
+    processoPorRef.forEach((pecas, ref) => {
+      if (!(pecas > 0)) return;
+      const base = planoPorRef.get(ref) || Object.fromEntries(PERIODOS_PLANO.map((x) => [x, 0]));
+      const abertura = processoOk ? processoPorRefPeriodo.get(ref) : null;
+      if (abertura) {
+        PERIODOS_PLANO.forEach((per) => { base[per] += Number(abertura[per] || 0); });
+      } else {
+        base.MA += pecas;
+      }
+      planoPorRef.set(ref, base);
+    });
+
+    // ── 6. Celula -> mixes que ela COSTUROU, e quanto ──────────────────────────
+    // Derivado da producao, nao do cadastro. E o que torna esta rota independente da lista.
+    const pecasPorMixCelula = new Map();   // mix -> Map(celula -> pecas)
+    for (const [ref, porCelula] of produzidoPorRef) {
+      const mix = mixPorRef.get(ref);
+      if (!mix) continue;
+      if (!pecasPorMixCelula.has(mix)) pecasPorMixCelula.set(mix, new Map());
+      const alvo = pecasPorMixCelula.get(mix);
+      porCelula.forEach((pecas, celula) => alvo.set(celula, (alvo.get(celula) || 0) + pecas));
+    }
+
+    // ── 7. Candidatas por referencia: historico primeiro, mix depois ───────────
+    const candidatasDaRef = (ref) => {
+      const feitas = produzidoPorRef.get(ref) || new Map();
+      const total = [...feitas.values()].reduce((a, b) => a + b, 0);
+      const porHistorico = [...feitas.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([grupo, pecas]) => ({
+          grupo, origem: 'historico', pecasHistorico: Math.round(pecas),
+          concentracao: total > 0 ? pecas / total : null,
+        }));
+      const jaTem = new Set(porHistorico.map((c) => c.grupo));
+      const mix = mixPorRef.get(ref);
+      const porMix = mix
+        ? [...(pecasPorMixCelula.get(mix) || new Map()).entries()]
+            .filter(([grupo]) => !jaTem.has(grupo) && capDiaria.has(grupo))
+            .sort((a, b) => b[1] - a[1])
+            .map(([grupo, pecas]) => ({
+              grupo, origem: 'mix', pecasMix: Math.round(pecas), concentracao: null,
+            }))
+        : [];
+      return [...porHistorico, ...porMix].slice(0, MAX_GRUPOS_POR_REF);
+    };
+
+    // ── 8. Alocacao gulosa, sobre o horizonte inteiro ──────────────────────────
+    // Ordem por ESCASSEZ: quem tem menos saidas escolhe antes, senao uma referencia com
+    // muitas opcoes enche a unica celula que outra tinha. Empate pela maior carga.
+    const refs = [...planoPorRef.keys()].map((ref) => {
+      const porPeriodo = planoPorRef.get(ref);
+      const tempo = Number(tempoPorRef.get(ref) || 0);
+      const pecas = PERIODOS_PLANO.reduce((s, per) => s + Number(porPeriodo[per] || 0), 0);
+      return { ref, porPeriodo, pecas, tempo, cargaMin: pecas * tempo, candidatas: candidatasDaRef(ref) };
+    }).filter((r) => r.pecas > 0);
+
+    // Ordem por ESCASSEZ, calculada uma vez e usada em todos os periodos: quem tem menos
+    // saidas escolhe antes, senao uma referencia com quatro opcoes enche a unica celula que
+    // outra tinha. Empate pela maior carga.
+    const ordem = [...refs].sort((a, b) => (
+      (a.candidatas.length || 99) - (b.candidatas.length || 99)
+      || b.cargaMin - a.cargaMin
+    ));
+
+    // Capacidade do horizonte inteiro, so para calcular a ocupacao no fim.
+    const capacidadeCelula = new Map();
+    capDiaria.forEach((v, celula) => capacidadeCelula.set(celula, v * diasHorizonte));
+    const diasDoPeriodo = {};
+    PERIODOS_PLANO.forEach((per) => {
+      diasDoPeriodo[per] = diasDisponiveisDaData(periodos.datas[per], hoje, comParada);
+    });
+
+    const alocadoPorCelula = new Map();
+    const refsPorCelula = new Map();
+    const porRefCelula = new Map();   // ref -> Map(celula -> minutos)
+    const atrasado = new Map();       // ref -> minutos que nao couberam e vao para o mes seguinte
+    let naoCoubeTotal = 0;
+
+    // O ATRASO E O NUMERO QUE IMPORTA.
+    //
+    // Com transbordo para o mes seguinte, quase tudo acaba cabendo em algum lugar do
+    // horizonte — de jul/27 em diante mal ha plano lancado, entao sobra capacidade e a
+    // conta fecha. Mas "coube em 2027" nao e o mesmo que "cabe". A tela de ocupacao mostra
+    // SUTIA a 207% em novembro mesmo sem a carga extra: o que a alocacao faz nesses casos e
+    // EMPURRAR meses de trabalho para a frente, e a media do horizonte esconde isso.
+    //
+    // Entao, periodo a periodo: quanto foi pedido, quanto coube no proprio mes, e quanto
+    // saiu empurrado. E por referencia, em quantos meses o trabalho dela atrasou.
+    const porPeriodo = [];
+    const atrasoPorRef = new Map();   // ref -> minutos x meses de atraso (para a media)
+    const alocadoPorRef = new Map();  // ref -> minutos alocados (denominador do atraso)
+    // OCUPACAO DA CELULA E POR PERIODO, nao no horizonte.
+    //
+    // Dividir o alocado pelos 270 dias do horizonte dava 45% numa celula que fica LOTADA de
+    // novembro a marco: os seis periodos do fim quase nao tem plano lancado e diluem tudo.
+    // A tela mostrava 55% no grupo e 149% no mes, lado a lado, se contradizendo.
+    const alocadoCelulaPeriodo = new Map();   // celula -> { periodo: minutos }
+    // ABERTURA POR MIX, para a tela poder filtrar por perfil sem refazer a alocacao.
+    //
+    // O filtro e de LEITURA: a alocacao continua disputando a fabrica inteira, senao
+    // olhar so o sutia daria a ele uma fabrica vazia e a resposta seria falsa. O que muda
+    // e o que a tela SOMA ao exibir.
+    const alocadoCelulaPeriodoMix = new Map();   // celula -> { periodo: { mix: minutos } }
+    const alocadoCelulaPeriodoRef = new Map();
+    const fluxoPorReferencia = new Map();
+    // A primeira candidata recebe a demanda ANTES do remanejamento. Isso mede a pressão
+    // sobre a preferência histórica, não uma obrigação real de produzir naquela célula.
+    const pressaoPreferencial = new Map();
+    const fluxoPeriodoMix = new Map();           // periodo -> { mix: {pedido, deTras, coube, empurrado} }
+
+    // PERIODO A PERIODO, nao no agregado. No horizonte inteiro a capacidade (13,7 milhoes
+    // de minutos) e 2,4x a carga (5,7 milhoes): tudo caberia no Grupo A e o rateio nunca
+    // aconteceria. O aperto e mensal — a tela de ocupacao mostra SUTIA a 234% em novembro.
+    for (const per of PERIODOS_PLANO) {
+      const diasDoMes = diasDisponiveisDaData(periodos.datas[per], hoje, comParada);
+      const extraDoPeriodo = Math.max(0, Number(cargaExtra[per] || 0));
+      const livre = new Map();
+      capDiaria.forEach((v, celula) => {
+        const total = v * diasDoMes;
+        // A extra nao tem referencia, entao e cobrada de todas as celulas na proporcao do
+        // tamanho de cada uma — a mesma fatia que o resto do sistema usa para ratear.
+        const fatia = capacidadeDiariaTotal > 0 ? v / capacidadeDiariaTotal : 0;
+        livre.set(celula, Math.max(0, total - extraDoPeriodo * fatia));
+      });
+
+      let pedidoNoMes = 0;
+      let vindoDeTras = 0;
+      let coubeNoMes = 0;
+
+      for (const r of ordem) {
+        // O que nao coube no mes passado volta na frente da fila deste: e o transbordo que
+        // a fabrica de fato faz, e o mesmo comportamento acumulado do resto do sistema.
+        const doMes = Number(r.porPeriodo[per] || 0) * r.tempo;
+        const herdado = Number(atrasado.get(r.ref) || 0);
+        const daVez = doMes + herdado;
+        if (!fluxoPorReferencia.has(r.ref)) fluxoPorReferencia.set(r.ref, {});
+        const fluxoRef = { periodo: per, pecas: Number(r.porPeriodo[per] || 0), pedidoMin: doMes, herdadoMin: herdado, alocadoMin: 0, pendenteMin: 0, destinos: [], tentativas: [] };
+        fluxoPorReferencia.get(r.ref)[per] = fluxoRef;
+        const mixDaRef = mixPorRef.get(r.ref) || 'SEM MIX';
+        pedidoNoMes += doMes;
+        vindoDeTras += herdado;
+        if (!fluxoPeriodoMix.has(per)) fluxoPeriodoMix.set(per, {});
+        const fmix = fluxoPeriodoMix.get(per);
+        if (!fmix[mixDaRef]) fmix[mixDaRef] = { pedido: 0, deTras: 0, coube: 0, empurrado: 0 };
+        fmix[mixDaRef].pedido += doMes;
+        fmix[mixDaRef].deTras += herdado;
+        if (daVez <= 0.0001) { atrasado.set(r.ref, 0); continue; }
+        const preferida = r.candidatas[0]?.grupo;
+        let pressao = null;
+        if (preferida) {
+          if (!pressaoPreferencial.has(preferida)) pressaoPreferencial.set(preferida, {});
+          const porPeriodoPreferencial = pressaoPreferencial.get(preferida);
+          if (!porPeriodoPreferencial[per]) porPeriodoPreferencial[per] = { pedido: 0, herdado: 0, remanejado: 0, pendente: 0, referencias: [] };
+          pressao = porPeriodoPreferencial[per];
+          pressao.pedido += doMes;
+          pressao.herdado += herdado;
+        }
+        let resta = daVez;
+        let remanejadoRef = 0;
+        const destinosAlternativos = [];
+        for (let i = 0; i < r.candidatas.length && resta > 0.0001; i += 1) {
+          const celula = r.candidatas[i].grupo;
+          const disponivel = Math.max(0, Number(livre.get(celula) || 0));
+          const cabe = Math.min(resta, disponivel);
+          fluxoRef.tentativas.push({
+            grupo: celula,
+            origem: r.candidatas[i].origem,
+            solicitadoPecas: r.tempo > 0 ? resta / r.tempo : 0,
+            disponivelMin: disponivel,
+            alocadoMin: cabe,
+            alocadoPecas: r.tempo > 0 ? cabe / r.tempo : 0,
+            restantePecas: r.tempo > 0 ? (resta - cabe) / r.tempo : 0,
+            lotou: disponivel > 0 && disponivel - cabe < 0.0001,
+          });
+          if (disponivel <= 0) continue;
+          fluxoRef.destinos.push({ grupo: celula, minutos: Math.round(cabe) });
+          if (pressao && celula !== preferida) { pressao.remanejado += cabe; remanejadoRef += cabe; destinosAlternativos.push({ grupo: celula, minutos: Math.round(cabe) }); }
+          resta -= cabe;
+          livre.set(celula, disponivel - cabe);
+          alocadoPorCelula.set(celula, (alocadoPorCelula.get(celula) || 0) + cabe);
+          if (!alocadoCelulaPeriodo.has(celula)) alocadoCelulaPeriodo.set(celula, {});
+          const porPer = alocadoCelulaPeriodo.get(celula);
+          porPer[per] = (porPer[per] || 0) + cabe;
+          if (!alocadoCelulaPeriodoMix.has(celula)) alocadoCelulaPeriodoMix.set(celula, {});
+          const porPerMix = alocadoCelulaPeriodoMix.get(celula);
+          if (!porPerMix[per]) porPerMix[per] = {};
+          porPerMix[per][mixDaRef] = (porPerMix[per][mixDaRef] || 0) + cabe;
+          if (!alocadoCelulaPeriodoRef.has(celula)) alocadoCelulaPeriodoRef.set(celula, {});
+          const porPerRef = alocadoCelulaPeriodoRef.get(celula);
+          if (!porPerRef[per]) porPerRef[per] = {};
+          porPerRef[per][r.ref] = (porPerRef[per][r.ref] || 0) + cabe;
+          if (!porRefCelula.has(r.ref)) porRefCelula.set(r.ref, new Map());
+          const m = porRefCelula.get(r.ref);
+          m.set(celula, (m.get(celula) || 0) + cabe);
+          if (!refsPorCelula.has(celula)) refsPorCelula.set(celula, new Set());
+          refsPorCelula.get(celula).add(r.ref);
+        }
+        const alocadoAgora = daVez - resta;
+        fluxoRef.alocadoMin = alocadoAgora;
+        fluxoRef.pendenteMin = resta;
+        if (pressao) {
+          pressao.pendente += resta;
+          pressao.referencias.push({ referencia: r.ref, pedidoMin: Math.round(doMes), herdadoMin: Math.round(herdado), remanejadoMin: Math.round(remanejadoRef), pendenteMin: Math.round(resta), destinosAlternativos });
+        }
+        coubeNoMes += alocadoAgora;
+        fmix[mixDaRef].coube += alocadoAgora;
+        fmix[mixDaRef].empurrado += resta;
+        // Quanto deste minuto estava atrasado: o que veio de tras entra primeiro na fila,
+        // entao o atraso e a parte do alocado que corresponde ao herdado.
+        if (alocadoAgora > 0 && herdado > 0) {
+          const doHerdado = Math.min(alocadoAgora, herdado);
+          atrasoPorRef.set(r.ref, (atrasoPorRef.get(r.ref) || 0) + doHerdado);
+        }
+        alocadoPorRef.set(r.ref, (alocadoPorRef.get(r.ref) || 0) + alocadoAgora);
+        atrasado.set(r.ref, resta);
+      }
+
+      const empurrado = [...atrasado.values()].reduce((a, b) => a + Math.max(0, b), 0);
+      porPeriodo.push({
+        porMix: fluxoPeriodoMix.get(per) || {},
+        periodo: per,
+        mes: `${String(periodos.datas[per].getMonth() + 1).padStart(2, '0')}/${periodos.datas[per].getFullYear()}`,
+        dias: diasDoMes,
+        capacidadeMin: Math.round([...capDiaria.values()].reduce((a, b) => a + b, 0) * diasDoMes),
+        extraMin: Math.round(extraDoPeriodo),
+        pedidoMin: Math.round(pedidoNoMes),
+        vindoDeTrasMin: Math.round(vindoDeTras),
+        coubeMin: Math.round(coubeNoMes),
+        empurradoMin: Math.round(empurrado),
+      });
+    }
+
+    const resultado = new Map();
+    for (const r of refs) {
+      const porCelula = porRefCelula.get(r.ref) || new Map();
+      const sobrou = Math.max(0, Number(atrasado.get(r.ref) || 0));
+      naoCoubeTotal += sobrou;
+      // A ordem A-D sai do quanto cada celula de fato recebeu, nao da ordem das candidatas:
+      // o que o PCP precisa ler e "quem faz mais desta referencia", ja com o rateio dentro.
+      const grupos = [...porCelula.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, MAX_GRUPOS_POR_REF)
+        .map(([grupo, minutos], i) => {
+          const c = r.candidatas.find((x) => x.grupo === grupo) || { origem: 'mix' };
+          return {
+            ordem: ORDEM_GRUPO[i] || String(i + 1),
+            grupo,
+            origem: c.origem,
+            pecasHistorico: c.pecasHistorico === undefined ? null : c.pecasHistorico,
+            pecasMix: c.pecasMix === undefined ? null : c.pecasMix,
+            concentracao: c.concentracao === undefined ? null : c.concentracao,
+            minutos: Math.round(minutos),
+            pecas: r.tempo > 0 ? Math.round(minutos / r.tempo) : 0,
+            fatia: r.cargaMin > 0 ? minutos / r.cargaMin : 0,
+          };
+        });
+      resultado.set(r.ref, {
+        referencia: r.ref,
+        pecas: Math.round(r.pecas),
+        tempoMin: Number(r.tempo.toFixed(2)),
+        cargaMin: Math.round(r.cargaMin),
+        mix: mixPorRef.get(r.ref) || null,
+        grupoProduto: familiaPorRef.get(r.ref) || 'SEM GRUPO',
+        semTempo: !(r.tempo > 0),
+        candidatas: r.candidatas.length,
+        grupos,
+        periodos: PERIODOS_PLANO.map((per) => {
+          const f = fluxoPorReferencia.get(r.ref)?.[per];
+          return { periodo: per, pecas: Math.round(f?.pecas || 0), pedidoMin: Math.round(f?.pedidoMin || 0), herdadoMin: Math.round(f?.herdadoMin || 0), alocadoMin: Math.round(f?.alocadoMin || 0), pendenteMin: Math.round(f?.pendenteMin || 0), herdadoPecas: r.tempo > 0 ? (f?.herdadoMin || 0) / r.tempo : 0, pendentePecas: r.tempo > 0 ? (f?.pendenteMin || 0) / r.tempo : 0, destinos: f?.destinos || [], tentativas: f?.tentativas || [] };
+        }),
+        // Fracao do trabalho desta referencia que so foi alocada DEPOIS do mes em que foi
+        // pedida. 0 = tudo no mes certo; 1 = tudo empurrado pelo menos uma vez.
+        atraso: Number(alocadoPorRef.get(r.ref) || 0) > 0
+          ? Number(((atrasoPorRef.get(r.ref) || 0) / alocadoPorRef.get(r.ref)).toFixed(3))
+          : 0,
+        naoCoubeMin: Math.round(sobrou),
+        // "mudou" = nao ficou inteira em quem mais a produziu. E o que o PCP precisa olhar:
+        // ou foi rateada por capacidade, ou nunca teve dono.
+        mudou: !(grupos.length === 1 && grupos[0].origem === 'historico' && grupos[0].fatia >= 0.999),
+      });
+    }
+
+    const referencias = [...resultado.values()].sort((a, b) => b.cargaMin - a.cargaMin);
+
+    const gruposSaida = [...capacidadeCelula.entries()].map(([grupo, capacidadeMin]) => {
+      const alocadoMin = Number(alocadoPorCelula.get(grupo) || 0);
+      const lista = [...(refsPorCelula.get(grupo) || new Set())];
+      const novas = lista.filter((ref) => !(produzidoPorRef.get(ref) || new Map()).has(grupo));
+      const porPer = alocadoCelulaPeriodo.get(grupo) || {};
+      const cap = Number(capDiaria.get(grupo) || 0);
+      const meses = PERIODOS_PLANO.map((per) => {
+        const capMes = cap * diasDoPeriodo[per];
+        const aloc = Number(porPer[per] || 0);
+        const extra = capacidadeDiariaTotal > 0 ? Math.max(0, Number(cargaExtra[per] || 0)) * cap / capacidadeDiariaTotal : 0;
+        const pressao = pressaoPreferencial.get(grupo)?.[per] || {};
+        return {
+          periodo: per,
+          capacidadeMin: Math.round(capMes),
+          alocadoMin: Math.round(aloc),
+          extraMin: Math.round(extra),
+          pedidoPreferencialMin: Math.round(pressao.pedido || 0),
+          herdadoPreferencialMin: Math.round(pressao.herdado || 0),
+          remanejadoPreferencialMin: Math.round(pressao.remanejado || 0),
+          pendentePreferencialMin: Math.round(pressao.pendente || 0),
+          referenciasPreferenciais: pressao.referencias || [],
+          ocupacao: capMes > 0 ? Number(((aloc + extra) / capMes).toFixed(4)) : null,
+        };
+      });
+      // "Cheia" = o guloso usou tudo que havia naquele mes. E o sinal de gargalo: a
+      // ocupacao nunca passa de 100% por construcao, entao o que conta e QUANTAS vezes ela
+      // encostou no teto.
+      const cheios = meses.filter((m) => (m.ocupacao || 0) >= 0.995).length;
+      return {
+        grupo,
+        capacidadeDiaria: Number(cap.toFixed(1)),
+        capacidadeMin: Math.round(capacidadeMin),
+        alocadoMin: Math.round(alocadoMin),
+        ocupacao: capacidadeMin > 0 ? Number((alocadoMin / capacidadeMin).toFixed(4)) : null,
+        meses,
+        // Mesma abertura, por mix, para o filtro de perfil da tela.
+        mesesPorMix: alocadoCelulaPeriodoMix.get(grupo) || {},
+        mesesPorReferencia: alocadoCelulaPeriodoRef.get(grupo) || {},
+        periodosCheios: cheios,
+        refs: lista.length,
+        refsNovas: novas.length,
+        referencias: lista,
+      };
+    }).sort((a, b) => (b.periodosCheios - a.periodosCheios) || ((b.ocupacao || 0) - (a.ocupacao || 0)));
+
+    const soma = (f) => referencias.reduce((s, r) => s + f(r), 0);
+    // Somas SEM arredondar: conferir o fechamento com os valores ja arredondados por
+    // referencia acumula o erro e acusa falha onde nao ha.
+    const cargaTotalMin = refs.reduce((s, r) => s + r.cargaMin, 0);
+    const naoCoubeMin = naoCoubeTotal;
+    const alocadoTotal = [...alocadoPorCelula.values()].reduce((a, b) => a + b, 0);
+
+    const payload = {
+      success: true,
+      meses,
+      loteId: loteId || null,
+      comFerias: comParada,
+      diasHorizonte,
+      capacidadeDiariaTotal: Number(capacidadeDiariaTotal.toFixed(1)),
+      temMedida,
+      referencias,
+      grupos: gruposSaida,
+      periodos: porPeriodo,
+      resumo: {
+        refs: referencias.length,
+        pecasPlano: Math.round(soma((r) => r.pecas)),
+        cargaTotalMin: Math.round(cargaTotalMin),
+        alocadoMin: Math.round(alocadoTotal),
+        naoCoubeMin: Math.round(naoCoubeMin),
+        // Fecha a conta: o que entrou mais o que nao coube tem de ser a carga inteira.
+        fecha: Math.abs((alocadoTotal + naoCoubeMin) - cargaTotalMin) < 1,
+        refsComHistorico: referencias.filter((r) => r.grupos.some((g) => g.origem === 'historico')).length,
+        refsSoMix: referencias.filter((r) => r.grupos.length > 0 && r.grupos.every((g) => g.origem === 'mix')).length,
+        refsSemDestino: referencias.filter((r) => r.candidatas === 0).length,
+        refsRateadas: referencias.filter((r) => r.grupos.length > 1).length,
+        refsSemTempo: referencias.filter((r) => r.semTempo).length,
+        capacidadeHorizonteMin: Math.round([...capacidadeCelula.values()].reduce((a, b) => a + b, 0)),
+        cargaExtraMin: Math.round(PERIODOS_PLANO.reduce((acc, per) => acc + Math.max(0, Number(cargaExtra[per] || 0)), 0)),
+        emProcessoOk: processoOk,
+        // Quanto do trabalho so foi alocado depois do mes em que foi pedido. E o numero que
+        // diz se o plano cabe de verdade ou se esta sendo empurrado para 2027.
+        atrasadoMin: Math.round([...atrasoPorRef.values()].reduce((a, b) => a + b, 0)),
+        periodosEstourados: porPeriodo.filter((p) => p.pedidoMin + p.vindoDeTrasMin + p.extraMin > p.capacidadeMin).length,
+        extraExcedeCapacidade: porPeriodo.some((p) => p.extraMin > p.capacidadeMin),
+      },
+    };
+
+    distribuicaoCache.data = payload;
+    distribuicaoCache.timestamp = Date.now();
+    distribuicaoCache.chave = chave;
+    return res.json(payload);
+  } catch (error) {
+    console.error("[capacidade/distribuicao-sugerida] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao montar a distribuição sugerida", details: error.message });
+  }
+});
+
 module.exports = router;

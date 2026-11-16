@@ -13,6 +13,12 @@ const {
   buscarExecucaoPlanoResumo
 } = require("../services/producaoService");
 const { calcularPeriodosPlano, PERIODOS_PLANO } = require("../services/periodoPlanoService");
+const { buscarPedidosPorItem, salvarSnapshotPedidosItem } = require("../services/pedidoItemService");
+const { buscarDisponibilidadeVenda, lerUltimaAtualizacaoMvGeo3 } = require("../services/disponibilidadeVendaService");
+const { montarMacro, montarLotes, buscarPedidosDoLote } = require("../services/carteiraService");
+const { alocarEPersistirProduto } = require("../services/alocacaoPedidosService");
+const { calcularEPersistirNegativo } = require("../services/negativoService");
+const { buscarHistoriaProduto } = require("../services/historiaProdutoService");
 
 const { readCache, filterCache } = require("../cache/matrizCache");
 const {
@@ -987,6 +993,230 @@ router.get("/vendas-mes-atual", async (req, res) => {
       error: "Erro ao buscar venda do mes atual",
       details: error.message,
     });
+  }
+});
+
+/**
+ * GET /api/producao/pedidos-item
+ * Pedido por item (linha a linha, com cd_lote e cd_cliente), em vez do agregado
+ * por produto já exposto em /api/producao/matriz (demanda.pedidos_pendentes).
+ * Fase 0 do plano de unificação plano/disponibilidade/atendimento.
+ *
+ * cd_produto ou cd_pedido é obrigatório: vr_ped_pedidoi tem 7,3 milhões de linhas
+ * sem filtro (medido em 2026-11-13) e puxar tudo de uma vez derruba o pool de
+ * conexões do banco.
+ *
+ * Query params:
+ *   cd_produto  - lista separada por vírgula (ex: 123,456)
+ *   cd_pedido   - lista separada por vírgula (ex: 96816,96817)
+ *   snapshot    - opcional, "true" para também persistir em app_pedido_item_snapshot
+ */
+router.get("/pedidos-item", async (req, res) => {
+  const parseLista = (v) => (v ? String(v).split(",").map((x) => x.trim()).filter(Boolean) : undefined);
+  const cdProduto = parseLista(req.query.cd_produto);
+  const cdPedido = parseLista(req.query.cd_pedido);
+
+  if (!cdProduto && !cdPedido) {
+    return res.status(400).json({
+      success: false,
+      error: "Informe cd_produto ou cd_pedido (vr_ped_pedidoi tem 7,3M de linhas sem filtro)",
+    });
+  }
+
+  try {
+    const pool = req.app.get("pool");
+    const itens = await buscarPedidosPorItem(pool, { cdProduto, cdPedido });
+
+    let snapshot = null;
+    if (req.query.snapshot === "true") {
+      snapshot = await salvarSnapshotPedidosItem(pool, itens);
+    }
+
+    return res.json({ success: true, data: itens, total: itens.length, snapshot });
+  } catch (error) {
+    console.error("[producao/pedidos-item] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao buscar pedidos por item",
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/producao/disponibilidade-venda
+ * Lê mv_geo3 diretamente (estoque + produção + lotes MA/MG/PX/UL), a mesma
+ * fonte já usada pela área comercial para oferecer venda. Mesma query do
+ * dashboard-disponibilidade isolado, agora pelo backend principal.
+ * Fase 1 do plano de unificação plano/disponibilidade/atendimento.
+ *
+ * Query params:
+ *   idproduto - opcional, lista separada por vírgula; omitido = toda a mv_geo3 (cache 1h)
+ *   refresh   - opcional, "true" para ignorar o cache (só válido sem idproduto)
+ */
+router.get("/disponibilidade-venda", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const idproduto = req.query.idproduto
+      ? String(req.query.idproduto).split(",").map((v) => v.trim()).filter(Boolean)
+      : undefined;
+
+    const data = await buscarDisponibilidadeVenda(pool, {
+      idproduto,
+      forceRefresh: req.query.refresh === "true",
+    });
+
+    return res.json({ success: true, data, total: data.length });
+  } catch (error) {
+    console.error("[producao/disponibilidade-venda] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao consultar mv_geo3",
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/producao/alocacao-pedidos?idproduto=
+ * Motor de alocação (ATP): ordena os pedidos pendentes daquele produto por
+ * cd_lote (mais antigo primeiro) e consome a oferta disponível (estoque+processo
+ * hoje, depois os baldes do plano MA/PX/UL...), período a período. Mostra quem
+ * fica sem atender e por quê — não grava nada no ERP, só diagnóstico.
+ * Fase 2 do plano de unificação plano/disponibilidade/atendimento.
+ */
+router.get("/alocacao-pedidos", async (req, res) => {
+  const idproduto = req.query.idproduto ? String(req.query.idproduto).trim() : "";
+  if (!idproduto) {
+    return res.status(400).json({ success: false, error: "Informe idproduto" });
+  }
+
+  try {
+    const pool = req.app.get("pool");
+    const pedidos = await buscarPedidosPorItem(pool, { cdProduto: [idproduto] });
+    const pendentes = pedidos.filter((p) => Number(p.qt_pendente || 0) > 0);
+
+    const resultado = await alocarEPersistirProduto(pool, {
+      cdProduto: idproduto,
+      pedidos: pendentes,
+    });
+
+    return res.json({ success: true, idproduto, ...resultado });
+  } catch (error) {
+    console.error("[producao/alocacao-pedidos] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao alocar pedidos",
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/producao/negativo-causa?idproduto=
+ * Saldo projetado por período (igual ao calcularDisp de recuperar-negativos)
+ * com causa-raiz classificada e persistida em app_negativo_causa. Fase 3 do
+ * plano de unificação plano/disponibilidade/atendimento. Ver nota no topo de
+ * negativoService.js sobre a simplificação do fator de mês corrente.
+ */
+router.get("/negativo-causa", async (req, res) => {
+  const idproduto = req.query.idproduto ? String(req.query.idproduto).trim() : "";
+  if (!idproduto) {
+    return res.status(400).json({ success: false, error: "Informe idproduto" });
+  }
+
+  try {
+    const pool = req.app.get("pool");
+    const resultado = await calcularEPersistirNegativo(pool, idproduto);
+    return res.json({ success: true, idproduto, ...resultado });
+  } catch (error) {
+    console.error("[producao/negativo-causa] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao calcular causa de negativo",
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/producao/historia-produto?idproduto=
+ * Agregador de leitura: identidade do produto + plano/OP/estoque/pedidos/causa
+ * de negativo, para a tela "história do produto" (Fase 4). Nada é escrito no
+ * ERP aqui; é só composição do que as Fases 0-3 já calculam.
+ */
+router.get("/historia-produto", async (req, res) => {
+  const idproduto = req.query.idproduto ? String(req.query.idproduto).trim() : "";
+  if (!idproduto) {
+    return res.status(400).json({ success: false, error: "Informe idproduto" });
+  }
+
+  try {
+    const pool = req.app.get("pool");
+    const catalogo = await buscarCatalogoProdutos(pool, { cdProduto: idproduto, limit: 1 });
+    const produto = catalogo[0] || null;
+    const historia = await buscarHistoriaProduto(pool, idproduto);
+
+    return res.json({ success: true, idproduto, produto, ...historia });
+  } catch (error) {
+    console.error("[producao/historia-produto] Erro:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Erro ao montar história do produto",
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/producao/carteira/macro
+ * Operação Integrada, nível 1: a carteira de pedidos inteira (sem precisar de
+ * SKU) confrontada contra a oferta bruta (estoque, produção, plano MA/PX, UL,
+ * fora do horizonte GEO). Nenhum número aqui é "alocação" — isso é a
+ * Entrega 2. Fontes reaproveitadas: cache da matriz oficial, mv_geo3.
+ */
+router.get("/carteira/macro", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const macro = await montarMacro(pool, {});
+    const mvGeo3Atualizacao = lerUltimaAtualizacaoMvGeo3();
+    return res.json({ success: true, ...macro, mvGeo3Atualizacao });
+  } catch (error) {
+    console.error("[producao/carteira/macro] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao montar visão macro da carteira", details: error.message });
+  }
+});
+
+/**
+ * GET /api/producao/carteira/lotes
+ * Nível 2: carteira agrupada por cd_lote (lote comercial), ordenada
+ * cronologicamente (não é a prioridade oficial — ainda não validada).
+ */
+router.get("/carteira/lotes", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const resultado = await montarLotes(pool, {});
+    return res.json({ success: true, ...resultado });
+  } catch (error) {
+    console.error("[producao/carteira/lotes] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao montar lotes comerciais", details: error.message });
+  }
+});
+
+/**
+ * GET /api/producao/carteira/lotes/:cdLote/pedidos
+ * Nível 3: pedidos de um lote comercial, com seus itens. Use "(sem lote)"
+ * (ou vazio) para ver os pedidos sem cd_lote.
+ */
+router.get("/carteira/lotes/:cdLote/pedidos", async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    const cdLote = decodeURIComponent(req.params.cdLote || "");
+    const pedidos = await buscarPedidosDoLote(pool, cdLote, {});
+    return res.json({ success: true, cdLote, pedidos });
+  } catch (error) {
+    console.error("[producao/carteira/lotes/:cdLote/pedidos] Erro:", error);
+    return res.status(500).json({ success: false, error: "Erro ao buscar pedidos do lote", details: error.message });
   }
 });
 

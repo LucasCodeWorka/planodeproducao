@@ -183,6 +183,9 @@ export default function VisaoGeral2Page() {
   // Min/peca da Liebe Move pelos tempos DELA. `semTempo` entra como zero, por decisao do
   // PCP — por isso a cobertura viaja junto e aparece na tela.
   // Estoque fisico que fica fora do recorte planejavel — soma na linha de estoque.
+  // Como a Ocupacao por grupo escreve o percentual: acumulado (o padrao) ou em meses,
+  // que e como a diretoria le. So visual — nenhuma conta do backend muda.
+  const [unidadeOcup, setUnidadeOcup] = useState<'dias' | 'meses'>('dias');
   const [estoqueFora, setEstoqueFora] = useState(0);
   // Estoque fisico de HOJE, a marca LIEBE inteira. E onde a linha do fisico comeca.
   const [estoqueFisicoHoje, setEstoqueFisicoHoje] = useState(0);
@@ -2642,6 +2645,7 @@ export default function VisaoGeral2Page() {
       {/* Abertura da tabela acima, por grupo de produto. O total dela tem que reproduzir a
           ocupacao do conjunto — e a reconciliacao fica visivel no rodape de proposito. */}
       {ocupacaoEfetiva && ocupacaoEfetiva.dados.length > 0 && (
+        <div>
         <OcupacaoPorGrupo
           dados={ocupacaoEfetiva.dados}
           capacidadeDiariaTotal={ocupacaoEfetiva.capacidadeDiariaTotal}
@@ -2649,9 +2653,18 @@ export default function VisaoGeral2Page() {
           comSimulacao={Boolean(data.loteId)}
           alocacao={alocacaoOcup}
           onAlocacao={setAlocacaoOcup}
+          unidade={unidadeOcup}
+          onUnidade={setUnidadeOcup}
           carregando={carregandoOcup}
           ocupacaoAlvo={ocupPlanoDaTela}
         />
+        {!modoFoto && <div className="mb-6 rounded-b-lg border border-t-0 border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+          Veja como este cenário pode ser distribuído entre os grupos de costura. A proposta usa o histórico de produção e pode diferir do rateio por cadastro acima.{' '}
+          <a className="font-semibold underline" href={`/distribuicao-sugerida?${new URLSearchParams({ cenario: 'visao-geral', ferias: comFerias ? '1' : '0', extra: cargaExtraParam, lote_id: rawData?.loteId || '' }).toString()}`}>
+            Abrir distribuição deste cenário →
+          </a>
+        </div>}
+        </div>
       )}
       </div>
 

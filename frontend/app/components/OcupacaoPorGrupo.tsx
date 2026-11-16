@@ -77,6 +77,9 @@ type Props = {
   comSimulacao?: boolean;
   /** Como a carga encontra a celula hoje. */
   alocacao: 'cadastro' | 'mix';
+  /** 'dias' = ocupacao acumulada, o padrao. 'meses' = a leitura da diretoria. */
+  unidade: 'dias' | 'meses';
+  onUnidade: (u: 'dias' | 'meses') => void;
   onAlocacao: (a: 'cadastro' | 'mix') => void;
   carregando?: boolean;
   /** Ocupacao acumulada do PLANO vinda da Capacidade x Venda, periodo a periodo.
@@ -145,7 +148,7 @@ function confiavel(g: GrupoOcupacao) {
 // passasse para la", nao "ela esta la". A tela diz isso na dica da linha.
 const FAMILIA_DA_CAPACIDADE_ORFA = 'SUTIA';
 
-export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaTotal, temMedida, comSimulacao, alocacao, onAlocacao, carregando, ocupacaoAlvo }: Props) {
+export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaTotal, temMedida, comSimulacao, alocacao, onAlocacao, unidade, onUnidade, carregando, ocupacaoAlvo }: Props) {
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
   const [verOutros, setVerOutros] = useState(false);
 
@@ -228,6 +231,34 @@ export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaT
   // sao a ocupacao vezes os dias.
   const ajustarGap = (gap: number, i: number, dias: number) => (gap + dias) * (fator[i] ?? 1) - dias;
 
+  // LEITURA EM MESES — o jeito que o PCP e a diretoria leem.
+  //
+  // O percentual da tela e ACUMULADO: carga somada contra dias somados. Quem decide nao
+  // pensa assim. Olhando "+25 dias" em abril, o diretor le "isso e mais de um mes de
+  // trabalho sobrando" — e no raciocinio dele a fabrica ja usa 100% do mes e ainda deve
+  // mais um mes inteiro, o que daria 216%, nao 116%.
+  //
+  // Os dois estao certos sobre coisas diferentes, e nenhum pode substituir o outro: medido
+  // em 12/11/2026, a conta em meses funciona nos primeiros periodos (fev/27 vira 275%) e
+  // despenca nos ultimos, onde o gap acumulado de catorze meses dividido por UM mes da
+  // -579% no SUTIA e -801% na CALCA. Por isso e um BOTAO, nao uma troca: cada leitura vale
+  // na sua ponta, e quem olha escolhe.
+  const diasDoMes = (i: number) => {
+    const ate = Number(dados[0]?.meses[i]?.diasDisponiveis || 0);
+    const antes = i > 0 ? Number(dados[0]?.meses[i - 1]?.diasDisponiveis || 0) : 0;
+    return Math.max(1, ate - antes);
+  };
+  // 100% = o mes cheio. Cada mes de trabalho a mais soma 100.
+  const ocupacaoEmMeses = (gap: number, i: number, dias: number) =>
+    1 + ajustarGap(gap, i, dias) / diasDoMes(i);
+  // O GAP CONTINUA EM DIAS nos dois modos. O PCP conferiu e os dias estao certos; so o
+  // percentual e que nao fala a lingua de quem decide. Trocar a unidade da linha de baixo
+  // junto tiraria da tela o numero que quem programa usa.
+  const escreveGap = (gap: number, i: number, dias: number) => {
+    const g = ajustarGap(gap, i, dias);
+    return `${g > 0 ? '+' : ''}${g.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}d`;
+  };
+
   // PERIODO SEM PLANO LANCADO.
   //
   // A ocupacao e ACUMULADA: carga somada desde o inicio contra dias somados. Num periodo
@@ -292,15 +323,12 @@ export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaT
                   ? 'Nenhum plano lançado neste período. A ocupação cai sozinha porque a carga não cresce e os dias acumulam — não é folga, é mês sem plano.'
                   : ok ? undefined : `${pct(g.fatiaSemCelula)} da carga deste grupo não tem célula de capacidade cadastrada — há minutos de trabalho sem capacidade atribuída, então esta ocupação está inflada. Abra o grupo para ver quais referências cadastrar.`}
               >
-                <div className={`text-sm font-bold ${vazio ? 'text-gray-300' : !ok ? 'text-gray-400' : corOcupacao(ajustar(m.ocupacao, i))}`}>
-                  {vazio ? '—' : pct(ajustar(m.ocupacao, i))}
+                <div className={`text-sm font-bold ${vazio ? 'text-gray-300' : !ok ? 'text-gray-400' : corOcupacao(unidade === 'dias' ? ajustar(m.ocupacao, i) : ocupacaoEmMeses(m.gapDias, i, m.diasDisponiveis))}`}>
+                  {vazio ? '—' : pct(unidade === 'dias' ? ajustar(m.ocupacao, i) : ocupacaoEmMeses(m.gapDias, i, m.diasDisponiveis))}
                   {!vazio && !ok && <span className="ml-0.5 align-top text-[9px] font-bold text-amber-500">!</span>}
                 </div>
                 <div className={`text-[10px] font-semibold ${vazio || !ok ? 'text-gray-300' : m.gapDias > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                  {vazio ? 'sem plano' : (() => {
-                    const g = ajustarGap(m.gapDias, i, m.diasDisponiveis);
-                    return `${g > 0 ? '+' : ''}${g.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}d`;
-                  })()}
+                  {vazio ? 'sem plano' : escreveGap(m.gapDias, i, m.diasDisponiveis)}
                 </div>
               </td>
             );
@@ -444,6 +472,24 @@ export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaT
               </button>
             ))}
           </div>
+          <div className="inline-flex overflow-hidden rounded border border-gray-300 text-xs">
+            {([
+              { id: 'dias' as const, rotulo: 'Acumulado', dica: 'Ocupação acumulada: carga somada desde o início contra os dias somados. É a leitura que fecha com o gráfico de cima e com a Sugestão de Plano.' },
+              { id: 'meses' as const, rotulo: 'Em meses', dica: 'A leitura da diretoria: 100% é o mês cheio, e cada mês de trabalho sobrando soma mais 100. Em abril, +25 dias de gap viram +1,2 mês, então a célula mostra 220% em vez de 116%. CUIDADO nos períodos do fim: o gap é acumulado de até catorze meses e, dividido por um mês só, chega a −579% — ali a leitura acumulada é a que vale.' },
+            ]).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => onUnidade(opt.id)}
+                title={opt.dica}
+                className={`px-2.5 py-1 ${
+                  unidade === opt.id ? 'bg-indigo-600 font-semibold text-white' : 'bg-white hover:bg-gray-50'
+                }`}
+              >
+                {opt.rotulo}
+              </button>
+            ))}
+          </div>
           {carregando && <span className="text-[11px] text-gray-400">recalculando…</span>}
         </div>
         <span
@@ -505,15 +551,11 @@ export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaT
                     className="px-3 py-3 text-center font-mono whitespace-nowrap"
                     title={vazio ? 'Nenhum plano lançado neste período — a queda é só o calendário andando.' : undefined}
                   >
-                    <div className={`text-sm font-bold ${vazio ? 'text-gray-300' : corOcupacao(ajustar(t.ocupacao, i))}`}>
-                      {vazio ? '—' : pct(ajustar(t.ocupacao, i))}
+                    <div className={`text-sm font-bold ${vazio ? 'text-gray-300' : corOcupacao(unidade === 'dias' ? ajustar(t.ocupacao, i) : ocupacaoEmMeses(t.gapDias, i, Number(dados[0]?.meses[i]?.diasDisponiveis || 0)))}`}>
+                      {vazio ? '—' : pct(unidade === 'dias' ? ajustar(t.ocupacao, i) : ocupacaoEmMeses(t.gapDias, i, Number(dados[0]?.meses[i]?.diasDisponiveis || 0)))}
                     </div>
                     <div className={`text-[10px] font-semibold ${vazio ? 'text-gray-300' : t.gapDias > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                      {vazio ? 'sem plano' : (() => {
-                        const dias = Number(dados[0]?.meses[i]?.diasDisponiveis || 0);
-                        const g = ajustarGap(t.gapDias, i, dias);
-                        return `${g > 0 ? '+' : ''}${g.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}d`;
-                      })()}
+                      {vazio ? 'sem plano' : escreveGap(t.gapDias, i, Number(dados[0]?.meses[i]?.diasDisponiveis || 0))}
                     </div>
                   </td>
                 );

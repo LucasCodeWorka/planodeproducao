@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, ChevronDown, LogOut, Settings, TrendingDown, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, AlertTriangle, MinusCircle, CalendarRange, LineChart } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, ChevronDown, LogOut, Settings, TrendingDown, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, AlertTriangle, MinusCircle, CalendarRange, LineChart, Shuffle, Search } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -40,6 +40,7 @@ const GRUPOS_NAV = [
       { href: '/capacidade', label: 'Capacidade', Icon: Gauge },
       { href: '/capacidade-matriz', label: 'Matriz Capacidade', Icon: Gauge },
       { href: '/lista-vs-producao', label: 'Lista × Produção', Icon: GitCompareArrows },
+      { href: '/distribuicao-sugerida', label: 'Distribuição sugerida', Icon: Shuffle },
     ],
   },
   {
@@ -49,6 +50,7 @@ const GRUPOS_NAV = [
     itens: [
       { href: '/curva-abc', label: 'Curva ABC', Icon: BarChart3 },
       { href: '/extrato-plano', label: 'Extrato Plano', Icon: GitCompareArrows },
+      { href: '/historia-produto', label: 'História do Produto (busca por SKU)', Icon: Search },
     ],
   },
 ];
@@ -155,6 +157,10 @@ export default function Sidebar({ onCollapse }: SidebarProps) {
           </div>
         )}
         <div className="space-y-1">
+          {/* Operação Integrada: escondida da sidebar a pedido do usuário em 2026-11-13 —
+              visual ficou longe da referência aprovada. Rota /operacao-integrada continua
+              existindo, só não tem mais link aqui. */}
+
           <button onClick={() => router.push('/')} className={`${navItemBase} ${pathname === '/' ? navActive : navInactive}`}>
             <Factory size={20} className="shrink-0" />
             {!collapsed && <span>Plano de Produção</span>}
