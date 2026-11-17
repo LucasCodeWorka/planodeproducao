@@ -1,0 +1,606 @@
+{
+  "origem": "Revisão de produção recebida em 16/11/2026; itens corretos e indicações explícitas de primeiro grupo; usar apenas quando não houver histórico próprio na janela consultada.",
+  "referencias": {
+    "123605": [
+      "05 - MOTIVACAO SU BASICO"
+    ],
+    "503152": [
+      "04 - PERSEVERANCA SU FASHION/BASICO"
+    ],
+    "503153": [
+      "04 - PERSEVERANCA SU FASHION/BASICO"
+    ],
+    "503806": [
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "601188": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601271": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601287": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601288": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601289": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601291": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601778": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601787": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601788": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601791": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "603188": [
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "603390": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "603410": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "603488": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "603589": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "604087": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "604088": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "606790": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "101000": [
+      "07 - DESAFIO CA FASHION",
+      "06 - UNIAO CA LUXE"
+    ],
+    "101500": [
+      "07 - DESAFIO CA FASHION"
+    ],
+    "101700": [
+      "07 - DESAFIO CA FASHION"
+    ],
+    "101701": [
+      "07 - DESAFIO CA FASHION",
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "103009": [
+      "04 - HARMONIA SU BASICO",
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "103010": [
+      "05 - POSITIVO SU BASICO"
+    ],
+    "103602": [
+      "05 - POSITIVO SU BASICO"
+    ],
+    "103605": [
+      "05 - MOTIVACAO SU BASICO",
+      "08 - OBJETIVO SO BASICO"
+    ],
+    "103801": [
+      "05 - MOTIVACAO SU BASICO"
+    ],
+    "103802": [
+      "09 - LIDERANCA ANATOMIC",
+      "03 - FUTURO SU LUXE"
+    ],
+    "103803": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "106601": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "123018": [
+      "05 - POSITIVO SU BASICO",
+      "05 - MOTIVACAO SU BASICO"
+    ],
+    "123019": [
+      "05 - MOTIVACAO SU BASICO",
+      "05 - POSITIVO SU BASICO",
+      "04 - HARMONIA SU BASICO"
+    ],
+    "123020": [
+      "05 - POSITIVO SU BASICO"
+    ],
+    "123022": [
+      "05 - POSITIVO SU BASICO",
+      "04 - HARMONIA SU BASICO"
+    ],
+    "123101": [
+      "05 - POSITIVO SU BASICO"
+    ],
+    "123121": [
+      "04 - HARMONIA SU BASICO",
+      "05 - MOTIVACAO SU BASICO",
+      "08 - OBJETIVO SO BASICO"
+    ],
+    "123302": [
+      "05 - MOTIVACAO SU BASICO",
+      "05 - POSITIVO SU BASICO"
+    ],
+    "123406": [
+      "05 - MOTIVACAO SU BASICO"
+    ],
+    "123606": [
+      "05 - POSITIVO SU BASICO",
+      "05 - MOTIVACAO SU BASICO",
+      "04 - HARMONIA SU BASICO"
+    ],
+    "136109": [
+      "03 - ALEGRIA SU LUXE MODA"
+    ],
+    "136110": [
+      "03 - ALEGRIA SU LUXE MODA"
+    ],
+    "136113": [
+      "03 - ALEGRIA SU LUXE MODA",
+      "03 - FUTURO SU LUXE"
+    ],
+    "136117": [
+      "03 - ALEGRIA SU LUXE MODA",
+      "03 - FUTURO SU LUXE"
+    ],
+    "136118": [
+      "03 - ALEGRIA SU LUXE MODA",
+      "03 - FUTURO SU LUXE",
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "136119": [
+      "03 - ALEGRIA SU LUXE MODA"
+    ],
+    "136121": [
+      "03 - ALEGRIA SU LUXE MODA"
+    ],
+    "136124": [
+      "03 - FUTURO SU LUXE",
+      "03 - ALEGRIA SU LUXE MODA",
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "136200": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "136209": [
+      "03 - ALEGRIA SU LUXE MODA"
+    ],
+    "136213": [
+      "03 - ALEGRIA SU LUXE MODA"
+    ],
+    "136218": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "136220": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "136221": [
+      "03 - ALEGRIA SU LUXE MODA"
+    ],
+    "136222": [
+      "03 - ALEGRIA SU LUXE MODA",
+      "03 - FUTURO SU LUXE"
+    ],
+    "136910": [
+      "03 - ALEGRIA SU LUXE MODA"
+    ],
+    "163101": [
+      "07 - EVOLUCAO CA FASHION",
+      "08 - CONQUISTA CA BASICO/FASHION"
+    ],
+    "201301": [
+      "OFICINA - GLEDSON SOARES"
+    ],
+    "203601": [
+      "05 - POSITIVO SU BASICO"
+    ],
+    "211003": [
+      "07 - DESAFIO CA FASHION",
+      "OFICINA - GLEDSON SOARES"
+    ],
+    "211303": [
+      "07 - DESAFIO CA FASHION",
+      "OFICINA - GLEDSON SOARES",
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "213001": [
+      "OFICINA - GLEDSON SOARES",
+      "08 - CONQUISTA CA BASICO/FASHION",
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "301103": [
+      "08 - CONQUISTA CA BASICO/FASHION"
+    ],
+    "301307": [
+      "08 - CONQUISTA CA BASICO/FASHION",
+      "07 - EVOLUCAO CA FASHION",
+      "OFICINA - GLEDSON SOARES"
+    ],
+    "301310": [
+      "09 - LIDERANCA ANATOMIC"
+    ],
+    "301311": [
+      "08 - CONQUISTA CA BASICO/FASHION"
+    ],
+    "301502": [
+      "08 - CONQUISTA CA BASICO/FASHION",
+      "06 - UNIAO CA LUXE"
+    ],
+    "301600": [
+      "08 - CONQUISTA CA BASICO/FASHION",
+      "06 - UNIAO CA LUXE"
+    ],
+    "301701": [
+      "08 - CONQUISTA CA BASICO/FASHION",
+      "06 - UNIAO CA LUXE"
+    ],
+    "301707": [
+      "09 - LIDERANCA ANATOMIC"
+    ],
+    "302003": [
+      "08 - CONQUISTA CA BASICO/FASHION",
+      "OFICINA - GLEDSON SOARES"
+    ],
+    "302104": [
+      "09 - LIDERANCA ANATOMIC"
+    ],
+    "302106": [
+      "09 - LIDERANCA ANATOMIC",
+      "04 - PERSEVERANCA SU FASHION/BASICO"
+    ],
+    "303100": [
+      "04 - PERSEVERANCA SU FASHION/BASICO"
+    ],
+    "303402": [
+      "09 - LIDERANCA ANATOMIC",
+      "03 - FUTURO SU LUXE"
+    ],
+    "303600": [
+      "05 - MOTIVACAO SU BASICO"
+    ],
+    "303603": [
+      "09 - LIDERANCA ANATOMIC",
+      "04 - PERSEVERANCA SU FASHION/BASICO"
+    ],
+    "401309": [
+      "09 - LIDERANCA ANATOMIC"
+    ],
+    "402101": [
+      "09 - LIDERANCA ANATOMIC"
+    ],
+    "402102": [
+      "09 - LIDERANCA ANATOMIC"
+    ],
+    "403300": [
+      "09 - LIDERANCA ANATOMIC",
+      "03 - FUTURO SU LUXE",
+      "04 - PERSEVERANCA SU FASHION/BASICO"
+    ],
+    "406600": [
+      "09 - LIDERANCA ANATOMIC",
+      "03 - FUTURO SU LUXE"
+    ],
+    "406604": [
+      "09 - LIDERANCA ANATOMIC",
+      "03 - FUTURO SU LUXE"
+    ],
+    "411001": [
+      "05 - POSITIVO SU BASICO",
+      "04 - HARMONIA SU BASICO",
+      "08 - OBJETIVO SO BASICO"
+    ],
+    "411301": [
+      "06 - UNIAO CA LUXE",
+      "07 - EVOLUCAO CA FASHION",
+      "OFICINA - GLEDSON SOARES"
+    ],
+    "413400": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "413401": [
+      "05 - POSITIVO SU BASICO"
+    ],
+    "501000": [
+      "OFICINA - GLEDSON SOARES"
+    ],
+    "501052": [
+      "OFICINA - GLEDSON SOARES",
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "501053": [
+      "OFICINA - GLEDSON SOARES",
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "501220": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "501252": [
+      "OFICINA - GLEDSON SOARES",
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "501302": [
+      "OFICINA - GLEDSON SOARES"
+    ],
+    "501700": [
+      "OFICINA - GLEDSON SOARES",
+      "06 - UNIAO CA LUXE"
+    ],
+    "501715": [
+      "06 - UNIAO CA LUXE",
+      "OFICINA - GLEDSON SOARES"
+    ],
+    "501723": [
+      "07 - EVOLUCAO CA FASHION",
+      "07 - DESAFIO CA FASHION",
+      "06 - UNIAO CA LUXE",
+      "OFICINA - GLEDSON SOARES"
+    ],
+    "503001": [
+      "04 - PERSEVERANCA SU FASHION/BASICO",
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "503040": [
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "503303": [
+      "04 - PERSEVERANCA SU FASHION/BASICO",
+      "03 - FELICIDADE SU LUXE",
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "503306": [
+      "04 - SUPERACAO SU FASHION/BASICO",
+      "03 - FUTURO SU LUXE",
+      "04 - PERSEVERANCA SU FASHION/BASICO"
+    ],
+    "503352": [
+      "04 - SUPERACAO SU FASHION/BASICO",
+      "04 - PERSEVERANCA SU FASHION/BASICO"
+    ],
+    "503400": [
+      "04 - PERSEVERANCA SU FASHION/BASICO"
+    ],
+    "503449": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "503805": [
+      "04 - PERSEVERANCA SU FASHION/BASICO",
+      "03 - FUTURO SU LUXE"
+    ],
+    "503810": [
+      "04 - PERSEVERANCA SU FASHION/BASICO",
+      "03 - FELICIDADE SU LUXE",
+      "03 - FUTURO SU LUXE",
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "504053": [
+      "04 - SUPERACAO SU FASHION/BASICO",
+      "03 - FUTURO SU LUXE"
+    ],
+    "505244": [
+      "03 - FUTURO SU LUXE",
+      "03 - ALEGRIA SU LUXE MODA",
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "506120": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "506124": [
+      "03 - FUTURO SU LUXE",
+      "03 - ALEGRIA SU LUXE MODA",
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "506152": [
+      "03 - FUTURO SU LUXE",
+      "03 - ALEGRIA SU LUXE MODA",
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "601187": [
+      "06 - UNIAO CA LUXE",
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "601283": [
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "601286": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601290": [
+      "06 - UNIAO CA LUXE",
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "601754": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601764": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601772": [
+      "06 - UNIAO CA LUXE",
+      "07 - DESAFIO CA FASHION",
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "601784": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601785": [
+      "06 - UNIAO CA LUXE"
+    ],
+    "601790": [
+      "06 - UNIAO CA LUXE",
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "603022": [
+      "04 - PERSEVERANCA SU FASHION/BASICO",
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "603083": [
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "603086": [
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "603091": [
+      "03 - FELICIDADE SU LUXE",
+      "04 - SUPERACAO SU FASHION/BASICO",
+      "03 - FUTURO SU LUXE"
+    ],
+    "603185": [
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "603187": [
+      "04 - SUPERACAO SU FASHION/BASICO",
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "603189": [
+      "04 - SUPERACAO SU FASHION/BASICO",
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "603190": [
+      "04 - SUPERACAO SU FASHION/BASICO",
+      "03 - FUTURO SU LUXE"
+    ],
+    "603191": [
+      "03 - FUTURO SU LUXE",
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "603322": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "603385": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "603387": [
+      "03 - FELICIDADE SU LUXE",
+      "03 - FUTURO SU LUXE"
+    ],
+    "603391": [
+      "04 - SUPERACAO SU FASHION/BASICO",
+      "03 - FUTURO SU LUXE",
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "603422": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "603483": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "603584": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "604084": [
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "605366": [
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "606186": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "606189": [
+      "03 - FELICIDADE SU LUXE",
+      "03 - FUTURO SU LUXE",
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "606682": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "606683": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "606775": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "606786": [
+      "03 - FELICIDADE SU LUXE"
+    ],
+    "701184": [
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "701307": [
+      "09 - LIDERANCA ANATOMIC"
+    ],
+    "701308": [
+      "09 - LIDERANCA ANATOMIC"
+    ],
+    "703015": [
+      "09 - LIDERANCA ANATOMIC",
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "703016": [
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "703017": [
+      "04 - PERSEVERANCA SU FASHION/BASICO",
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "703021": [
+      "03 - FUTURO SU LUXE"
+    ],
+    "703049": [
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "703302": [
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "703313": [
+      "09 - LIDERANCA ANATOMIC",
+      "03 - FUTURO SU LUXE"
+    ],
+    "703314": [
+      "09 - LIDERANCA ANATOMIC",
+      "03 - FUTURO SU LUXE"
+    ],
+    "703402": [
+      "04 - PERSEVERANCA SU FASHION/BASICO",
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "703602": [
+      "05 - POSITIVO SU BASICO"
+    ],
+    "703604": [
+      "05 - POSITIVO SU BASICO"
+    ],
+    "703801": [
+      "04 - SUPERACAO SU FASHION/BASICO"
+    ],
+    "121302": [
+      "07 - DESAFIO CA FASHION"
+    ],
+    "501004": [
+      "07 - EVOLUCAO CA FASHION"
+    ],
+    "301705": [
+      "08 - CONQUISTA CA BASICO/FASHION"
+    ],
+    "302000": [
+      "08 - CONQUISTA CA BASICO/FASHION"
+    ],
+    "501745": [
+      "07 - DESAFIO CA FASHION"
+    ],
+    "103006": [
+      "04 - HARMONIA SU BASICO"
+    ],
+    "103102": [
+      "04 - HARMONIA SU BASICO"
+    ],
+    "341001": [
+      "08 - OBJETIVO SO BASICO"
+    ]
+  }
+}

@@ -1,0 +1,1838 @@
+[
+  {
+    "referencia": "503806",
+    "linhas": []
+  },
+  {
+    "referencia": "603188",
+    "linhas": []
+  },
+  {
+    "referencia": "603390",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-06",
+        "ultimo": "2026-11-06"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-05",
+        "ultimo": "2026-11-05"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-04",
+        "ultimo": "2026-11-04"
+      }
+    ]
+  },
+  {
+    "referencia": "603410",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "104",
+        "grupo": "03 - FUTURO SU LUXE",
+        "classe": "grupo considerado",
+        "pecas": 80,
+        "movimentos": 3,
+        "ops": 1,
+        "primeiro": "2026-11-12",
+        "ultimo": "2026-11-13"
+      },
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-06",
+        "ultimo": "2026-11-06"
+      },
+      {
+        "empresa": "1",
+        "local": "279",
+        "grupo": "02 - ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-11",
+        "ultimo": "2026-11-11"
+      },
+      {
+        "empresa": "1",
+        "local": "316",
+        "grupo": "PRE EXPEDICAO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 3,
+        "ops": 1,
+        "primeiro": "2026-11-12",
+        "ultimo": "2026-11-13"
+      },
+      {
+        "empresa": "1",
+        "local": "321",
+        "grupo": "CONFERENCIA ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-11",
+        "ultimo": "2026-11-11"
+      },
+      {
+        "empresa": "1",
+        "local": "361",
+        "grupo": "INSPECAO QUALIDADE ALCAS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-10",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": "1101",
+        "grupo": "10 - PULMAO - LINHA NOITE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-12",
+        "ultimo": "2026-11-12"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-05",
+        "ultimo": "2026-11-05"
+      },
+      {
+        "empresa": "1",
+        "local": "1381",
+        "grupo": "ALCA INTERNA",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-10",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-04",
+        "ultimo": "2026-11-04"
+      }
+    ]
+  },
+  {
+    "referencia": "603589",
+    "linhas": []
+  },
+  {
+    "referencia": "604088",
+    "linhas": []
+  },
+  {
+    "referencia": "606790",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "103",
+        "grupo": "03 - FELICIDADE SU LUXE",
+        "classe": "grupo considerado",
+        "pecas": 80,
+        "movimentos": 2,
+        "ops": 1,
+        "primeiro": "2026-11-16",
+        "ultimo": "2026-11-16"
+      },
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-05",
+        "ultimo": "2026-11-05"
+      },
+      {
+        "empresa": "1",
+        "local": "279",
+        "grupo": "02 - ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-13",
+        "ultimo": "2026-11-13"
+      },
+      {
+        "empresa": "1",
+        "local": "321",
+        "grupo": "CONFERENCIA ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-06",
+        "ultimo": "2026-11-06"
+      },
+      {
+        "empresa": "1",
+        "local": "361",
+        "grupo": "INSPECAO QUALIDADE ALCAS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-12",
+        "ultimo": "2026-11-12"
+      },
+      {
+        "empresa": "1",
+        "local": "1101",
+        "grupo": "10 - PULMAO - LINHA NOITE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-16",
+        "ultimo": "2026-11-16"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-05",
+        "ultimo": "2026-11-05"
+      },
+      {
+        "empresa": "1",
+        "local": "1381",
+        "grupo": "ALCA INTERNA",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-11",
+        "ultimo": "2026-11-11"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-04",
+        "ultimo": "2026-11-04"
+      },
+      {
+        "empresa": "1",
+        "local": "316",
+        "grupo": "PRE EXPEDICAO",
+        "classe": "outro local",
+        "pecas": 40,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-16",
+        "ultimo": "2026-11-16"
+      }
+    ]
+  },
+  {
+    "referencia": "123018",
+    "linhas": []
+  },
+  {
+    "referencia": "123020",
+    "linhas": []
+  },
+  {
+    "referencia": "123022",
+    "linhas": []
+  },
+  {
+    "referencia": "123121",
+    "linhas": []
+  },
+  {
+    "referencia": "123606",
+    "linhas": []
+  },
+  {
+    "referencia": "136124",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "82",
+        "grupo": "03 - ALEGRIA SU LUXE MODA",
+        "classe": "grupo considerado",
+        "pecas": 400,
+        "movimentos": 7,
+        "ops": 6,
+        "primeiro": "2026-11-03",
+        "ultimo": "2026-11-04"
+      },
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 400,
+        "movimentos": 6,
+        "ops": 6,
+        "primeiro": "2026-10-29",
+        "ultimo": "2026-10-29"
+      },
+      {
+        "empresa": "1",
+        "local": "279",
+        "grupo": "02 - ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 400,
+        "movimentos": 6,
+        "ops": 6,
+        "primeiro": "2026-10-30",
+        "ultimo": "2026-11-03"
+      },
+      {
+        "empresa": "1",
+        "local": "316",
+        "grupo": "PRE EXPEDICAO",
+        "classe": "outro local",
+        "pecas": 400,
+        "movimentos": 12,
+        "ops": 6,
+        "primeiro": "2026-11-03",
+        "ultimo": "2026-11-04"
+      },
+      {
+        "empresa": "1",
+        "local": "321",
+        "grupo": "CONFERENCIA ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 400,
+        "movimentos": 6,
+        "ops": 6,
+        "primeiro": "2026-10-29",
+        "ultimo": "2026-10-29"
+      },
+      {
+        "empresa": "1",
+        "local": "361",
+        "grupo": "INSPECAO QUALIDADE ALCAS",
+        "classe": "outro local",
+        "pecas": 400,
+        "movimentos": 6,
+        "ops": 6,
+        "primeiro": "2026-10-30",
+        "ultimo": "2026-10-30"
+      },
+      {
+        "empresa": "1",
+        "local": "1101",
+        "grupo": "10 - PULMAO - LINHA NOITE",
+        "classe": "outro local",
+        "pecas": 400,
+        "movimentos": 6,
+        "ops": 6,
+        "primeiro": "2026-10-30",
+        "ultimo": "2026-11-03"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 400,
+        "movimentos": 6,
+        "ops": 6,
+        "primeiro": "2026-10-21",
+        "ultimo": "2026-10-21"
+      },
+      {
+        "empresa": "1",
+        "local": "1381",
+        "grupo": "ALCA INTERNA",
+        "classe": "outro local",
+        "pecas": 400,
+        "movimentos": 6,
+        "ops": 6,
+        "primeiro": "2026-10-30",
+        "ultimo": "2026-10-30"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 400,
+        "movimentos": 6,
+        "ops": 6,
+        "primeiro": "2026-10-19",
+        "ultimo": "2026-10-19"
+      }
+    ]
+  },
+  {
+    "referencia": "501052",
+    "linhas": []
+  },
+  {
+    "referencia": "501053",
+    "linhas": []
+  },
+  {
+    "referencia": "501252",
+    "linhas": []
+  },
+  {
+    "referencia": "503306",
+    "linhas": []
+  },
+  {
+    "referencia": "503352",
+    "linhas": []
+  },
+  {
+    "referencia": "504053",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "104",
+        "grupo": "03 - FUTURO SU LUXE",
+        "classe": "grupo considerado",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-10",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-04",
+        "ultimo": "2026-11-04"
+      },
+      {
+        "empresa": "1",
+        "local": "279",
+        "grupo": "02 - ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-09",
+        "ultimo": "2026-11-09"
+      },
+      {
+        "empresa": "1",
+        "local": "316",
+        "grupo": "PRE EXPEDICAO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-10",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": "321",
+        "grupo": "CONFERENCIA ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-06",
+        "ultimo": "2026-11-06"
+      },
+      {
+        "empresa": "1",
+        "local": "361",
+        "grupo": "INSPECAO QUALIDADE ALCAS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-09",
+        "ultimo": "2026-11-09"
+      },
+      {
+        "empresa": "1",
+        "local": "1101",
+        "grupo": "10 - PULMAO - LINHA NOITE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-09",
+        "ultimo": "2026-11-09"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-04",
+        "ultimo": "2026-11-04"
+      },
+      {
+        "empresa": "1",
+        "local": "1381",
+        "grupo": "ALCA INTERNA",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-09",
+        "ultimo": "2026-11-09"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-03",
+        "ultimo": "2026-11-03"
+      }
+    ]
+  },
+  {
+    "referencia": "505244",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-12",
+        "ultimo": "2026-11-12"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-04",
+        "ultimo": "2026-11-04"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-03",
+        "ultimo": "2026-11-03"
+      }
+    ]
+  },
+  {
+    "referencia": "506124",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-12",
+        "ultimo": "2026-11-12"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-04",
+        "ultimo": "2026-11-04"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-03",
+        "ultimo": "2026-11-03"
+      }
+    ]
+  },
+  {
+    "referencia": "506152",
+    "linhas": []
+  },
+  {
+    "referencia": "603187",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "104",
+        "grupo": "03 - FUTURO SU LUXE",
+        "classe": "grupo considerado",
+        "pecas": 80,
+        "movimentos": 2,
+        "ops": 1,
+        "primeiro": "2026-11-10",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-05",
+        "ultimo": "2026-11-05"
+      },
+      {
+        "empresa": "1",
+        "local": "279",
+        "grupo": "02 - ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-10",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": "316",
+        "grupo": "PRE EXPEDICAO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 4,
+        "ops": 1,
+        "primeiro": "2026-11-10",
+        "ultimo": "2026-11-11"
+      },
+      {
+        "empresa": "1",
+        "local": "321",
+        "grupo": "CONFERENCIA ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-06",
+        "ultimo": "2026-11-06"
+      },
+      {
+        "empresa": "1",
+        "local": "361",
+        "grupo": "INSPECAO QUALIDADE ALCAS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-10",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": "1101",
+        "grupo": "10 - PULMAO - LINHA NOITE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-10",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-04",
+        "ultimo": "2026-11-04"
+      },
+      {
+        "empresa": "1",
+        "local": "1381",
+        "grupo": "ALCA INTERNA",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-09",
+        "ultimo": "2026-11-09"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-03",
+        "ultimo": "2026-11-03"
+      }
+    ]
+  },
+  {
+    "referencia": "603189",
+    "linhas": []
+  },
+  {
+    "referencia": "603190",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-05",
+        "ultimo": "2026-11-05"
+      },
+      {
+        "empresa": "1",
+        "local": "321",
+        "grupo": "CONFERENCIA ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-06",
+        "ultimo": "2026-11-06"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-05",
+        "ultimo": "2026-11-05"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2026-11-04",
+        "ultimo": "2026-11-04"
+      }
+    ]
+  },
+  {
+    "referencia": "603191",
+    "linhas": []
+  },
+  {
+    "referencia": "603391",
+    "linhas": []
+  },
+  {
+    "referencia": "213001",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 264972,
+        "movimentos": 1398,
+        "ops": 1398,
+        "primeiro": "2018-09-24",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": "279",
+        "grupo": "02 - ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 256669,
+        "movimentos": 1376,
+        "ops": 1376,
+        "primeiro": "2018-09-26",
+        "ultimo": "2026-11-13"
+      },
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 256649,
+        "movimentos": 1375,
+        "ops": 1375,
+        "primeiro": "2018-09-25",
+        "ultimo": "2026-11-12"
+      },
+      {
+        "empresa": "1",
+        "local": "321",
+        "grupo": "CONFERENCIA ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 256361,
+        "movimentos": 1373,
+        "ops": 1373,
+        "primeiro": "2018-10-09",
+        "ultimo": "2026-11-13"
+      },
+      {
+        "empresa": "1",
+        "local": "316",
+        "grupo": "PRE EXPEDICAO",
+        "classe": "outro local",
+        "pecas": 255658,
+        "movimentos": 5533,
+        "ops": 1374,
+        "primeiro": "2018-10-09",
+        "ultimo": "2026-11-16"
+      },
+      {
+        "empresa": "1",
+        "local": "382",
+        "grupo": "10 - PULMAO - CALCA BASICO",
+        "classe": "outro local",
+        "pecas": 248097,
+        "movimentos": 1325,
+        "ops": 1325,
+        "primeiro": "2019-03-09",
+        "ultimo": "2026-11-16"
+      },
+      {
+        "empresa": "1",
+        "local": "109",
+        "grupo": "08 - OBJETIVO SO BASICO",
+        "classe": "grupo considerado",
+        "pecas": 126027,
+        "movimentos": 4227,
+        "ops": 692,
+        "primeiro": "2018-10-31",
+        "ultimo": "2026-01-28"
+      },
+      {
+        "empresa": "1",
+        "local": "341",
+        "grupo": "CORPO SEXY",
+        "classe": "outro local",
+        "pecas": 39142,
+        "movimentos": 153,
+        "ops": 153,
+        "primeiro": "2018-12-05",
+        "ultimo": "2021-01-11"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 37740,
+        "movimentos": 235,
+        "ops": 235,
+        "primeiro": "2025-08-29",
+        "ultimo": "2026-11-11"
+      },
+      {
+        "empresa": "1",
+        "local": "112",
+        "grupo": "08 - CONQUISTA CA BASICO/FASHION",
+        "classe": "grupo considerado",
+        "pecas": 35276,
+        "movimentos": 1041,
+        "ops": 198,
+        "primeiro": "2019-03-22",
+        "ultimo": "2026-11-16"
+      },
+      {
+        "empresa": "1",
+        "local": "107",
+        "grupo": "09 - LIDERANCA ANATOMIC",
+        "classe": "grupo considerado",
+        "pecas": 26240,
+        "movimentos": 826,
+        "ops": 131,
+        "primeiro": "2019-04-23",
+        "ultimo": "2026-08-14"
+      },
+      {
+        "empresa": "1",
+        "local": "1362",
+        "grupo": "14 - DESCANSO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 23040,
+        "movimentos": 137,
+        "ops": 137,
+        "primeiro": "2025-08-29",
+        "ultimo": "2026-04-28"
+      },
+      {
+        "empresa": "1",
+        "local": "84",
+        "grupo": "PCP",
+        "classe": "outro local",
+        "pecas": 17662,
+        "movimentos": 89,
+        "ops": 89,
+        "primeiro": "2018-09-25",
+        "ultimo": "2019-05-15"
+      },
+      {
+        "empresa": "1",
+        "local": "881",
+        "grupo": "12 - PREPARACAO",
+        "classe": "outro local",
+        "pecas": 16595,
+        "movimentos": 271,
+        "ops": 98,
+        "primeiro": "2024-11-19",
+        "ultimo": "2026-08-14"
+      },
+      {
+        "empresa": "1",
+        "local": "1241",
+        "grupo": "OFICINA - ATILA",
+        "classe": "grupo considerado",
+        "pecas": 15901,
+        "movimentos": 168,
+        "ops": 87,
+        "primeiro": "2025-01-30",
+        "ultimo": "2026-04-08"
+      },
+      {
+        "empresa": "1",
+        "local": "111",
+        "grupo": "08 - PROGRESSO SO BASICO",
+        "classe": "grupo considerado",
+        "pecas": 13724,
+        "movimentos": 389,
+        "ops": 74,
+        "primeiro": "2018-10-09",
+        "ultimo": "2024-04-24"
+      },
+      {
+        "empresa": "1",
+        "local": "542",
+        "grupo": "REVISAO OFICINAS",
+        "classe": "outro local",
+        "pecas": 9901,
+        "movimentos": 61,
+        "ops": 27,
+        "primeiro": "2020-06-11",
+        "ultimo": "2026-06-16"
+      },
+      {
+        "empresa": "1",
+        "local": "114",
+        "grupo": "06 - UNIAO CA LUXE",
+        "classe": "grupo considerado",
+        "pecas": 9374,
+        "movimentos": 322,
+        "ops": 50,
+        "primeiro": "2018-11-23",
+        "ultimo": "2025-11-18"
+      },
+      {
+        "empresa": "1",
+        "local": "681",
+        "grupo": "OFICINA - GLEDSON SOARES",
+        "classe": "grupo considerado",
+        "pecas": 7315,
+        "movimentos": 104,
+        "ops": 41,
+        "primeiro": "2025-02-18",
+        "ultimo": "2026-06-16"
+      },
+      {
+        "empresa": "1",
+        "local": "297",
+        "grupo": "PULMAO - A DEFINIR",
+        "classe": "outro local",
+        "pecas": 5514,
+        "movimentos": 43,
+        "ops": 43,
+        "primeiro": "2018-10-08",
+        "ultimo": "2019-02-08"
+      },
+      {
+        "empresa": "1",
+        "local": "541",
+        "grupo": "OFICINA - NACELIA MARQUES",
+        "classe": "outra oficina",
+        "pecas": 5280,
+        "movimentos": 24,
+        "ops": 8,
+        "primeiro": "2020-07-17",
+        "ultimo": "2020-09-26"
+      },
+      {
+        "empresa": "1",
+        "local": "561",
+        "grupo": "10 - PULMAO - OFICINAS",
+        "classe": "outro local",
+        "pecas": 5280,
+        "movimentos": 10,
+        "ops": 10,
+        "primeiro": "2020-06-03",
+        "ultimo": "2020-07-03"
+      },
+      {
+        "empresa": "1",
+        "local": "83",
+        "grupo": "07 - DESAFIO CA FASHION",
+        "classe": "grupo considerado",
+        "pecas": 4328,
+        "movimentos": 135,
+        "ops": 28,
+        "primeiro": "2018-11-17",
+        "ultimo": "2019-12-02"
+      },
+      {
+        "empresa": "1",
+        "local": "82",
+        "grupo": "03 - ALEGRIA SU LUXE MODA",
+        "classe": "grupo considerado",
+        "pecas": 3600,
+        "movimentos": 108,
+        "ops": 19,
+        "primeiro": "2023-11-25",
+        "ultimo": "2026-01-26"
+      },
+      {
+        "empresa": "1",
+        "local": "421",
+        "grupo": "03 - EXCELENCIA SU BASICO",
+        "classe": "grupo considerado",
+        "pecas": 3120,
+        "movimentos": 141,
+        "ops": 12,
+        "primeiro": "2019-05-21",
+        "ultimo": "2019-07-24"
+      },
+      {
+        "empresa": "1",
+        "local": "701",
+        "grupo": "OFICINA - PETRIA",
+        "classe": "outra oficina",
+        "pecas": 2640,
+        "movimentos": 6,
+        "ops": 6,
+        "primeiro": "2020-06-11",
+        "ultimo": "2020-06-23"
+      },
+      {
+        "empresa": "1",
+        "local": "461",
+        "grupo": "AGUARDANDO SERVICO",
+        "classe": "outro local",
+        "pecas": 2160,
+        "movimentos": 87,
+        "ops": 7,
+        "primeiro": "2019-10-31",
+        "ultimo": "2019-11-05"
+      },
+      {
+        "empresa": "1",
+        "local": "102",
+        "grupo": "07 - EVOLUCAO CA FASHION",
+        "classe": "grupo considerado",
+        "pecas": 1780,
+        "movimentos": 41,
+        "ops": 15,
+        "primeiro": "2024-03-12",
+        "ultimo": "2026-06-22"
+      },
+      {
+        "empresa": "1",
+        "local": "101",
+        "grupo": "08 - ESPERANCA CA BASICO",
+        "classe": "grupo considerado",
+        "pecas": 843,
+        "movimentos": 13,
+        "ops": 4,
+        "primeiro": "2026-07-01",
+        "ultimo": "2026-09-23"
+      },
+      {
+        "empresa": "1",
+        "local": "1402",
+        "grupo": "OFICINA - IANA",
+        "classe": "grupo considerado",
+        "pecas": 714,
+        "movimentos": 9,
+        "ops": 4,
+        "primeiro": "2026-03-31",
+        "ultimo": "2026-04-30"
+      },
+      {
+        "empresa": "1",
+        "local": "722",
+        "grupo": "OFICINA - MARCELO FREITAS",
+        "classe": "grupo considerado",
+        "pecas": 480,
+        "movimentos": 11,
+        "ops": 3,
+        "primeiro": "2025-12-19",
+        "ultimo": "2026-01-12"
+      }
+    ]
+  },
+  {
+    "referencia": "411001",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 95588,
+        "movimentos": 774,
+        "ops": 774,
+        "primeiro": "2018-08-30",
+        "ultimo": "2026-11-16"
+      },
+      {
+        "empresa": "1",
+        "local": "279",
+        "grupo": "02 - ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 93016,
+        "movimentos": 763,
+        "ops": 763,
+        "primeiro": "2018-09-04",
+        "ultimo": "2026-11-09"
+      },
+      {
+        "empresa": "1",
+        "local": "316",
+        "grupo": "PRE EXPEDICAO",
+        "classe": "outro local",
+        "pecas": 93008,
+        "movimentos": 2750,
+        "ops": 763,
+        "primeiro": "2018-09-17",
+        "ultimo": "2026-11-11"
+      },
+      {
+        "empresa": "1",
+        "local": "321",
+        "grupo": "CONFERENCIA ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 91732,
+        "movimentos": 747,
+        "ops": 747,
+        "primeiro": "2018-10-15",
+        "ultimo": "2026-11-16"
+      },
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 87848,
+        "movimentos": 714,
+        "ops": 714,
+        "primeiro": "2018-08-31",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": "381",
+        "grupo": "10 - PULMAO - SUTIA BASICO",
+        "classe": "outro local",
+        "pecas": 84188,
+        "movimentos": 676,
+        "ops": 676,
+        "primeiro": "2019-02-20",
+        "ultimo": "2026-11-09"
+      },
+      {
+        "empresa": "1",
+        "local": "108",
+        "grupo": "05 - MOTIVACAO SU BASICO",
+        "classe": "grupo considerado",
+        "pecas": 58902,
+        "movimentos": 2225,
+        "ops": 477,
+        "primeiro": "2018-09-17",
+        "ultimo": "2026-11-11"
+      },
+      {
+        "empresa": "1",
+        "local": "341",
+        "grupo": "CORPO SEXY",
+        "classe": "outro local",
+        "pecas": 33422,
+        "movimentos": 222,
+        "ops": 222,
+        "primeiro": "2018-12-05",
+        "ultimo": "2020-11-30"
+      },
+      {
+        "empresa": "1",
+        "local": "113",
+        "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+        "classe": "grupo considerado",
+        "pecas": 26156,
+        "movimentos": 1037,
+        "ops": 217,
+        "primeiro": "2018-09-27",
+        "ultimo": "2025-11-28"
+      },
+      {
+        "empresa": "1",
+        "local": "84",
+        "grupo": "PCP",
+        "classe": "outro local",
+        "pecas": 23526,
+        "movimentos": 217,
+        "ops": 214,
+        "primeiro": "2018-08-31",
+        "ultimo": "2021-07-23"
+      },
+      {
+        "empresa": "1",
+        "local": "622",
+        "grupo": "EXTERNO CORTE AURICELIO",
+        "classe": "outro local",
+        "pecas": 10610,
+        "movimentos": 91,
+        "ops": 88,
+        "primeiro": "2020-03-07",
+        "ultimo": "2021-07-26"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 9060,
+        "movimentos": 69,
+        "ops": 69,
+        "primeiro": "2025-08-26",
+        "ultimo": "2026-11-03"
+      },
+      {
+        "empresa": "1",
+        "local": "297",
+        "grupo": "PULMAO - A DEFINIR",
+        "classe": "outro local",
+        "pecas": 8828,
+        "movimentos": 89,
+        "ops": 87,
+        "primeiro": "2018-09-14",
+        "ultimo": "2019-02-13"
+      },
+      {
+        "empresa": "1",
+        "local": "661",
+        "grupo": "TRANSFER MOLDADO EXTERNO",
+        "classe": "outro local",
+        "pecas": 5520,
+        "movimentos": 52,
+        "ops": 52,
+        "primeiro": "2020-09-29",
+        "ultimo": "2021-08-04"
+      },
+      {
+        "empresa": "1",
+        "local": "1362",
+        "grupo": "14 - DESCANSO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 4800,
+        "movimentos": 32,
+        "ops": 32,
+        "primeiro": "2025-08-26",
+        "ultimo": "2026-05-09"
+      },
+      {
+        "empresa": "1",
+        "local": "110",
+        "grupo": "05 - POSITIVO SU BASICO",
+        "classe": "grupo considerado",
+        "pecas": 3614,
+        "movimentos": 123,
+        "ops": 30,
+        "primeiro": "2020-07-30",
+        "ultimo": "2026-06-10"
+      },
+      {
+        "empresa": "1",
+        "local": "761",
+        "grupo": "CORTE ESTRATEGICO",
+        "classe": "outro local",
+        "pecas": 2040,
+        "movimentos": 16,
+        "ops": 16,
+        "primeiro": "2020-08-31",
+        "ultimo": "2020-08-31"
+      },
+      {
+        "empresa": "1",
+        "local": "105",
+        "grupo": "04 - HARMONIA SU BASICO",
+        "classe": "grupo considerado",
+        "pecas": 1740,
+        "movimentos": 61,
+        "ops": 17,
+        "primeiro": "2026-04-14",
+        "ultimo": "2026-08-31"
+      },
+      {
+        "empresa": "1",
+        "local": "109",
+        "grupo": "08 - OBJETIVO SO BASICO",
+        "classe": "grupo considerado",
+        "pecas": 1558,
+        "movimentos": 56,
+        "ops": 11,
+        "primeiro": "2026-06-17",
+        "ultimo": "2026-07-21"
+      },
+      {
+        "empresa": "1",
+        "local": "361",
+        "grupo": "INSPECAO QUALIDADE ALCAS",
+        "classe": "outro local",
+        "pecas": 1260,
+        "movimentos": 10,
+        "ops": 10,
+        "primeiro": "2026-11-03",
+        "ultimo": "2026-11-16"
+      },
+      {
+        "empresa": "1",
+        "local": "1381",
+        "grupo": "ALCA INTERNA",
+        "classe": "outro local",
+        "pecas": 1260,
+        "movimentos": 10,
+        "ops": 10,
+        "primeiro": "2026-11-03",
+        "ultimo": "2026-11-16"
+      },
+      {
+        "empresa": "1",
+        "local": "106",
+        "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+        "classe": "grupo considerado",
+        "pecas": 1020,
+        "movimentos": 43,
+        "ops": 11,
+        "primeiro": "2020-07-14",
+        "ultimo": "2021-07-09"
+      },
+      {
+        "empresa": "1",
+        "local": "462",
+        "grupo": "REVISAO SUTIA",
+        "classe": "outro local",
+        "pecas": 544,
+        "movimentos": 16,
+        "ops": 4,
+        "primeiro": "2019-11-14",
+        "ultimo": "2019-11-23"
+      }
+    ]
+  },
+  {
+    "referencia": "501723",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 12602,
+        "movimentos": 164,
+        "ops": 164,
+        "primeiro": "2025-11-13",
+        "ultimo": "2026-11-12"
+      },
+      {
+        "empresa": "1",
+        "local": "279",
+        "grupo": "02 - ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 12602,
+        "movimentos": 164,
+        "ops": 164,
+        "primeiro": "2025-11-14",
+        "ultimo": "2026-11-13"
+      },
+      {
+        "empresa": "1",
+        "local": "321",
+        "grupo": "CONFERENCIA ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 12602,
+        "movimentos": 164,
+        "ops": 164,
+        "primeiro": "2025-11-13",
+        "ultimo": "2026-11-13"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 12562,
+        "movimentos": 162,
+        "ops": 162,
+        "primeiro": "2025-11-07",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 12562,
+        "movimentos": 162,
+        "ops": 162,
+        "primeiro": "2025-11-06",
+        "ultimo": "2026-11-09"
+      },
+      {
+        "empresa": "1",
+        "local": "316",
+        "grupo": "PRE EXPEDICAO",
+        "classe": "outro local",
+        "pecas": 12062,
+        "movimentos": 187,
+        "ops": 151,
+        "primeiro": "2025-11-21",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": "403",
+        "grupo": "10 - PULMAO - CALCA FASHION",
+        "classe": "outro local",
+        "pecas": 12062,
+        "movimentos": 151,
+        "ops": 151,
+        "primeiro": "2025-11-19",
+        "ultimo": "2026-11-05"
+      },
+      {
+        "empresa": "1",
+        "local": "881",
+        "grupo": "12 - PREPARACAO",
+        "classe": "outro local",
+        "pecas": 9300,
+        "movimentos": 128,
+        "ops": 110,
+        "primeiro": "2026-02-12",
+        "ultimo": "2026-11-10"
+      },
+      {
+        "empresa": "1",
+        "local": "83",
+        "grupo": "07 - DESAFIO CA FASHION",
+        "classe": "grupo considerado",
+        "pecas": 6721,
+        "movimentos": 103,
+        "ops": 86,
+        "primeiro": "2026-04-11",
+        "ultimo": "2026-10-28"
+      },
+      {
+        "empresa": "1",
+        "local": "1362",
+        "grupo": "14 - DESCANSO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 6041,
+        "movimentos": 74,
+        "ops": 74,
+        "primeiro": "2025-11-07",
+        "ultimo": "2026-05-17"
+      },
+      {
+        "empresa": "1",
+        "local": "102",
+        "grupo": "07 - EVOLUCAO CA FASHION",
+        "classe": "grupo considerado",
+        "pecas": 4801,
+        "movimentos": 74,
+        "ops": 59,
+        "primeiro": "2025-11-21",
+        "ultimo": "2026-10-21"
+      },
+      {
+        "empresa": "1",
+        "local": "114",
+        "grupo": "06 - UNIAO CA LUXE",
+        "classe": "grupo considerado",
+        "pecas": 540,
+        "movimentos": 8,
+        "ops": 6,
+        "primeiro": "2026-11-06",
+        "ultimo": "2026-11-09"
+      }
+    ]
+  },
+  {
+    "referencia": "506120",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 1280,
+        "movimentos": 18,
+        "ops": 18,
+        "primeiro": "2026-06-23",
+        "ultimo": "2026-10-09"
+      },
+      {
+        "empresa": "1",
+        "local": "279",
+        "grupo": "02 - ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 1280,
+        "movimentos": 18,
+        "ops": 18,
+        "primeiro": "2026-06-24",
+        "ultimo": "2026-10-14"
+      },
+      {
+        "empresa": "1",
+        "local": "316",
+        "grupo": "PRE EXPEDICAO",
+        "classe": "outro local",
+        "pecas": 1280,
+        "movimentos": 45,
+        "ops": 18,
+        "primeiro": "2026-06-26",
+        "ultimo": "2026-10-29"
+      },
+      {
+        "empresa": "1",
+        "local": "321",
+        "grupo": "CONFERENCIA ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 1280,
+        "movimentos": 18,
+        "ops": 18,
+        "primeiro": "2026-06-24",
+        "ultimo": "2026-10-13"
+      },
+      {
+        "empresa": "1",
+        "local": "402",
+        "grupo": "10 - PULMAO - SUTIA FASHION",
+        "classe": "outro local",
+        "pecas": 1280,
+        "movimentos": 18,
+        "ops": 18,
+        "primeiro": "2026-06-25",
+        "ultimo": "2026-10-19"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 1280,
+        "movimentos": 18,
+        "ops": 18,
+        "primeiro": "2026-06-22",
+        "ultimo": "2026-09-30"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 1280,
+        "movimentos": 18,
+        "ops": 18,
+        "primeiro": "2026-06-22",
+        "ultimo": "2026-09-25"
+      },
+      {
+        "empresa": "1",
+        "local": "82",
+        "grupo": "03 - ALEGRIA SU LUXE MODA",
+        "classe": "grupo considerado",
+        "pecas": 680,
+        "movimentos": 18,
+        "ops": 8,
+        "primeiro": "2026-08-19",
+        "ultimo": "2026-08-24"
+      },
+      {
+        "empresa": "1",
+        "local": "103",
+        "grupo": "03 - FELICIDADE SU LUXE",
+        "classe": "grupo considerado",
+        "pecas": 600,
+        "movimentos": 18,
+        "ops": 10,
+        "primeiro": "2026-06-26",
+        "ultimo": "2026-10-28"
+      },
+      {
+        "empresa": "1",
+        "local": "881",
+        "grupo": "12 - PREPARACAO",
+        "classe": "outro local",
+        "pecas": 440,
+        "movimentos": 16,
+        "ops": 6,
+        "primeiro": "2026-07-30",
+        "ultimo": "2026-10-28"
+      }
+    ]
+  },
+  {
+    "referencia": "703801",
+    "linhas": [
+      {
+        "empresa": "1",
+        "local": "203",
+        "grupo": "01 - CORTE",
+        "classe": "outro local",
+        "pecas": 4600,
+        "movimentos": 59,
+        "ops": 59,
+        "primeiro": "2025-05-13",
+        "ultimo": "2026-10-15"
+      },
+      {
+        "empresa": "1",
+        "local": null,
+        "grupo": "",
+        "classe": "outro local",
+        "pecas": 4600,
+        "movimentos": 59,
+        "ops": 59,
+        "primeiro": "2025-05-07",
+        "ultimo": "2026-10-02"
+      },
+      {
+        "empresa": "1",
+        "local": "279",
+        "grupo": "02 - ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 4598,
+        "movimentos": 59,
+        "ops": 59,
+        "primeiro": "2025-05-31",
+        "ultimo": "2026-10-20"
+      },
+      {
+        "empresa": "1",
+        "local": "321",
+        "grupo": "CONFERENCIA ALMOXARIFADO",
+        "classe": "outro local",
+        "pecas": 4598,
+        "movimentos": 59,
+        "ops": 59,
+        "primeiro": "2025-05-30",
+        "ultimo": "2026-10-16"
+      },
+      {
+        "empresa": "1",
+        "local": "316",
+        "grupo": "PRE EXPEDICAO",
+        "classe": "outro local",
+        "pecas": 4597,
+        "movimentos": 150,
+        "ops": 59,
+        "primeiro": "2025-06-09",
+        "ultimo": "2026-11-11"
+      },
+      {
+        "empresa": "1",
+        "local": "381",
+        "grupo": "10 - PULMAO - SUTIA BASICO",
+        "classe": "outro local",
+        "pecas": 4518,
+        "movimentos": 58,
+        "ops": 58,
+        "primeiro": "2025-07-11",
+        "ultimo": "2026-10-30"
+      },
+      {
+        "empresa": "1",
+        "local": "1361",
+        "grupo": "13 - ALMOXARIFADO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 3640,
+        "movimentos": 45,
+        "ops": 45,
+        "primeiro": "2025-10-01",
+        "ultimo": "2026-10-05"
+      },
+      {
+        "empresa": "1",
+        "local": "108",
+        "grupo": "05 - MOTIVACAO SU BASICO",
+        "classe": "grupo considerado",
+        "pecas": 2977,
+        "movimentos": 94,
+        "ops": 37,
+        "primeiro": "2025-06-09",
+        "ultimo": "2026-07-01"
+      },
+      {
+        "empresa": "1",
+        "local": "1362",
+        "grupo": "14 - DESCANSO DE TECIDOS",
+        "classe": "outro local",
+        "pecas": 2380,
+        "movimentos": 28,
+        "ops": 28,
+        "primeiro": "2025-10-02",
+        "ultimo": "2026-05-05"
+      },
+      {
+        "empresa": "1",
+        "local": "113",
+        "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+        "classe": "grupo considerado",
+        "pecas": 1320,
+        "movimentos": 28,
+        "ops": 19,
+        "primeiro": "2025-12-03",
+        "ultimo": "2026-11-06"
+      },
+      {
+        "empresa": "1",
+        "local": "881",
+        "grupo": "12 - PREPARACAO",
+        "classe": "outro local",
+        "pecas": 420,
+        "movimentos": 5,
+        "ops": 5,
+        "primeiro": "2026-11-06",
+        "ultimo": "2026-11-06"
+      },
+      {
+        "empresa": "1",
+        "local": "110",
+        "grupo": "05 - POSITIVO SU BASICO",
+        "classe": "grupo considerado",
+        "pecas": 300,
+        "movimentos": 12,
+        "ops": 3,
+        "primeiro": "2026-02-24",
+        "ultimo": "2026-02-24"
+      },
+      {
+        "empresa": "1",
+        "local": "361",
+        "grupo": "INSPECAO QUALIDADE ALCAS",
+        "classe": "outro local",
+        "pecas": 300,
+        "movimentos": 3,
+        "ops": 3,
+        "primeiro": "2026-10-20",
+        "ultimo": "2026-10-20"
+      },
+      {
+        "empresa": "1",
+        "local": "1381",
+        "grupo": "ALCA INTERNA",
+        "classe": "outro local",
+        "pecas": 300,
+        "movimentos": 3,
+        "ops": 3,
+        "primeiro": "2026-10-19",
+        "ultimo": "2026-10-19"
+      },
+      {
+        "empresa": "1",
+        "local": "297",
+        "grupo": "PULMAO - A DEFINIR",
+        "classe": "outro local",
+        "pecas": 80,
+        "movimentos": 1,
+        "ops": 1,
+        "primeiro": "2025-06-09",
+        "ultimo": "2025-06-09"
+      }
+    ]
+  }
+]

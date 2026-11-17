@@ -27,7 +27,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 type GrupoDaRef = {
   ordem: string;
   grupo: string;
-  origem: 'historico' | 'mix';
+  origem: 'historico' | 'mix' | 'revisao';
   pecasHistorico: number | null;
   pecasMix: number | null;
   concentracao: number | null;
@@ -45,8 +45,9 @@ type Referencia = {
   grupoProduto: string;
   semTempo: boolean;
   candidatas: number;
+  opcoes: Array<{ ordem: string; grupo: string; origem: 'historico' | 'mix' | 'revisao'; pecasHistorico: number | null; pecasMix: number | null; capacidadeDisponivel: boolean }>;
   grupos: GrupoDaRef[];
-  periodos: Array<{ periodo: string; pecas: number; pedidoMin: number; herdadoMin: number; alocadoMin: number; pendenteMin: number; herdadoPecas: number; pendentePecas: number; destinos: Array<{ grupo: string; minutos: number }>; tentativas: Array<{ grupo: string; origem: 'historico' | 'mix'; solicitadoPecas: number; disponivelMin: number; alocadoMin: number; alocadoPecas: number; restantePecas: number; lotou: boolean }> }>;
+  periodos: Array<{ periodo: string; pecas: number; pedidoMin: number; herdadoMin: number; alocadoMin: number; pendenteMin: number; herdadoPecas: number; pendentePecas: number; destinos: Array<{ grupo: string; minutos: number }>; tentativas: Array<{ grupo: string; origem: 'historico' | 'mix' | 'revisao'; solicitadoPecas: number; disponivelMin: number; alocadoMin: number; alocadoPecas: number; restantePecas: number; lotou: boolean }> }>;
   naoCoubeMin: number;
   atraso: number;
   mudou: boolean;
@@ -238,10 +239,10 @@ export default function DistribuicaoSugeridaPage() {
       if (filtro === 'semTempo' && !(r.semTempo && periodos.some((p) => p.pecas > 0))) return false;
       if (perfil && r.mix !== perfil) return false;
       if (grupoProduto && r.grupoProduto !== grupoProduto) return false;
-      if (grupo && !r.grupos.some((g) => g.grupo === grupo)) return false;
+      if (grupo && !r.opcoes.some((g) => g.grupo === grupo)) return false;
       if (termo && !r.referencia.includes(termo)
           && !(r.mix || '').includes(termo)
-          && !r.grupos.some((g) => g.grupo.includes(termo))) return false;
+          && !r.opcoes.some((g) => g.grupo.includes(termo))) return false;
       return true;
     });
   }, [dados, filtro, busca, perfil, grupoProduto, grupo, periodoLista]);
@@ -320,7 +321,7 @@ export default function DistribuicaoSugeridaPage() {
       const seguro = /^[\s]*[=+@\-\t\r]/.test(valor) ? `'${valor}` : valor;
       return `"${seguro.replace(/"/g, '""')}"`;
     };
-    const linhas = visiveis.map((r) => [r.referencia, ...[0, 1, 2, 3].map((i) => r.grupos[i]?.grupo || '')]);
+    const linhas = visiveis.map((r) => [r.referencia, ...[0, 1, 2, 3].map((i) => r.opcoes[i]?.grupo || '')]);
     const conteudo = [cab, ...linhas].map((linha) => linha.map(csvCampo).join(';')).join('\r\n');
     const blob = new Blob(['\uFEFF', conteudo], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
@@ -411,9 +412,7 @@ export default function DistribuicaoSugeridaPage() {
                     mais grupos porque o primeiro não comportava o mês inteiro.
                   </p>
                   <p className="mt-3 leading-relaxed text-gray-600">
-                    O <strong>Grupo A</strong> é quem mais produziu aquela referência nos últimos{' '}
-                    {dados.meses} meses. Quando ele enche, o que sobra desce para B, C e D — primeiro para
-                    outros grupos que já fizeram a peça, depois para os que produzem o mesmo mix.
+                    O <strong>Grupo A</strong> é quem mais produziu a referência nos últimos {dados.meses} meses fechados. Sem histórico próprio nessa janela, a revisão do PCP vem antes das opções sugeridas por mix. A simulação só aloca em grupos com capacidade no cenário.
                   </p>
 
                   <div className="mt-6 grid grid-cols-3 gap-4 border-t border-gray-200 pt-5">
@@ -696,9 +695,7 @@ export default function DistribuicaoSugeridaPage() {
                   {dados.resumo.refsSemDestino} referências que esta lista não consegue decidir
                 </h2>
                 <p className="mb-3 leading-relaxed text-gray-700">
-                  Nenhum grupo ativo produziu essas peças nem o mix delas nos últimos {dados.meses} meses.
-                  Não há de onde inferir um destino — <strong>é decisão humana</strong>, e a tela não inventa
-                  uma para preencher a coluna.
+                  A simulação não encontrou destino com capacidade medida para estas referências. Pode haver histórico em um grupo sem capacidade medida; consulte as opções e valide com o PCP.
                 </p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -733,11 +730,13 @@ export default function DistribuicaoSugeridaPage() {
                     A lista: referência → grupo
                   </h2>
                   <p className="text-xs text-gray-500">
-                    Os grupos A–D mostram a parcela alocada no horizonte inteiro, ordenados pelo total recebido; não são necessariamente a ordem de tentativa em cada mês. Os percentuais são arredondados e não garantem atendimento no prazo. Abra a referência para ver a sequência mensal.
+                    Os grupos A–D mostram primeiro os grupos ativos que produziram a referência nos últimos {dados.meses} meses fechados, ordenados pela quantidade. Sem esse histórico, prevalecem as opções marcadas como corretas ou explicitamente indicadas como primeiro grupo na revisão do PCP de 16/11/2026; depois aparecem opções inferidas pelo mix. Sugestões por mix precisam de confirmação e a lista não garante capacidade. As demais observações dos casos marcados para ajuste ainda exigem análise. Abra a referência para ver a sequência simulada.
                     <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">hist</span>{' '}
                     o grupo já produziu a peça ·
                     <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">mix</span>{' '}
-                    produz o mesmo tipo, mas nunca essa referência
+                    produz o mesmo tipo, sem histórico próprio na janela ·
+                    <span className="ml-1 rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-800">PCP</span>{' '}
+                    indicado na revisão, sem histórico próprio na janela
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -767,7 +766,7 @@ export default function DistribuicaoSugeridaPage() {
                   />
                   {([
                     { id: 'todas' as const, rotulo: 'Todas' },
-                    { id: 'rateadas' as const, rotulo: `Rateadas (${dados.resumo.refsRateadas})` },
+                    { id: 'rateadas' as const, rotulo: `Rateadas na simulação (${dados.resumo.refsRateadas})` },
                     { id: 'mudaram' as const, rotulo: 'Mudaram' },
                     { id: 'pendentes' as const, rotulo: 'Com pendência' },
                     { id: 'semTempo' as const, rotulo: 'Sem tempo' },
@@ -791,7 +790,7 @@ export default function DistribuicaoSugeridaPage() {
 
               <p className="mb-3 text-xs text-gray-500">
                 Mostrando {num(visiveis.length)} de {num(dados.referencias.length)} referências
-                {' '}· O arquivo para produção contém as referências mostradas, com os grupos A a D.
+                {' '}· O arquivo contém as opções A a D das referências mostradas. Confirme capacidade e aptidão com a produção antes de utilizá-las.
                 {(perfil || grupoProduto || grupo) && (
                   <>
                     {' '}— {num(visiveis.reduce((t, r) => t + r.pecas, 0))} peças,{' '}
@@ -854,19 +853,20 @@ export default function DistribuicaoSugeridaPage() {
                             : <span className="text-gray-400">Sem carga no período</span>}
                         </td>
                         {[0, 1, 2, 3].map((i) => {
-                          const g = r.grupos[i];
+                          const g = r.opcoes[i];
                           if (!g) return <td key={i} className="px-2 py-1.5 text-gray-300">—</td>;
                           return (
                             <td key={i} className="whitespace-nowrap px-2 py-1.5">
                               <div className="flex items-baseline gap-1.5">
-                                <span className="font-semibold tabular-nums text-gray-900">{pct(g.fatia)}</span>
                                 <span className="text-xs text-gray-700">{g.grupo}</span>
                                 <span className={`rounded px-1 py-0.5 text-[9px] font-semibold ${
-                                  g.origem === 'historico' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                  g.origem === 'historico' ? 'bg-emerald-100 text-emerald-800' : g.origem === 'revisao' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'
                                 }`}>
-                                  {g.origem === 'historico' ? 'hist' : 'mix'}
+                                  {g.origem === 'historico' ? 'hist' : g.origem === 'revisao' ? 'PCP' : 'mix'}
                                 </span>
+                                {!g.capacidadeDisponivel && <span className="rounded bg-red-100 px-1 text-[9px] font-semibold text-red-800" title="Grupo fora das células ativas ou sem capacidade no cenário; não recebe carga na simulação">sem capacidade disponível</span>}
                               </div>
+                              {g.origem === 'historico' && <div className="text-[10px] text-gray-500">{num(g.pecasHistorico || 0)} peças no histórico</div>}
                             </td>
                           );
                         })}

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 type DadosMapa = {
   grupos: Array<{ grupo: string }>;
-  referencias: Array<{ referencia: string; grupos: Array<{ grupo: string; fatia: number }> }>;
+  referencias: Array<{ referencia: string; grupos: Array<{ grupo: string; fatia: number }>; opcoes: Array<{ grupo: string }> }>;
 };
 type Ligacao = { de: string; para: string; quantidade: number };
 type Linha = Ligacao & { x1: number; y1: number; x2: number; y2: number };
@@ -20,7 +20,7 @@ export default function MapaGruposCostura({ dados }: { dados: DadosMapa }) {
     const porGrupo = new Map(dados.grupos.map((g) => [g.grupo, [] as Array<{ referencia: string; posicao: number; fatia: number }> ]));
     const porPar = new Map<string, Ligacao>();
     for (const r of dados.referencias) {
-      r.grupos.forEach((g, posicao) => porGrupo.get(g.grupo)?.push({ referencia: r.referencia, posicao, fatia: g.fatia }));
+      r.grupos.forEach((g) => porGrupo.get(g.grupo)?.push({ referencia: r.referencia, posicao: r.opcoes.findIndex((o) => o.grupo === g.grupo), fatia: g.fatia }));
       if (busca && !r.referencia.toUpperCase().includes(busca)) continue;
       for (let i = 0; i < r.grupos.length; i += 1) for (let j = i + 1; j < r.grupos.length; j += 1) {
         const [de, para] = [r.grupos[i].grupo, r.grupos[j].grupo].sort();
@@ -32,8 +32,8 @@ export default function MapaGruposCostura({ dados }: { dados: DadosMapa }) {
       }
     }
     return {
-      grupos: [...porGrupo.entries()].map(([nome, refs]) => ({ nome, refs: refs.sort((a, b) => a.posicao - b.posicao || a.referencia.localeCompare(b.referencia)) })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
-      ligacoes: [...porPar.values()],
+      grupos: Array.from(porGrupo.entries()).map(([nome, refs]) => ({ nome, refs: refs.sort((a, b) => (a.posicao < 0 ? 99 : a.posicao) - (b.posicao < 0 ? 99 : b.posicao) || a.referencia.localeCompare(b.referencia)) })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+      ligacoes: Array.from(porPar.values()),
     };
   }, [dados, busca, grupoFocado]);
 
@@ -82,14 +82,14 @@ export default function MapaGruposCostura({ dados }: { dados: DadosMapa }) {
       {(busca || grupoFocado) && <button type="button" onClick={() => { setReferencia(''); setGrupoFocado(''); }} className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700">Limpar destaque</button>}
       <span className="pb-2 text-xs text-slate-500">{grupos.length} grupos · {ligacoes.length} ligações entre grupos</span>
     </div>
-    <p className="mt-3 text-xs text-slate-500">A indica o grupo que recebeu mais minutos daquela referência no horizonte; B, C e D receberam menos. A linha mostra distribuição simulada, não confirma que o grupo esteja aprovado para produzir a referência. Referências sem alocação não aparecem.</p>
+    <p className="mt-3 text-xs text-slate-500">A–D indicam a posição na lista de opções por histórico, revisão do PCP ou mix. As linhas mostram a distribuição simulada, não uma aprovação. Uma opção sem carga alocada não aparece no mapa; um destino fora das quatro opções é identificado como “fora A–D”.</p>
     <div className="mt-4 max-h-[75vh] overflow-auto rounded-lg border border-slate-200 bg-slate-50">
       <div ref={area} className="relative grid min-w-[900px] grid-cols-3 items-start gap-x-16 gap-y-16 p-8">
         <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">{linhas.map((l) => <g key={JSON.stringify([l.de, l.para])}><line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke={busca || grupoFocado ? '#4f46e5' : '#94a3b8'} strokeOpacity={busca || grupoFocado ? 0.85 : 0.5} strokeWidth={busca || grupoFocado ? 2.5 : 1.5} /><circle cx={(l.x1 + l.x2) / 2} cy={(l.y1 + l.y2) / 2} r="11" fill="white" stroke="#a5b4fc" /><text x={(l.x1 + l.x2) / 2} y={(l.y1 + l.y2) / 2 + 3} textAnchor="middle" fontSize="9" fill="#3730a3">{l.quantidade}</text></g>)}</svg>
         {grupos.map((g) => <div key={g.nome} ref={(elemento) => { if (elemento) cartoes.current.set(g.nome, elemento); else cartoes.current.delete(g.nome); }} className={`relative z-10 overflow-hidden rounded-lg border-2 bg-white shadow-sm ${grupoFocado === g.nome ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-slate-300'}`}>
           <button type="button" onClick={() => setGrupoFocado(grupoFocado === g.nome ? '' : g.nome)} aria-pressed={grupoFocado === g.nome} className="w-full bg-indigo-50 px-3 py-3 text-left hover:bg-indigo-100"><span className="block text-sm font-bold text-indigo-950">{g.nome}</span><span className="text-xs text-indigo-700">{g.refs.length} referências · clique para destacar</span></button>
-          <div className="flex flex-wrap gap-1.5 p-3">{g.refs.length ? g.refs.map((r) => <button key={r.referencia} type="button" onClick={() => setReferencia(busca === r.referencia.toUpperCase() ? '' : r.referencia)} title={`Grupo ${String.fromCharCode(65 + r.posicao)} · ${Math.round(r.fatia * 100)}% da referência no horizonte`} className={`rounded border px-2 py-1 text-xs font-medium ${busca && r.referencia.toUpperCase().includes(busca) ? 'border-amber-500 bg-amber-100 text-amber-950' : r.posicao === 0 ? 'border-indigo-200 bg-indigo-50 text-indigo-900' : 'border-slate-200 bg-white text-slate-700'}`}>
-            {r.referencia} <span className="text-[10px] opacity-70">{String.fromCharCode(65 + r.posicao)}</span>
+          <div className="flex flex-wrap gap-1.5 p-3">{g.refs.length ? g.refs.map((r) => <button key={r.referencia} type="button" onClick={() => setReferencia(busca === r.referencia.toUpperCase() ? '' : r.referencia)} title={`${r.posicao >= 0 ? `Opção ${String.fromCharCode(65 + r.posicao)}` : 'Fora das opções A–D'} · ${Math.round(r.fatia * 100)}% alocado na simulação`} className={`rounded border px-2 py-1 text-xs font-medium ${busca && r.referencia.toUpperCase().includes(busca) ? 'border-amber-500 bg-amber-100 text-amber-950' : r.posicao === 0 ? 'border-indigo-200 bg-indigo-50 text-indigo-900' : 'border-slate-200 bg-white text-slate-700'}`}>
+            {r.referencia} <span className="text-[10px] opacity-70">{r.posicao >= 0 ? String.fromCharCode(65 + r.posicao) : 'fora A–D'}</span>
           </button>) : <span className="text-xs text-slate-400">Nenhuma referência alocada.</span>}</div>
         </div>)}
       </div>

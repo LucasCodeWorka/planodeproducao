@@ -2,6 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const { calcularPeriodosPlano, PERIODOS_PLANO } = require("../services/periodoPlanoService");
+const { montarOpcoesCostura } = require('../services/preferenciasCostura');
 const { diasDeFabricaRestantes, diasDisponiveisDoPeriodo, diasDisponiveisDaData } = require("../lib/diasUteis");
 
 const router = express.Router();
@@ -3275,6 +3276,7 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
     // a proposta reparte uma fabrica mais vazia do que ela estara.
     const cargaExtra = parseCargaExtra(req.query.extra);
     const loteId = String(req.query.lote_id || '').trim();
+    const revisaoPcp = readJson(path.join(DATA_DIR, 'revisao_pcp_preferencias.json'), { referencias: {} }).referencias || {};
     const chave = `${meses}|${comParada}|${req.query.extra || ''}|${loteId}`;
     const cache = distribuicaoCache;
     if (req.query.refresh !== "true" && cache.data && cache.chave === chave
@@ -3330,15 +3332,24 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
          FROM pcp_cache_locais WHERE cd_local::text = ANY($1::text[])`, [ids]);
     const nomeDoLocal = new Map(locais.rows.map((r) => [r.cd_local, r.ds_local]));
 
-    const produzidoPorRef = new Map();   // referencia -> Map(celula -> pecas)
+    const produzidoPorRef = new Map();   // referencia -> Map(celula -> pecas), com capacidade para simular
+    const historicoAtivoPorRef = new Map(); // inclui grupos ativos sem capacidade medida
+    const nomesAtivos = new Set(grupos.map((g) => g.grupo));
     for (const row of producao.rows) {
       const ref = row.referencia;
       if (!ref) continue;
       const celula = nomeDoLocal.get(row.cd_local) || row.cd_local;
+      const pecas = Number(row.pecas || 0);
+      if (!(pecas > 0)) continue;
+      if (nomesAtivos.has(celula)) {
+        if (!historicoAtivoPorRef.has(ref)) historicoAtivoPorRef.set(ref, new Map());
+        const hist = historicoAtivoPorRef.get(ref);
+        hist.set(celula, (hist.get(celula) || 0) + pecas);
+      }
       if (!capDiaria.has(celula)) continue;   // celula parada ou sem medicao: nao e destino
       if (!produzidoPorRef.has(ref)) produzidoPorRef.set(ref, new Map());
       const m = produzidoPorRef.get(ref);
-      m.set(celula, (m.get(celula) || 0) + Number(row.pecas || 0));
+      m.set(celula, (m.get(celula) || 0) + pecas);
     }
 
     // ── 4. Mix de producao (classificacao 29), por SKU ─────────────────────────
@@ -3457,26 +3468,10 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
     }
 
     // ── 7. Candidatas por referencia: historico primeiro, mix depois ───────────
-    const candidatasDaRef = (ref) => {
-      const feitas = produzidoPorRef.get(ref) || new Map();
-      const total = [...feitas.values()].reduce((a, b) => a + b, 0);
-      const porHistorico = [...feitas.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .map(([grupo, pecas]) => ({
-          grupo, origem: 'historico', pecasHistorico: Math.round(pecas),
-          concentracao: total > 0 ? pecas / total : null,
-        }));
-      const jaTem = new Set(porHistorico.map((c) => c.grupo));
+    const opcoesDaRef = (ref) => {
+      const feitas = historicoAtivoPorRef.get(ref) || new Map();
       const mix = mixPorRef.get(ref);
-      const porMix = mix
-        ? [...(pecasPorMixCelula.get(mix) || new Map()).entries()]
-            .filter(([grupo]) => !jaTem.has(grupo) && capDiaria.has(grupo))
-            .sort((a, b) => b[1] - a[1])
-            .map(([grupo, pecas]) => ({
-              grupo, origem: 'mix', pecasMix: Math.round(pecas), concentracao: null,
-            }))
-        : [];
-      return [...porHistorico, ...porMix].slice(0, MAX_GRUPOS_POR_REF);
+      return montarOpcoesCostura(feitas, mix ? pecasPorMixCelula.get(mix) : null, capDiaria, revisaoPcp[ref] || []);
     };
 
     // ── 8. Alocacao gulosa, sobre o horizonte inteiro ──────────────────────────
@@ -3486,7 +3481,9 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       const porPeriodo = planoPorRef.get(ref);
       const tempo = Number(tempoPorRef.get(ref) || 0);
       const pecas = PERIODOS_PLANO.reduce((s, per) => s + Number(porPeriodo[per] || 0), 0);
-      return { ref, porPeriodo, pecas, tempo, cargaMin: pecas * tempo, candidatas: candidatasDaRef(ref) };
+      const opcoes = opcoesDaRef(ref);
+      const candidatas = opcoes.filter((c) => c.capacidadeDisponivel).slice(0, MAX_GRUPOS_POR_REF);
+      return { ref, porPeriodo, pecas, tempo, cargaMin: pecas * tempo, candidatas, opcoes: opcoes.slice(0, MAX_GRUPOS_POR_REF) };
     }).filter((r) => r.pecas > 0);
 
     // Ordem por ESCASSEZ, calculada uma vez e usada em todos os periodos: quem tem menos
@@ -3698,6 +3695,7 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
         grupoProduto: familiaPorRef.get(r.ref) || 'SEM GRUPO',
         semTempo: !(r.tempo > 0),
         candidatas: r.candidatas.length,
+        opcoes: r.opcoes.map((c, i) => ({ ordem: ORDEM_GRUPO[i], grupo: c.grupo, origem: c.origem, pecasHistorico: c.pecasHistorico ?? null, pecasMix: c.pecasMix ?? null, capacidadeDisponivel: c.capacidadeDisponivel })),
         grupos,
         periodos: PERIODOS_PLANO.map((per) => {
           const f = fluxoPorReferencia.get(r.ref)?.[per];
@@ -3788,8 +3786,8 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
         naoCoubeMin: Math.round(naoCoubeMin),
         // Fecha a conta: o que entrou mais o que nao coube tem de ser a carga inteira.
         fecha: Math.abs((alocadoTotal + naoCoubeMin) - cargaTotalMin) < 1,
-        refsComHistorico: referencias.filter((r) => r.grupos.some((g) => g.origem === 'historico')).length,
-        refsSoMix: referencias.filter((r) => r.grupos.length > 0 && r.grupos.every((g) => g.origem === 'mix')).length,
+        refsComHistorico: referencias.filter((r) => r.opcoes.some((g) => g.origem === 'historico')).length,
+        refsSoMix: referencias.filter((r) => r.opcoes.length > 0 && r.opcoes.every((g) => g.origem === 'mix')).length,
         refsSemDestino: referencias.filter((r) => r.candidatas === 0).length,
         refsRateadas: referencias.filter((r) => r.grupos.length > 1).length,
         refsSemTempo: referencias.filter((r) => r.semTempo).length,
