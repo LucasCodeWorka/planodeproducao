@@ -18,6 +18,18 @@ import { CRESCIMENTO_FABRICA_PADRAO, fatorFabricaMes } from '../lib/regraProjeca
 import { MIN_PECA_MOVE_PADRAO, TOTAL_ANO_MOVE, pecasMove } from '../lib/liebeMove';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// Tira uma carga (PER:min,...) de outra, período a período. Usado para separar a Liebe Move
+// — que vai direcionada ao grupo/família dela — do resto da carga extra, que segue rateado.
+function subtrairCarga(total: string, parte: string): string {
+  if (!parte) return total;
+  const menos = new Map(parte.split(',').map((x) => { const [k, v] = x.split(':'); return [k, Number(v) || 0] as [string, number]; }));
+  return total.split(',').filter(Boolean).map((x) => {
+    const [k, v] = x.split(':');
+    const resto = Math.round((Number(v) || 0) - (menos.get(k) || 0));
+    return resto > 0 ? `${k}:${resto}` : '';
+  }).filter(Boolean).join(',');
+}
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'] as const;
 type Month = typeof MONTHS[number];
 const CURVAS = ['A', 'B', 'C', 'D'] as const;
@@ -224,9 +236,14 @@ export default function VisaoGeral2Page() {
   // carregava uma vez sem a carga extra e nunca mais, e o grafico mostrava 112% onde ela
   // mostrava 124%. O ref serve so de valor corrente para quem e chamado a mao.
   const cargaExtraRef = useRef('');
+  // A parte da carga extra que é LIEBE MOVE, em minutos por período. Ela tem dono pelo mix do
+  // ERP (anatomic → LIDERANÇA / família ANATOMIC) e vai direcionada, não rateada.
+  const cargaMoveRef = useRef('');
   const [extraParaRotas, setExtraParaRotas] = useState('');
   // Leitura do plano que a Capacidade x Venda publica, para a Ocupacao por grupo se alinhar.
   const [ocupPlanoDaTela, setOcupPlanoDaTela] = useState<(number | null)[]>([]);
+  // Plano desenhado no gráfico, mês a mês (MA, PX, UL...), para o Laboratório de capacidade.
+  const [planoDaTela, setPlanoDaTela] = useState<number[]>([]);
   const [marcarMudancas, setMarcarMudancas] = useState(true);
   // Trocar a parada refaz duas rotas (dias-resumo e gap-mensal) e leva alguns segundos. Sem
   // sinal, o clique parece nao ter funcionado e o PCP clica de novo — e aí ve o numero
@@ -1283,8 +1300,11 @@ export default function VisaoGeral2Page() {
       // enquanto a de cima ja reagia, e a promessa virava mentira.
       if (ferias) q.set('ferias', '1');
       // Move, EL e previsto — ver `cargaExtraParam`. Sem isto a tabela de baixo mede outro
-      // plano que a de cima, e o rodape dela promete o contrario.
-      if (extra) q.set('extra', extra);
+      // plano que a de cima, e o rodape dela promete o contrario. A MOVE vai direcionada para
+      // a familia ANATOMIC (mix dela no ERP); o resto continua rateado.
+      const move = cargaMoveRef.current;
+      if (extra) q.set('extra', move ? subtrairCarga(extra, move) : extra);
+      if (move) q.set('extra_familia', `ANATOMIC>${move}`);
       const r = await fetchNoCache(`${API_URL}/api/capacidade/ocupacao-por-grupo-produto?${q}`, { headers: authHeaders() }, 300000);
       const p = await r.json();
       if (r.ok && p?.success && Array.isArray(p.dados)) {
@@ -2055,6 +2075,24 @@ export default function VisaoGeral2Page() {
     return partes.join(',');
   }, [relatorioCapacidade, resumoDiasEfetivo, minPecaMedido]);
 
+  // Só a LIEBE MOVE, no mesmo formato: o mix dela no ERP é anatomic (304 SKUs CA ANATOMIC,
+  // 8 SO ANATOMIC; 60 TERCEIROS), então ela vai direcionada para a LIDERANÇA na Distribuição
+  // e para a família ANATOMIC na Ocupação por grupo, em vez de rateada pela fábrica.
+  const cargaMoveParam = useMemo(() => {
+    if (!relatorioCapacidade) return '';
+    const minPeca = Number(minPecaMedido || 0);
+    const partes: string[] = [];
+    PERIODOS_PLANO.forEach((per, idx) => {
+      const linha = relatorioCapacidade.linhas[idx];
+      if (!linha) return;
+      const minMove = Number(linha.movePecas || 0) * Number(linha.moveMinPeca || minPeca || 0);
+      if (minMove > 0) partes.push(`${per}:${Math.round(minMove)}`);
+    });
+    return partes.join(',');
+  }, [relatorioCapacidade, minPecaMedido]);
+  const cargaExtraSemMove = useMemo(() => subtrairCarga(cargaExtraParam, cargaMoveParam), [cargaExtraParam, cargaMoveParam]);
+  cargaMoveRef.current = cargaMoveParam;
+
   // O ref precisa estar atualizado ANTES do efeito da ocupacao rodar — por isso sincroniza
   // durante a renderizacao, nao dentro de outro efeito.
   cargaExtraRef.current = cargaExtraParam;
@@ -2517,6 +2555,7 @@ export default function VisaoGeral2Page() {
           rotuloComparacao="hoje"
           cargaExtraMin={cargaExtraParam.split(',').reduce((t, x) => t + (Number(x.split(':')[1]) || 0), 0)}
           onOcupacaoPlano={setOcupPlanoDaTela}
+          onPlanoMes={setPlanoDaTela}
           estoqueForaDoPlano={estoqueFora}
           estoqueFisicoHoje={estoqueFisicoHoje}
           indiceCarregado={Boolean(indiceMensal && Object.keys(indiceMensal.data || {}).length)}
@@ -2660,8 +2699,12 @@ export default function VisaoGeral2Page() {
         />
         {!modoFoto && <div className="mb-6 rounded-b-lg border border-t-0 border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
           Veja como este cenário pode ser distribuído entre os grupos de costura. A proposta usa o histórico de produção e pode diferir do rateio por cadastro acima.{' '}
-          <a className="font-semibold underline" href={`/distribuicao-sugerida?${new URLSearchParams({ cenario: 'visao-geral', ferias: comFerias ? '1' : '0', extra: cargaExtraParam, lote_id: rawData?.loteId || '' }).toString()}`}>
+          <a className="font-semibold underline" href={`/distribuicao-sugerida?${new URLSearchParams({ cenario: 'visao-geral', ferias: comFerias ? '1' : '0', extra: cargaExtraSemMove, ...(cargaMoveParam ? { extra_grupo: `09 - LIDERANCA ANATOMIC>${cargaMoveParam}` } : {}), lote_id: rawData?.loteId || '' }).toString()}`}>
             Abrir distribuição deste cenário →
+          </a>
+          {' '}·{' '}
+          <a className="font-semibold underline" href={`/laboratorio-capacidade?${new URLSearchParams({ ferias: comFerias ? '1' : '0', extra: cargaExtraParam, lote_id: rawData?.loteId || '', plano: ['MA', 'PX', 'UL', 'QT', 'QU', 'SX', 'ST', 'OT', 'NV', 'DZ', 'ON', 'DO', 'DT', 'QZ'].map((per, idx) => `${per}:${planoDaTela[idx] ?? 0}`).join(',') }).toString()}`}>
+            Abrir no Laboratório de capacidade →
           </a>
         </div>}
         </div>

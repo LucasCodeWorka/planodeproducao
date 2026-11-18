@@ -1133,10 +1133,17 @@ router.get("/estoque-liebe", auth, async (req, res) => {
   }
 });
 
+// Cache de 30 min: a consulta leva ~50 s (classificacao por produto em toda a base) e o
+// tempo da Move so muda quando alguem cadastra operacao nova. `?refresh=true` ignora.
+const minPecaMoveCache = { data: null, timestamp: 0 };
+
 router.get("/min-peca-move", auth, async (req, res) => {
   try {
     const pool = req.app.get("pool");
     if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    if (req.query.refresh !== "true" && minPecaMoveCache.data && Date.now() - minPecaMoveCache.timestamp < 30 * 60 * 1000) {
+      return res.json({ ...minPecaMoveCache.data, fromCache: true });
+    }
     const r = await pool.query(`
       WITH move AS (
         SELECT a.cd_produto FROM vr_prd_produto a
@@ -1160,7 +1167,8 @@ router.get("/min-peca-move", auth, async (req, res) => {
              COALESCE(AVG(min) FILTER (WHERE min > 0), 0)::float AS media_medidos
         FROM t`);
     const x = r.rows[0];
-    res.json({
+    minPecaMoveCache.timestamp = Date.now();
+    res.json(minPecaMoveCache.data = {
       success: true,
       skus: x.skus,
       comTempo: x.com_tempo,
@@ -2402,7 +2410,18 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
     const comParada = req.query.ferias === '1' || req.query.ferias === 'true';
     const cargaExtra = parseCargaExtra(req.query.extra);
     const chaveExtra = Object.entries(cargaExtra).map(([k, v]) => `${k}:${Math.round(v)}`).sort().join(',');
-    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}|${alocacao}|${comParada}|${chaveExtra}`;
+    // CARGA EXTRA DIRECIONADA A UMA FAMILIA: `extra_familia=ANATOMIC>PER:min,...;...`. A Liebe
+    // Move e anatomic pelo mix do ERP, entao a carga dela vai para a familia ANATOMIC em vez
+    // de ser rateada entre todas (18/11/2026).
+    const extraPorFamilia = new Map();
+    for (const parte of String(req.query.extra_familia || '').split(';')) {
+      const [familiaBruta, lista] = parte.split('>');
+      const familia = String(familiaBruta || '').trim().toUpperCase();
+      if (!familia || !lista) continue;
+      const mapa = parseCargaExtra(lista);
+      if (Object.keys(mapa).length) extraPorFamilia.set(familia, mapa);
+    }
+    const chaveCache = `${de}|${ate}|${aplicarAprovadas}|${loteId}|${alocacao}|${comParada}|${chaveExtra}|${req.query.extra_familia || ''}`;
 
     if (ocupGrupoCache.data && ocupGrupoCache.chave === chaveCache && (Date.now() - ocupGrupoCache.timestamp) < GAP_CACHE_TTL) {
       return res.json({ ...ocupGrupoCache.data, fromCache: true });
@@ -2786,7 +2805,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
         let semCelulaAcum = 0;
         let pecasAcum = 0;
         const meses = PERIODOS_PLANO.map((per) => {
-          cargaAcum += v.carga[per] + extraDaFamilia(v, per);
+          cargaAcum += v.carga[per] + extraDaFamilia(v, per) + Math.max(0, Number(extraPorFamilia.get(grupo)?.[per] || 0));
           semCelulaAcum += v.cargaSemCelula[per];
           pecasAcum += v.pecas[per];
           const capacidadeMin = capDiaria * diasPorPeriodo[per];
@@ -3277,7 +3296,28 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
     const cargaExtra = parseCargaExtra(req.query.extra);
     const loteId = String(req.query.lote_id || '').trim();
     const revisaoPcp = readJson(path.join(DATA_DIR, 'revisao_pcp_preferencias.json'), { referencias: {} }).referencias || {};
-    const chave = `${meses}|${comParada}|${req.query.extra || ''}|${loteId}`;
+    // CORINGA (simulacao, nada gravado): `coringa=GRUPO>MODELO;...` faz GRUPO copiar o perfil
+    // de MODELO — vira candidato em toda referencia em que MODELO e candidato, logo depois
+    // dele, sem perder as referencias proprias. Pedido do PCP em 17/11/2026: a ESPERANCA
+    // (calcinha basico) copiando a POSITIVO (sutia basico), andando entre os dois perfis.
+    const coringas = String(req.query.coringa || '')
+      .split(';')
+      .map((par) => par.split('>').map((x) => String(x || '').trim().toUpperCase()))
+      .filter(([g, m]) => g && m && g !== m)
+      .map(([grupo, modelo]) => ({ grupo, modelo }));
+    // CARGA EXTRA DIRECIONADA: `extra_grupo=GRUPO>PER:min,PER:min;...`. Carga sem SKU que tem
+    // dono conhecido — a Liebe Move e anatomic pelo mix do ERP (304 SKUs CA ANATOMIC, 8 SO
+    // ANATOMIC, medido em 18/11/2026), entao ocupa a LIDERANCA e nao a fabrica inteira. O
+    // que nao couber no grupo passa para o mes seguinte DELE, como qualquer atraso.
+    const extraDirecionado = new Map(); // grupo -> { PER: minutos }
+    for (const parte of String(req.query.extra_grupo || '').split(';')) {
+      const [grupoBruto, lista] = parte.split('>');
+      const grupo = String(grupoBruto || '').trim().toUpperCase();
+      if (!grupo || !lista) continue;
+      const mapa = parseCargaExtra(lista);
+      if (Object.keys(mapa).length) extraDirecionado.set(grupo, mapa);
+    }
+    const chave = `${meses}|${comParada}|${req.query.extra || ''}|${loteId}|${coringas.map((c) => `${c.grupo}>${c.modelo}`).join(';')}|${req.query.extra_grupo || ''}`;
     const cache = distribuicaoCache;
     if (req.query.refresh !== "true" && cache.data && cache.chave === chave
         && Date.now() - cache.timestamp < DISTRIBUICAO_TTL) {
@@ -3483,6 +3523,13 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       const pecas = PERIODOS_PLANO.reduce((s, per) => s + Number(porPeriodo[per] || 0), 0);
       const opcoes = opcoesDaRef(ref);
       const candidatas = opcoes.filter((c) => c.capacidadeDisponivel).slice(0, MAX_GRUPOS_POR_REF);
+      // Coringa entra logo depois do modelo, mesmo passando do limite de quatro: ele e
+      // capacidade a mais para aquele perfil, nao substitui ninguem.
+      for (const c of coringas) {
+        const iModelo = candidatas.findIndex((x) => x.grupo === c.modelo);
+        if (iModelo < 0 || candidatas.some((x) => x.grupo === c.grupo) || !capDiaria.has(c.grupo)) continue;
+        candidatas.splice(iModelo + 1, 0, { grupo: c.grupo, origem: 'coringa', concentracao: null, capacidadeDisponivel: true });
+      }
       return { ref, porPeriodo, pecas, tempo, cargaMin: pecas * tempo, candidatas, opcoes: opcoes.slice(0, MAX_GRUPOS_POR_REF) };
     }).filter((r) => r.pecas > 0);
 
@@ -3539,6 +3586,8 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
     // sobre a preferência histórica, não uma obrigação real de produzir naquela célula.
     const pressaoPreferencial = new Map();
     const fluxoPeriodoMix = new Map();           // periodo -> { mix: {pedido, deTras, coube, empurrado} }
+    const extraDirPendente = new Map();          // grupo -> minutos da extra direcionada que ainda nao couberam
+    const extraDirPorCelula = new Map();         // grupo -> { PER: { doMes, herdado, coube, pendente } }
 
     // PERIODO A PERIODO, nao no agregado. No horizonte inteiro a capacidade (13,7 milhoes
     // de minutos) e 2,4x a carga (5,7 milhoes): tudo caberia no Grupo A e o rateio nunca
@@ -3552,7 +3601,21 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
         // A extra nao tem referencia, entao e cobrada de todas as celulas na proporcao do
         // tamanho de cada uma — a mesma fatia que o resto do sistema usa para ratear.
         const fatia = capacidadeDiariaTotal > 0 ? v / capacidadeDiariaTotal : 0;
-        livre.set(celula, Math.max(0, total - extraDoPeriodo * fatia));
+        let sobra = Math.max(0, total - extraDoPeriodo * fatia);
+        // Extra DIRECIONADA vem antes de qualquer referencia: a do mes mais o que nao coube
+        // no mes anterior. O que passar da capacidade vai para o mes seguinte do grupo.
+        const dir = extraDirecionado.get(celula);
+        if (dir || (extraDirPendente.get(celula) || 0) > 0) {
+          const doMes = Math.max(0, Number(dir?.[per] || 0));
+          const herdado = extraDirPendente.get(celula) || 0;
+          const pedido = doMes + herdado;
+          const coube = Math.min(sobra, pedido);
+          sobra -= coube;
+          extraDirPendente.set(celula, pedido - coube);
+          if (!extraDirPorCelula.has(celula)) extraDirPorCelula.set(celula, {});
+          extraDirPorCelula.get(celula)[per] = { doMes, herdado, coube, pendente: pedido - coube };
+        }
+        livre.set(celula, sobra);
       });
 
       let pedidoNoMes = 0;
@@ -3724,13 +3787,23 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       const meses = PERIODOS_PLANO.map((per) => {
         const capMes = cap * diasDoPeriodo[per];
         const aloc = Number(porPer[per] || 0);
-        const extra = capacidadeDiariaTotal > 0 ? Math.max(0, Number(cargaExtra[per] || 0)) * cap / capacidadeDiariaTotal : 0;
+        const dir = extraDirPorCelula.get(grupo)?.[per];
+        const extra = (capacidadeDiariaTotal > 0 ? Math.max(0, Number(cargaExtra[per] || 0)) * cap / capacidadeDiariaTotal : 0)
+          + Number(dir?.coube || 0);
         const pressao = pressaoPreferencial.get(grupo)?.[per] || {};
         return {
           periodo: per,
           capacidadeMin: Math.round(capMes),
           alocadoMin: Math.round(aloc),
           extraMin: Math.round(extra),
+          // Extra direcionada (ex.: Liebe Move na LIDERANCA): do mes, que veio do mes
+          // anterior, que coube e que ficou para o seguinte.
+          extraDirecionado: dir ? {
+            doMesMin: Math.round(dir.doMes),
+            herdadoMin: Math.round(dir.herdado),
+            coubeMin: Math.round(dir.coube),
+            pendenteMin: Math.round(dir.pendente),
+          } : null,
           pedidoPreferencialMin: Math.round(pressao.pedido || 0),
           herdadoPreferencialMin: Math.round(pressao.herdado || 0),
           remanejadoPreferencialMin: Math.round(pressao.remanejado || 0),
@@ -3772,6 +3845,7 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       meses,
       loteId: loteId || null,
       comFerias: comParada,
+      coringas,
       diasHorizonte,
       capacidadeDiariaTotal: Number(capacidadeDiariaTotal.toFixed(1)),
       temMedida,
@@ -3792,7 +3866,8 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
         refsRateadas: referencias.filter((r) => r.grupos.length > 1).length,
         refsSemTempo: referencias.filter((r) => r.semTempo).length,
         capacidadeHorizonteMin: Math.round([...capacidadeCelula.values()].reduce((a, b) => a + b, 0)),
-        cargaExtraMin: Math.round(PERIODOS_PLANO.reduce((acc, per) => acc + Math.max(0, Number(cargaExtra[per] || 0)), 0)),
+        cargaExtraMin: Math.round(PERIODOS_PLANO.reduce((acc, per) => acc + Math.max(0, Number(cargaExtra[per] || 0)), 0)
+          + [...extraDirecionado.values()].reduce((acc, m) => acc + Object.values(m).reduce((a, b) => a + Number(b || 0), 0), 0)),
         emProcessoOk: processoOk,
         // Quanto do trabalho so foi alocado depois do mes em que foi pedido. E o numero que
         // diz se o plano cabe de verdade ou se esta sendo empurrado para 2027.
@@ -3813,3 +3888,15 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
 });
 
 module.exports = router;
+// Reaproveitados pelo Laboratorio de capacidade (routes/analiseCapacidade.js), para ele
+// medir com as MESMAS regras de tempo, familia e celula que as outras telas usam.
+module.exports.helpers = {
+  auth,
+  queryTempoBaseRows,
+  resolveTempoLikePowerBi,
+  familiaDoProduto,
+  chaveDaLinha,
+  lerSimulacoesDoLote,
+  DEFAULT_REAL_GROUP_IDS,
+  readGrupos,
+};

@@ -174,7 +174,7 @@ export default function DistribuicaoSugeridaPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [meses, setMeses] = useState(6);
   const [comFerias, setComFerias] = useState(false);
-  const [cenario, setCenario] = useState<{ conectado: boolean; lote: string; extra: string } | null>(null);
+  const [cenario, setCenario] = useState<{ conectado: boolean; lote: string; extra: string; extraGrupo?: string } | null>(null);
   const [filtro, setFiltro] = useState<Filtro>('todas');
   const [busca, setBusca] = useState('');
   // PERFIL = o mix de producao (SO BASICO, CA FASHION...), que e o que define a vocacao de
@@ -188,7 +188,7 @@ export default function DistribuicaoSugeridaPage() {
   const [periodoLista, setPeriodoLista] = useState('');
   const [referenciaAberta, setReferenciaAberta] = useState<string | null>(null);
 
-  const carregar = useCallback(async (janela: number, ferias: boolean, contexto: { conectado: boolean; lote: string; extra: string }, refresh = false) => {
+  const carregar = useCallback(async (janela: number, ferias: boolean, contexto: { conectado: boolean; lote: string; extra: string; extraGrupo?: string }, refresh = false) => {
     const requisicao = ++requisicaoAtual.current;
     setLoading(true);
     setDados(null);
@@ -198,6 +198,8 @@ export default function DistribuicaoSugeridaPage() {
       if (ferias) qs.set('ferias', '1');
       if (contexto.lote) qs.set('lote_id', contexto.lote);
       if (contexto.extra) qs.set('extra', contexto.extra);
+      // Liebe Move direcionada ao grupo do anatomic (mix dela no ERP), vinda da Visão Geral.
+      if (contexto.extraGrupo) qs.set('extra_grupo', contexto.extraGrupo);
       if (refresh) qs.set('refresh', 'true');
       // 5 minutos: a primeira chamada do processo levanta tempos, matriz e produção.
       // Depois fica em cache de 30 min no backend.
@@ -216,7 +218,7 @@ export default function DistribuicaoSugeridaPage() {
     const q = new URLSearchParams(window.location.search);
     const conectado = q.get('cenario') === 'visao-geral';
     setComFerias(conectado && q.get('ferias') === '1');
-    setCenario({ conectado, lote: conectado ? q.get('lote_id') || '' : '', extra: conectado ? q.get('extra') || '' : '' });
+    setCenario({ conectado, lote: conectado ? q.get('lote_id') || '' : '', extra: conectado ? q.get('extra') || '' : '', extraGrupo: conectado ? q.get('extra_grupo') || '' : '' });
   }, []);
 
   useEffect(() => {

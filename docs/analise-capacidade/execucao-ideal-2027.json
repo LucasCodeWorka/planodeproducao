@@ -1,0 +1,2190 @@
+{
+ "geradoEm": "2026-11-17T13:18",
+ "ano": 2027,
+ "meses": [
+  "jan",
+  "fev",
+  "mar",
+  "abr",
+  "mai",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "out",
+  "nov",
+  "dez"
+ ],
+ "diasPorMes": [
+  20,
+  18,
+  21,
+  21,
+  20,
+  22,
+  22,
+  22,
+  21,
+  20,
+  20,
+  18
+ ],
+ "premissas": [
+  "16 grupos fixos: grupo nao para e nao se dimensiona mes a mes.",
+  "Cada grupo fica na familia de casa; so troca para familia que ja fez (>=5% da producao nov/25-out/26).",
+  "Ritmo de cada grupo = media mensal dele em nov/25-out/26 (ESPERANCA so jun-out), ajustado aos dias de 2027.",
+  "Ao trocar de familia, o grupo assume o ritmo medio da familia nova, proporcional ao tamanho dele.",
+  "Plano = matriz + lote mais recente, em pecas. Sem Move, edicao limitada projetada ou previsto.",
+  "Body, robe e cropped somados em NOITE; cinta, modelador, spartilho e acessorio em SUTIA.",
+  "Comeca jan/27 sem estoque antecipado; atraso permitido com penalidade alta."
+ ],
+ "grupos": [
+  {
+   "grupo": "08 - CONQUISTA CA BASICO/FASHION",
+   "casa": "CALCA",
+   "podeFazer": [],
+   "pecasMes": 18869,
+   "tamanho": 1.39,
+   "meses": [
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.25,
+      "pecas": 17000,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.125,
+      "pecas": 15300,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.312,
+      "pecas": 17843,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.312,
+      "pecas": 17843,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.25,
+      "pecas": 17000,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.375,
+      "pecas": 18700,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.375,
+      "pecas": 18700,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.375,
+      "pecas": 18700,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.312,
+      "pecas": 17843,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.25,
+      "pecas": 17000,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.25,
+      "pecas": 17000,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.125,
+      "pecas": 15300,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "07 - DESAFIO CA FASHION",
+   "casa": "CALCA",
+   "podeFazer": [],
+   "pecasMes": 17349,
+   "tamanho": 1.28,
+   "meses": [
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.149,
+      "pecas": 15626,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.034,
+      "pecas": 14062,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.207,
+      "pecas": 16415,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.207,
+      "pecas": 16415,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.149,
+      "pecas": 15626,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.264,
+      "pecas": 17190,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.264,
+      "pecas": 17190,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.264,
+      "pecas": 17190,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.207,
+      "pecas": 16415,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.149,
+      "pecas": 15626,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.149,
+      "pecas": 15626,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 1.034,
+      "pecas": 14062,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "OFICINA - GLEDSON SOARES",
+   "casa": "CALCA",
+   "podeFazer": [],
+   "pecasMes": 12602,
+   "tamanho": 0.93,
+   "meses": [
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.835,
+      "pecas": 11356,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.751,
+      "pecas": 10214,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.877,
+      "pecas": 11927,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.877,
+      "pecas": 11927,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.835,
+      "pecas": 11356,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.918,
+      "pecas": 12485,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.918,
+      "pecas": 12485,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.918,
+      "pecas": 12485,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.877,
+      "pecas": 11927,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.835,
+      "pecas": 11356,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.835,
+      "pecas": 11356,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.646,
+      "pecas": 8786,
+      "fatia": 0.86
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.105,
+      "pecas": null,
+      "fatia": 0.14
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "06 - UNIAO CA LUXE",
+   "casa": "CALCA",
+   "podeFazer": [],
+   "pecasMes": 10882,
+   "tamanho": 0.8,
+   "meses": [
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.721,
+      "pecas": 9806,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.649,
+      "pecas": 8826,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.757,
+      "pecas": 10295,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.645,
+      "pecas": 8772,
+      "fatia": 0.852
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.112,
+      "pecas": null,
+      "fatia": 0.148
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.721,
+      "pecas": 9806,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.793,
+      "pecas": 10785,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.793,
+      "pecas": 10785,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.793,
+      "pecas": 10785,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.757,
+      "pecas": 10295,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.721,
+      "pecas": 9806,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.721,
+      "pecas": 9806,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.649,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "07 - EVOLUCAO CA FASHION",
+   "casa": "CALCA",
+   "podeFazer": [
+    "SUTIA"
+   ],
+   "pecasMes": 9678,
+   "tamanho": 0.71,
+   "meses": [
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.474,
+      "pecas": 6446,
+      "fatia": 0.739
+     },
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.167,
+      "pecas": 1276,
+      "fatia": 0.261
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.577,
+      "pecas": 7847,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.673,
+      "pecas": 9153,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.673,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.383,
+      "pecas": null,
+      "fatia": 0.598
+     },
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.258,
+      "pecas": 3509,
+      "fatia": 0.402
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.705,
+      "pecas": 9588,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.705,
+      "pecas": 9588,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.705,
+      "pecas": 9588,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.673,
+      "pecas": 9153,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.641,
+      "pecas": 8718,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.328,
+      "pecas": null,
+      "fatia": 0.512
+     },
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.313,
+      "pecas": 4257,
+      "fatia": 0.488
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.577,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "08 - ESPERANCA CA BASICO",
+   "casa": "CALCA",
+   "podeFazer": [],
+   "pecasMes": 12221,
+   "tamanho": 0.9,
+   "meses": [
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.81,
+      "pecas": 11016,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.729,
+      "pecas": 9914,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.85,
+      "pecas": 11560,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.85,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.81,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.878,
+      "pecas": 11941,
+      "fatia": 0.985
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.013,
+      "pecas": null,
+      "fatia": 0.015
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.891,
+      "pecas": 12118,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.891,
+      "pecas": 12118,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.85,
+      "pecas": 11560,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.81,
+      "pecas": 11016,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.81,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.729,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "05 - MOTIVACAO SU BASICO",
+   "casa": "SUTIA",
+   "podeFazer": [],
+   "pecasMes": 9386,
+   "tamanho": 1.23,
+   "meses": [
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.106,
+      "pecas": 8453,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.996,
+      "pecas": 7612,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.162,
+      "pecas": 8881,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.162,
+      "pecas": 8881,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.106,
+      "pecas": 8453,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.217,
+      "pecas": 9301,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.217,
+      "pecas": 9301,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.217,
+      "pecas": 9301,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.162,
+      "pecas": 8881,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.106,
+      "pecas": 8453,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.106,
+      "pecas": 8453,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.996,
+      "pecas": 7612,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "08 - OBJETIVO SO BASICO",
+   "casa": "SUTIA",
+   "podeFazer": [
+    "CALCA"
+   ],
+   "pecasMes": 8821,
+   "tamanho": 1.15,
+   "meses": [
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.04,
+      "pecas": 7949,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.936,
+      "pecas": 7154,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.092,
+      "pecas": 8346,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.092,
+      "pecas": 8346,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.04,
+      "pecas": 7949,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.144,
+      "pecas": 8743,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.144,
+      "pecas": 8743,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.144,
+      "pecas": 8743,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.092,
+      "pecas": 8346,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.04,
+      "pecas": 7949,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.04,
+      "pecas": 7949,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.936,
+      "pecas": 7154,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "04 - HARMONIA SU BASICO",
+   "casa": "SUTIA",
+   "podeFazer": [],
+   "pecasMes": 8758,
+   "tamanho": 1.15,
+   "meses": [
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.032,
+      "pecas": 7887,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.929,
+      "pecas": 7100,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.084,
+      "pecas": 8285,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.084,
+      "pecas": 8285,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.032,
+      "pecas": 7887,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.136,
+      "pecas": 8682,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.136,
+      "pecas": 8682,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.136,
+      "pecas": 8682,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.084,
+      "pecas": 8285,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.032,
+      "pecas": 7887,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 1.032,
+      "pecas": 7887,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.929,
+      "pecas": 7100,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "04 - PERSEVERANCA SU FASHION/BASICO",
+   "casa": "SUTIA",
+   "podeFazer": [],
+   "pecasMes": 7480,
+   "tamanho": 0.98,
+   "meses": [
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.882,
+      "pecas": 6741,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.794,
+      "pecas": 6068,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.926,
+      "pecas": 7077,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.926,
+      "pecas": 7077,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.882,
+      "pecas": 6741,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.97,
+      "pecas": 7414,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.97,
+      "pecas": 7414,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.97,
+      "pecas": 7414,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.926,
+      "pecas": 7077,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.882,
+      "pecas": 6741,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.882,
+      "pecas": 6741,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.538,
+      "pecas": null,
+      "fatia": 0.678
+     },
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.256,
+      "pecas": 1957,
+      "fatia": 0.322
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "05 - POSITIVO SU BASICO",
+   "casa": "SUTIA",
+   "podeFazer": [],
+   "pecasMes": 7253,
+   "tamanho": 0.95,
+   "meses": [
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.855,
+      "pecas": 6535,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.769,
+      "pecas": 5877,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.898,
+      "pecas": 6863,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.898,
+      "pecas": 6863,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.855,
+      "pecas": 6535,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.94,
+      "pecas": 7184,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.94,
+      "pecas": 7184,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.94,
+      "pecas": 7184,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.898,
+      "pecas": 6863,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.855,
+      "pecas": 6535,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.653,
+      "pecas": 4991,
+      "fatia": 0.764
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.202,
+      "pecas": null,
+      "fatia": 0.236
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.769,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "04 - SUPERACAO SU FASHION/BASICO",
+   "casa": "SUTIA",
+   "podeFazer": [],
+   "pecasMes": 6586,
+   "tamanho": 0.86,
+   "meses": [
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.776,
+      "pecas": 5931,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.699,
+      "pecas": 5342,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.815,
+      "pecas": 6229,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.428,
+      "pecas": 3271,
+      "fatia": 0.525
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.387,
+      "pecas": null,
+      "fatia": 0.475
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.702,
+      "pecas": null,
+      "fatia": 0.905
+     },
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.074,
+      "pecas": 566,
+      "fatia": 0.095
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.441,
+      "pecas": null,
+      "fatia": 0.516
+     },
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.413,
+      "pecas": 3157,
+      "fatia": 0.484
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.854,
+      "pecas": 6527,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.854,
+      "pecas": 6527,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.815,
+      "pecas": 6229,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.776,
+      "pecas": 5931,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.776,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.699,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "03 - FELICIDADE SU LUXE",
+   "casa": "SUTIA",
+   "podeFazer": [
+    "CALCA"
+   ],
+   "pecasMes": 5216,
+   "tamanho": 0.68,
+   "meses": [
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.615,
+      "pecas": 4700,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.553,
+      "pecas": 4227,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.646,
+      "pecas": 4937,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.646,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.615,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.676,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.676,
+      "pecas": 5167,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.676,
+      "pecas": 5167,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.646,
+      "pecas": 4937,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.317,
+      "pecas": 2423,
+      "fatia": 0.515
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.298,
+      "pecas": null,
+      "fatia": 0.485
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.615,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.553,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "09 - LIDERANCA ANATOMIC",
+   "casa": "ANATOMIC",
+   "podeFazer": [
+    "SUTIA",
+    "CALCA"
+   ],
+   "pecasMes": 6470,
+   "tamanho": 1.0,
+   "meses": [
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.762,
+      "pecas": 5824,
+      "fatia": 0.846
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.139,
+      "pecas": 899,
+      "fatia": 0.154
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.446,
+      "pecas": 6066,
+      "fatia": 0.55
+     },
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.226,
+      "pecas": 1727,
+      "fatia": 0.279
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.139,
+      "pecas": 899,
+      "fatia": 0.171
+     }
+    ],
+    [
+     {
+      "familia": "CALCA",
+      "grupoMes": 0.719,
+      "pecas": 9778,
+      "fatia": 0.76
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.227,
+      "pecas": 1469,
+      "fatia": 0.24
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.719,
+      "pecas": null,
+      "fatia": 0.76
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.227,
+      "pecas": 1469,
+      "fatia": 0.24
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.753,
+      "pecas": null,
+      "fatia": 0.836
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.148,
+      "pecas": 958,
+      "fatia": 0.164
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.833,
+      "pecas": null,
+      "fatia": 0.841
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.158,
+      "pecas": 1022,
+      "fatia": 0.159
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.727,
+      "pecas": null,
+      "fatia": 0.734
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.264,
+      "pecas": 1708,
+      "fatia": 0.266
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.68,
+      "pecas": null,
+      "fatia": 0.686
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.311,
+      "pecas": 2012,
+      "fatia": 0.314
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.621,
+      "pecas": null,
+      "fatia": 0.656
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.325,
+      "pecas": 2103,
+      "fatia": 0.344
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.655,
+      "pecas": null,
+      "fatia": 0.727
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.246,
+      "pecas": 1592,
+      "fatia": 0.273
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.725,
+      "pecas": null,
+      "fatia": 0.805
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.176,
+      "pecas": 1139,
+      "fatia": 0.195
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.728,
+      "pecas": null,
+      "fatia": 0.898
+     },
+     {
+      "familia": "ANATOMIC",
+      "grupoMes": 0.083,
+      "pecas": 537,
+      "fatia": 0.102
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "03 - ALEGRIA SU LUXE MODA",
+   "casa": "NOITE",
+   "podeFazer": [
+    "SUTIA"
+   ],
+   "pecasMes": 4539,
+   "tamanho": 1.03,
+   "meses": [
+    [
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.931,
+      "pecas": 4091,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.826,
+      "pecas": 3630,
+      "fatia": 0.986
+     },
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.012,
+      "pecas": 92,
+      "fatia": 0.014
+     }
+    ],
+    [
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.977,
+      "pecas": 4293,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.544,
+      "pecas": 2391,
+      "fatia": 0.557
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.433,
+      "pecas": null,
+      "fatia": 0.443
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.583,
+      "pecas": null,
+      "fatia": 0.626
+     },
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.348,
+      "pecas": 1529,
+      "fatia": 0.374
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.56,
+      "pecas": null,
+      "fatia": 0.547
+     },
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.464,
+      "pecas": 2039,
+      "fatia": 0.453
+     }
+    ],
+    [
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.801,
+      "pecas": 3520,
+      "fatia": 0.782
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.223,
+      "pecas": null,
+      "fatia": 0.218
+     }
+    ],
+    [
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.553,
+      "pecas": 2430,
+      "fatia": 0.54
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.471,
+      "pecas": null,
+      "fatia": 0.46
+     }
+    ],
+    [
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.869,
+      "pecas": 3819,
+      "fatia": 0.889
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.108,
+      "pecas": null,
+      "fatia": 0.111
+     }
+    ],
+    [
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.578,
+      "pecas": 2540,
+      "fatia": 0.621
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.353,
+      "pecas": null,
+      "fatia": 0.379
+     }
+    ],
+    [
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.503,
+      "pecas": 2210,
+      "fatia": 0.54
+     },
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.428,
+      "pecas": null,
+      "fatia": 0.46
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.46,
+      "pecas": null,
+      "fatia": 0.549
+     },
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.378,
+      "pecas": 1661,
+      "fatia": 0.451
+     }
+    ]
+   ]
+  },
+  {
+   "grupo": "03 - FUTURO SU LUXE",
+   "casa": "NOITE",
+   "podeFazer": [
+    "SUTIA"
+   ],
+   "pecasMes": 4249,
+   "tamanho": 0.97,
+   "meses": [
+    [
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.826,
+      "pecas": 3630,
+      "fatia": 0.948
+     },
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.045,
+      "pecas": 344,
+      "fatia": 0.052
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.784,
+      "pecas": 5992,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "SUTIA",
+      "grupoMes": 0.72,
+      "pecas": 5503,
+      "fatia": 0.787
+     },
+     {
+      "familia": "NOITE",
+      "grupoMes": 0.195,
+      "pecas": 857,
+      "fatia": 0.213
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.915,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.871,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.958,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.958,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.958,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.915,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.871,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.871,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ],
+    [
+     {
+      "familia": "LIVRE",
+      "grupoMes": 0.784,
+      "pecas": null,
+      "fatia": 1.0
+     }
+    ]
+   ]
+  }
+ ],
+ "familias": [
+  {
+   "familia": "CALCA",
+   "ritmoGrupo": 13600,
+   "plano": [
+    71250,
+    74500,
+    92150,
+    47510,
+    57290,
+    47930,
+    81860,
+    94420,
+    89440,
+    79490,
+    58050,
+    38150
+   ],
+   "producao": [
+    71250,
+    72230,
+    86972,
+    54958,
+    57297,
+    80689,
+    80866,
+    80866,
+    77194,
+    73522,
+    58045,
+    38148
+   ],
+   "saldoAcumulado": [
+    0,
+    -2270,
+    -7448,
+    -1,
+    6,
+    32765,
+    31770,
+    18216,
+    5969,
+    1,
+    -5,
+    -7
+   ]
+  },
+  {
+   "familia": "SUTIA",
+   "ritmoGrupo": 7643,
+   "plano": [
+    58800,
+    52460,
+    60130,
+    34290,
+    38130,
+    29930,
+    65200,
+    51980,
+    54030,
+    45920,
+    36020,
+    23820
+   ],
+   "producao": [
+    55640,
+    51192,
+    56122,
+    42724,
+    38130,
+    44481,
+    53019,
+    53019,
+    50619,
+    45918,
+    36021,
+    23823
+   ],
+   "saldoAcumulado": [
+    -3160,
+    -4428,
+    -8436,
+    -3,
+    -2,
+    14549,
+    2368,
+    3406,
+    -5,
+    -7,
+    -6,
+    -3
+   ]
+  },
+  {
+   "familia": "NOITE",
+   "ritmoGrupo": 4394,
+   "plano": [
+    7720,
+    3630,
+    5150,
+    2390,
+    1530,
+    2040,
+    3520,
+    2430,
+    3820,
+    2540,
+    2210,
+    1660
+   ],
+   "producao": [
+    7721,
+    3630,
+    5150,
+    2391,
+    1529,
+    2039,
+    3520,
+    2430,
+    3819,
+    2540,
+    2210,
+    1661
+   ],
+   "saldoAcumulado": [
+    1,
+    1,
+    1,
+    2,
+    1,
+    0,
+    0,
+    0,
+    -1,
+    -1,
+    -1,
+    0
+   ]
+  },
+  {
+   "familia": "ANATOMIC",
+   "ritmoGrupo": 6470,
+   "plano": [
+    900,
+    900,
+    1470,
+    1470,
+    960,
+    1020,
+    1710,
+    2010,
+    2100,
+    1590,
+    1140,
+    540
+   ],
+   "producao": [
+    899,
+    899,
+    1469,
+    1469,
+    958,
+    1022,
+    1708,
+    2012,
+    2103,
+    1592,
+    1139,
+    537
+   ],
+   "saldoAcumulado": [
+    -1,
+    -1,
+    -3,
+    -4,
+    -7,
+    -4,
+    -6,
+    -4,
+    -2,
+    0,
+    -2,
+    -5
+   ]
+  }
+ ],
+ "livre": [
+  0,
+  0,
+  0,
+  4.74,
+  4.72,
+  3.48,
+  1.91,
+  2.11,
+  1.64,
+  2.18,
+  4.75,
+  6.59
+ ],
+ "atraso": [
+  {
+   "familia": "CALCA",
+   "mesDoPlano": "fev",
+   "produzidoEm": "abr",
+   "pecas": 2271
+  },
+  {
+   "familia": "CALCA",
+   "mesDoPlano": "mar",
+   "produzidoEm": "abr",
+   "pecas": 5182
+  },
+  {
+   "familia": "SUTIA",
+   "mesDoPlano": "fev",
+   "produzidoEm": "abr",
+   "pecas": 1269
+  },
+  {
+   "familia": "SUTIA",
+   "mesDoPlano": "mar",
+   "produzidoEm": "abr",
+   "pecas": 4005
+  },
+  {
+   "familia": "SUTIA",
+   "mesDoPlano": "jan",
+   "produzidoEm": "abr",
+   "pecas": 3157
+  }
+ ]
+}

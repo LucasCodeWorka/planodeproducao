@@ -762,12 +762,21 @@ const data = { MA: null, PX: null, UL: null, QT: null, QU: null };
  * So devolve mes que TEM lote lancado. Dezembro e janeiro ainda nao tem (o plano deles
  * vive na matriz, como planejamento), entao nao aparecem aqui.
  */
+// Cache de 10 min por marca/status: a consulta leva ~30 s e o lote so muda quando o PCP
+// lanca ou baixa um. `?refresh=true` ignora o cache.
+const planoPorMesRealCache = { chave: "", data: null, timestamp: 0 };
+
 router.get("/plano-por-mes-real", async (req, res) => {
   try {
     const pool = req.app.get("pool");
     const marca = String(req.query.marca || "LIEBE").trim().toUpperCase();
     const statusList = String(req.query.status || "EM LINHA,NOVA COLECAO")
       .split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+    const chaveCache = `${marca}|${statusList.join(",")}`;
+    if (req.query.refresh !== "true" && planoPorMesRealCache.data && planoPorMesRealCache.chave === chaveCache
+        && Date.now() - planoPorMesRealCache.timestamp < 10 * 60 * 1000) {
+      return res.json({ success: true, data: planoPorMesRealCache.data, fromCache: true });
+    }
 
     // `vr_pcp_lotepl2` e o lote INTEIRO, uma linha por produto. Nao use
     // `vr_pcp_loteplop`: aquela e lote x OP, entao so enxerga o que ja virou ordem — em
@@ -803,6 +812,9 @@ router.get("/plano-por-mes-real", async (req, res) => {
         lotes: Number(row.lotes) || 0,
       };
     }
+    planoPorMesRealCache.chave = chaveCache;
+    planoPorMesRealCache.data = data;
+    planoPorMesRealCache.timestamp = Date.now();
     return res.json({ success: true, data });
   } catch (error) {
     console.error("[producao/plano-por-mes-real] Erro:", error);

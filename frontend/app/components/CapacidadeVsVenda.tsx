@@ -196,6 +196,10 @@ type Props = {
    *  desta tela. A Ocupacao por grupo usa isto para fechar com o que esta aqui: ela calcula
    *  em minutos e por familia, e sem um alvo comum as duas nunca batem. */
   onOcupacaoPlano?: (v: (number | null)[]) => void;
+  /** O PLANO que o gráfico desenha, mês a mês (a mesma conta de `planoDoMes`), na ordem das
+   *  colunas — a primeira é o mês corrente. O Laboratório de capacidade usa isto para falar
+   *  do mesmo plano que esta tela, com edição limitada, Move e previsto dentro. */
+  onPlanoMes?: (v: number[]) => void;
   /** Como chamar o outro lado na tela ("hoje", "a foto de 05/11"). */
   rotuloComparacao?: string;
 };
@@ -242,6 +246,7 @@ export default function CapacidadeVsVenda({
   indiceCarregado = true,
   disponivelCurvaHoje,
   onOcupacaoPlano,
+  onPlanoMes,
   rotuloComparacao = 'hoje',
 }: Props) {
   // Tres leituras, nao duas: o plano como esta, o nivelado com teto no MES e o nivelado com
@@ -725,6 +730,12 @@ export default function CapacidadeVsVenda({
     onOcupacaoPlano?.(ocupPlanoSerie);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [ocupPlanoChave]);
+  const planoSerie = linhas.map((l) => Math.round(planoDoMes(l)));
+  const planoChave = planoSerie.join('|');
+  useEffect(() => {
+    onPlanoMes?.(planoSerie);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [planoChave]);
 
   // Fatia de cada curva no disponivel de HOJE. Se a soma for zero (curva nao carregou), as
   // sublinhas somem em vez de mostrar divisao por zero.

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, ChevronDown, LogOut, Settings, TrendingDown, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, AlertTriangle, MinusCircle, CalendarRange, LineChart, Shuffle, Search } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, ChevronDown, LogOut, Settings, TrendingDown, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, AlertTriangle, MinusCircle, CalendarRange, LineChart, Shuffle, Search, FlaskConical } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -51,6 +51,15 @@ const GRUPOS_NAV = [
       { href: '/curva-abc', label: 'Curva ABC', Icon: BarChart3 },
       { href: '/extrato-plano', label: 'Extrato Plano', Icon: GitCompareArrows },
       { href: '/historia-produto', label: 'História do Produto (busca por SKU)', Icon: Search },
+    ],
+  },
+  {
+    // Separado de proposito: aqui se investiga, nao se opera. Nada desta area grava dado.
+    id: 'investigacao',
+    titulo: 'Investigação',
+    Icon: FlaskConical,
+    itens: [
+      { href: '/laboratorio-capacidade', label: 'Laboratório de capacidade', Icon: FlaskConical },
     ],
   },
 ];
