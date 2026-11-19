@@ -17,7 +17,7 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   FAMILIAS, PERIODOS, ROTULO_MOVE, atendimento, calendario, montarMatriz, producao,
-  type DistribuicaoDados, type FamiliaPorGrupo, type Linha, type Quadra, type RefLinha,
+  type DistribuicaoDados, type FamiliaPorGrupo, type GrupoDist, type Linha, type Quadra, type RefLinha,
 } from './matriz';
 import type { FamiliaOcupacao } from './OcupacaoFamilias';
 import PainelDetalhe, { type Selecao } from './PainelDetalhe';
@@ -440,7 +440,7 @@ export default function ProducaoDistribuida({
           <Indicador rotulo="Grupos que lotaram" valor={`${lotados.length} de ${gruposReais.length}`} nota="chegaram a 100% em algum mês" tom={lotados.length ? 'atencao' : 'ok'}
             dica={lotados.map((x) => `${curto(x.grupo)}: ${x.meses} ${x.meses === 1 ? 'mês' : 'meses'} a 100%`).join('\n') || 'nenhum'} />
         </div>
-        {familiasOcupacao && familiasOcupacao.length > 0 && <FaixaFamilias familias={familiasOcupacao} meses={meses} anoAlvo={anoAlvo} colSel={colSel} />}
+        {familiasOcupacao && familiasOcupacao.length > 0 && <FaixaFamilias dados={dados} familias={familias} blocos={blocos} familiasOcupacao={familiasOcupacao} meses={meses} anoAlvo={anoAlvo} colSel={colSel} />}
       </div>
 
       {/* ── C. Matriz ───────────────────────────────────────────────────────── */}
@@ -734,31 +734,104 @@ function Indicador({ rotulo, sub, valor, nota, dica, tom }: { rotulo: string; su
   );
 }
 
-// Ocupação ACUMULADA por família (a mesma tabela "Ocupação por família, pela lista"), em
-// faixa: % e dias por mês; o fundo acompanha a ocupação, o número continua escrito.
-function FaixaFamilias({ familias, meses, anoAlvo, colSel }: { familias: FamiliaOcupacao[]; meses: string[]; anoAlvo: number; colSel: number | null }) {
-  const lista = [...familias].sort((a, b) => FAMILIAS.indexOf(a.familia) - FAMILIAS.indexOf(b.familia));
-  const fabrica = PERIODOS.map((_, i) => {
-    const carga = lista.reduce((s, f) => s + (f.meses[i]?.cargaAcumMin || 0), 0);
-    const cap = lista.reduce((s, f) => s + (f.meses[i]?.capacidadeMin || 0), 0);
-    const dias = lista[0]?.meses[i]?.diasDisponiveis || 0;
-    const capDia = dias > 0 ? cap / dias : 0;
-    return { ocupacao: cap > 0 ? carga / cap : null, gapDias: capDia > 0 ? carga / capDia - dias : 0 };
-  });
-  const fundo = (o: number | null) => (o === null ? '' : o > 1.005 ? 'bg-red-100' : o >= 0.95 ? 'bg-amber-100' : o >= 0.85 ? 'bg-amber-50' : 'bg-emerald-50');
+// OCUPAÇÃO POR FAMÍLIA PELA LISTA, mês a mês (corrigida em 19/11/2026, pedido do PCP).
+// A versão anterior juntava a capacidade de todos os grupos da família num balde só e a
+// comparava com todo o plano da família: a sobra da SUPERAÇÃO, FELICIDADE e PERSEVERANÇA
+// "pagava" o atraso dos básicos — dizia "sobra 21 dias" no Sutiã com 9.103 peças indo para
+// o ano seguinte. Pela lista, uma não compensa a outra: um grupo parado não faz referência
+// que não pode ir para ele. Por isso, por família e mês, separado:
+//   ocupação = Σ (alocado + extra) ÷ Σ capacidade dos grupos dela (o que a distribuição usou)
+//   ↪       = peças empurradas das referências cujo grupo A é dela (as mesmas da matriz);
+//             em dias = minutos pendentes ÷ capacidade diária da família
+//   ociosa  = Σ por GRUPO de (capacidade − alocado − extra), em dias da família
+// Grupo convertido (a ESPERANÇA) conta na família nova a partir do mês da conversão.
+type FamiliaMes = { cap: number; uso: number; ociosoMin: number; atrasoMin: number; atrasoPc: number; ociosos: { grupo: string; min: number }[] };
+function FaixaFamilias({ dados, familias, blocos, familiasOcupacao, meses, anoAlvo, colSel }: {
+  dados: DistribuicaoDados;
+  familias: FamiliaPorGrupo;
+  blocos: { familia: string; empurra: number[] }[];
+  familiasOcupacao: FamiliaOcupacao[];
+  meses: string[];
+  anoAlvo: number;
+  colSel: number | null;
+}) {
+  const n = PERIODOS.length;
+  // Dias de cada mês: o backend manda os dias ACUMULADOS; a diferença dá os do mês.
+  const diasAcum = (familiasOcupacao[0]?.meses || []).map((m) => Number(m.diasDisponiveis || 0));
+  const dias = PERIODOS.map((_, i) => (diasAcum[i] || 0) - (i > 0 ? diasAcum[i - 1] || 0 : 0));
+  const base = (g: string) => familias[g]?.familia || 'Outros';
+  const tab = new Map<string, FamiliaMes[]>();
+  const de = (f: string) => {
+    if (!tab.has(f)) tab.set(f, Array.from({ length: n }, () => ({ cap: 0, uso: 0, ociosoMin: 0, atrasoMin: 0, atrasoPc: 0, ociosos: [] })));
+    return tab.get(f)!;
+  };
+  for (const g of dados.grupos as (GrupoDist & { viraFamilia?: string | null; viraDesde?: string | null })[]) {
+    const desde = g.viraDesde ? PERIODOS.indexOf(g.viraDesde) : -1;
+    for (const m of g.meses || []) {
+      const i = PERIODOS.indexOf(m.periodo);
+      if (i < 0) continue;
+      const f = g.viraFamilia && desde >= 0 && i >= desde ? g.viraFamilia : base(g.grupo);
+      const x = de(f)[i];
+      const uso = Number(m.alocadoMin || 0) + Number(m.extraMin || 0);
+      const ocioso = Math.max(0, Number(m.capacidadeMin || 0) - uso);
+      x.cap += Number(m.capacidadeMin || 0);
+      x.uso += uso;
+      x.ociosoMin += ocioso;
+      if (ocioso >= 500) x.ociosos.push({ grupo: g.grupo, min: ocioso });
+      // Move que não coube fica pendente no grupo dela (família de origem do grupo).
+      const dir = m.extraDirecionado;
+      if (dir) de(base(g.grupo))[i].atrasoMin += Number(dir.pendenteMin || 0);
+    }
+  }
+  for (const r of dados.referencias) {
+    const A = r.opcoes?.[0]?.grupo;
+    if (!A) continue;
+    const linha = de(base(A));
+    for (const p of r.periodos || []) {
+      const i = PERIODOS.indexOf(p.periodo);
+      if (i >= 0) linha[i].atrasoMin += Number(p.pendenteMin || 0);
+    }
+  }
+  // Peças empurradas: as mesmas da matriz (inclui a Move em peças).
+  for (const b of blocos) { const linha = de(b.familia); b.empurra.forEach((v, i) => { linha[i].atrasoPc = v; }); }
+  const lista = FAMILIAS.filter((f) => tab.has(f) && tab.get(f)!.some((x) => x.cap > 0));
+  const fabrica: FamiliaMes[] = PERIODOS.map((_, i) => lista.reduce((acc, f) => {
+    const x = tab.get(f)![i];
+    return { cap: acc.cap + x.cap, uso: acc.uso + x.uso, ociosoMin: acc.ociosoMin + x.ociosoMin, atrasoMin: acc.atrasoMin + x.atrasoMin, atrasoPc: acc.atrasoPc + x.atrasoPc, ociosos: acc.ociosos.concat(x.ociosos) };
+  }, { cap: 0, uso: 0, ociosoMin: 0, atrasoMin: 0, atrasoPc: 0, ociosos: [] } as FamiliaMes));
+  const capDiaFam = (f: string) => {
+    const xs = tab.get(f)!;
+    const i = xs.findIndex((x, k) => x.cap > 0 && dias[k] > 0 && k >= 2);
+    return i >= 0 ? xs[i].cap / dias[i] : 0;
+  };
   const anoDe = (i: number) => Number(`20${meses[i].slice(-2)}`);
-  const cel = (o: number | null, gap: number, i: number, forte = false) => (
-    <td key={i} className={`px-1.5 py-1 text-right tabular-nums ${fundo(o)} ${anoDe(i) < anoAlvo ? 'opacity-50' : ''} ${colSel === i ? HL : ''}`}
-      title={`${meses[i]} · ocupação acumulada ${pct(o)} · ${gap > 0 ? `falta produção para ${gap.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias` : `sobra ${Math.abs(gap).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias`}`}>
-      <div className={`${forte ? 'font-bold' : 'font-semibold'} ${o !== null && o > 1.005 ? 'text-red-800' : 'text-gray-800'}`}>{o !== null && o > 1.005 ? '▲' : ''}{pct(o)}</div>
-      <div className={`text-[10px] ${gap > 0.05 ? 'text-red-700' : 'text-emerald-700'}`}>{gap > 0 ? '+' : ''}{gap.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}d</div>
-    </td>
-  );
+  const fmtD = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  const cel = (x: FamiliaMes, i: number, forte = false) => {
+    const o = x.cap > 0 ? x.uso / x.cap : null;
+    const capDia = dias[i] > 0 ? x.cap / dias[i] : 0;
+    const dAtraso = capDia > 0 ? x.atrasoMin / capDia : 0;
+    const dOcioso = capDia > 0 ? x.ociosoMin / capDia : 0;
+    const fundo = x.atrasoPc >= 0.5 && dOcioso >= 0.05 ? 'bg-amber-50' : x.atrasoPc >= 0.5 ? 'bg-red-50' : dOcioso >= 0.05 ? 'bg-emerald-50' : '';
+    return (
+      <td key={i} className={`px-1.5 py-1 text-right tabular-nums ${fundo} ${anoDe(i) < anoAlvo ? 'opacity-50' : ''} ${colSel === i ? HL : ''}`}
+        title={[
+          `${meses[i]} · ocupação ${pct(o)} = (alocado + extra) ÷ capacidade dos grupos`,
+          x.atrasoPc >= 0.5 ? `↪ ${num(x.atrasoPc)} peças empurradas para o mês seguinte (${fmtD(dAtraso)} dias de capacidade da família)` : 'nada empurrado',
+          dOcioso >= 0.05 ? `ociosa ${fmtD(dOcioso)} dias: ${[...x.ociosos].sort((a, b) => b.min - a.min).map((g) => `${curto(g.grupo)} ${num(g.min / 1000)} mil min`).join(', ')}` : 'sem capacidade parada',
+          x.atrasoPc >= 0.5 && dOcioso >= 0.05 ? 'Atraso e ociosidade ao mesmo tempo: os grupos parados não estão na lista das referências que atrasam.' : '',
+        ].filter(Boolean).join('\n')}>
+        <div className={`${forte ? 'font-bold' : 'font-semibold'} ${o !== null && o > 1.005 ? 'text-red-800' : 'text-gray-800'}`}>{o !== null && o > 1.005 ? '▲' : ''}{pct(o)}</div>
+        <div className={`text-[10px] ${x.atrasoPc >= 0.5 ? 'font-semibold text-red-700' : 'text-gray-300'}`}>{x.atrasoPc >= 0.5 ? `↪${num(x.atrasoPc)} · ${fmtD(dAtraso)}d` : '·'}</div>
+        <div className={`text-[10px] ${dOcioso >= 0.05 ? 'text-emerald-700' : 'text-gray-300'}`}>{dOcioso >= 0.05 ? `ociosa ${fmtD(dOcioso)}d` : '·'}</div>
+      </td>
+    );
+  };
   return (
     <div className="mt-3">
       <div className="mb-1 text-[11px] text-gray-600">
-        <strong>Ocupação acumulada por família</strong> — o plano das referências cujo grupo A é dela + a carga extra que cai nos grupos dela, contra a capacidade dos grupos
-        dela. Embaixo, dias: positivo = falta produção para tantos dias; negativo = sobra. ▲ = passou de 100%.
+        <strong>Ocupação por família, pela lista — mês a mês.</strong> Em cima, a ocupação dos grupos da família; no meio, <span className="text-red-700">↪ o que as referências
+        dela empurram</span> (peças e dias); embaixo, <span className="text-emerald-700">a capacidade que ficou parada</span> nos grupos dela, em dias. Os dois podem aparecer
+        juntos (fundo amarelo): um grupo parado não faz referência que a lista não manda para ele — passe o mouse para ver quais grupos ficaram parados.
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full border-separate border-spacing-0 text-xs">
@@ -769,19 +842,21 @@ function FaixaFamilias({ familias, meses, anoAlvo, colSel }: { familias: Familia
             </tr>
           </thead>
           <tbody>
-            {lista.map((f) => (
-              <tr key={f.familia} className="[&>td]:border-t [&>td]:border-white">
-                <td className={`sticky left-0 z-10 whitespace-nowrap border-l-4 px-2 py-1 ${(COR_FAMILIA[f.familia] || COR_FAMILIA.Outros).borda} ${(COR_FAMILIA[f.familia] || COR_FAMILIA.Outros).faixa}`}
-                  title={`${f.grupos.join(', ')} · ${Math.round(f.capacidadeDiaria).toLocaleString('pt-BR')} min/dia`}>
-                  <div className="font-semibold">{f.familia}</div>
-                  <div className="text-[10px] text-gray-500">{f.grupos.length} grupo{f.grupos.length === 1 ? '' : 's'} · {Math.round(f.capacidadeDiaria).toLocaleString('pt-BR')} min/dia</div>
-                </td>
-                {f.meses.map((m, i) => cel(m.ocupacao, m.gapDias, i))}
-              </tr>
-            ))}
+            {lista.map((f) => {
+              const nGrupos = new Set(dados.grupos.filter((g) => base(g.grupo) === f || (g as { viraFamilia?: string | null }).viraFamilia === f).map((g) => g.grupo)).size;
+              return (
+                <tr key={f} className="[&>td]:border-t [&>td]:border-white">
+                  <td className={`sticky left-0 z-10 whitespace-nowrap border-l-4 px-2 py-1 ${(COR_FAMILIA[f] || COR_FAMILIA.Outros).borda} ${(COR_FAMILIA[f] || COR_FAMILIA.Outros).faixa}`}>
+                    <div className="font-semibold">{f}</div>
+                    <div className="text-[10px] text-gray-500">{nGrupos} grupo{nGrupos === 1 ? '' : 's'} · {num(capDiaFam(f))} min/dia</div>
+                  </td>
+                  {tab.get(f)!.map((x, i) => cel(x, i))}
+                </tr>
+              );
+            })}
             <tr className="[&>td]:border-t-2 [&>td]:border-gray-400">
               <td className="sticky left-0 z-10 bg-slate-100 px-2 py-1 font-extrabold uppercase tracking-wide">Σ Fábrica</td>
-              {fabrica.map((f, i) => cel(f.ocupacao, f.gapDias, i, true))}
+              {fabrica.map((x, i) => cel(x, i, true))}
             </tr>
           </tbody>
         </table>
