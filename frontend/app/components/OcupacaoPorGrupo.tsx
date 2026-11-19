@@ -75,24 +75,10 @@ type Props = {
   temMedida: boolean;
   /** Quando a leitura inclui uma simulacao salva, para o titulo dizer isso. */
   comSimulacao?: boolean;
-  /** Como a carga encontra a celula hoje. */
-  alocacao: 'cadastro' | 'mix';
   /** 'dias' = ocupacao acumulada, o padrao. 'meses' = a leitura da diretoria. */
   unidade: 'dias' | 'meses';
   onUnidade: (u: 'dias' | 'meses') => void;
-  onAlocacao: (a: 'cadastro' | 'mix') => void;
   carregando?: boolean;
-  /** Ocupacao acumulada do PLANO vinda da Capacidade x Venda, periodo a periodo.
-   *
-   *  As duas telas calculam coisas diferentes: la e PECAS (plano contra capacidade, os dois
-   *  totais desenhados ao lado das faixas); aqui e MINUTOS por familia, com o tempo de cada
-   *  SKU. Nenhuma das duas esta errada, mas o rodape promete que fecham — e sem um alvo
-   *  comum elas nunca fecham: medido em 06/11/2026, 90% la contra 74% aqui.
-   *
-   *  Entao a quebra por familia mantem a PROPORCAO que ela mede, e o NIVEL vem de la: todas
-   *  as celulas do periodo sao escaladas pelo mesmo fator. Quem aperta continua aparecendo
-   *  apertado; o total passa a ser o mesmo numero da tabela de cima. */
-  ocupacaoAlvo?: (number | null)[];
 };
 
 const MES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -148,7 +134,7 @@ function confiavel(g: GrupoOcupacao) {
 // passasse para la", nao "ela esta la". A tela diz isso na dica da linha.
 const FAMILIA_DA_CAPACIDADE_ORFA = 'SUTIA';
 
-export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaTotal, temMedida, comSimulacao, alocacao, onAlocacao, unidade, onUnidade, carregando, ocupacaoAlvo }: Props) {
+export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaTotal, temMedida, comSimulacao, unidade, onUnidade, carregando }: Props) {
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
   const [verOutros, setVerOutros] = useState(false);
 
@@ -207,8 +193,12 @@ export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaT
     const carga = dados.reduce((a, g) => a + Number(g.meses[i]?.cargaAcumMin || 0), 0);
     const semCelula = dados.reduce((a, g) => a + Number(g.meses[i]?.cargaSemCelulaMin || 0), 0);
     const dias = Number(dados[0]?.meses[i]?.diasDisponiveis || 0);
-    const cap = capacidadeDiariaTotal * dias;
-    const nec = capacidadeDiariaTotal > 0 ? carga / capacidadeDiariaTotal : 0;
+    // Capacidade ACUMULADA das famílias (com sazonalidade, a mesma do gráfico), não min/dia
+    // fixo × dias: senão o total daqui contaria outra capacidade que a das linhas acima.
+    const capFamilias = dados.reduce((a, g) => a + Number(g.meses[i]?.capacidadeMin || 0), 0);
+    const cap = capFamilias > 0 ? capFamilias : capacidadeDiariaTotal * dias;
+    const capDia = dias > 0 ? cap / dias : 0;
+    const nec = capDia > 0 ? carga / capDia : 0;
     return { carga, semCelula, cap, ocupacao: cap > 0 ? carga / cap : null, gapDias: nec - dias };
   }), [dados, periodos, capacidadeDiariaTotal]);
 
@@ -219,12 +209,10 @@ export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaT
   // mostrar — fica intacta, e o total passa a ser o mesmo numero da tabela de cima.
   //
   // Sem alvo, fica 1 e nada muda.
-  const fator = useMemo(() => periodos.map((_, i) => {
-    const alvo = ocupacaoAlvo?.[i];
-    const aqui = total[i]?.ocupacao;
-    if (alvo === null || alvo === undefined || !aqui || aqui <= 0) return 1;
-    return alvo / aqui;
-  }), [ocupacaoAlvo, total, periodos]);
+  // Desde 18/11/2026 não há mais fator: a tabela usa a MESMA capacidade do gráfico e a carga
+  // pela lista referência → grupo, então o total fecha sozinho. O fator fica em 1 só para
+  // não reescrever as contas que o usam.
+  const fator = useMemo(() => periodos.map(() => 1), [periodos]);
   const ajustar = (v: number | null | undefined, i: number) =>
     v === null || v === undefined ? null : v * (fator[i] ?? 1);
   // O gap em dias segue a mesma escala: ele e (necessarios - disponiveis), e os necessarios
@@ -444,34 +432,11 @@ export default function OcupacaoPorGrupo({ dados: dadosBrutos, capacidadeDiariaT
             Ocupação por grupo de produto{comSimulacao ? ' · com simulação' : ''}
           </h2>
           <p className="text-xs text-gray-500">
-            A mesma ocupação acumulada da tabela acima, aberta por grupo. O total no rodapé tem que bater com ela.
-            {alocacao === 'mix' ? ' Alocando pelo mix de produção do ERP.' : ' Alocando pelo cadastro de referências.'}
+            Ocupação acumulada por família, pela <strong>lista referência → grupo</strong> (a mesma da Distribuição sugerida) e com a mesma
+            capacidade do gráfico (nível × sazonalidade). Família = o perfil que cada grupo de costura mais faz; a Liebe Move entra na LIDERANÇA (anatomic).
           </p>
         </div>
-        {/* AS DUAS LEITURAS, lado a lado. Nenhuma e obviamente certa: o cadastro carrega
-            erros e defasagem, o mix depende de quais referencias ja foram cadastradas para
-            revelar o que cada celula faz. Medido em 03/11/2026 elas discordam em 886.188
-            minutos — 19,3% da carga. Escolher uma no escuro seria pior que comparar. */}
         <div className="flex items-center gap-2">
-          <div className="inline-flex overflow-hidden rounded border border-gray-300 text-xs">
-            {([
-              { id: 'cadastro' as const, rotulo: 'Por cadastro', dica: 'Pelo cadastro manual de referência → célula, com herança por tipo de produto para quem não está cadastrado. É a leitura que a Sugestão de Plano usa.' },
-              { id: 'mix' as const, rotulo: 'Por mix', dica: 'Pela classificação 29 do ERP: o produto tem um mix de produção, e a carga vai para as células que comprovadamente produzem aquele mix. Reproduz o relatório de Locais × Mix do TOTVS a partir dos próprios dados.' },
-            ]).map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => onAlocacao(opt.id)}
-                disabled={carregando}
-                title={opt.dica}
-                className={`px-2.5 py-1 disabled:opacity-50 ${
-                  alocacao === opt.id ? 'bg-indigo-600 font-semibold text-white' : 'bg-white hover:bg-gray-50'
-                }`}
-              >
-                {opt.rotulo}
-              </button>
-            ))}
-          </div>
           <div className="inline-flex overflow-hidden rounded border border-gray-300 text-xs">
             {([
               { id: 'dias' as const, rotulo: 'Acumulado', dica: 'Ocupação acumulada: carga somada desde o início contra os dias somados. É a leitura que fecha com o gráfico de cima e com a Sugestão de Plano.' },

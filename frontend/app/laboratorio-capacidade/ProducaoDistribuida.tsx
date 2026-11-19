@@ -2,77 +2,39 @@
 
 // PRODUÇÃO DO PLANO COM O RELACIONAMENTO DE HOJE — a matriz da Distribuição sugerida.
 //
-// Mesma conta da tela /distribuicao-sugerida (grupo A pelo histórico, B/C/D quando o A
-// enche, capacidade medida de cada grupo, o que não cabe passa para o mês seguinte), lida
-// em PEÇAS por grupo e mês. Nada é recalculado aqui — é a mesma resposta da outra tela.
+// Redesenho de 19/11/2026 (pedido do PCP): mesma conta, outra leitura. A conta mora em
+// matriz.ts (extraída sem mudar regra, travada por teste); aqui só se desenha, em 4 faixas:
+//   A. barra do cenário  — o que está sendo simulado, sempre à vista; "Configurar" abre os
+//                          controles (ESPERANÇA, lista da SUPERAÇÃO, comparativo);
+//   B. visão macro       — plano, produzido, atendimento, vem/vai e a ocupação por família;
+//   C. matriz            — Compacto (1 coluna por mês: atendimento + empurra + ocupação) ou
+//                          Completo (veio, produzido, empurra — a tabela de antes), filtros;
+//   D. painel lateral    — clique numa referência, grupo ou mês: o rastro da simulação.
 //
-// Cada mês tem TRÊS colunas por linha (família, grupo, referência ou fábrica), sobre as
-// referências que são do grupo (1ª opção) — versão simples pedida pelo PCP em 18/11/2026:
-//   veio do mês ant. = o que chegou atrasado (demanda reprimida)
-//   produzido        = o que dá para produzir no mês, do que veio e do plano do mês
-//                      (feito pelo próprio grupo ou por um alternativo)
-//   empurra          = o que vai para o mês seguinte
-// Conta da linha: veio + plano do mês − produzido = empurra. O plano do mês fica na dica.
+// Conta de cada linha: veio + plano do mês − produzido = empurra. Veio de um mês é o
+// empurra do anterior (por construção), por isso o Compacto não o repete.
 
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  FAMILIAS, PERIODOS, ROTULO_MOVE, atendimento, calendario, montarMatriz, producao,
+  type DistribuicaoDados, type FamiliaPorGrupo, type Linha, type Quadra, type RefLinha,
+} from './matriz';
+import type { FamiliaOcupacao } from './OcupacaoFamilias';
+import PainelDetalhe, { type Selecao } from './PainelDetalhe';
 
-type Destino = { grupo: string; minutos: number };
-type PeriodoRef = {
-  periodo: string;
-  pecas: number;
-  pedidoMin: number;
-  herdadoMin?: number;
-  alocadoMin: number;
-  pendenteMin: number;
-  pendentePecas: number;
-  destinos: Destino[];
-};
-type RefDist = { referencia: string; tempoMin: number; mix: string; periodos: PeriodoRef[] };
-type RefPreferencial = { referencia: string; pedidoMin: number; herdadoMin: number; remanejadoMin: number; pendenteMin: number };
-type MesGrupo = {
-  periodo: string;
-  capacidadeMin: number;
-  alocadoMin: number;
-  extraMin?: number;
-  /** Carga extra DIRECIONADA ao grupo (Liebe Move na LIDERANÇA), em minutos. */
-  extraDirecionado?: { doMesMin: number; herdadoMin: number; coubeMin: number; pendenteMin: number } | null;
-  /** As referências que têm este grupo como 1ª opção, com o que foi pedido, herdado,
-   *  mandado a alternativos e deixado pendente no mês. */
-  referenciasPreferenciais?: RefPreferencial[];
-};
-type GrupoDist = { grupo: string; capacidadeDiaria: number; meses: MesGrupo[] };
+export type { DistribuicaoDados, FamiliaPorGrupo } from './matriz';
 
-export type DistribuicaoDados = {
-  loteId: string | null;
-  comFerias: boolean;
-  capacidadeDiariaTotal: number;
-  referencias: RefDist[];
-  grupos: GrupoDist[];
-  resumo: { atrasadoMin: number; naoCoubeMin: number; cargaExtraMin: number; periodosEstourados: number };
-};
-
-export type FamiliaPorGrupo = Record<string, { familia: string; perfil: string | null }>;
-
-const PERIODOS = ['MA', 'PX', 'UL', 'QT', 'QU', 'SX', 'ST', 'OT', 'NV', 'DZ', 'ON', 'DO', 'DT', 'QZ'];
-const MESES_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const num = (v: number) => Math.round(v || 0).toLocaleString('pt-BR');
-const FAMILIAS = ['Sutiã', 'Calcinha', 'Anatomic', 'Noite', 'Outros'];
-const COR_FAMILIA: Record<string, string> = {
-  'Sutiã': 'bg-rose-50 text-rose-800',
-  Calcinha: 'bg-sky-50 text-sky-800',
-  Anatomic: 'bg-teal-50 text-teal-800',
-  Noite: 'bg-violet-50 text-violet-800',
-  Outros: 'bg-gray-50 text-gray-700',
-};
+const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 100)}%`);
+const curto = (g: string) => (g.includes(' - ') ? g.split(' - ')[1] : g);
 
-// O período MA é o mês corrente; os seguintes andam um mês cada (mesma regra do backend).
-function rotulos() {
-  const hoje = new Date();
-  return PERIODOS.map((_, i) => {
-    const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
-    return `${MESES_PT[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
-  });
-}
+const COR_FAMILIA: Record<string, { faixa: string; texto: string; borda: string }> = {
+  'Sutiã': { faixa: 'bg-rose-50', texto: 'text-rose-900', borda: 'border-l-rose-400' },
+  Calcinha: { faixa: 'bg-sky-50', texto: 'text-sky-900', borda: 'border-l-sky-400' },
+  Anatomic: { faixa: 'bg-teal-50', texto: 'text-teal-900', borda: 'border-l-teal-400' },
+  Noite: { faixa: 'bg-violet-50', texto: 'text-violet-900', borda: 'border-l-violet-400' },
+  Outros: { faixa: 'bg-gray-50', texto: 'text-gray-800', borda: 'border-l-gray-400' },
+};
 
 function corOcupacao(o: number | null) {
   if (o === null) return 'text-gray-300';
@@ -80,328 +42,750 @@ function corOcupacao(o: number | null) {
   if (o >= 0.9) return 'text-amber-700';
   return 'text-gray-400';
 }
-
-type Coringa = { grupo: string; modelo: string };
-const curto = (g: string) => (g.includes(' - ') ? g.split(' - ')[1] : g);
-const zeros = (n: number) => Array(n).fill(0) as number[];
-
-type Quadra = { veio: number[]; plano: number[]; empurra: number[] };
-const quadraVazia = (n: number): Quadra => ({ veio: zeros(n), plano: zeros(n), empurra: zeros(n) });
-
-// Produção de um mês com a reprimida em primeiro lugar, sobre os totais da linha.
-function producao(t: Quadra, i: number) {
-  const feito = Math.max(0, t.veio[i] + t.plano[i] - t.empurra[i]);
-  const reprimida = Math.min(t.veio[i], feito);
-  const plano = Math.max(0, feito - reprimida);
-  return { feito, reprimida, plano, pctPlano: t.plano[i] > 0.5 ? plano / t.plano[i] : null };
+function corBarra(o: number) {
+  if (o > 1.005) return 'bg-red-600';
+  if (o >= 0.995) return 'bg-amber-500';
+  if (o >= 0.9) return 'bg-amber-300';
+  return 'bg-gray-300';
 }
 
-const somar = (q: Quadra, i: number, veio: number, plano: number, empurra: number) => {
-  q.veio[i] += veio;
-  q.plano[i] += plano;
-  q.empurra[i] += empurra;
+type Coringa = { grupo: string; modelo: string };
+
+// O que a ESPERANÇA faz na simulação (P25, 18/11/2026). Nada é gravado.
+export type ModoEsperanca = 'calcinha' | 'coringa' | 'vira-positivo' | 'vira-3refs';
+export const MODOS_ESPERANCA: Record<ModoEsperanca, { rotulo: string; cenario: string; selo: string }> = {
+  'vira-positivo': { rotulo: 'Vira sutiã em dez/26, copiando a POSITIVO (padrão)', cenario: ', ESPERANÇA vira sutiã em dez/26 copiando a POSITIVO, com 10 pessoas', selo: 'vira sutiã dez/26 · copia positivo · 10 pessoas' },
+  'vira-3refs': { rotulo: 'Vira sutiã em dez/26, só 341001 · 103102 · 123019', cenario: ', ESPERANÇA vira sutiã em dez/26 só com 341001, 103102 e 123019, com 10 pessoas', selo: 'vira sutiã dez/26 · 3 refs · 10 pessoas' },
+  coringa: { rotulo: 'Coringa: copia a POSITIVO sem largar a calcinha', cenario: ', ESPERANÇA como coringa de sutiã básico', selo: 'coringa · positivo' },
+  calcinha: { rotulo: 'Fica na calcinha (sem simulação)', cenario: '', selo: '' },
+};
+// LISTA DE REBALANCEAMENTO (P26, 19/11/2026, cenário ESPERANÇA vira sutiã com 10 pessoas):
+// 10 referências dos sutiãs básicos lotados que a SUPERAÇÃO pode fazer (já fez ou tem
+// costura gêmea). Ela entra como ÚLTIMA opção: só pega o que os grupos atuais não dão conta.
+export const LISTA_APONTAMENTO = {
+  grupo: '04 - SUPERACAO SU FASHION/BASICO',
+  refs: [
+    { ref: '123101', motivo: 'vai p/ 2028 · já fez 5.078' },
+    { ref: '123022', motivo: 'vai p/ 2028 · gêmea 703001 (0,95)' },
+    { ref: '123020', motivo: 'vai p/ 2028 · gêmea 703001 (0,95)' },
+    { ref: '703604', motivo: 'vai p/ 2028 · gêmea 703013 (0,94)' },
+    { ref: '123121', motivo: 'vai p/ 2028 · gêmea 703001 (0,93)' },
+    { ref: '103006', motivo: 'atrasa no 2º sem. · já fez 10.201' },
+    { ref: '203601', motivo: 'atrasa no 2º sem. · já fez 1.080' },
+    { ref: '411001', motivo: 'atrasa no 2º sem. · já fez 720' },
+    { ref: '103602', motivo: 'atrasa no 2º sem. · gêmea 103008 (0,91)' },
+    { ref: '103102', motivo: 'atrasa no 2º sem. · já fez 4.800' },
+  ],
 };
 
-export default function ProducaoDistribuida({ dados, familias, cenario, planoTela, minPecaMove, coringa, onCoringa, recalculando }: {
+// Resumo de um cenário para comparar com/sem a lista: peças que vão para o ano seguinte e a
+// soma do atraso mês a mês no ano (peças paradas esperando, somadas de jan a dez).
+export type ResumoCenario = { vaiSutia: number; vaiFabrica: number; atrasoSutiaAno: number; atrasoFabricaAno: number };
+export function resumoCenario(d: DistribuicaoDados): ResumoCenario {
+  const familiaA = new Map((d.grupos || []).map((g) => [g.grupo, (g as { familia?: string }).familia || 'Outros']));
+  const ano = new Date().getFullYear() + 1;
+  const doAno = PERIODOS.map((_, i) => new Date(new Date().getFullYear(), new Date().getMonth() + i, 1).getFullYear() === ano);
+  const ultimo = PERIODOS[PERIODOS.length - 1];
+  const r: ResumoCenario = { vaiSutia: 0, vaiFabrica: 0, atrasoSutiaAno: 0, atrasoFabricaAno: 0 };
+  for (const ref of d.referencias) {
+    const A = ref.opcoes?.[0]?.grupo;
+    const sutia = A ? familiaA.get(A) === 'Sutiã' : false;
+    for (const p of ref.periodos || []) {
+      const i = PERIODOS.indexOf(p.periodo);
+      const pend = Number(p.pendentePecas || 0);
+      if (i >= 0 && doAno[i]) { r.atrasoFabricaAno += pend; if (sutia) r.atrasoSutiaAno += pend; }
+      if (p.periodo === ultimo) { r.vaiFabrica += pend; if (sutia) r.vaiSutia += pend; }
+    }
+  }
+  return r;
+}
+
+export type RegraCenario = { rotulo: string; simulacao: boolean };
+type Vista = 'compacto' | 'completo';
+type Filtro = 'todos' | 'empurra' | 'proximo' | 'semgrupo';
+// Destaque da linha e do mês em investigação: sombra interna, por cima de qualquer fundo.
+const HL = 'shadow-[inset_0_0_0_9999px_rgba(79,70,229,0.09)]';
+// O mesmo destaque aplicado a todas as células de uma linha (escrito por extenso para o Tailwind ver).
+const HL_LINHA = '[&>td]:shadow-[inset_0_0_0_9999px_rgba(79,70,229,0.09)]';
+
+export default function ProducaoDistribuida({
+  dados, familias, familiasOcupacao, regras, cenario, planoTela, minPecaMove, coringa, modo, onModo, recalculando,
+  comLista, onComLista, semListaResumo, comListaResumo,
+}: {
   dados: DistribuicaoDados;
   familias: FamiliaPorGrupo;
+  familiasOcupacao?: FamiliaOcupacao[] | null;
+  regras: RegraCenario[];
   cenario: string;
   planoTela: Record<string, number> | null;
   minPecaMove: number;
   coringa: Coringa | null;
-  onCoringa: (ligado: boolean) => void;
+  modo: ModoEsperanca;
+  onModo: (modo: ModoEsperanca) => void;
   recalculando: boolean;
+  comLista: boolean;
+  onComLista: (v: boolean) => void;
+  semListaResumo: ResumoCenario | null;
+  comListaResumo: ResumoCenario | null;
 }) {
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
-  const meses = rotulos();
-  const n = PERIODOS.length;
-  // Só jan–dez do ano que vem (pedido do PCP). Nov–dez do ano corrente continuam na conta
-  // — o atraso deles entra em janeiro —, só não viram coluna.
-  const anoAlvo = new Date().getFullYear() + 1;
-  const chaves = PERIODOS.map((_, i) => {
-    const d = new Date(new Date().getFullYear(), new Date().getMonth() + i, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
-  const cols = chaves.map((c, i) => (c.startsWith(String(anoAlvo)) ? i : -1)).filter((i) => i >= 0);
+  const [familiasFechadas, setFamiliasFechadas] = useState<Record<string, boolean>>({});
+  const [vista, setVista] = useState<Vista>('compacto');
+  const [filtro, setFiltro] = useState<Filtro>('todos');
+  const [busca, setBusca] = useState('');
+  const [sel, setSel] = useState<Selecao | null>(null);
+  const [configAberta, setConfigAberta] = useState(false);
+  const [comoLer, setComoLer] = useState(false);
 
-  const { linhas, planoSku, pendente, semGrupo, fabrica } = useMemo(() => {
-    const tempoRef = new Map(dados.referencias.map((r) => [r.referencia, Number(r.tempoMin || 0)]));
-    const pc = (min: number, ref: string) => {
-      const t = tempoRef.get(ref) || 0;
-      return t > 0 ? Number(min || 0) / t : 0;
-    };
+  // Vista lembrada por quem olha (conveniência local; a conta não depende disso).
+  useEffect(() => {
+    try { const v = window.localStorage.getItem('matrizPlano.vista'); if (v === 'compacto' || v === 'completo') setVista(v); } catch { /* sem storage */ }
+  }, []);
+  const trocarVista = (v: Vista) => {
+    setVista(v);
+    try { window.localStorage.setItem('matrizPlano.vista', v); } catch { /* sem storage */ }
+  };
+  // Esc fecha o painel.
+  useEffect(() => {
+    if (!sel) return;
+    const f = (e: KeyboardEvent) => { if (e.key === 'Escape') setSel(null); };
+    window.addEventListener('keydown', f);
+    return () => window.removeEventListener('keydown', f);
+  }, [sel]);
 
-    // Fábrica, pelas referências: plano por SKU, o que coube e o que ficou pendente.
-    const planoSku = zeros(n);
-    const alocado = zeros(n);
-    const pendente = zeros(n);
-    const fabrica = quadraVazia(n);
-    const costurado = new Map<string, number[]>(); // peças que de fato passaram por cada grupo
-    for (const r of dados.referencias) {
-      const t = Number(r.tempoMin || 0);
-      for (const p of r.periodos || []) {
-        const i = PERIODOS.indexOf(p.periodo);
-        if (i < 0) continue;
-        planoSku[i] += Number(p.pecas || 0);
-        pendente[i] += Number(p.pendentePecas || 0);
-        if (t > 0) somar(fabrica, i, Number(p.herdadoMin || 0) / t, Number(p.pedidoMin || 0) / t, Number(p.pendenteMin || 0) / t);
-        for (const d of p.destinos || []) {
-          const v = t > 0 ? Number(d.minutos || 0) / t : 0;
-          alocado[i] += v;
-          if (!costurado.has(d.grupo)) costurado.set(d.grupo, zeros(n));
-          costurado.get(d.grupo)![i] += v;
-        }
-      }
-    }
-
-    // Grupo, pelas referências que são DELE.
-    const linhas = dados.grupos.map((g) => {
-      const t = quadraVazia(n);
-      const porRef = new Map<string, Quadra>();
-      const ocupacao: (number | null)[] = Array(n).fill(null);
-      for (const m of g.meses || []) {
-        const i = PERIODOS.indexOf(m.periodo);
-        if (i < 0) continue;
-        ocupacao[i] = m.capacidadeMin > 0 ? (Number(m.alocadoMin || 0) + Number(m.extraMin || 0)) / m.capacidadeMin : null;
-        for (const r of m.referenciasPreferenciais || []) {
-          const veio = pc(r.herdadoMin, r.referencia);
-          const plano = pc(r.pedidoMin, r.referencia);
-          const emp = pc(r.pendenteMin, r.referencia);
-          somar(t, i, veio, plano, emp);
-          if (!porRef.has(r.referencia)) porRef.set(r.referencia, quadraVazia(n));
-          somar(porRef.get(r.referencia)!, i, veio, plano, emp);
-        }
-        // LIEBE MOVE: não tem SKU, mas tem dono (o grupo do anatomic). Entra como uma linha
-        // própria do grupo, em peças pelo min/peça dela, para aparecer na conta dele.
-        const dir = m.extraDirecionado;
-        if (dir && minPecaMove > 0 && (dir.doMesMin > 0 || dir.herdadoMin > 0)) {
-          const veio = dir.herdadoMin / minPecaMove;
-          const plano = dir.doMesMin / minPecaMove;
-          const emp = dir.pendenteMin / minPecaMove;
-          somar(t, i, veio, plano, emp);
-          const k = 'LIEBE MOVE (sem SKU · mix anatomic)';
-          if (!porRef.has(k)) porRef.set(k, quadraVazia(n));
-          somar(porRef.get(k)!, i, veio, plano, emp);
-        }
-      }
-      return {
-        grupo: g.grupo,
-        familia: familias[g.grupo]?.familia || 'Outros',
-        ...t,
-        costurado: costurado.get(g.grupo) || zeros(n),
-        ocupacao,
-        refs: Array.from(porRef.entries()).map(([referencia, x]) => ({ referencia, ...x })),
-      };
-    });
-    // Referências sem grupo candidato ficam pendentes sem passar por grupo nenhum.
-    const empGrupos = Array.from({ length: n }, (_, i) => linhas.reduce((s, l) => s + l.empurra[i], 0));
-    const semGrupo = pendente.map((v, i) => Math.max(0, v - empGrupos[i]));
-    return { linhas, planoSku, pendente, semGrupo, fabrica };
-  }, [dados, familias, n, minPecaMove]);
+  const { anoAlvo, meses, chaves, cols } = useMemo(() => calendario(), []);
+  const matriz = useMemo(() => montarMatriz(dados, familias, minPecaMove, cols), [dados, familias, minPecaMove, cols]);
+  const { blocos, planoSku, pendente, semGrupo, fabrica, semCandidato } = matriz;
 
   const somaCols = (a: number[]) => cols.reduce((x, i) => x + (a[i] || 0), 0);
   const ultimaCol = cols.length ? cols[cols.length - 1] : -1;
   const herdadoJan = cols.length && cols[0] > 0 ? pendente[cols[0] - 1] : 0;
   const vaiParaProximo = ultimaCol >= 0 ? pendente[ultimaCol] : 0;
   const rotuloProximo = `jan/${String(anoAlvo + 1).slice(2)}`;
+  const rotuloAnterior = `nov–dez/${String(anoAlvo - 1).slice(2)}`;
   const planoVg = planoTela ? cols.map((i) => planoTela[chaves[i]] ?? null) : null;
+  const feitoAno = (t: Quadra) => cols.reduce((x, i) => x + producao(t, i).feito, 0);
+  // Atendimento no ano = produzido ÷ (veio do 1º mês + plano do ano): a mesma razão do mês,
+  // sobre o ano inteiro (veio dos outros meses é o empurra do anterior, já dentro da conta).
+  const atendAno = (t: Quadra) => {
+    const fila = (cols.length ? t.veio[cols[0]] : 0) + somaCols(t.plano);
+    return fila > 0.5 ? feitoAno(t) / fila : null;
+  };
 
-  const linhasOrdenadas = [...linhas].sort((a, b) => somaCols(b.plano) - somaCols(a.plano));
-  const blocos = FAMILIAS.map((familia) => {
-    const gs = linhasOrdenadas.filter((l) => l.familia === familia && somaCols(l.plano) + somaCols(l.costurado) >= 0.5);
-    const soma = (k: keyof Quadra) => Array.from({ length: n }, (_, i) => gs.reduce((s, g) => s + g[k][i], 0));
-    return { familia, grupos: gs, veio: soma('veio'), plano: soma('plano'), empurra: soma('empurra') };
-  }).filter((b) => b.grupos.length > 0);
+  // ── Macro ────────────────────────────────────────────────────────────────────
+  const gruposReais = matriz.linhas.filter((l) => l.papel !== 'largou');
+  const lotados = gruposReais
+    .map((l) => ({ grupo: l.grupo, meses: cols.filter((i) => (l.ocupacao[i] ?? 0) >= 0.995).length }))
+    .filter((x) => x.meses > 0)
+    .sort((a, b) => b.meses - a.meses);
 
-  // As três colunas de um mês: veio, produzido, empurra.
-  const quatro = (t: Quadra, i: number, opts: { forte?: boolean; ocup?: number | null; costurado?: number } = {}) => {
+  // ── Filtros (nunca mexem nos totais: família e fábrica são sempre do conjunto inteiro) ──
+  const q = busca.trim().toUpperCase();
+  const critica = (t: Quadra) => (filtro === 'empurra' ? somaCols(t.empurra) >= 0.5 : filtro === 'proximo' ? (t.empurra[ultimaCol] || 0) >= 0.5 : true);
+  const refsVisiveis = (g: Linha): RefLinha[] => g.refs
+    .filter((r) => somaCols(r.plano) >= 0.5)
+    .filter((r) => critica(r))
+    .filter((r) => !q || r.referencia.includes(q))
+    .sort((a, b) => (somaCols(b.empurra) - somaCols(a.empurra)) || (somaCols(b.plano) - somaCols(a.plano)));
+  const costuradasVisiveis = (g: Linha) => g.refsCosturadas
+    .filter((r) => somaCols(r.pecas) >= 0.5)
+    .filter((r) => !q || r.referencia.includes(q))
+    .sort((a, b) => somaCols(b.pecas) - somaCols(a.pecas));
+  const grupoVisivel = (g: Linha) => {
+    if (filtro === 'semgrupo') return false;
+    if (g.papel === 'convertido') return filtro === 'todos' && (!q || g.grupo.includes(q) || costuradasVisiveis(g).length > 0);
+    if (!critica(g)) return false;
+    return !q || g.grupo.includes(q) || refsVisiveis(g).length > 0;
+  };
+  const filtrando = filtro !== 'todos' || q !== '';
+  const blocosVisiveis = blocos.map((b) => ({ ...b, visiveis: b.grupos.filter(grupoVisivel) })).filter((b) => b.visiveis.length > 0);
+  const totalGrupos = blocos.reduce((s, b) => s + b.grupos.filter((g) => g.papel !== 'largou').length, 0);
+  const gruposMostrados = blocosVisiveis.reduce((s, b) => s + b.visiveis.filter((g) => g.papel !== 'largou').length, 0);
+
+  const abrirRef = (ref: string, col: number | null = null) => setSel({ tipo: 'ref', ref, col });
+  const abrirGrupo = (grupo: string, col: number | null = null) => setSel({ tipo: 'grupo', grupo, col });
+  const colSel = sel?.col ?? null;
+  const linhaSel = sel ? (sel.tipo === 'ref' ? `ref:${sel.ref}` : `grupo:${sel.grupo}`) : null;
+
+  // ── Células ──────────────────────────────────────────────────────────────────
+  const dica = (t: Quadra, i: number, ocup?: number | null) => {
     const pr = producao(t, i);
+    const at = atendimento(t, i);
+    return [
+      `${meses[i]} · plano do mês ${num(t.plano[i])}`,
+      `veio ${num(t.veio[i])} + plano ${num(t.plano[i])} − produzido ${num(pr.feito)} = empurra ${num(t.empurra[i])}`,
+      at !== null ? `atendimento = produzido ÷ (veio + plano) = ${pct(at)}` : '',
+      ocup !== undefined && ocup !== null ? `ocupação do grupo = (alocado + extra) ÷ capacidade = ${pct(ocup)}` : '',
+    ].filter(Boolean).join('\n');
+  };
+
+  // Compacto: 1 célula por mês.
+  const celCompacta = (t: Quadra, i: number, o: { ocup?: number | null; forte?: boolean; onClick?: () => void; nivel: 'fab' | 'fam' | 'grupo' | 'ref' }) => {
+    const at = atendimento(t, i);
+    const emp = t.empurra[i];
+    const hl = colSel === i ? HL : '';
+    return (
+      <td key={i} onClick={o.onClick} title={dica(t, i, o.ocup)}
+        className={`border-r border-gray-100 px-1.5 py-1 align-top tabular-nums ${o.onClick ? 'cursor-pointer hover:bg-indigo-50/60' : ''} ${hl}`}>
+        <div className="flex items-baseline justify-between gap-1 whitespace-nowrap">
+          <span className={`${o.forte ? 'font-bold' : 'font-medium'} ${at === null ? 'text-gray-300' : at >= 0.995 ? 'text-gray-700' : 'text-gray-900'}`}>{at === null ? '·' : pct(at)}</span>
+          {emp >= 0.5 && <span className={`text-[10px] text-red-700 ${o.forte ? 'font-bold' : 'font-semibold'}`}>↪{num(emp)}</span>}
+        </div>
+        {o.ocup !== undefined && o.ocup !== null && (
+          <div className="mt-0.5 h-1 w-full rounded-full bg-gray-100" aria-hidden>
+            <div className={`h-1 rounded-full ${corBarra(o.ocup)}`} style={{ width: `${Math.min(100, Math.max(2, o.ocup * 100))}%` }} />
+          </div>
+        )}
+      </td>
+    );
+  };
+  // Compacto, linha do grupo convertido: só o que ele costurou (fora do total do bloco).
+  const celCompactaCosturou = (pecas: number, i: number, ocup: number | null, onClick?: () => void) => (
+    <td key={i} onClick={onClick}
+      title={`${meses[i]} · costurou ${num(pecas)} peças de referências cujo grupo A é outro — já contadas no produzido do grupo A delas, por isso não somam no total do bloco${ocup !== null ? `\nocupação do grupo = ${pct(ocup)}` : ''}`}
+      className={`border-r border-gray-100 px-1.5 py-1 align-top tabular-nums ${onClick ? 'cursor-pointer hover:bg-indigo-50/60' : ''} ${colSel === i ? HL : ''}`}>
+      <div className="font-medium text-sky-800">{pecas >= 0.5 ? num(pecas) : '·'}</div>
+      {ocup !== null && (
+        <div className="mt-0.5 h-1 w-full rounded-full bg-gray-100" aria-hidden>
+          <div className={`h-1 rounded-full ${corBarra(ocup)}`} style={{ width: `${Math.min(100, Math.max(2, ocup * 100))}%` }} />
+        </div>
+      )}
+    </td>
+  );
+
+  // Completo: as três colunas de antes (veio, produzido, empurra).
+  const celCompleta = (t: Quadra, i: number, o: { forte?: boolean; ocup?: number | null; onClick?: () => void } = {}) => {
+    const pr = producao(t, i);
+    const hl = colSel === i ? HL : '';
     return (
       <Fragment key={i}>
-        <td className={`border-l border-gray-100 px-2 py-1.5 text-right tabular-nums ${t.veio[i] >= 0.5 ? 'text-orange-700' : 'text-gray-300'} ${opts.forte ? 'font-bold' : ''}`}>
+        <td className={`border-l border-gray-100 px-2 py-1.5 text-right tabular-nums ${t.veio[i] >= 0.5 ? 'text-orange-700' : 'text-gray-300'} ${o.forte ? 'font-bold' : ''} ${hl}`}>
           {t.veio[i] >= 0.5 ? num(t.veio[i]) : '·'}
         </td>
-        <td className="px-2 py-1.5 text-right tabular-nums text-emerald-800"
-          title={[
-            `Plano do mês: ${num(t.plano[i])} peças`,
-            `veio ${num(t.veio[i])} + plano ${num(t.plano[i])} − produzido ${num(pr.feito)} = empurra ${num(t.empurra[i])}`,
-            opts.ocup !== undefined && opts.ocup !== null ? `ocupação do grupo: ${Math.round(opts.ocup * 100)}%` : '',
-          ].filter(Boolean).join(' · ')}>
-          <div className={opts.forte ? 'font-bold' : 'font-medium'}>{pr.feito >= 0.5 ? num(pr.feito) : '·'}</div>
-          {opts.ocup !== undefined && opts.ocup !== null && <div className={`text-[10px] ${corOcupacao(opts.ocup)}`}>{Math.round(opts.ocup * 100)}%</div>}
+        <td onClick={o.onClick} className={`px-2 py-1.5 text-right tabular-nums text-emerald-800 ${o.onClick ? 'cursor-pointer hover:bg-indigo-50/60' : ''} ${hl}`} title={dica(t, i, o.ocup)}>
+          <div className={o.forte ? 'font-bold' : 'font-medium'}>{pr.feito >= 0.5 ? num(pr.feito) : '·'}</div>
+          {o.ocup !== undefined && o.ocup !== null && <div className={`text-[10px] ${corOcupacao(o.ocup)}`}>{pct(o.ocup)}</div>}
         </td>
-        <td className={`border-r border-gray-200 px-2 py-1.5 text-right tabular-nums ${t.empurra[i] >= 0.5 ? `bg-red-50/60 text-red-700 ${opts.forte ? 'font-bold' : 'font-semibold'}` : 'text-gray-300'}`}>
-          {t.empurra[i] >= 0.5 ? num(t.empurra[i]) : '·'}
+        <td className={`border-r border-gray-200 px-2 py-1.5 text-right tabular-nums ${t.empurra[i] >= 0.5 ? `bg-red-50/60 text-red-700 ${o.forte ? 'font-bold' : 'font-semibold'}` : 'text-gray-300'} ${hl}`}>
+          {t.empurra[i] >= 0.5 ? `↪${num(t.empurra[i])}` : '·'}
         </td>
       </Fragment>
     );
   };
-  const totais = (t: Quadra) => (
+  const celCompletaCosturou = (pecas: number, i: number, ocup: number | null, onClick?: () => void) => (
+    <Fragment key={i}>
+      <td className={`border-l border-gray-100 px-2 py-1.5 text-right text-gray-300 ${colSel === i ? HL : ''}`}>·</td>
+      <td onClick={onClick} className={`px-2 py-1.5 text-right tabular-nums text-sky-800 ${onClick ? 'cursor-pointer' : ''} ${colSel === i ? HL : ''}`}
+        title={`Costurou ${num(pecas)} peças de referências cujo grupo A é outro — já contadas no produzido do grupo A delas, por isso não somam no total do bloco`}>
+        <div className="font-medium">{pecas >= 0.5 ? num(pecas) : '·'}</div>
+        {ocup !== null && <div className={`text-[10px] ${corOcupacao(ocup)}`}>{pct(ocup)}</div>}
+      </td>
+      <td className={`border-r border-gray-200 px-2 py-1.5 text-right text-gray-300 ${colSel === i ? HL : ''}`}>·</td>
+    </Fragment>
+  );
+
+  const meses12 = (t: Quadra, o: { forte?: boolean; ocup?: (number | null)[]; nivel: 'fab' | 'fam' | 'grupo' | 'ref'; clique?: (i: number) => void }) =>
+    cols.map((i) => (vista === 'compacto'
+      ? celCompacta(t, i, { ocup: o.ocup?.[i], forte: o.forte, nivel: o.nivel, onClick: o.clique ? () => o.clique!(i) : undefined })
+      : celCompleta(t, i, { ocup: o.ocup?.[i], forte: o.forte, onClick: o.clique ? () => o.clique!(i) : undefined })));
+
+  const vemDe = (t: Quadra | null, forte = false) => (
+    <td className={`border-r border-gray-200 bg-gray-50 px-2 py-1 text-right tabular-nums ${forte ? 'font-bold' : ''} ${t && cols.length && t.veio[cols[0]] >= 0.5 ? 'text-orange-700' : 'text-gray-300'}`}
+      title={`Atraso que entra em ${meses[cols[0]]} vindo de ${rotuloAnterior}`}>
+      {t && cols.length && t.veio[cols[0]] >= 0.5 ? num(t.veio[cols[0]]) : '·'}
+    </td>
+  );
+  const vaiPara = (t: Quadra | null, forte = false) => {
+    const v = t && ultimaCol >= 0 ? t.empurra[ultimaCol] : 0;
+    return (
+      <td className={`border-l border-gray-200 bg-gray-50 px-2 py-1 text-right tabular-nums ${forte ? 'font-bold' : 'font-semibold'} ${v >= 0.5 ? 'text-red-700' : 'text-gray-300'}`}
+        title={`O que não coube em ${meses[ultimaCol]} e vai para ${rotuloProximo}`}>
+        {v >= 0.5 ? `⚑ ${num(v)}` : '·'}
+      </td>
+    );
+  };
+  const noAno = (t: Quadra, forte = false) => {
+    const at = atendAno(t);
+    return (
+      <>
+        <td className={`px-2 py-1 text-right tabular-nums ${forte ? 'font-bold' : ''}`}>{num(somaCols(t.plano))}</td>
+        <td className={`px-2 py-1 text-right tabular-nums text-emerald-800 ${forte ? 'font-bold' : ''}`}>{num(feitoAno(t))}</td>
+        <td className={`px-2 py-1 text-right tabular-nums ${forte ? 'font-bold' : ''} ${at !== null && at < 0.995 ? 'text-gray-900' : 'text-gray-500'}`}
+          title="Atendimento no ano = produzido ÷ (veio do 1º mês + plano do ano)">{pct(at)}</td>
+      </>
+    );
+  };
+  const noAnoCosturou = (pecas: number[]) => (
     <>
-      <td className="px-2 py-1.5 text-right tabular-nums">{num(somaCols(t.plano))}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums text-emerald-800">{num(cols.reduce((x, i) => x + producao(t, i).feito, 0))}</td>
+      <td className="px-2 py-1 text-right text-gray-300">·</td>
+      <td className="px-2 py-1 text-right tabular-nums text-sky-800">{num(somaCols(pecas))}</td>
+      <td className="px-2 py-1 text-right text-gray-300">·</td>
     </>
   );
-  const CINZA_E = <td className="border-r border-gray-200 bg-gray-100" />;
-  const CINZA_D = <td className="border-l border-gray-200 bg-gray-100" />;
+
+  const nColunasMes = vista === 'compacto' ? cols.length : cols.length * 3;
+  const largMes = vista === 'compacto' ? 'min-w-[5.5rem]' : '';
+  const STICKY_NOME = 'sticky left-0 z-10';
 
   return (
     <section className="mb-6 rounded-lg border border-gray-200 bg-white">
-      <div className="border-b border-gray-100 px-4 py-3">
-        <h2 className="font-semibold text-gray-900">Produção do plano {anoAlvo} com o relacionamento de hoje · Distribuição sugerida em peças</h2>
-        <p className="mt-1 text-xs text-gray-500">
-          A mesma conta da tela Distribuição sugerida ({cenario}): cada referência vai para o grupo A pelo histórico e passa para B, C e D quando o A enche;
-          o que não cabe vai para o mês seguinte. Para cada grupo, sobre as referências que são <strong>dele</strong>, três colunas por mês:
-          <span className="font-semibold text-orange-700"> veio do mês anterior</span>, <span className="font-semibold text-emerald-800">produzido</span> (o que dá para fazer
-          no mês, por ele ou por um alternativo; embaixo, a ocupação do grupo) e <span className="font-semibold text-red-700">empurra</span> (vai para o mês seguinte).
-          Conta: veio + plano do mês − produzido = empurra — passe o mouse no produzido para ver o plano do mês. Clique num grupo para ver as referências.
-        </p>
-        <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded border border-sky-200 bg-sky-50 px-2 py-1 text-xs text-sky-900">
-          <input type="checkbox" checked={coringa !== null} onChange={(e) => onCoringa(e.target.checked)} disabled={recalculando} />
-          <span>
-            <strong>Simular ESPERANÇA como coringa</strong>: copia o perfil da POSITIVO (sutiã básico) sem largar as calcinhas dela — entra logo depois da POSITIVO
-            em toda referência que a POSITIVO faz. Só simulação, nada é gravado.
+      {/* ── A. Barra do cenário ─────────────────────────────────────────────── */}
+      <div className="sticky top-0 z-30 rounded-t-lg border-b border-gray-200 bg-white/95 px-4 py-2 backdrop-blur">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="mr-2 font-semibold text-gray-900">Plano {anoAlvo} pela lista</h2>
+          {regras.some((r) => r.simulacao)
+            ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900 ring-1 ring-amber-300">● Simulação</span>
+            : <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gray-600">Base</span>}
+          {regras.map((r) => (
+            <span key={r.rotulo} className={`rounded px-1.5 py-0.5 text-[11px] ${r.simulacao ? 'bg-amber-50 text-amber-900 ring-1 ring-amber-200' : 'bg-gray-100 text-gray-600'}`}>{r.rotulo}</span>
+          ))}
+          {recalculando && <span className="animate-pulse text-[11px] font-semibold text-indigo-700">recalculando…</span>}
+          <span className="ml-auto flex gap-1">
+            <button type="button" onClick={() => setComoLer((v) => !v)} className="rounded border border-gray-200 px-2 py-0.5 text-[11px] text-gray-600 hover:bg-gray-50">{comoLer ? '▾' : '▸'} Como ler</button>
+            <button type="button" onClick={() => setConfigAberta((v) => !v)} className={`rounded border px-2 py-0.5 text-[11px] font-semibold ${configAberta ? 'border-indigo-400 bg-indigo-50 text-indigo-800' : 'border-indigo-200 text-indigo-700 hover:bg-indigo-50'}`}>{configAberta ? '▾' : '▸'} Configurar simulação</button>
           </span>
-          {recalculando && <span className="ml-1 text-sky-700">recalculando…</span>}
-        </label>
+        </div>
+        {comoLer && (
+          <p className="mt-2 text-xs text-gray-600">
+            A mesma conta da Distribuição sugerida ({cenario}): cada referência vai para o grupo A pelo histórico e passa para B, C e D quando o A enche; o que não cabe vai
+            para o mês seguinte. Cada linha é sobre as referências que são <strong>dela</strong> (grupo A). Conta: <strong>veio + plano do mês − produzido = empurra</strong>;
+            o veio de um mês é o empurra do anterior. <strong>Compacto</strong>: por mês, o atendimento (produzido ÷ (veio + plano)), o ↪ empurra e, nos grupos, a barra de
+            ocupação ((alocado + extra) ÷ capacidade). <strong>Completo</strong>: veio, produzido e empurra separados. ⚑ = vai para {rotuloProximo}. Clique numa referência,
+            grupo ou mês para ver como a simulação chegou no número. Produzido = feito pelo próprio grupo ou por um alternativo; o que o grupo de fato costurou está no painel.
+          </p>
+        )}
+        {configAberta && (
+          <div className="mt-2 grid gap-2 lg:grid-cols-2">
+            <label className="flex flex-col gap-1 rounded border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs text-sky-900">
+              <span className="flex flex-wrap items-center gap-2">
+                <strong>ESPERANÇA</strong>
+                <select value={modo} onChange={(e) => onModo(e.target.value as ModoEsperanca)} disabled={recalculando} className="rounded border border-sky-300 bg-white px-1 py-0.5 text-xs">
+                  {(Object.keys(MODOS_ESPERANCA) as ModoEsperanca[]).map((k) => <option key={k} value={k}>{MODOS_ESPERANCA[k].rotulo}</option>)}
+                </select>
+              </span>
+              <span className="text-sky-800">
+                {modo === 'vira-positivo' && 'A partir de dez/26 ela passa de 6 para 10 pessoas (capacidade × 10/6), larga as calcinhas e entra logo depois da POSITIVO em toda referência dela; as calcinhas dela vão para os outros grupos de calcinha.'}
+                {modo === 'vira-3refs' && 'A partir de dez/26 ela passa de 6 para 10 pessoas (capacidade × 10/6), larga as calcinhas e entra logo depois do grupo A só nas 3 referências que mais travam o sutiã básico.'}
+                {modo === 'coringa' && 'Copia a POSITIVO mas continua com as calcinhas dela.'}
+                {modo === 'calcinha' && 'Sem simulação: a ESPERANÇA segue como grupo de calcinha.'}
+                {' '}Só simulação, nada é gravado.
+              </span>
+            </label>
+            <div className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs text-emerald-900">
+              <label className="inline-flex cursor-pointer items-center gap-2">
+                <input type="checkbox" checked={comLista} onChange={(e) => onComLista(e.target.checked)} disabled={recalculando} />
+                <strong>Apontar a lista de {LISTA_APONTAMENTO.refs.length} referências para a {curto(LISTA_APONTAMENTO.grupo)}</strong>
+              </label>
+              <div className="text-emerald-800">Ela entra como última opção: só pega o que os básicos não dão conta. Só simulação.</div>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {LISTA_APONTAMENTO.refs.map((r, k) => (
+                  <button type="button" key={r.ref} onClick={() => abrirRef(r.ref)} className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-emerald-900 ring-1 ring-emerald-200 hover:ring-emerald-400" title={r.motivo}>
+                    {k + 1}. {r.ref}
+                  </button>
+                ))}
+              </div>
+              {(semListaResumo || comListaResumo) && (
+                <table className="mt-1.5 text-[11px]">
+                  <thead>
+                    <tr className="text-emerald-700">
+                      <th className="pr-3 text-left font-normal" />
+                      <th className="px-2 text-right font-normal">Sutiã vai p/ {rotuloProximo}</th>
+                      <th className="px-2 text-right font-normal">Fábrica vai p/ {rotuloProximo}</th>
+                      <th className="px-2 text-right font-normal" title="Peças paradas esperando, somadas de jan a dez: mede o atraso dentro do ano, mesmo do que não chega no ano seguinte">Sutiã: atraso somado no ano</th>
+                    </tr>
+                  </thead>
+                  <tbody className="tabular-nums">
+                    {([['Sem a lista', semListaResumo], ['Com a lista', comListaResumo]] as const).map(([rot, r]) => (
+                      <tr key={rot} className={(rot === 'Com a lista') === comLista ? 'font-semibold' : ''}>
+                        <td className="pr-3">{rot}</td>
+                        {r ? (
+                          <>
+                            <td className="px-2 text-right">{num(r.vaiSutia)}</td>
+                            <td className="px-2 text-right">{num(r.vaiFabrica)}</td>
+                            <td className="px-2 text-right">{num(r.atrasoSutiaAno)}</td>
+                          </>
+                        ) : <td colSpan={3} className="px-2 text-emerald-600">marque/desmarque para calcular</td>}
+                      </tr>
+                    ))}
+                    {semListaResumo && comListaResumo && (
+                      <tr className="text-emerald-700">
+                        <td className="pr-3">Melhora</td>
+                        <td className="px-2 text-right">{num(semListaResumo.vaiSutia - comListaResumo.vaiSutia)}</td>
+                        <td className="px-2 text-right">{num(semListaResumo.vaiFabrica - comListaResumo.vaiFabrica)}</td>
+                        <td className="px-2 text-right">{num(semListaResumo.atrasoSutiaAno - comListaResumo.atrasoSutiaAno)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-xs">
-          <thead className="bg-gray-50 text-gray-500">
-            <tr>
-              <th rowSpan={2} className="sticky left-0 z-10 bg-gray-50 px-3 py-2 text-left align-bottom">Grupo de costura / referência</th>
-              <th rowSpan={2} className="border-r border-gray-200 bg-gray-100 px-2 py-2 text-right align-bottom whitespace-nowrap" title="Atraso que entra em janeiro vindo de nov–dez do ano corrente">
-                Vem de<div className="text-[10px] font-normal">nov–dez/{String(anoAlvo - 1).slice(2)}</div>
+
+      {/* ── B. Visão macro ──────────────────────────────────────────────────── */}
+      <div className="border-b border-gray-200 px-4 py-3">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <Indicador rotulo={`Plano ${anoAlvo}`} valor={num(somaCols(fabrica.plano))} nota={planoVg ? `Visão Geral: ${num(planoVg.reduce((x: number, v) => x + (v || 0), 0))}` : 'plano por SKU'}
+            dica="Plano das referências (SKU) nos 12 meses. A Visão Geral soma ainda edição limitada, Move e previsto, que entram como carga em minutos, sem peça." />
+          <Indicador rotulo="Vem de" sub={rotuloAnterior} valor={num(herdadoJan)} tom={herdadoJan >= 0.5 ? 'atencao' : undefined}
+            dica={`Atraso que entra em ${meses[cols[0]]}, vindo de ${rotuloAnterior}.`} />
+          <Indicador rotulo="Produzido" valor={num(feitoAno(fabrica))} nota="do veio + plano"
+            dica="Σ dos meses de (veio + plano − empurra), pelas referências." />
+          <Indicador rotulo="Atendimento" valor={pct(atendAno(fabrica))} nota="produzido ÷ (vem de + plano)"
+            dica="Produzido no ano ÷ (o que veio de nov–dez + plano do ano)." />
+          <Indicador rotulo="Vai para" sub={rotuloProximo} valor={num(vaiParaProximo)} tom={vaiParaProximo >= 0.5 ? 'critico' : 'ok'}
+            nota={blocos.filter((b) => (b.empurra[ultimaCol] || 0) >= 0.5).map((b) => `${b.familia} ${num(b.empurra[ultimaCol])}`).join(' · ') || 'nada'}
+            dica={`O que não coube em ${meses[ultimaCol]} e passa para ${rotuloProximo}. Por família (grupo A da referência); o resto é sem grupo candidato.`} />
+          <Indicador rotulo="Grupos que lotaram" valor={`${lotados.length} de ${gruposReais.length}`} nota="chegaram a 100% em algum mês" tom={lotados.length ? 'atencao' : 'ok'}
+            dica={lotados.map((x) => `${curto(x.grupo)}: ${x.meses} ${x.meses === 1 ? 'mês' : 'meses'} a 100%`).join('\n') || 'nenhum'} />
+        </div>
+        {familiasOcupacao && familiasOcupacao.length > 0 && <FaixaFamilias familias={familiasOcupacao} meses={meses} anoAlvo={anoAlvo} colSel={colSel} />}
+      </div>
+
+      {/* ── C. Matriz ───────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-4 py-2 text-xs">
+        <div className="inline-flex overflow-hidden rounded border border-gray-300" role="group" aria-label="Modo de visualização">
+          {(['compacto', 'completo'] as Vista[]).map((v) => (
+            <button key={v} type="button" onClick={() => trocarVista(v)} aria-pressed={vista === v}
+              className={`px-2.5 py-1 ${vista === v ? 'bg-gray-800 font-semibold text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
+              {v === 'compacto' ? 'Compacto' : 'Completo'}
+            </button>
+          ))}
+        </div>
+        <div className="inline-flex flex-wrap gap-1" role="group" aria-label="Filtro rápido">
+          {([
+            ['todos', 'Todos'],
+            ['empurra', '↪ Com empurra'],
+            ['proximo', `⚑ Vai p/ ${rotuloProximo}`],
+            ['semgrupo', `∅ Sem grupo (${semCandidato.length})`],
+          ] as [Filtro, string][]).map(([f, rot]) => (
+            <button key={f} type="button" onClick={() => setFiltro(f)} aria-pressed={filtro === f}
+              className={`rounded-full border px-2.5 py-0.5 ${filtro === f ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}>
+              {rot}
+            </button>
+          ))}
+        </div>
+        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="buscar referência ou grupo"
+          className="w-48 rounded border border-gray-300 px-2 py-1 text-xs" />
+        {filtrando && (
+          <span className="text-gray-500">mostrando {gruposMostrados} de {totalGrupos} grupos · totais de família e fábrica são sempre do conjunto inteiro</span>
+        )}
+        <span className="ml-auto flex gap-1">
+          <button type="button" onClick={() => setAbertos(Object.fromEntries(matriz.linhas.map((l) => [l.chave, true])))} className="rounded border border-gray-200 px-2 py-0.5 text-gray-600 hover:bg-gray-50">abrir todos</button>
+          <button type="button" onClick={() => setAbertos({})} className="rounded border border-gray-200 px-2 py-0.5 text-gray-600 hover:bg-gray-50">fechar todos</button>
+        </span>
+      </div>
+
+      <div className="max-h-[calc(100vh-9rem)] overflow-auto">
+        <table className="min-w-full border-separate border-spacing-0 text-xs">
+          <thead className="sticky top-0 z-20">
+            <tr className="bg-gray-100 text-gray-600">
+              <th rowSpan={vista === 'completo' ? 2 : 1} className={`${STICKY_NOME} z-30 min-w-[17rem] border-b border-gray-300 bg-gray-100 px-3 py-2 text-left align-bottom`}>Família · grupo · referência</th>
+              <th rowSpan={vista === 'completo' ? 2 : 1} className="border-b border-r border-gray-300 bg-gray-100 px-2 py-2 text-right align-bottom whitespace-nowrap" title={`Atraso que entra em ${meses[cols[0]]} vindo de ${rotuloAnterior}`}>
+                Vem de<div className="text-[10px] font-normal">{rotuloAnterior}</div>
               </th>
-              {cols.map((i) => <th key={i} colSpan={3} className="border-r border-gray-200 px-2 pt-2 text-center whitespace-nowrap">{meses[i]}</th>)}
-              <th rowSpan={2} className="border-l border-gray-200 bg-gray-100 px-2 py-2 text-right align-bottom whitespace-nowrap" title="O que não coube em dezembro e vai para o ano seguinte">
+              {cols.map((i) => (
+                <th key={i} colSpan={vista === 'completo' ? 3 : 1}
+                  onClick={() => setSel((s) => (s ? { ...s, col: s.col === i ? null : i } : s))}
+                  className={`border-b border-r border-gray-300 px-2 py-2 text-center whitespace-nowrap ${largMes} ${colSel === i ? 'bg-indigo-100 text-indigo-900' : 'bg-gray-100'} ${sel ? 'cursor-pointer' : ''}`}>
+                  {meses[i]}
+                </th>
+              ))}
+              <th rowSpan={vista === 'completo' ? 2 : 1} className="border-b border-l border-gray-300 bg-gray-100 px-2 py-2 text-right align-bottom whitespace-nowrap" title={`O que não coube em ${meses[ultimaCol]} e vai para ${rotuloProximo}`}>
                 Vai para<div className="text-[10px] font-normal">{rotuloProximo}</div>
               </th>
-              <th colSpan={2} className="px-2 pt-2 text-center">No ano</th>
+              <th colSpan={3} className="border-b border-gray-300 bg-gray-100 px-2 pt-2 text-center">No ano</th>
             </tr>
-            <tr>
-              {cols.map((i) => (
-                <Fragment key={i}>
-                  <th className="border-l border-gray-100 px-2 pb-2 text-right text-[10px] font-semibold leading-tight text-orange-700" title="Demanda reprimida: o que chegou atrasado do mês anterior">veio do<br />mês ant.</th>
-                  <th className="px-2 pb-2 text-right text-[10px] font-semibold text-emerald-800" title="O que dá para produzir no mês, do que veio e do plano do mês">produzido</th>
-                  <th className="border-r border-gray-200 px-2 pb-2 text-right text-[10px] font-semibold text-red-700">empurra</th>
-                </Fragment>
-              ))}
-              <th className="px-2 pb-2 text-right text-[10px] font-normal">plano</th>
-              <th className="px-2 pb-2 text-right text-[10px] font-semibold text-emerald-800">produzido</th>
-            </tr>
-          </thead>
-          <tbody>
-            {blocos.map((b) => (
-              <Fragment key={b.familia}>
-                <tr className={`border-t-2 border-gray-300 font-bold ${COR_FAMILIA[b.familia]}`}>
-                  <td className={`sticky left-0 z-10 px-3 py-1.5 ${COR_FAMILIA[b.familia]}`}>
-                    {b.familia} <span className="ml-1 text-[10px] font-normal">{b.grupos.length} grupo{b.grupos.length === 1 ? '' : 's'}</span>
-                  </td>
-                  {CINZA_E}
-                  {cols.map((i) => quatro(b, i, { forte: true }))}
-                  {CINZA_D}
-                  {totais(b)}
-                </tr>
-                {b.grupos.map((g) => {
-                  const aberto = abertos[g.grupo] === true;
-                  const refs = g.refs
-                    .filter((r) => somaCols(r.plano) >= 0.5)
-                    .sort((a, b2) => (somaCols(b2.empurra) - somaCols(a.empurra)) || (somaCols(b2.plano) - somaCols(a.plano)));
-                  return (
-                    <Fragment key={g.grupo}>
-                      <tr className="cursor-pointer border-t border-gray-100 hover:bg-gray-50" onClick={() => setAbertos((a) => ({ ...a, [g.grupo]: !aberto }))}>
-                        <td className="sticky left-0 z-10 bg-white px-3 py-1.5 font-semibold whitespace-nowrap">
-                          <span className="mr-1 inline-block w-3 text-gray-400">{aberto ? '▾' : '▸'}</span>
-                          {g.grupo}
-                          {coringa && g.grupo === coringa.grupo && (
-                            <span className="ml-2 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800" title={`Coringa: copia o perfil da ${curto(coringa.modelo)}`}>
-                              coringa · {curto(coringa.modelo).toLowerCase()}
-                            </span>
-                          )}
-                          <span className="ml-2 text-[10px] font-normal text-gray-400">{refs.length} ref.</span>
-                        </td>
-                        {CINZA_E}
-                        {cols.map((i) => quatro(g, i, { ocup: g.ocupacao[i], costurado: g.costurado[i] }))}
-                        {CINZA_D}
-                        {totais(g)}
-                      </tr>
-                      {aberto && refs.map((r) => (
-                        <tr key={`${g.grupo}|${r.referencia}`} className="border-t border-gray-50 bg-gray-50/60 text-gray-600">
-                          <td className="sticky left-0 z-10 bg-gray-50 py-1 pl-9 pr-3 font-mono text-gray-800">{r.referencia}</td>
-                          {CINZA_E}
-                          {cols.map((i) => quatro(r, i))}
-                          {CINZA_D}
-                          {totais(r)}
-                        </tr>
-                      ))}
-                    </Fragment>
-                  );
-                })}
-              </Fragment>
-            ))}
-          </tbody>
-          <tfoot>
-            {planoVg && (
-              <tr className="border-t-2 border-gray-300 bg-amber-50 font-bold text-amber-900">
-                <td className="sticky left-0 z-10 bg-amber-50 px-3 py-2" title="O plano que o gráfico da Visão Geral desenha: lote + edição limitada + Liebe Move">Plano da Visão Geral</td>
-                {CINZA_E}
-                {planoVg.map((v, k) => <td key={k} colSpan={3} className="border-r border-gray-200 px-2 py-2 text-right tabular-nums">{v === null ? '—' : num(v)}</td>)}
-                {CINZA_D}
-                <td className="px-2 py-2 text-right tabular-nums">{num(planoVg.reduce((x: number, v) => x + (v || 0), 0))}</td>
-                <td />
+            {vista === 'completo' ? (
+              <tr className="bg-gray-100 text-gray-600">
+                {cols.map((i) => (
+                  <Fragment key={i}>
+                    <th className="border-b border-gray-300 bg-gray-100 px-2 pb-2 text-right text-[10px] font-semibold leading-tight text-orange-700" title="Demanda reprimida: o que chegou atrasado do mês anterior">veio do<br />mês ant.</th>
+                    <th className="border-b border-gray-300 bg-gray-100 px-2 pb-2 text-right text-[10px] font-semibold text-emerald-800" title="O que dá para produzir no mês, do que veio e do plano do mês">produzido</th>
+                    <th className="border-b border-r border-gray-300 bg-gray-100 px-2 pb-2 text-right text-[10px] font-semibold text-red-700">empurra</th>
+                  </Fragment>
+                ))}
+                <th className="border-b border-gray-300 bg-gray-100 px-2 pb-2 text-right text-[10px] font-normal">plano</th>
+                <th className="border-b border-gray-300 bg-gray-100 px-2 pb-2 text-right text-[10px] font-semibold text-emerald-800">produzido</th>
+                <th className="border-b border-gray-300 bg-gray-100 px-2 pb-2 text-right text-[10px] font-normal">atend.</th>
+              </tr>
+            ) : (
+              <tr className="bg-gray-100 text-gray-500">
+                <th className={`${STICKY_NOME} z-30 border-b border-gray-300 bg-gray-100 px-3 pb-1 text-left text-[10px] font-normal`}>atendimento · ↪ empurra · ▬ ocupação</th>
+                <th className="border-b border-r border-gray-300 bg-gray-100" />
+                {cols.map((i) => <th key={i} className="border-b border-r border-gray-300 bg-gray-100" />)}
+                <th className="border-b border-l border-gray-300 bg-gray-100" />
+                <th className="border-b border-gray-300 bg-gray-100 px-2 pb-1 text-right text-[10px] font-normal">plano</th>
+                <th className="border-b border-gray-300 bg-gray-100 px-2 pb-1 text-right text-[10px] font-semibold text-emerald-800">produzido</th>
+                <th className="border-b border-gray-300 bg-gray-100 px-2 pb-1 text-right text-[10px] font-normal">atend.</th>
               </tr>
             )}
-            <tr className={`${planoVg ? '' : 'border-t-2 border-gray-300 '}bg-gray-50 text-gray-600`}>
-              <td className="sticky left-0 z-10 bg-gray-50 px-3 py-2"
+            {/* Fábrica: o consolidado, fixo no topo junto com os meses. */}
+            <tr className="bg-slate-200 text-[12.5px] text-slate-900 [&>td]:border-b-[3px] [&>td]:border-double [&>td]:border-b-slate-500 [&>td]:bg-slate-200">
+              <td className={`${STICKY_NOME} z-30 border-b-[3px] border-double border-slate-500 bg-slate-200 px-3 py-1.5 font-extrabold uppercase tracking-wide`}
+                title="Fábrica inteira, pelas referências: veio, plano, produzido e empurrado">Σ Fábrica</td>
+              <td className="border-b-[3px] border-r border-double border-slate-500 bg-slate-200 px-2 py-1.5 text-right font-bold tabular-nums text-red-700">{herdadoJan >= 0.5 ? num(herdadoJan) : '·'}</td>
+              {cols.map((i) => (vista === 'compacto' ? celCompacta(fabrica, i, { forte: true, nivel: 'fab' }) : celCompleta(fabrica, i, { forte: true })))}
+              <td className="border-b-[3px] border-l border-double border-slate-500 bg-slate-200 px-2 py-1.5 text-right font-extrabold tabular-nums text-red-700">{vaiParaProximo >= 0.5 ? `⚑ ${num(vaiParaProximo)}` : '·'}</td>
+              <td className="border-b-[3px] border-double border-slate-500 bg-slate-200 px-2 py-1.5 text-right font-bold tabular-nums">{num(somaCols(fabrica.plano))}</td>
+              <td className="border-b-[3px] border-double border-slate-500 bg-slate-200 px-2 py-1.5 text-right font-bold tabular-nums text-emerald-800">{num(feitoAno(fabrica))}</td>
+              <td className="border-b-[3px] border-double border-slate-500 bg-slate-200 px-2 py-1.5 text-right font-bold tabular-nums">{pct(atendAno(fabrica))}</td>
+            </tr>
+          </thead>
+
+          <tbody>
+            {filtro === 'semgrupo' && (
+              <>
+                <tr className="bg-gray-100">
+                  <td className={`${STICKY_NOME} border-t-2 border-gray-400 bg-gray-100 px-3 py-1.5 font-bold uppercase tracking-wide text-gray-800`}>∅ Sem grupo candidato <span className="ml-1 text-[10px] font-normal normal-case">{semCandidato.length} ref.</span></td>
+                  <td className="border-t-2 border-gray-400 bg-gray-50" />
+                  {cols.map((i) => (
+                    <td key={i} colSpan={vista === 'completo' ? 3 : 1} className="border-t-2 border-r border-gray-400 border-r-gray-100 px-2 py-1.5 text-right tabular-nums text-red-700">
+                      {semGrupo[i] >= 0.5 ? `↪${num(semGrupo[i])}` : '·'}
+                    </td>
+                  ))}
+                  <td className="border-t-2 border-gray-400 bg-gray-50 px-2 text-right font-semibold tabular-nums text-red-700">{semGrupo[ultimaCol] >= 0.5 ? `⚑ ${num(semGrupo[ultimaCol])}` : '·'}</td>
+                  <td colSpan={3} className="border-t-2 border-gray-400" />
+                </tr>
+                {semCandidato.length === 0 && (
+                  <tr><td colSpan={nColunasMes + 6} className="px-3 py-3 text-gray-500">Nenhuma referência sem grupo candidato neste cenário.</td></tr>
+                )}
+                {semCandidato.filter((r) => !q || r.referencia.includes(q)).map((r) => (
+                  <LinhaRef key={`sem|${r.referencia}`} r={r} sel={linhaSel === `ref:${r.referencia}`} onAbrir={(col) => abrirRef(r.referencia, col)}
+                    meses12={meses12} vemDe={vemDe} vaiPara={vaiPara} noAno={noAno} />
+                ))}
+              </>
+            )}
+
+            {blocosVisiveis.map((b) => {
+              const cor = COR_FAMILIA[b.familia] || COR_FAMILIA.Outros;
+              const fechada = familiasFechadas[b.familia] === true;
+              const nGrupos = b.grupos.filter((g) => g.papel !== 'largou').length;
+              const vai = b.empurra[ultimaCol] || 0;
+              return (
+                <Fragment key={b.familia}>
+                  <tr className={`${cor.faixa} ${cor.texto} text-[12.5px] [&>td]:border-t-2 [&>td]:border-t-gray-400`}>
+                    <td className={`${STICKY_NOME} cursor-pointer border-l-4 border-t-2 border-gray-400 ${cor.borda} ${cor.faixa} px-3 py-2 font-bold`}
+                      onClick={() => setFamiliasFechadas((f) => ({ ...f, [b.familia]: !fechada }))}>
+                      <span className="mr-1 inline-block w-3 text-gray-500">{fechada ? '▸' : '▾'}</span>
+                      <span className="uppercase tracking-wide">{b.familia}</span>
+                      <span className="ml-2 text-[10px] font-normal">{filtrando ? `${b.visiveis.filter((g) => g.papel !== 'largou').length} de ${nGrupos}` : nGrupos} grupo{nGrupos === 1 ? '' : 's'}</span>
+                      {vai >= 0.5 && <span className="ml-2 text-[10px] font-semibold text-red-700">⚑ {num(vai)}</span>}
+                    </td>
+                    {vemDe(b, true)}
+                    {meses12(b, { forte: true, nivel: 'fam' })}
+                    {vaiPara(b, true)}
+                    {noAno(b, true)}
+                  </tr>
+                  {!fechada && b.visiveis.map((g) => {
+                    const aberto = abertos[g.chave] === true || (q !== '' && g.papel !== 'convertido' && refsVisiveis(g).some((r) => r.referencia.includes(q)));
+                    const convertido = g.papel === 'convertido';
+                    const refs = convertido ? [] : refsVisiveis(g);
+                    const costuradas = convertido ? costuradasVisiveis(g) : [];
+                    const nRefs = convertido ? costuradas.length : g.refs.filter((r) => somaCols(r.plano) >= 0.5).length;
+                    const temEmpurra = !convertido && somaCols(g.empurra) >= 0.5;
+                    const vaiG = convertido ? 0 : g.empurra[ultimaCol] || 0;
+                    const destacada = linhaSel === `grupo:${g.grupo}`;
+                    return (
+                      <Fragment key={g.chave}>
+                        <tr className={`group bg-white hover:bg-gray-50 [&>td]:border-t [&>td]:border-t-gray-200 ${g.papel === 'largou' ? 'text-gray-500' : 'text-gray-900'} ${destacada ? HL_LINHA : ''}`}>
+                          <td className={`${STICKY_NOME} bg-white px-3 py-1.5 whitespace-nowrap group-hover:bg-gray-50`}>
+                            <button type="button" onClick={() => setAbertos((a) => ({ ...a, [g.chave]: !aberto }))} className="mr-1 inline-block w-4 text-gray-400 hover:text-gray-700" aria-label={aberto ? 'Recolher' : 'Expandir'}>
+                              {aberto ? '▾' : '▸'}
+                            </button>
+                            <button type="button" onClick={() => abrirGrupo(g.grupo)} className="font-semibold hover:text-indigo-700 hover:underline" title="Ver detalhes do grupo">
+                              {g.papel === 'largou' ? <span className="italic font-normal">{curto(g.grupo)} · referências que largou</span> : curto(g.grupo)}
+                            </button>
+                            {coringa && g.grupo === coringa.grupo && g.papel !== 'largou' && MODOS_ESPERANCA[modo].selo && (
+                              <span className="ml-1.5 rounded bg-sky-100 px-1 py-0.5 text-[10px] font-semibold text-sky-800" title={MODOS_ESPERANCA[modo].rotulo}>{MODOS_ESPERANCA[modo].selo}</span>
+                            )}
+                            {comLista && g.grupo === LISTA_APONTAMENTO.grupo && (
+                              <span className="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-semibold text-emerald-800" title={LISTA_APONTAMENTO.refs.map((r) => r.ref).join(', ')}>+ lista {LISTA_APONTAMENTO.refs.length} refs</span>
+                            )}
+                            <span className="ml-1.5 text-[10px] text-gray-400">{nRefs} ref.{convertido ? ' costuradas' : ''}</span>
+                            {temEmpurra && <span className="ml-1 text-[10px] text-red-700" title="Empurra em algum mês do ano">↪</span>}
+                            {vaiG >= 0.5 && <span className="ml-0.5 text-[10px] font-semibold text-red-700" title={`${num(vaiG)} vão para ${rotuloProximo}`}>⚑</span>}
+                          </td>
+                          {convertido ? <td className="border-r border-gray-200 bg-gray-50" /> : vemDe(g)}
+                          {convertido
+                            ? cols.map((i) => (vista === 'compacto'
+                              ? celCompactaCosturou(g.costurado[i], i, g.ocupacao[i], () => abrirGrupo(g.grupo, i))
+                              : <Fragment key={i}>{celCompletaCosturou(g.costurado[i], i, g.ocupacao[i], () => abrirGrupo(g.grupo, i))}</Fragment>))
+                            : meses12(g, { ocup: g.papel === 'largou' ? undefined : g.ocupacao, nivel: 'grupo', clique: (i) => abrirGrupo(g.grupo, i) })}
+                          {convertido ? <td className="border-l border-gray-200 bg-gray-50" /> : vaiPara(g)}
+                          {convertido ? noAnoCosturou(g.costurado) : noAno(g)}
+                        </tr>
+                        {aberto && convertido && costuradas.map((r) => {
+                          const a = dados.referencias.find((x) => x.referencia === r.referencia)?.opcoes?.[0]?.grupo;
+                          return (
+                            <tr key={`${g.chave}|${r.referencia}`} className={`bg-gray-50/70 text-gray-600 ${linhaSel === `ref:${r.referencia}` ? HL_LINHA : ''}`}>
+                              <td className={`${STICKY_NOME} border-t border-gray-100 bg-gray-50 py-1 pl-10 pr-3 whitespace-nowrap`}>
+                                <button type="button" onClick={() => abrirRef(r.referencia)} className="font-mono text-[11px] text-gray-800 hover:text-indigo-700 hover:underline">{r.referencia}</button>
+                                {a && <span className="ml-2 text-[10px] text-gray-400">grupo A: {curto(a)}</span>}
+                              </td>
+                              <td className="border-r border-gray-200 bg-gray-50" />
+                              {cols.map((i) => (vista === 'compacto'
+                                ? <Fragment key={i}>{celCompactaCosturou(r.pecas[i], i, null, () => abrirRef(r.referencia, i))}</Fragment>
+                                : <Fragment key={i}>{celCompletaCosturou(r.pecas[i], i, null, () => abrirRef(r.referencia, i))}</Fragment>))}
+                              <td className="border-l border-gray-200 bg-gray-50" />
+                              {noAnoCosturou(r.pecas)}
+                            </tr>
+                          );
+                        })}
+                        {aberto && !convertido && refs.map((r) => (
+                          <LinhaRef key={`${g.chave}|${r.referencia}`} r={r} sel={linhaSel === `ref:${r.referencia}`} onAbrir={(col) => abrirRef(r.referencia, col)}
+                            meses12={meses12} vemDe={vemDe} vaiPara={vaiPara} noAno={noAno} />
+                        ))}
+                      </Fragment>
+                    );
+                  })}
+                </Fragment>
+              );
+            })}
+            {filtro !== 'semgrupo' && blocosVisiveis.length === 0 && (
+              <tr><td colSpan={nColunasMes + 6} className="px-3 py-4 text-center text-gray-500">Nenhum grupo com esse filtro.</td></tr>
+            )}
+          </tbody>
+
+          <tfoot>
+            {planoVg && (
+              <tr className="bg-amber-50 font-bold text-amber-900">
+                <td className={`${STICKY_NOME} border-t-2 border-gray-300 bg-amber-50 px-3 py-2`} title="O plano que o gráfico da Visão Geral desenha: lote + edição limitada + Liebe Move">Plano da Visão Geral</td>
+                <td className="border-t-2 border-gray-300 bg-amber-50" />
+                {planoVg.map((v, k) => <td key={k} colSpan={vista === 'completo' ? 3 : 1} className="border-r border-t-2 border-gray-300 border-r-amber-100 px-2 py-2 text-right tabular-nums">{v === null ? '—' : num(v)}</td>)}
+                <td className="border-t-2 border-gray-300 bg-amber-50" />
+                <td className="border-t-2 border-gray-300 px-2 py-2 text-right tabular-nums">{num(planoVg.reduce((x: number, v) => x + (v || 0), 0))}</td>
+                <td colSpan={2} className="border-t-2 border-gray-300" />
+              </tr>
+            )}
+            <tr className="bg-gray-50 text-gray-600">
+              <td className={`${STICKY_NOME} bg-gray-50 px-3 py-2`}
                 title="Peças por SKU que a distribuição reparte: plano do lote mais o em processo. Edição limitada, Move e previsto entram como carga extra em minutos, ocupando os grupos, mas sem peça.">
                 Plano por SKU que a distribuição reparte
               </td>
-              {CINZA_E}
-              {cols.map((i) => <td key={i} colSpan={3} className="border-r border-gray-200 px-2 py-2 text-right tabular-nums">{num(planoSku[i])}</td>)}
-              {CINZA_D}
+              <td className="bg-gray-50" />
+              {cols.map((i) => <td key={i} colSpan={vista === 'completo' ? 3 : 1} className="border-r border-gray-100 px-2 py-2 text-right tabular-nums">{num(planoSku[i])}</td>)}
+              <td className="bg-gray-50" />
               <td className="px-2 py-2 text-right tabular-nums">{num(somaCols(planoSku))}</td>
-              <td />
+              <td colSpan={2} />
             </tr>
-            <tr className="border-t border-gray-300 bg-gray-50 font-semibold">
-              <td className="sticky left-0 z-10 bg-gray-50 px-3 py-1" title="Fábrica inteira, pelas referências: plano do mês, produzido do plano, produzido da reprimida e empurrado">Fábrica</td>
-              <td className="border-r border-gray-200 bg-gray-100 px-2 py-1 text-right tabular-nums text-red-700"
-                title={`Janeiro já começa com ${num(herdadoJan)} peças atrasadas de nov–dez/${String(anoAlvo - 1).slice(2)}.`}>
-                {herdadoJan >= 0.5 ? num(herdadoJan) : '·'}
-              </td>
-              {cols.map((i) => quatro(fabrica, i, { forte: true }))}
-              <td className="border-l border-gray-200 bg-gray-100 px-2 py-1 text-right tabular-nums font-bold text-red-700"
-                title={`Saem do ano ${num(vaiParaProximo)} peças que não couberam e vão para ${rotuloProximo}.`}>
-                {vaiParaProximo >= 0.5 ? num(vaiParaProximo) : '·'}
-              </td>
-              {totais(fabrica)}
-            </tr>
-            {cols.some((i) => semGrupo[i] >= 0.5) && (
+            {cols.some((i) => semGrupo[i] >= 0.5) && filtro !== 'semgrupo' && (
               <tr className="bg-gray-50 text-gray-500">
-                <td className="sticky left-0 z-10 bg-gray-50 px-3 py-1" title="Referências sem nenhum grupo candidato: ficam pendentes sem passar por grupo. Somadas aos empurrados dos grupos, fecham o empurrado da fábrica.">
-                  ↳ dos empurrados, sem grupo candidato
+                <td className={`${STICKY_NOME} bg-gray-50 px-3 py-1`} title="Referências sem nenhum grupo candidato: ficam pendentes sem passar por grupo. Somadas aos empurrados dos grupos, fecham o empurrado da fábrica.">
+                  <button type="button" onClick={() => setFiltro('semgrupo')} className="hover:text-indigo-700 hover:underline">∅ dos empurrados, sem grupo candidato</button>
                 </td>
-                {CINZA_E}
+                <td className="bg-gray-50" />
                 {cols.map((i) => (
-                  <Fragment key={i}>
-                    <td />
-                    <td />
-                    <td className="border-r border-gray-200 px-2 py-1 text-right tabular-nums">{semGrupo[i] >= 0.5 ? num(semGrupo[i]) : '·'}</td>
-                  </Fragment>
+                  <td key={i} colSpan={vista === 'completo' ? 3 : 1} className="border-r border-gray-100 px-2 py-1 text-right tabular-nums">{semGrupo[i] >= 0.5 ? `↪${num(semGrupo[i])}` : '·'}</td>
                 ))}
-                {CINZA_D}
-                <td />
-                <td />
+                <td className="bg-gray-50 px-2 text-right tabular-nums">{semGrupo[ultimaCol] >= 0.5 ? `⚑ ${num(semGrupo[ultimaCol])}` : '·'}</td>
+                <td colSpan={3} />
               </tr>
             )}
           </tfoot>
         </table>
       </div>
       <div className="border-t border-gray-100 px-4 py-2 text-[11px] text-gray-500">
-        Produzido = feito pelo próprio grupo ou por um alternativo. Passe o mouse no produzido do plano para ver o que de fato foi costurado no grupo (inclui referências de
-        outros grupos que ele absorveu). A parte do plano sem SKU — edição limitada projetada, Move e previsto — entra como carga extra em minutos, ocupando os
-        grupos; por isso a ocupação pode passar de 100% sem peça correspondente.
+        Produzido = feito pelo próprio grupo ou por um alternativo; o que o grupo de fato costurou está no painel (clique no nome do grupo). A parte do plano sem SKU — edição
+        limitada projetada, Move e previsto — entra como carga extra em minutos, ocupando os grupos; por isso a ocupação pode chegar a 100% sem peça correspondente.
       </div>
+
+      {sel && (
+        <PainelDetalhe sel={sel} dados={dados} matriz={matriz} meses={meses} cols={cols} rotuloProximo={rotuloProximo}
+          onFechar={() => setSel(null)} onSel={setSel} />
+      )}
     </section>
+  );
+}
+
+function LinhaRef({ r, sel, onAbrir, meses12, vemDe, vaiPara, noAno }: {
+  r: RefLinha;
+  sel: boolean;
+  onAbrir: (col: number | null) => void;
+  meses12: (t: Quadra, o: { forte?: boolean; ocup?: (number | null)[]; nivel: 'fab' | 'fam' | 'grupo' | 'ref'; clique?: (i: number) => void }) => ReactNode[];
+  vemDe: (t: Quadra | null, forte?: boolean) => ReactNode;
+  vaiPara: (t: Quadra | null, forte?: boolean) => ReactNode;
+  noAno: (t: Quadra, forte?: boolean) => ReactNode;
+}) {
+  const move = r.referencia === ROTULO_MOVE;
+  return (
+    <tr className={`bg-gray-50/70 text-gray-600 [&>td]:border-t [&>td]:border-t-gray-100 ${sel ? HL_LINHA : ''}`}>
+      <td className="sticky left-0 z-10 bg-gray-50 py-1 pl-10 pr-3 whitespace-nowrap">
+        <button type="button" onClick={() => onAbrir(null)} className={`${move ? 'font-sans italic' : 'font-mono'} text-[11px] text-gray-800 hover:text-indigo-700 hover:underline`}>{r.referencia}</button>
+      </td>
+      {vemDe(r)}
+      {meses12(r, { nivel: 'ref', clique: (i) => onAbrir(i) }).map((c, k) => <Fragment key={k}>{c}</Fragment>)}
+      {vaiPara(r)}
+      {noAno(r)}
+    </tr>
+  );
+}
+
+function Indicador({ rotulo, sub, valor, nota, dica, tom }: { rotulo: string; sub?: string; valor: string; nota?: string; dica?: string; tom?: 'ok' | 'atencao' | 'critico' }) {
+  const cor = tom === 'critico' ? 'border-red-300 bg-red-50' : tom === 'atencao' ? 'border-amber-200 bg-amber-50/60' : 'border-gray-200 bg-white';
+  const sinal = tom === 'critico' ? '⚑ ' : tom === 'atencao' ? '▲ ' : '';
+  return (
+    <div className={`rounded border px-3 py-2 ${cor}`} title={dica}>
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{rotulo}{sub ? <span className="ml-1 normal-case">{sub}</span> : null}</div>
+      <div className="text-lg font-bold tabular-nums text-gray-900">{sinal}{valor}</div>
+      {nota && <div className="truncate text-[10px] text-gray-500" title={nota}>{nota}</div>}
+    </div>
+  );
+}
+
+// Ocupação ACUMULADA por família (a mesma tabela "Ocupação por família, pela lista"), em
+// faixa: % e dias por mês; o fundo acompanha a ocupação, o número continua escrito.
+function FaixaFamilias({ familias, meses, anoAlvo, colSel }: { familias: FamiliaOcupacao[]; meses: string[]; anoAlvo: number; colSel: number | null }) {
+  const lista = [...familias].sort((a, b) => FAMILIAS.indexOf(a.familia) - FAMILIAS.indexOf(b.familia));
+  const fabrica = PERIODOS.map((_, i) => {
+    const carga = lista.reduce((s, f) => s + (f.meses[i]?.cargaAcumMin || 0), 0);
+    const cap = lista.reduce((s, f) => s + (f.meses[i]?.capacidadeMin || 0), 0);
+    const dias = lista[0]?.meses[i]?.diasDisponiveis || 0;
+    const capDia = dias > 0 ? cap / dias : 0;
+    return { ocupacao: cap > 0 ? carga / cap : null, gapDias: capDia > 0 ? carga / capDia - dias : 0 };
+  });
+  const fundo = (o: number | null) => (o === null ? '' : o > 1.005 ? 'bg-red-100' : o >= 0.95 ? 'bg-amber-100' : o >= 0.85 ? 'bg-amber-50' : 'bg-emerald-50');
+  const anoDe = (i: number) => Number(`20${meses[i].slice(-2)}`);
+  const cel = (o: number | null, gap: number, i: number, forte = false) => (
+    <td key={i} className={`px-1.5 py-1 text-right tabular-nums ${fundo(o)} ${anoDe(i) < anoAlvo ? 'opacity-50' : ''} ${colSel === i ? HL : ''}`}
+      title={`${meses[i]} · ocupação acumulada ${pct(o)} · ${gap > 0 ? `falta produção para ${gap.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias` : `sobra ${Math.abs(gap).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias`}`}>
+      <div className={`${forte ? 'font-bold' : 'font-semibold'} ${o !== null && o > 1.005 ? 'text-red-800' : 'text-gray-800'}`}>{o !== null && o > 1.005 ? '▲' : ''}{pct(o)}</div>
+      <div className={`text-[10px] ${gap > 0.05 ? 'text-red-700' : 'text-emerald-700'}`}>{gap > 0 ? '+' : ''}{gap.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}d</div>
+    </td>
+  );
+  return (
+    <div className="mt-3">
+      <div className="mb-1 text-[11px] text-gray-600">
+        <strong>Ocupação acumulada por família</strong> — o plano das referências cujo grupo A é dela + a carga extra que cai nos grupos dela, contra a capacidade dos grupos
+        dela. Embaixo, dias: positivo = falta produção para tantos dias; negativo = sobra. ▲ = passou de 100%.
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full border-separate border-spacing-0 text-xs">
+          <thead className="text-gray-500">
+            <tr>
+              <th className="sticky left-0 z-10 bg-white px-2 py-1 text-left font-normal">Família</th>
+              {PERIODOS.map((_, i) => <th key={i} className={`px-1.5 py-1 text-right font-normal whitespace-nowrap ${anoDe(i) < anoAlvo ? 'text-gray-400' : ''}`}>{meses[i]}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {lista.map((f) => (
+              <tr key={f.familia} className="[&>td]:border-t [&>td]:border-white">
+                <td className={`sticky left-0 z-10 whitespace-nowrap border-l-4 px-2 py-1 ${(COR_FAMILIA[f.familia] || COR_FAMILIA.Outros).borda} ${(COR_FAMILIA[f.familia] || COR_FAMILIA.Outros).faixa}`}
+                  title={`${f.grupos.join(', ')} · ${Math.round(f.capacidadeDiaria).toLocaleString('pt-BR')} min/dia`}>
+                  <div className="font-semibold">{f.familia}</div>
+                  <div className="text-[10px] text-gray-500">{f.grupos.length} grupo{f.grupos.length === 1 ? '' : 's'} · {Math.round(f.capacidadeDiaria).toLocaleString('pt-BR')} min/dia</div>
+                </td>
+                {f.meses.map((m, i) => cel(m.ocupacao, m.gapDias, i))}
+              </tr>
+            ))}
+            <tr className="[&>td]:border-t-2 [&>td]:border-gray-400">
+              <td className="sticky left-0 z-10 bg-slate-100 px-2 py-1 font-extrabold uppercase tracking-wide">Σ Fábrica</td>
+              {fabrica.map((f, i) => cel(f.ocupacao, f.gapDias, i, true))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

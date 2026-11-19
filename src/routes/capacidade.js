@@ -984,14 +984,11 @@ router.get("/config", auth, async (req, res) => {
 const minPecaCache = { porMeses: new Map() };
 const MIN_PECA_TTL = 6 * 60 * 60 * 1000;
 
-router.get("/min-peca-medido", auth, async (req, res) => {
-  try {
-    const pool = req.app.get("pool");
-    if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
-    const meses = Math.min(12, Math.max(1, Number(req.query.meses) || 3));
+async function calcularMinPecaMedido(pool, mesesPedido = 3, refresh = false) {
+    const meses = Math.min(12, Math.max(1, Number(mesesPedido) || 3));
     const cacheado = minPecaCache.porMeses.get(meses);
-    if (req.query.refresh !== 'true' && cacheado && Date.now() - cacheado.timestamp < MIN_PECA_TTL) {
-      return res.json({ ...cacheado.data, fromCache: true });
+    if (!refresh && cacheado && Date.now() - cacheado.timestamp < MIN_PECA_TTL) {
+      return { ...cacheado.data, fromCache: true };
     }
     const ids = DEFAULT_REAL_GROUP_IDS.map(String);
     const r = await pool.query(`
@@ -1033,7 +1030,14 @@ router.get("/min-peca-medido", auth, async (req, res) => {
     const minPeca = pecas > 0 ? Number((minutos / pecas).toFixed(4)) : null;
     const resposta = { success: true, minPeca, minutos, pecas, meses: porMes };
     minPecaCache.porMeses.set(meses, { data: resposta, timestamp: Date.now() });
-    res.json(resposta);
+    return resposta;
+}
+
+router.get("/min-peca-medido", auth, async (req, res) => {
+  try {
+    const pool = req.app.get("pool");
+    if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
+    res.json(await calcularMinPecaMedido(pool, req.query.meses, req.query.refresh === 'true'));
   } catch (err) {
     console.error("[capacidade] min-peca-medido:", err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -2403,7 +2407,51 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
     // que cada celula faz. Medido em 03/11/2026, elas discordam em 886.188 minutos — 19,3%
     // da carga esta hoje numa celula que, pelo mix, nao deveria fazer aquele produto. Por
     // isso as duas ficam disponiveis lado a lado, em vez de uma ser escolhida no escuro.
-    const alocacao = String(req.query.alocacao || 'cadastro').trim().toLowerCase() === 'mix' ? 'mix' : 'cadastro';
+    // LISTA (padrao desde 18/11/2026): decisao do PCP — cadastro e mix nao valem mais; vale a
+    // lista referencia -> grupo da Distribuicao sugerida. Os outros dois modos ficam so para
+    // conferencia (?alocacao=cadastro|mix).
+    const alocacaoPedida = String(req.query.alocacao || 'lista').trim().toLowerCase();
+    if (alocacaoPedida === 'lista') {
+      const d = await calcularDistribuicao(req.app, {
+        meses: '6',
+        lote_id: req.query.lote_id || '',
+        extra: req.query.extra || '',
+        extra_grupo: req.query.extra_grupo || '',
+        ferias: req.query.ferias || '',
+      });
+      const capTotal = Number(d.capacidadeDiariaTotal || 0);
+      const hojeL = new Date();
+      const periodosL = calcularPeriodosPlano(hojeL).meses;
+      const dados = (d.familias || []).map((f) => ({
+        grupo: f.familia.toUpperCase() === 'SUTIÃ' ? 'SUTIA' : f.familia.toUpperCase().replace('CALCINHA', 'CALCA'),
+        capacidadeDiaria: f.capacidadeDiaria,
+        fatiaCapacidade: capTotal > 0 ? Number((f.capacidadeDiaria / capTotal).toFixed(4)) : 0,
+        pecasHorizonte: f.meses.length ? f.meses[f.meses.length - 1].pecasAcum : 0,
+        nomeada: true,
+        celulas: (d.grupos || []).filter((g) => g.familia === f.familia).map((g) => ({
+          celula: g.grupo,
+          capacidadeDiaria: g.capacidadeDiaria,
+          cargaFamiliaMin: g.alocadoMin,
+          cargaCelulaMin: g.alocadoMin,
+          fatiaDaFamilia: 1,
+          ocupacaoCelula: g.ocupacao,
+          semCapacidade: !(g.capacidadeDiaria > 0),
+        })),
+        fatiaSemCelula: 0,
+        refsSemCelula: [],
+        meses: f.meses.map((m) => ({ ...m, mes: periodosL[m.periodo], cargaSemCelulaMin: 0 })),
+      })).sort((a, b) => b.capacidadeDiaria - a.capacidadeDiaria);
+      return res.json({
+        success: true,
+        alocacao: 'lista',
+        loteId: d.loteId,
+        temMedida: d.temMedida,
+        capacidadeDiariaTotal: capTotal,
+        periodos: periodosL,
+        dados,
+      });
+    }
+    const alocacao = alocacaoPedida === 'mix' ? 'mix' : 'cadastro';
     // PARADA DE FABRICA, o mesmo parametro das outras duas rotas de capacidade. Sem ele
     // esta tabela ficava intacta enquanto a de cima e o grafico ja reagiam ao botao — e o
     // rodape dela promete "tem que bater com a ocupacao da tabela acima".
@@ -2902,16 +2950,11 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
  * Mes com mais sabado trabalhado puxa a media para baixo sem que a fabrica tenha piorado,
  * entao parte da amplitude de 14% e esse efeito, nao estacao.
  */
-router.get('/indice-mensal', auth, async (req, res) => {
-  try {
-    const pool = req.app.get('pool');
-    if (!pool) return res.status(500).json({ success: false, error: 'Pool de conexao nao disponivel' });
-
-    const desde = String(req.query.desde || '2025-07-01');
+async function calcularIndiceMensal(pool, { desde: desdePedido, anterior = false, detalhe: comDetalhe = false } = {}) {
+    const desde = String(desdePedido || '2025-07-01');
     // cenario=anterior reproduz a conta de antes da desativacao: todos os locais do ERP,
     // sem filtrar pelos nomes ativos (inclui Progresso e Oficina Atila).
-    const anterior = req.query.cenario === 'anterior';
-    const gruposAtivos = anterior ? null : (await readGrupos(req.app.get("pool"))).map((grupo) => grupo.grupo);
+    const gruposAtivos = anterior ? null : (await readGrupos(pool)).map((grupo) => grupo.grupo);
     const { rows } = await pool.query(`
       SELECT to_char(DATE_TRUNC('month', e.dt_ref),'YYYY-MM') AS competencia,
              EXTRACT(YEAR FROM e.dt_ref)::INT AS ano,
@@ -2934,7 +2977,7 @@ router.get('/indice-mensal', auth, async (req, res) => {
                      minutos: Number(r.minutos), dias: Number(r.dias),
                      porDia: Number(r.dias) > 0 ? Number(r.minutos) / Number(r.dias) : 0 }))
       .filter((o) => o.porDia > 0);
-    if (!obs.length) return res.json({ success: true, desde, nivel: 0, data: {} });
+    if (!obs.length) return { success: true, desde, nivel: 0, data: {} };
 
     const media = (v) => v.reduce((s, x) => s + x, 0) / v.length;
     const mediaDoAno = new Map();
@@ -2959,17 +3002,130 @@ router.get('/indice-mensal', auth, async (req, res) => {
     const ultimos = obs.slice(-3);
     const nivel = Math.round(media(ultimos.map((o) => o.porDia)));
 
-    res.json({
+    return {
       success: true,
       desde,
       nivel,
       nivelBase: ultimos.map((o) => o.competencia),
       base: 'minutos produzidos somados, divididos pelos dias em que a fabrica rodou (seg-sex)',
       data,
-      ...(req.query.detalhe === '1' ? { detalhe, serie: obs } : {}),
-    });
+      ...(comDetalhe ? { detalhe, serie: obs } : {}),
+    };
+}
+
+router.get('/indice-mensal', auth, async (req, res) => {
+  try {
+    const pool = req.app.get('pool');
+    if (!pool) return res.status(500).json({ success: false, error: 'Pool de conexao nao disponivel' });
+    res.json(await calcularIndiceMensal(pool, {
+      desde: req.query.desde,
+      anterior: req.query.cenario === 'anterior',
+      detalhe: req.query.detalhe === '1',
+    }));
   } catch (err) {
     console.error('[capacidade/indice-mensal] Erro:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * CAPACIDADE UNICA — a mesma para o grafico da Visao Geral, a Ocupacao por grupo, a
+ * Distribuicao e o Laboratorio (decisao do PCP em 18/11/2026: "tem que fazer sentido junto").
+ *
+ * Fabrica, por periodo: NIVEL (`indice-mensal`: media dos 3 ultimos meses fechados, min/dia
+ * seg-sex) x SAZONALIDADE amortecida em 50% (a mesma `idx` da Visao Geral) x DIAS do periodo.
+ * Grupo: a fatia dele na fabrica pelo min/dia medido de cada um (`consultarCapacidadeRealPorGrupo`,
+ * janela dos 3 ultimos meses fechados) — a soma dos grupos e a fabrica, mes a mes.
+ * Pecas: minutos / min/peca MEDIDO (memoria "capacidade em pecas vem do medido").
+ *
+ * Sem reserva de 3% nos meses projetados: a capacidade e uma so; incerteza da simulacao, se
+ * houver, se mostra na carga, nao escondida na capacidade.
+ */
+const AMORTECIMENTO_INDICE = 0.5;
+const capacidadeMensalCache = new Map(); // comParada -> { data, timestamp }
+
+async function capacidadeMensal(pool, { comParada = false, refresh = false } = {}) {
+  const chave = comParada ? 'parada' : 'normal';
+  const cacheado = capacidadeMensalCache.get(chave);
+  if (!refresh && cacheado && Date.now() - cacheado.timestamp < 15 * 60 * 1000) return cacheado.data;
+
+  const hoje = new Date();
+  const grupos = await readGrupos(pool);
+  const de = new Date(hoje.getFullYear(), hoje.getMonth() - 3, 1).toISOString().slice(0, 10);
+  const ate = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+  const [{ porGrupo: capacidadeReal }, indice, medido] = await Promise.all([
+    consultarCapacidadeRealPorGrupo(pool, de, ate, 'media'),
+    calcularIndiceMensal(pool),
+    calcularMinPecaMedido(pool, 3),
+  ]);
+  const temMedida = capacidadeReal.size > 0;
+  const capDiaria = new Map();
+  for (const g of grupos) {
+    const v = temMedida ? Number(capacidadeReal.get(g.grupo) || 0) : Number(g.capacidade_diaria || 0);
+    if (v > 0) capDiaria.set(g.grupo, v);
+  }
+  const somaGrupos = [...capDiaria.values()].reduce((a, b) => a + b, 0);
+  const nivel = Number(indice.nivel || 0) > 0 ? Number(indice.nivel) : somaGrupos;
+  const minPeca = Number(medido?.minPeca || 0);
+  const periodos = calcularPeriodosPlano(hoje);
+
+  const listaPeriodos = PERIODOS_PLANO.map((per) => {
+    const data = periodos.datas[per];
+    const mes = data.getMonth() + 1;
+    const dias = diasDisponiveisDaData(data, hoje, comParada);
+    const bruto = Number(indice.data?.[String(mes)] ?? 1) || 1;
+    const idx = 1 + (bruto - 1) * AMORTECIMENTO_INDICE;
+    const minDia = nivel * idx;
+    const minutos = minDia * dias;
+    return {
+      periodo: per,
+      mes: `${data.getFullYear()}-${String(mes).padStart(2, '0')}`,
+      dias,
+      indice: Number(idx.toFixed(4)),
+      minDia: Math.round(minDia),
+      minutos: Math.round(minutos),
+      pecas: minPeca > 0 ? Math.round(minutos / minPeca) : null,
+    };
+  });
+  // Minutos de cada grupo por periodo: a fatia dele na fabrica.
+  const porGrupo = new Map();
+  for (const [grupo, v] of capDiaria) {
+    const fatia = somaGrupos > 0 ? v / somaGrupos : 0;
+    porGrupo.set(grupo, Object.fromEntries(listaPeriodos.map((p) => [p.periodo, p.minutos * fatia])));
+  }
+  const data = {
+    nivel,
+    somaGruposMedidos: Math.round(somaGrupos),
+    minPeca,
+    capDiaria,
+    periodos: listaPeriodos,
+    porGrupo,
+  };
+  capacidadeMensalCache.set(chave, { data, timestamp: Date.now() });
+  return data;
+}
+
+router.get('/capacidade-mensal', auth, async (req, res) => {
+  try {
+    const pool = req.app.get('pool');
+    if (!pool) return res.status(500).json({ success: false, error: 'Pool de conexao nao disponivel' });
+    const comParada = req.query.ferias === '1' || req.query.ferias === 'true';
+    const c = await capacidadeMensal(pool, { comParada, refresh: req.query.refresh === 'true' });
+    res.json({
+      success: true,
+      nivel: c.nivel,
+      somaGruposMedidos: c.somaGruposMedidos,
+      minPeca: c.minPeca,
+      periodos: c.periodos,
+      grupos: [...c.porGrupo.entries()].map(([grupo, porPer]) => ({
+        grupo,
+        minDiaMedido: Math.round(c.capDiaria.get(grupo) || 0),
+        fatia: c.somaGruposMedidos > 0 ? Number(((c.capDiaria.get(grupo) || 0) / c.somaGruposMedidos).toFixed(4)) : 0,
+        minutos: Object.fromEntries(Object.entries(porPer).map(([k, v]) => [k, Math.round(v)])),
+      })),
+    });
+  } catch (err) {
+    console.error('[capacidade/capacidade-mensal] Erro:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -3282,7 +3438,7 @@ const DISTRIBUICAO_TTL = 30 * 60 * 1000;
 const MAX_GRUPOS_POR_REF = 4;
 const ORDEM_GRUPO = ['A', 'B', 'C', 'D'];
 
-router.get("/distribuicao-sugerida", auth, async (req, res) => {
+const handlerDistribuicao = async (req, res) => {
   try {
     const pool = req.app.get("pool");
     if (!pool) return res.status(500).json({ success: false, error: "Pool de conexão não disponível" });
@@ -3305,6 +3461,30 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       .map((par) => par.split('>').map((x) => String(x || '').trim().toUpperCase()))
       .filter(([g, m]) => g && m && g !== m)
       .map(([grupo, modelo]) => ({ grupo, modelo }));
+    // Onde o coringa entra (18/11/2026, pedido do PCP): `coringa_pos=topo` poe o grupo logo
+    // depois do grupo A da referencia ("subir na lista"); padrao = logo depois do modelo.
+    const coringaTopo = String(req.query.coringa_pos || '').trim().toLowerCase() === 'topo';
+    // CONVERSAO: `coringa_desde=PER` — a partir desse periodo o grupo VIRA o perfil do modelo:
+    // deixa de fazer as referencias proprias (a ESPERANCA larga a calcinha em dez/26) e so
+    // entra como coringa dali em diante. Antes dele, segue so com as proprias.
+    const coringaDesdeIdx = PERIODOS_PLANO.indexOf(String(req.query.coringa_desde || '').trim().toUpperCase());
+    // CORINGA POR REFERENCIA: `coringa_refs=GRUPO>REF,REF,...` poe GRUPO logo depois do grupo A
+    // so nessas referencias. Para grupo que nunca costurou o perfil (a ESPERANCA no sutia), o
+    // criterio e necessidade, nao semelhanca: ele recebe o que mais trava os grupos lotados.
+    const coringaRefs = String(req.query.coringa_refs || '')
+      .split(';')
+      .map((parte) => parte.split('>'))
+      .map(([g, lista]) => ({ grupo: String(g || '').trim().toUpperCase(), refs: new Set(String(lista || '').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean)) }))
+      .filter((c) => c.grupo && c.refs.size);
+    const gruposCoringa = new Set([...coringas.map((c) => c.grupo), ...coringaRefs.map((c) => c.grupo)]);
+    // APONTAMENTO: `apontar=GRUPO>REF,REF;...` — o grupo passa a poder fazer essas referencias,
+    // como ULTIMA opcao (pega so o que os grupos atuais nao dao conta), sem largar as proprias.
+    // E a lista de rebalanceamento para SUPERACAO (P26, 19/11/2026).
+    const apontamentos = String(req.query.apontar || '')
+      .split(';')
+      .map((parte) => parte.split('>'))
+      .map(([g, lista]) => ({ grupo: String(g || '').trim().toUpperCase(), refs: new Set(String(lista || '').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean)) }))
+      .filter((c) => c.grupo && c.refs.size);
     // CARGA EXTRA DIRECIONADA: `extra_grupo=GRUPO>PER:min,PER:min;...`. Carga sem SKU que tem
     // dono conhecido — a Liebe Move e anatomic pelo mix do ERP (304 SKUs CA ANATOMIC, 8 SO
     // ANATOMIC, medido em 18/11/2026), entao ocupa a LIDERANCA e nao a fabrica inteira. O
@@ -3317,7 +3497,19 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       const mapa = parseCargaExtra(lista);
       if (Object.keys(mapa).length) extraDirecionado.set(grupo, mapa);
     }
-    const chave = `${meses}|${comParada}|${req.query.extra || ''}|${loteId}|${coringas.map((c) => `${c.grupo}>${c.modelo}`).join(';')}|${req.query.extra_grupo || ''}`;
+    // REFORCO DE EQUIPE: `reforco=GRUPO>FATOR@PER;...` multiplica a capacidade medida do grupo
+    // a partir do periodo. A ESPERANCA tem 6 pessoas e passa a 10 quando vira sutia (PCP,
+    // 19/11/2026): fator 10/6 desde PX. A capacidade medida reflete a equipe de hoje.
+    const reforcos = new Map(); // grupo -> { fator, desdeIdx }
+    for (const parte of String(req.query.reforco || '').split(';')) {
+      const m = /^(.+)>([\d.]+)(?:@([A-Z]{2}))?$/i.exec(parte.trim());
+      if (!m) continue;
+      const fator = Number(m[2]);
+      if (!(fator > 0)) continue;
+      const desdeIdx = m[3] ? PERIODOS_PLANO.indexOf(m[3].toUpperCase()) : 0;
+      reforcos.set(m[1].trim().toUpperCase(), { fator, desdeIdx: Math.max(0, desdeIdx) });
+    }
+    const chave = `v2|${meses}|${comParada}|${req.query.extra || ''}|${loteId}|${coringas.map((c) => `${c.grupo}>${c.modelo}`).join(';')}|${coringaTopo ? 'topo' : ''}|${coringaDesdeIdx}|${req.query.coringa_refs || ''}|${req.query.extra_grupo || ''}|${req.query.reforco || ''}|${req.query.apontar || ''}`;
     const cache = distribuicaoCache;
     if (req.query.refresh !== "true" && cache.data && cache.chave === chave
         && Date.now() - cache.timestamp < DISTRIBUICAO_TTL) {
@@ -3343,6 +3535,16 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       if (v > 0) capDiaria.set(g.grupo, v);
     }
     const capacidadeDiariaTotal = [...capDiaria.values()].reduce((a, b) => a + b, 0);
+    // CAPACIDADE UNICA (nivel x sazonalidade x dias, repartida pela fatia de cada grupo): a
+    // mesma do grafico da Visao Geral. Sem ela a distribuicao media ~10% mais capacidade que o
+    // grafico e as duas telas nunca batiam.
+    const capUnica = await capacidadeMensal(pool, { comParada });
+    const capMes = (celula, per) => {
+      const v = capUnica.porGrupo.get(celula)?.[per];
+      const base = v !== undefined ? v : Number(capDiaria.get(celula) || 0) * diasDisponiveisDaData(calcularPeriodosPlano(hoje).datas[per], hoje, comParada);
+      const ref = reforcos.get(celula);
+      return ref && PERIODOS_PLANO.indexOf(per) >= ref.desdeIdx ? base * ref.fator : base;
+    };
 
     // ── 2. Dias do horizonte: os 14 periodos somados ───────────────────────────
     const periodos = calcularPeriodosPlano(hoje);
@@ -3404,11 +3606,44 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
     // ── 5. Tempo padrao e plano dos 14 periodos, da matriz ─────────────────────
     const temposResult = await queryTempoBaseRows(pool, {});
     const tempoPorIdRef = new Map();
+    // Roteiro COM costura: ao menos uma operacao de COSTURA (1) ou TRANS/MOLDADO (2) com
+    // tempo. Medido em 18/11/2026: a linha KISS ME (503001, 503303, 503400, 503805, 703402),
+    // 101704, 413400, 703302 e outras so tem "SETOR DE ALCA" (0,62 min) no roteiro.
+    const idRefComCostura = new Set();
     for (const row of temposResult.rows || []) {
       const idreferencia = String(row.idreferencia || '').trim().toUpperCase();
       if (!idreferencia) continue;
       const base = resolveTempoLikePowerBi(row.hr_tempo, row.hr_tempopadrao);
       tempoPorIdRef.set(idreferencia, (tempoPorIdRef.get(idreferencia) || 0) + (Number.isFinite(base) ? base : 0));
+      const tipo = String(row.cd_tipooperacao || '').trim();
+      if ((tipo === '1' || tipo === '2') && Number.isFinite(base) && base > 0) idRefComCostura.add(idreferencia);
+    }
+
+    // MIN/PECA MEDIDO DE CADA GRUPO (cache de eficiencia, 12 meses fechados). Substitui o tempo
+    // da referencia que nao tem roteiro de costura: sem isso ela entra quase sem carga e o
+    // grupo dela parece vago. Conferido em 18/11/2026: a PERSEVERANCA aparecia a 22-38% em
+    // abr-dez/27 e produziu 5,5-9 mil pecas/mes a 8,9-10,4 min/peca em 2026.
+    const minPecaMedidoGrupo = new Map();
+    let minPecaMedidoFabrica = 0;
+    try {
+      const med = await pool.query(`
+        SELECT UPPER(TRIM(l.ds_local::text)) AS grupo,
+               SUM(COALESCE(e.tempo_produzido_min, 0))::float AS minutos,
+               SUM(COALESCE(e.qt_movimento_total, 0))::float AS pecas
+          FROM pcp_cache_eficiencia_dia e
+          JOIN pcp_cache_locais l ON l.cd_local::text = e.cd_grupo::text
+         WHERE e.cd_grupo::text = ANY($1::text[])
+           AND e.dt_ref >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '12 months')::date
+           AND e.dt_ref < DATE_TRUNC('month', CURRENT_DATE)::date
+         GROUP BY 1`, [DEFAULT_REAL_GROUP_IDS.map(String)]);
+      let somaMin = 0; let somaPc = 0;
+      for (const r of med.rows) {
+        if (r.pecas > 0 && r.minutos > 0) minPecaMedidoGrupo.set(r.grupo, r.minutos / r.pecas);
+        somaMin += Number(r.minutos || 0); somaPc += Number(r.pecas || 0);
+      }
+      minPecaMedidoFabrica = somaPc > 0 ? somaMin / somaPc : 0;
+    } catch (e) {
+      console.warn('[distribuicao-sugerida] min/peca medido por grupo indisponivel:', e.message);
     }
 
     const matrizCache = await readCache();
@@ -3439,6 +3674,7 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
     const planoPorRef = new Map();     // referencia -> pecas por periodo
     const processoPorRef = new Map();  // referencia -> pecas em OP aberta
     const tempoPorRef = new Map();     // referencia -> min/peca
+    const refComCostura = new Set();   // referencia cujo roteiro tem costura
     const mixPorRef = new Map();       // referencia -> mix
     const familiaPorRef = new Map();
     const campos = PERIODOS_PLANO.map((p) => p.toLowerCase());
@@ -3474,6 +3710,7 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       if (!tempoPorRef.has(ref)) {
         const id = String(produto.cd_seqgrupo || '').trim().toUpperCase();
         tempoPorRef.set(ref, Number(tempoPorIdRef.get(id) || 0));
+        if (idRefComCostura.has(id)) refComCostura.add(ref);
       }
       if (!mixPorRef.has(ref)) {
         const mix = mixPorSku.get(String(produto.idproduto || ''));
@@ -3517,20 +3754,43 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
     // ── 8. Alocacao gulosa, sobre o horizonte inteiro ──────────────────────────
     // Ordem por ESCASSEZ: quem tem menos saidas escolhe antes, senao uma referencia com
     // muitas opcoes enche a unica celula que outra tinha. Empate pela maior carga.
+    const temposCorrigidos = [];
     const refs = [...planoPorRef.keys()].map((ref) => {
       const porPeriodo = planoPorRef.get(ref);
-      const tempo = Number(tempoPorRef.get(ref) || 0);
       const pecas = PERIODOS_PLANO.reduce((s, per) => s + Number(porPeriodo[per] || 0), 0);
       const opcoes = opcoesDaRef(ref);
+      // Tempo: o do roteiro; se ele for zero ou nao tiver costura, o min/peca MEDIDO do grupo A
+      // (ou da fabrica, se a referencia nao tem grupo). Fica registrado para a tela mostrar.
+      const tempoRoteiro = Number(tempoPorRef.get(ref) || 0);
+      let tempo = tempoRoteiro;
+      let tempoFonte = 'roteiro';
+      if (!(tempoRoteiro > 0) || !refComCostura.has(ref)) {
+        const grupoA = opcoes[0]?.grupo || null;
+        const medido = (grupoA && minPecaMedidoGrupo.get(grupoA)) || minPecaMedidoFabrica;
+        if (medido > 0 && pecas > 0) {
+          tempo = medido;
+          tempoFonte = grupoA && minPecaMedidoGrupo.has(grupoA) ? 'medido do grupo' : 'medido da fabrica';
+          temposCorrigidos.push({ referencia: ref, grupo: grupoA, tempoRoteiro: Number(tempoRoteiro.toFixed(2)), tempoUsado: Number(medido.toFixed(2)), fonte: tempoFonte, pecas: Math.round(pecas) });
+        }
+      }
       const candidatas = opcoes.filter((c) => c.capacidadeDisponivel).slice(0, MAX_GRUPOS_POR_REF);
       // Coringa entra logo depois do modelo, mesmo passando do limite de quatro: ele e
       // capacidade a mais para aquele perfil, nao substitui ninguem.
       for (const c of coringas) {
         const iModelo = candidatas.findIndex((x) => x.grupo === c.modelo);
         if (iModelo < 0 || candidatas.some((x) => x.grupo === c.grupo) || !capDiaria.has(c.grupo)) continue;
-        candidatas.splice(iModelo + 1, 0, { grupo: c.grupo, origem: 'coringa', concentracao: null, capacidadeDisponivel: true });
+        candidatas.splice(coringaTopo ? 1 : iModelo + 1, 0, { grupo: c.grupo, origem: 'coringa', concentracao: null, capacidadeDisponivel: true });
       }
-      return { ref, porPeriodo, pecas, tempo, cargaMin: pecas * tempo, candidatas, opcoes: opcoes.slice(0, MAX_GRUPOS_POR_REF) };
+      for (const c of coringaRefs) {
+        if (!c.refs.has(ref) || candidatas.some((x) => x.grupo === c.grupo) || !capDiaria.has(c.grupo)) continue;
+        candidatas.splice(Math.min(1, candidatas.length), 0, { grupo: c.grupo, origem: 'coringa', concentracao: null, capacidadeDisponivel: true });
+      }
+      // Apontamento: o grupo entra como ULTIMA opcao, so pega o que os outros nao deram conta.
+      for (const c of apontamentos) {
+        if (!c.refs.has(ref) || candidatas.some((x) => x.grupo === c.grupo) || !capDiaria.has(c.grupo)) continue;
+        candidatas.push({ grupo: c.grupo, origem: 'apontado', concentracao: null, capacidadeDisponivel: true });
+      }
+      return { ref, porPeriodo, pecas, tempo, tempoFonte, tempoRoteiro, cargaMin: pecas * tempo, candidatas, opcoes: opcoes.slice(0, MAX_GRUPOS_POR_REF) };
     }).filter((r) => r.pecas > 0);
 
     // Ordem por ESCASSEZ, calculada uma vez e usada em todos os periodos: quem tem menos
@@ -3543,7 +3803,7 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
 
     // Capacidade do horizonte inteiro, so para calcular a ocupacao no fim.
     const capacidadeCelula = new Map();
-    capDiaria.forEach((v, celula) => capacidadeCelula.set(celula, v * diasHorizonte));
+    capDiaria.forEach((v, celula) => capacidadeCelula.set(celula, PERIODOS_PLANO.reduce((acc, per) => acc + capMes(celula, per), 0)));
     const diasDoPeriodo = {};
     PERIODOS_PLANO.forEach((per) => {
       diasDoPeriodo[per] = diasDisponiveisDaData(periodos.datas[per], hoje, comParada);
@@ -3597,7 +3857,7 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       const extraDoPeriodo = Math.max(0, Number(cargaExtra[per] || 0));
       const livre = new Map();
       capDiaria.forEach((v, celula) => {
-        const total = v * diasDoMes;
+        const total = capMes(celula, per);
         // A extra nao tem referencia, entao e cobrada de todas as celulas na proporcao do
         // tamanho de cada uma — a mesma fatia que o resto do sistema usa para ratear.
         const fatia = capacidadeDiariaTotal > 0 ? v / capacidadeDiariaTotal : 0;
@@ -3653,8 +3913,15 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
         let resta = daVez;
         let remanejadoRef = 0;
         const destinosAlternativos = [];
+        const idxPer = PERIODOS_PLANO.indexOf(per);
         for (let i = 0; i < r.candidatas.length && resta > 0.0001; i += 1) {
           const celula = r.candidatas[i].grupo;
+          // Conversao do coringa: antes do periodo, ele nao entra como coringa; dali em
+          // diante, nao faz mais as referencias proprias.
+          if (coringaDesdeIdx >= 0 && gruposCoringa.has(celula)) {
+            const comoCoringa = r.candidatas[i].origem === 'coringa';
+            if (comoCoringa ? idxPer < coringaDesdeIdx : idxPer >= coringaDesdeIdx) continue;
+          }
           const disponivel = Math.max(0, Number(livre.get(celula) || 0));
           const cabe = Math.min(resta, disponivel);
           fluxoRef.tentativas.push({
@@ -3716,7 +3983,7 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
         periodo: per,
         mes: `${String(periodos.datas[per].getMonth() + 1).padStart(2, '0')}/${periodos.datas[per].getFullYear()}`,
         dias: diasDoMes,
-        capacidadeMin: Math.round([...capDiaria.values()].reduce((a, b) => a + b, 0) * diasDoMes),
+        capacidadeMin: Math.round([...capDiaria.keys()].reduce((acc, celula) => acc + capMes(celula, per), 0)),
         extraMin: Math.round(extraDoPeriodo),
         pedidoMin: Math.round(pedidoNoMes),
         vindoDeTrasMin: Math.round(vindoDeTras),
@@ -3753,6 +4020,8 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
         referencia: r.ref,
         pecas: Math.round(r.pecas),
         tempoMin: Number(r.tempo.toFixed(2)),
+        tempoFonte: r.tempoFonte,
+        tempoRoteiroMin: Number((r.tempoRoteiro || 0).toFixed(2)),
         cargaMin: Math.round(r.cargaMin),
         mix: mixPorRef.get(r.ref) || null,
         grupoProduto: familiaPorRef.get(r.ref) || 'SEM GRUPO',
@@ -3778,6 +4047,34 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
 
     const referencias = [...resultado.values()].sort((a, b) => b.cargaMin - a.cargaMin);
 
+    // PERFIL e FAMILIA de cada grupo: o mix que ele mais costurou nos meses fechados, com
+    // anatomic como perfil proprio (sutia + calcinha anatomic, regra do PCP). A familia e o
+    // agrupamento que o PCP usa — Sutia, Calcinha (inclui sem costura), Anatomic, Noite.
+    const perfilBase = (mix) => (String(mix || '').includes('ANATOMIC') ? 'ANATOMIC' : String(mix || ''));
+    const familiaDoPerfil = (mix) => {
+      const m = String(mix || '').toUpperCase();
+      if (m.includes('ANATOMIC')) return 'Anatomic';
+      if (m.includes('NOITE')) return 'Noite';
+      if (m.startsWith('SO ')) return 'Sutiã';
+      if (m.startsWith('CA ') || m.startsWith('SC ')) return 'Calcinha';
+      return 'Outros';
+    };
+    const perfilDaCelula = new Map();
+    {
+      const porCelula = new Map();
+      for (const [mix, mapa] of pecasPorMixCelula) {
+        const pb = perfilBase(mix);
+        for (const [celula, pecas] of mapa) {
+          if (!porCelula.has(celula)) porCelula.set(celula, new Map());
+          porCelula.get(celula).set(pb, (porCelula.get(celula).get(pb) || 0) + pecas);
+        }
+      }
+      for (const [celula, m] of porCelula) {
+        const [perfil] = [...m.entries()].sort((a, b) => b[1] - a[1])[0] || [];
+        if (perfil) perfilDaCelula.set(celula, perfil);
+      }
+    }
+
     const gruposSaida = [...capacidadeCelula.entries()].map(([grupo, capacidadeMin]) => {
       const alocadoMin = Number(alocadoPorCelula.get(grupo) || 0);
       const lista = [...(refsPorCelula.get(grupo) || new Set())];
@@ -3785,7 +4082,7 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       const porPer = alocadoCelulaPeriodo.get(grupo) || {};
       const cap = Number(capDiaria.get(grupo) || 0);
       const meses = PERIODOS_PLANO.map((per) => {
-        const capMes = cap * diasDoPeriodo[per];
+        const capMesGrupo = capMes(grupo, per);
         const aloc = Number(porPer[per] || 0);
         const dir = extraDirPorCelula.get(grupo)?.[per];
         const extra = (capacidadeDiariaTotal > 0 ? Math.max(0, Number(cargaExtra[per] || 0)) * cap / capacidadeDiariaTotal : 0)
@@ -3793,7 +4090,7 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
         const pressao = pressaoPreferencial.get(grupo)?.[per] || {};
         return {
           periodo: per,
-          capacidadeMin: Math.round(capMes),
+          capacidadeMin: Math.round(capMesGrupo),
           alocadoMin: Math.round(aloc),
           extraMin: Math.round(extra),
           // Extra direcionada (ex.: Liebe Move na LIDERANCA): do mes, que veio do mes
@@ -3809,7 +4106,7 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
           remanejadoPreferencialMin: Math.round(pressao.remanejado || 0),
           pendentePreferencialMin: Math.round(pressao.pendente || 0),
           referenciasPreferenciais: pressao.referencias || [],
-          ocupacao: capMes > 0 ? Number(((aloc + extra) / capMes).toFixed(4)) : null,
+          ocupacao: capMesGrupo > 0 ? Number(((aloc + extra) / capMesGrupo).toFixed(4)) : null,
         };
       });
       // "Cheia" = o guloso usou tudo que havia naquele mes. E o sinal de gargalo: a
@@ -3818,6 +4115,8 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       const cheios = meses.filter((m) => (m.ocupacao || 0) >= 0.995).length;
       return {
         grupo,
+        perfil: perfilDaCelula.get(grupo) || null,
+        familia: familiaDoPerfil(perfilDaCelula.get(grupo)),
         capacidadeDiaria: Number(cap.toFixed(1)),
         capacidadeMin: Math.round(capacidadeMin),
         alocadoMin: Math.round(alocadoMin),
@@ -3832,6 +4131,83 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
         referencias: lista,
       };
     }).sort((a, b) => (b.periodosCheios - a.periodosCheios) || ((b.ocupacao || 0) - (a.ocupacao || 0)));
+
+    // OCUPACAO POR FAMILIA, PELA LISTA (18/11/2026). Demanda NOVA de cada mes: o plano das
+    // referencias cujo grupo A e da familia, mais a carga extra que cai nos grupos dela
+    // (rateada pelo tamanho + direcionada, como a Liebe Move na LIDERANCA). Acumulada
+    // contra a capacidade acumulada dos grupos da familia: % e dias de folga ou de falta.
+    const tempoDaRefSaida = new Map(referencias.map((r) => [r.referencia, Number(r.tempoMin || 0)]));
+    // CONVERSAO (coringa_desde): a partir do periodo, a CAPACIDADE do grupo convertido conta na
+    // familia nova (a do modelo, ou a do grupo A das referencias de coringa_refs); a demanda das
+    // referencias proprias dele continua na familia antiga — elas nao mudaram de familia, so
+    // perderam o grupo.
+    const familiaDoGrupoSaida = new Map(gruposSaida.map((g) => [g.grupo, g.familia]));
+    const familiaNova = new Map();
+    if (coringaDesdeIdx >= 0) {
+      for (const c of coringas) if (!familiaNova.has(c.grupo) && familiaDoGrupoSaida.has(c.modelo)) familiaNova.set(c.grupo, familiaDoGrupoSaida.get(c.modelo));
+      for (const c of coringaRefs) {
+        if (familiaNova.has(c.grupo)) continue;
+        const ref = [...c.refs].find((x) => resultado.get(x)?.opcoes?.[0]?.grupo);
+        const A = ref ? resultado.get(ref).opcoes[0].grupo : null;
+        if (A && familiaDoGrupoSaida.has(A)) familiaNova.set(c.grupo, familiaDoGrupoSaida.get(A));
+      }
+    }
+    for (const g of gruposSaida) if (familiaNova.has(g.grupo)) { g.viraFamilia = familiaNova.get(g.grupo); g.viraDesde = PERIODOS_PLANO[coringaDesdeIdx]; }
+    const familiasOcupacao = (() => {
+      const mapa = new Map();
+      const familiaDe = (nome) => {
+        if (!mapa.has(nome)) mapa.set(nome, { grupos: [], meses: PERIODOS_PLANO.map(() => ({ cap: 0, carga: 0, pecas: 0, dias: 0 })) });
+        return mapa.get(nome);
+      };
+      for (const g of gruposSaida) {
+        const f = familiaDe(g.familia);
+        f.grupos.push(g.grupo);
+        const nova = familiaNova.get(g.grupo);
+        if (nova && nova !== g.familia) familiaDe(nova).grupos.push(`${g.grupo} (a partir de ${PERIODOS_PLANO[coringaDesdeIdx]})`);
+        g.meses.forEach((m, i) => {
+          const dir = m.extraDirecionado;
+          const extraRateada = Math.max(0, m.extraMin - Number(dir?.coubeMin || 0));
+          // capacidade e extra rateada acompanham o grupo; na conversao, vao para a familia nova
+          const fCap = nova && i >= coringaDesdeIdx ? familiaDe(nova) : f;
+          fCap.meses[i].cap += m.capacidadeMin;
+          fCap.meses[i].carga += extraRateada;
+          fCap.meses[i].dias = diasDoPeriodo[PERIODOS_PLANO[i]];
+          f.meses[i].carga += m.pedidoPreferencialMin + Number(dir?.doMesMin || 0);
+          f.meses[i].pecas += (m.referenciasPreferenciais || []).reduce((acc, r) => {
+            const t = tempoDaRefSaida.get(r.referencia) || 0;
+            return acc + (t > 0 ? r.pedidoMin / t : 0);
+          }, 0);
+          f.meses[i].dias = diasDoPeriodo[PERIODOS_PLANO[i]];
+        });
+      }
+      return [...mapa.entries()].map(([familia, f]) => {
+        let cargaAcum = 0;
+        let capAcum = 0;
+        let diasAcum = 0;
+        let pecasAcum = 0;
+        const meses = f.meses.map((m, i) => {
+          cargaAcum += m.carga;
+          capAcum += m.cap;
+          diasAcum += m.dias;
+          pecasAcum += m.pecas;
+          const capDia = diasAcum > 0 ? capAcum / diasAcum : 0;
+          return {
+            periodo: PERIODOS_PLANO[i],
+            pecas: Math.round(m.pecas),
+            pecasAcum: Math.round(pecasAcum),
+            cargaMin: Math.round(m.carga),
+            cargaAcumMin: Math.round(cargaAcum),
+            capacidadeMin: Math.round(capAcum),
+            diasDisponiveis: diasAcum,
+            diasNecessarios: capDia > 0 ? Number((cargaAcum / capDia).toFixed(2)) : 0,
+            ocupacao: capAcum > 0 ? Number((cargaAcum / capAcum).toFixed(4)) : null,
+            gapDias: capDia > 0 ? Number((cargaAcum / capDia - diasAcum).toFixed(2)) : 0,
+          };
+        });
+        const capDiariaFamilia = f.grupos.reduce((acc, g) => acc + Number(capDiaria.get(g) || 0), 0);
+        return { familia, grupos: f.grupos, capacidadeDiaria: Number(capDiariaFamilia.toFixed(1)), meses };
+      });
+    })();
 
     const soma = (f) => referencias.reduce((s, r) => s + f(r), 0);
     // Somas SEM arredondar: conferir o fechamento com os valores ja arredondados por
@@ -3851,7 +4227,10 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
       temMedida,
       referencias,
       grupos: gruposSaida,
+      familias: familiasOcupacao,
       periodos: porPeriodo,
+      // Referencias sem roteiro de costura (ou sem tempo) que entraram com o min/peca medido.
+      temposCorrigidos: temposCorrigidos.sort((a, b) => b.pecas - a.pecas),
       resumo: {
         refs: referencias.length,
         pecasPlano: Math.round(soma((r) => r.pecas)),
@@ -3885,7 +4264,25 @@ router.get("/distribuicao-sugerida", auth, async (req, res) => {
     console.error("[capacidade/distribuicao-sugerida] Erro:", error);
     return res.status(500).json({ success: false, error: "Erro ao montar a distribuição sugerida", details: error.message });
   }
-});
+};
+router.get("/distribuicao-sugerida", auth, handlerDistribuicao);
+
+// A MESMA conta da Distribuicao sugerida, para outras rotas (Ocupacao por grupo) — sem
+// duplicar a logica: chama o handler com uma resposta de mentira e devolve o payload.
+function calcularDistribuicao(app, query) {
+  return new Promise((resolve, reject) => {
+    const res = {
+      codigo: 200,
+      status(c) { this.codigo = c; return this; },
+      json(o) {
+        if (this.codigo >= 400) reject(Object.assign(new Error(o?.error || 'Falha na distribuição'), { status: this.codigo, payload: o }));
+        else resolve(o);
+        return this;
+      },
+    };
+    Promise.resolve(handlerDistribuicao({ query, app }, res)).catch(reject);
+  });
+}
 
 module.exports = router;
 // Reaproveitados pelo Laboratorio de capacidade (routes/analiseCapacidade.js), para ele
@@ -3899,4 +4296,7 @@ module.exports.helpers = {
   lerSimulacoesDoLote,
   DEFAULT_REAL_GROUP_IDS,
   readGrupos,
+  capacidadeMensal,
+  calcularIndiceMensal,
+  calcularMinPecaMedido,
 };

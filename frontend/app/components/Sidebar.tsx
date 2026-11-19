@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Factory, ChevronLeft, ChevronRight, ChevronDown, LogOut, Settings, TrendingDown, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, AlertTriangle, MinusCircle, CalendarRange, LineChart, Shuffle, Search, FlaskConical } from 'lucide-react';
+import { Factory, ChevronLeft, ChevronRight, ChevronDown, LogOut, Settings, TrendingDown, CheckSquare, SlidersHorizontal, CalendarClock, Gauge, Boxes, PackagePlus, BarChart3, WalletCards, GitCompareArrows, AlertTriangle, MinusCircle, CalendarRange, LineChart, Shuffle, Search } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { clearToken } from '../lib/auth';
 
@@ -40,7 +40,8 @@ const GRUPOS_NAV = [
       { href: '/capacidade', label: 'Capacidade', Icon: Gauge },
       { href: '/capacidade-matriz', label: 'Matriz Capacidade', Icon: Gauge },
       { href: '/lista-vs-producao', label: 'Lista × Produção', Icon: GitCompareArrows },
-      { href: '/distribuicao-sugerida', label: 'Distribuição sugerida', Icon: Shuffle },
+      // Distribuição sugerida e Laboratório viraram uma aba só (18/11/2026).
+      { href: '/laboratorio-capacidade', label: 'Capacidade x Plano', Icon: Shuffle },
     ],
   },
   {
@@ -51,15 +52,6 @@ const GRUPOS_NAV = [
       { href: '/curva-abc', label: 'Curva ABC', Icon: BarChart3 },
       { href: '/extrato-plano', label: 'Extrato Plano', Icon: GitCompareArrows },
       { href: '/historia-produto', label: 'História do Produto (busca por SKU)', Icon: Search },
-    ],
-  },
-  {
-    // Separado de proposito: aqui se investiga, nao se opera. Nada desta area grava dado.
-    id: 'investigacao',
-    titulo: 'Investigação',
-    Icon: FlaskConical,
-    itens: [
-      { href: '/laboratorio-capacidade', label: 'Laboratório de capacidade', Icon: FlaskConical },
     ],
   },
 ];

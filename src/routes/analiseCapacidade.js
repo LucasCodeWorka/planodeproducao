@@ -27,6 +27,7 @@ const {
   lerSimulacoesDoLote,
   DEFAULT_REAL_GROUP_IDS,
   readGrupos,
+  capacidadeMensal,
 } = capacidade.helpers;
 
 const router = express.Router();
@@ -1042,7 +1043,7 @@ async function calcularPlanoPorGrupo(pool, query = {}) {
   {
     const hoje = new Date();
     const ano = Number(req.query.ano) || hoje.getFullYear() + 1;
-    const chaveCache = `v2|${ano}|${req.query.lote_id || ''}`;
+    const chaveCache = `v3|${ano}|${req.query.lote_id || ''}`;
     if (req.query.refresh !== 'true' && planoPorGrupoCache.data && planoPorGrupoCache.chave === chaveCache
         && Date.now() - planoPorGrupoCache.timestamp < 15 * 60 * 1000) {
       return { ...planoPorGrupoCache.data, fromCache: true };
@@ -1254,9 +1255,14 @@ async function calcularPlanoPorGrupo(pool, query = {}) {
     }
 
     const DIAS_REF = 22; // mes "cheio" de referencia para ajustar a entrega aos dias de 2027
+    // SAZONALIDADE da capacidade unica (18/11/2026): a entrega de cada grupo sobe e desce no
+    // ano como a da fabrica, com o mesmo indice que o grafico da Visao Geral usa.
+    const capUnica = await capacidadeMensal(pool, {});
+    const idxPorMes = new Map(capUnica.periodos.map((p) => [p.mes, Number(p.indice || 1)]));
+    const idxMes = mesesAno.map((m) => idxPorMes.get(m) || 1);
     const lista = [...linhas.entries()].map(([grupo, l]) => {
       const entrega = entregaMes.get(grupo) || 0;
-      const capMes = dias.map((d) => entrega * (d / DIAS_REF));
+      const capMes = dias.map((d, i) => entrega * (d / DIAS_REF) * idxMes[i]);
       const precisa = l.plano.map((v, i) => (capMes[i] > 0 ? Number((v / capMes[i]).toFixed(2)) : null));
       const totalPlano = l.plano.reduce((a, b) => a + b, 0);
       const totalCap = capMes.reduce((a, b) => a + b, 0);

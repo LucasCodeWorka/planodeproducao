@@ -173,7 +173,8 @@ export default function VisaoGeral2Page() {
   const [carregandoFechamento, setCarregandoFechamento] = useState(true);
   // Como a ocupacao acha a celula de cada carga. Comeca no cadastro, que e a leitura
   // que a Sugestao de Plano ja usa — trocar o padrao faria duas telas discordarem.
-  const [alocacaoOcup, setAlocacaoOcup] = useState<'cadastro' | 'mix'>('cadastro');
+  // Ocupação por grupo: só a LISTA referência → grupo (decisão do PCP, 18/11/2026).
+  const alocacaoOcup = 'lista' as const;
   const [carregandoOcup, setCarregandoOcup] = useState(false);
   // Minuto por peca da Move: a media das referencias que a fabrica JA produz, ponderada
   // pelo numero de referencias de cada grupo. Da 8,96.
@@ -1284,13 +1285,30 @@ export default function VisaoGeral2Page() {
   }
   useEffect(() => { carregarTemposPorGrupo(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
+  // CAPACIDADE UNICA (18/11/2026). A mesma da Distribuição, da Ocupação por grupo e do
+  // Laboratório: nível × sazonalidade × dias, repartida pelos grupos medidos, em peças pelo
+  // min/peça medido (`/api/capacidade/capacidade-mensal`). Antes o gráfico tinha conta
+  // própria (peças pelo mix do plano nos meses reais, simulação × 0,97 nos projetados) e
+  // ficava ~10% abaixo do que a distribuição usava — por isso as telas não batiam.
+  const [capacidadeUnica, setCapacidadeUnica] = useState<{ periodo: string; mes: string; dias: number; minutos: number; pecas: number | null }[] | null>(null);
+  async function carregarCapacidadeUnica(ferias = comFerias) {
+    try {
+      const r = await fetchNoCache(`${API_URL}/api/capacidade/capacidade-mensal${ferias ? '?ferias=1' : ''}`, { headers: authHeaders() }, 300000);
+      const p = await r.json();
+      if (r.ok && p?.success && Array.isArray(p.periodos)) setCapacidadeUnica(p.periodos);
+    } catch {
+      setCapacidadeUnica(null);
+    }
+  }
+  useEffect(() => { carregarCapacidadeUnica(comFerias); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [comFerias]);
+
   // Ocupacao aberta por grupo de produto. Carrega por fora do `Promise.all` principal e
   // falha em silencio: e abertura da tabela de cima, nao base dela — se nao vier, a Visao
   // Geral continua inteira e so a quebra fica de fora.
   //
   // Segue o MESMO `lote_id` da cobertura simulada, senao o detalhe contaria uma historia e
   // o total outra na mesma tela.
-  async function carregarOcupacaoPorGrupo(lote?: string, modo: 'cadastro' | 'mix' = 'cadastro', ferias = comFerias, extra = cargaExtraRef.current) {
+  async function carregarOcupacaoPorGrupo(lote?: string, modo: 'lista' = 'lista', ferias = comFerias, extra = cargaExtraRef.current) {
     setCarregandoOcup(true);
     try {
       const q = new URLSearchParams({ alocacao: modo });
@@ -1302,9 +1320,10 @@ export default function VisaoGeral2Page() {
       // Move, EL e previsto — ver `cargaExtraParam`. Sem isto a tabela de baixo mede outro
       // plano que a de cima, e o rodape dela promete o contrario. A MOVE vai direcionada para
       // a familia ANATOMIC (mix dela no ERP); o resto continua rateado.
+      // A MOVE vai direcionada à LIDERANÇA (mix anatomic no ERP), igual à Distribuição.
       const move = cargaMoveRef.current;
       if (extra) q.set('extra', move ? subtrairCarga(extra, move) : extra);
-      if (move) q.set('extra_familia', `ANATOMIC>${move}`);
+      if (move) q.set('extra_grupo', `09 - LIDERANCA ANATOMIC>${move}`);
       const r = await fetchNoCache(`${API_URL}/api/capacidade/ocupacao-por-grupo-produto?${q}`, { headers: authHeaders() }, 300000);
       const p = await r.json();
       if (r.ok && p?.success && Array.isArray(p.dados)) {
@@ -1957,6 +1976,15 @@ export default function VisaoGeral2Page() {
       });
     });
 
+    // CAPACIDADE UNICA nas linhas, pela POSICAO (as linhas seguem a ordem dos periodos).
+    // Sem ela carregada, fica a conta antiga — e a tela diz isso no rodapé do gráfico.
+    if (capacidadeUnica) {
+      linhas.forEach((l, i) => {
+        const c = capacidadeUnica[i];
+        if (c && Number(c.pecas) > 0) l.capacidadePecas = Number(c.pecas);
+      });
+    }
+
     // ── LIEBE MOVE ────────────────────────────────────────────────────────────────────
     // A marca nova entra como carga POR CIMA do plano que ja existe. Ela nao tem plano, nao
     // esta na matriz e nao tem tempo de costura cadastrado, entao nao chega por nenhuma
@@ -2013,7 +2041,7 @@ export default function VisaoGeral2Page() {
       abertura: Number(data.estoqueBaseReal || 0) + Number(data.elEstoque || 0),
       pedidosPendentes: Number(data.pedidosPendentes || 0) + Number(data.elPendentes || 0),
     };
-  }, [resumoDiasEfetivo, data, projEdicaoLimitada, elDetalhe, elDetalheBase, indiceMensal, cenarioFabrica, incluirMove, minPecaMove]);
+  }, [resumoDiasEfetivo, data, projEdicaoLimitada, elDetalhe, elDetalheBase, indiceMensal, cenarioFabrica, incluirMove, minPecaMove, capacidadeUnica]);
 
   // MODO FOTO. Com um cenario salvo aberto e o modo ligado, a tela inteira passa a ler a
   // foto em vez de hoje: as mesmas linhas, a mesma abertura, a mesma ocupacao por grupo.
@@ -2690,22 +2718,13 @@ export default function VisaoGeral2Page() {
           capacidadeDiariaTotal={ocupacaoEfetiva.capacidadeDiariaTotal}
           temMedida={ocupacaoEfetiva.temMedida}
           comSimulacao={Boolean(data.loteId)}
-          alocacao={alocacaoOcup}
-          onAlocacao={setAlocacaoOcup}
           unidade={unidadeOcup}
           onUnidade={setUnidadeOcup}
           carregando={carregandoOcup}
-          ocupacaoAlvo={ocupPlanoDaTela}
         />
         {!modoFoto && <div className="mb-6 rounded-b-lg border border-t-0 border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-          Veja como este cenário pode ser distribuído entre os grupos de costura. A proposta usa o histórico de produção e pode diferir do rateio por cadastro acima.{' '}
-          <a className="font-semibold underline" href={`/distribuicao-sugerida?${new URLSearchParams({ cenario: 'visao-geral', ferias: comFerias ? '1' : '0', extra: cargaExtraSemMove, ...(cargaMoveParam ? { extra_grupo: `09 - LIDERANCA ANATOMIC>${cargaMoveParam}` } : {}), lote_id: rawData?.loteId || '' }).toString()}`}>
-            Abrir distribuição deste cenário →
-          </a>
-          {' '}·{' '}
-          <a className="font-semibold underline" href={`/laboratorio-capacidade?${new URLSearchParams({ ferias: comFerias ? '1' : '0', extra: cargaExtraParam, lote_id: rawData?.loteId || '', plano: ['MA', 'PX', 'UL', 'QT', 'QU', 'SX', 'ST', 'OT', 'NV', 'DZ', 'ON', 'DO', 'DT', 'QZ'].map((per, idx) => `${per}:${planoDaTela[idx] ?? 0}`).join(',') }).toString()}`}>
-            Abrir no Laboratório de capacidade →
-          </a>
+          A distribuição deste cenário pelos grupos de costura — referência por referência, o que cada grupo faz, o que empurra e o que falta —
+          está na aba <a className="font-semibold underline" href="/laboratorio-capacidade">Capacidade x Plano →</a>
         </div>}
         </div>
       )}

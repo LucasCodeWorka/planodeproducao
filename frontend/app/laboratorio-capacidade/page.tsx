@@ -1,13 +1,17 @@
 'use client';
 
-// LABORATÓRIO DE CAPACIDADE
+// CAPACIDADE x PLANO — a aba única (18/11/2026).
 //
-// Aba de INVESTIGAÇÃO, separada das telas de operação. Nada aqui grava dado.
-//
-// Combinado com o PCP em 17/11/2026: provar os FATOS antes de qualquer conta. Por isso a
-// tela mostra só o que a fábrica finalizou — por grupo de costura, mês e referência, em
-// peças — sem plano, tempo padrão ou capacidade misturados. As conclusões ficam em
-// docs/analise-capacidade/conclusoes.md (versionado no git).
+// Junta o Laboratório de capacidade e a Distribuição sugerida numa história só, com UM plano
+// (o do gráfico da Visão Geral 2, com a Liebe Move), UMA capacidade (nível × sazonalidade ×
+// dias, a mesma do gráfico) e UMA alocação (a lista referência → grupo). Capítulos:
+//   1. O que a fábrica faz — o finalizado dos últimos 12 meses, por grupo e referência.
+//   2. O plano contra a capacidade — em peças, acumulado.
+//   3. A lista — referência → grupos A a D.
+//   4. Como o plano roda pela lista — ocupação por família e o que cada grupo faz e empurra.
+//   5. O que precisa mudar — o setup ideal por perfil.
+//   6. Registro da investigação.
+// Nada aqui grava dados.
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -16,11 +20,38 @@ import Sidebar from '../components/Sidebar';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
 import SetupIdeal, { type SetupIdealDados } from './SetupIdeal';
-import ProducaoDistribuida, { type DistribuicaoDados, type FamiliaPorGrupo } from './ProducaoDistribuida';
+import ProducaoDistribuida, { LISTA_APONTAMENTO, MODOS_ESPERANCA, resumoCenario, type DistribuicaoDados, type FamiliaPorGrupo, type ModoEsperanca, type RegraCenario, type ResumoCenario } from './ProducaoDistribuida';
 import { carregarPlanoVisaoGeral, GRUPO_MOVE, type PlanoVisaoGeral } from './planoVisaoGeral';
+import CapacidadePlano, { type PeriodoCapacidade } from './CapacidadePlano';
+import type { FamiliaOcupacao } from './OcupacaoFamilias';
+import DistribuicaoConteudo from './DistribuicaoConteudo';
+
+// Capítulos "plano contra a capacidade", "o que precisa mudar" e "registro da investigação":
+// guardados a pedido do PCP (19/11/2026) — a aba fica só com o fato 2026, o plano 2027 pela
+// lista e a lista. O código continua aqui; true traz de volta (e volta a buscar os dados deles).
+const MOSTRAR_CAPITULOS_GUARDADOS = false;
+
+// Cabeçalho de capítulo: a aba conta uma história, na ordem.
+function Capitulo({ n, titulo, texto, id }: { n: number; titulo: string; texto: string; id?: string }) {
+  return (
+    <div id={id} className="mb-3 mt-8 flex items-baseline gap-3 border-b-2 border-indigo-200 pb-2 first:mt-0">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold text-white">{n}</span>
+      <div>
+        <h2 className="text-lg font-bold text-brand-dark">{titulo}</h2>
+        <p className="text-xs text-gray-500">{texto}</p>
+      </div>
+    </div>
+  );
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const CORINGA = { grupo: '08 - ESPERANCA CA BASICO', modelo: '05 - POSITIVO SU BASICO' };
+// As 3 referências que mais travam o sutiã básico (P25, 18/11/2026): o que vai para jan/28 +
+// o que transborda para outro básico lotado. A 341001 sozinha enche 79% da ESPERANÇA.
+const REFS_ESPERANCA = ['341001', '103102', '123019'];
+// Equipe da ESPERANÇA (PCP, 19/11/2026): 6 pessoas hoje, 10 quando vira sutiã. A capacidade
+// medida reflete as 6; na conversão ela é multiplicada por 10/6 a partir de dez/26 (PX).
+const ESPERANCA_PESSOAS = { hoje: 6, sutia: 10 };
 
 type RefFinalizada = {
   referencia: string;
@@ -114,17 +145,31 @@ export default function LaboratorioCapacidadePage() {
   // Laboratório". Chave 'YYYY-MM'. Sem ele, vale o plano da matriz + lote.
   const [planoTela, setPlanoTela] = useState<Record<string, number> | null>(null);
   const [planoVG, setPlanoVG] = useState<PlanoVisaoGeral | null>(null);
+  const [capUnica, setCapUnica] = useState<{ periodos: PeriodoCapacidade[]; minPeca: number } | null>(null);
   const [erroPlanoVG, setErroPlanoVG] = useState<string | null>(null);
   const [planoGrupo, setPlanoGrupo] = useState<SetupIdealDados | null>(null);
   const [erroPlanoGrupo, setErroPlanoGrupo] = useState<string | null>(null);
   const [distrib, setDistrib] = useState<DistribuicaoDados | null>(null);
   const [familiasGrupo, setFamiliasGrupo] = useState<FamiliaPorGrupo>({});
   const [cenarioDist, setCenarioDist] = useState('');
+  // As regras do cenário CARREGADO (não do que está sendo escolhido), para a barra da matriz.
+  const [regrasDist, setRegrasDist] = useState<RegraCenario[]>([]);
   const [erroDist, setErroDist] = useState<string | null>(null);
   const [carregandoDist, setCarregandoDist] = useState(false);
-  // CORINGA (simulação, nada gravado): a ESPERANÇA copia o perfil da POSITIVO (sutiã básico)
-  // sem largar as calcinhas dela — o PCP quer ver o efeito de tirá-la só das calcinhas.
-  const [coringaEsperanca, setCoringaEsperanca] = useState(true);
+  // ESPERANÇA (simulação, nada gravado). Padrão desde 18/11/2026 (decisão do PCP, P25): ela
+  // VIRA sutiã em dez/26 copiando a POSITIVO — larga as calcinhas e entra logo depois da
+  // POSITIVO. O seletor compara com as outras opções.
+  const [modoEsperanca, setModoEsperanca] = useState<ModoEsperanca>('vira-positivo');
+  // Lista de 10 referências apontadas para a SUPERAÇÃO (P26): desligada por padrão, o PCP
+  // marca para ver o quanto melhora.
+  const [comLista, setComLista] = useState(false);
+  // A lista referência → grupo é grande: fica por último e só abre quando o PCP pede.
+  const [mostrarLista, setMostrarLista] = useState(false);
+  // Quem chega pelo link antigo da Distribuição sugerida (/laboratorio-capacidade#lista) quer a lista.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#lista') setMostrarLista(true);
+  }, []);
+  const [comparativo, setComparativo] = useState<Record<string, ResumoCenario>>({});
   const [conclusoes, setConclusoes] = useState<{ texto: string; atualizadoEm: string | null } | null>(null);
   const [abertas, setAbertas] = useState<Record<string, boolean>>({});
   const [busca, setBusca] = useState('');
@@ -163,31 +208,47 @@ export default function LaboratorioCapacidadePage() {
   // PRODUÇÃO COM O RELACIONAMENTO DE HOJE — a Distribuição sugerida, no cenário da Visão
   // Geral montado aqui (planoVisaoGeral.ts): lote mais recente + carga extra da Liebe Move e
   // da edição limitada, em minutos. Padrão, sem depender de link (pedido do PCP).
-  const carregarDistribuicao = useCallback(async (lote: string, extra: string, coringa: boolean, extraMove: string) => {
+  const carregarDistribuicao = useCallback(async (lote: string, extra: string, modo: ModoEsperanca, extraMove: string, comLista: boolean) => {
     setCarregandoDist(true);
     try {
       const ferias = false;
       const qs = new URLSearchParams({ meses: '6' });
-      if (coringa) qs.set('coringa', `${CORINGA.grupo}>${CORINGA.modelo}`);
+      if (comLista) qs.set('apontar', `${LISTA_APONTAMENTO.grupo}>${LISTA_APONTAMENTO.refs.map((r) => r.ref).join(',')}`);
+      if (modo === 'coringa' || modo === 'vira-positivo') qs.set('coringa', `${CORINGA.grupo}>${CORINGA.modelo}`);
+      if (modo === 'vira-3refs') qs.set('coringa_refs', `${CORINGA.grupo}>${REFS_ESPERANCA.join(',')}`);
+      // Conversão: a partir de dez/26 (PX) ela larga as calcinhas próprias.
+      if (modo === 'vira-positivo' || modo === 'vira-3refs') {
+        qs.set('coringa_desde', 'PX');
+        qs.set('reforco', `${CORINGA.grupo}>${(ESPERANCA_PESSOAS.sutia / ESPERANCA_PESSOAS.hoje).toFixed(4)}@PX`);
+      }
       // Liebe Move direcionada ao grupo do anatomic, pelo mix dela no ERP.
       if (extraMove) qs.set('extra_grupo', `${GRUPO_MOVE}>${extraMove}`);
       if (lote) qs.set('lote_id', lote);
       if (extra) qs.set('extra', extra);
       if (ferias) qs.set('ferias', '1');
-      const [rDist, rGrupos] = await Promise.all([
-        fetchNoCache(`${API_URL}/api/capacidade/distribuicao-sugerida?${qs}`, { headers: authHeaders() }, 300000),
-        fetchNoCache(`${API_URL}/api/analise-capacidade/plano-por-grupo`, { headers: authHeaders() }, 300000),
-      ]);
+      const rDist = await fetchNoCache(`${API_URL}/api/capacidade/distribuicao-sugerida?${qs}`, { headers: authHeaders() }, 300000);
       const jDist = await rDist.json();
-      const jGrupos = await rGrupos.json();
       if (!jDist?.success) throw new Error(jDist?.error || 'Falha ao carregar a distribuição');
+      // Família de cada grupo: a que a PRÓPRIA distribuição calcula (perfil que ele mais
+      // costurou) — a mesma que a Ocupação por grupo da Visão Geral usa.
       const mapa: FamiliaPorGrupo = {};
-      for (const g of (jGrupos?.grupos || []) as { grupo: string; familia: string; perfil: string | null }[]) {
-        mapa[g.grupo] = { familia: g.familia, perfil: g.perfil };
+      for (const g of (jDist?.grupos || []) as { grupo: string; familia?: string; perfil?: string | null; viraFamilia?: string | null }[]) {
+        // viraFamilia: grupo convertido na simulação (a ESPERANÇA vira Sutiã) — a matriz o põe no bloco novo.
+        mapa[g.grupo] = { familia: g.familia || 'Outros', perfil: g.perfil || null, vira: g.viraFamilia || null };
       }
       setFamiliasGrupo(mapa);
       setDistrib(jDist);
-      setCenarioDist(`lote ${lote || '—'}${extra ? ', edição limitada como carga extra rateada' : ''}${extraMove ? ', Liebe Move na LIDERANÇA (mix anatomic)' : ''}${coringa ? ', ESPERANÇA como coringa de sutiã básico' : ''}`);
+      // Guarda o resultado de cada cenário para comparar com/sem a lista.
+      const r = resumoCenario(jDist);
+      setComparativo((c) => ({ ...c, [`${modo}|${comLista ? 1 : 0}`]: r }));
+      setRegrasDist([
+        { rotulo: `lote ${lote || '—'}`, simulacao: false },
+        ...(extra ? [{ rotulo: 'edição limitada rateada', simulacao: false }] : []),
+        ...(extraMove ? [{ rotulo: 'Liebe Move → LIDERANÇA', simulacao: false }] : []),
+        ...(modo !== 'calcinha' ? [{ rotulo: `ESPERANÇA: ${MODOS_ESPERANCA[modo].selo}`, simulacao: true }] : []),
+        ...(comLista ? [{ rotulo: `SUPERAÇÃO: + lista ${LISTA_APONTAMENTO.refs.length} refs`, simulacao: true }] : []),
+      ]);
+      setCenarioDist(`lote ${lote || '—'}${extra ? ', edição limitada como carga extra rateada' : ''}${extraMove ? ', Liebe Move na LIDERANÇA (mix anatomic)' : ''}${MODOS_ESPERANCA[modo].cenario}${comLista ? `, lista de ${LISTA_APONTAMENTO.refs.length} refs apontada para a SUPERAÇÃO` : ''}`);
       setErroDist(null);
     } catch (e) {
       setErroDist(e instanceof Error ? e.message : 'Falha ao carregar a distribuição');
@@ -229,6 +290,17 @@ export default function LaboratorioCapacidadePage() {
     }
   }, []);
 
+  // CAPACIDADE ÚNICA — a mesma do gráfico da Visão Geral e da distribuição.
+  const carregarCapUnica = useCallback(async () => {
+    try {
+      const resp = await fetchNoCache(`${API_URL}/api/capacidade/capacidade-mensal`, { headers: authHeaders() }, 300000);
+      const json = await resp.json();
+      if (json?.success) setCapUnica({ periodos: json.periodos, minPeca: Number(json.minPeca || 0) });
+    } catch {
+      setCapUnica(null);
+    }
+  }, []);
+
   // PLANO DA VISÃO GERAL, com Liebe Move — padrão desta aba.
   const carregarPlanoVG = useCallback(async () => {
     try {
@@ -248,11 +320,15 @@ export default function LaboratorioCapacidadePage() {
       return;
     }
     carregar();
-    carregarConclusoes();
     carregarPlano();
-    carregarPlanoGrupo();
     carregarPlanoVG();
-  }, [carregar, carregarConclusoes, carregarPlano, carregarPlanoGrupo, carregarPlanoVG, router]);
+    // Só carregam se os capítulos guardados voltarem (setup-ideal é pesado).
+    if (MOSTRAR_CAPITULOS_GUARDADOS) {
+      carregarConclusoes();
+      carregarPlanoGrupo();
+      carregarCapUnica();
+    }
+  }, [carregar, carregarConclusoes, carregarPlano, carregarPlanoGrupo, carregarPlanoVG, carregarCapUnica, router]);
 
   // A distribuição espera o plano da Visão Geral: é dele que saem o lote e a carga extra.
   // Se ele falhar, a tabela não fica presa: carrega com o lote mais recente, sem carga extra,
@@ -260,9 +336,9 @@ export default function LaboratorioCapacidadePage() {
   const loteFallback = planoGrupo?.loteId ?? null;
   useEffect(() => {
     if (!getToken()) return;
-    if (planoVG) carregarDistribuicao(planoVG.loteId || '', planoVG.extraParam, coringaEsperanca, planoVG.extraMoveParam);
-    else if (planoVGFalhou && loteFallback !== null) carregarDistribuicao(loteFallback, '', coringaEsperanca, '');
-  }, [planoVG, planoVGFalhou, loteFallback, carregarDistribuicao, coringaEsperanca]);
+    if (planoVG) carregarDistribuicao(planoVG.loteId || '', planoVG.extraParam, modoEsperanca, planoVG.extraMoveParam, comLista);
+    else if (planoVGFalhou && loteFallback !== null) carregarDistribuicao(loteFallback, '', modoEsperanca, '', comLista);
+  }, [planoVG, planoVGFalhou, loteFallback, carregarDistribuicao, modoEsperanca, comLista]);
 
   // Busca por referência ou descrição: mostra só os grupos que a produziram, já abertos
   // e só com as referências que casam.
@@ -335,13 +411,10 @@ export default function LaboratorioCapacidadePage() {
       <div className={`${ml} transition-all duration-300 p-6`}>
         <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-indigo-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
-              Investigação · nada aqui grava dados
-            </div>
-            <h1 className="text-2xl font-bold text-brand-dark">Laboratório de capacidade</h1>
+            <h1 className="text-2xl font-bold text-brand-dark">Capacidade x Plano</h1>
             <p className="mt-1 max-w-3xl text-sm text-gray-600">
-              <strong>Fato 1 — o que a fábrica finalizou</strong> nos últimos 12 meses fechados (janela móvel), por grupo de costura, mês e referência, em peças.
-              Sem plano, tempo ou capacidade misturados.
+              Um plano (o do gráfico da Visão Geral, com a Liebe Move), uma capacidade (nível × sazonalidade × dias) e uma alocação: a <strong>lista referência → grupo</strong>.
+              Do que a fábrica faz até o que precisa mudar. Nada aqui grava dados.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -361,6 +434,7 @@ export default function LaboratorioCapacidadePage() {
         {erro && <div className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{erro}</div>}
         {loading && !dados && <div className="rounded border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">Lendo a produção finalizada no ERP…</div>}
 
+        <Capitulo n={1} titulo="O que a fábrica faz" texto="O que foi finalizado nos últimos 12 meses fechados, por grupo de costura e referência, em peças — o fato, sem plano." />
         {dados && (
           <section className="mb-4 rounded-lg border border-gray-200 bg-white px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -586,20 +660,56 @@ export default function LaboratorioCapacidadePage() {
           </section>
         )}
 
-        {erroPlanoGrupo && <div className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Execução ideal: {erroPlanoGrupo}</div>}
-        {planoGrupo && <SetupIdeal dados={planoGrupo} />}
-
-        {erroPlanoVG && <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Plano da Visão Geral não carregou ({erroPlanoVG}): as tabelas usam o plano da matriz + lote.</div>}
-        {erroDist && <div className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Produção com o relacionamento de hoje: {erroDist}</div>}
+        <Capitulo n={2} titulo="Como o plano 2027 roda pela lista" texto="Obedecendo a lista: em cima, o cenário e o resumo do ano (plano, atendimento, o que vai para o ano seguinte, ocupação por família); embaixo, grupo a grupo. Clique em qualquer número para ver como a simulação chegou nele." />
+        {erroDist && <div className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Distribuição: {erroDist}</div>}
         {!distrib && !erroDist && (
           <div className="mb-4 rounded border border-gray-200 bg-white px-4 py-6 text-center text-sm text-gray-500">
             {carregandoDist
               ? 'Calculando a distribuição do plano pelos grupos… a primeira leitura pode levar alguns minutos.'
-              : 'Produção do plano com o relacionamento de hoje: montando o plano da Visão Geral (lote, Liebe Move e edição limitada)…'}
+              : 'Montando o plano da Visão Geral (lote, Liebe Move e edição limitada)…'}
           </div>
         )}
-        {distrib && <ProducaoDistribuida dados={distrib} familias={familiasGrupo} cenario={cenarioDist} planoTela={planoTela} minPecaMove={planoVG?.minPecaMove || 0} coringa={coringaEsperanca ? CORINGA : null} onCoringa={setCoringaEsperanca} recalculando={carregandoDist} />}
+        {distrib && <ProducaoDistribuida dados={distrib} familias={familiasGrupo} regras={regrasDist}
+          familiasOcupacao={(distrib as unknown as { familias?: FamiliaOcupacao[] }).familias || null} cenario={cenarioDist} planoTela={planoTela} minPecaMove={planoVG?.minPecaMove || 0} coringa={modoEsperanca === 'calcinha' ? null : CORINGA} modo={modoEsperanca} onModo={setModoEsperanca} recalculando={carregandoDist}
+          comLista={comLista} onComLista={setComLista} semListaResumo={comparativo[`${modoEsperanca}|0`] || null} comListaResumo={comparativo[`${modoEsperanca}|1`] || null} />}
 
+        {(() => {
+          const corr = (distrib as unknown as { temposCorrigidos?: { referencia: string; grupo: string | null; tempoRoteiro: number; tempoUsado: number; pecas: number }[] } | null)?.temposCorrigidos || [];
+          if (!corr.length) return null;
+          const fmt = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+          return (
+            <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+              <strong>{corr.length} referências sem roteiro de costura no ERP</strong> (só "SETOR DE ALÇA", ou tempo zero) entram com o <strong>min/peça medido do grupo A</strong> —
+              senão contariam quase sem carga e o grupo pareceria vago. O conserto definitivo é cadastrar o roteiro.
+              <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5">
+                {corr.map((c) => (
+                  <span key={c.referencia} className="whitespace-nowrap tabular-nums">
+                    <strong>{c.referencia}</strong> · {c.grupo ? (c.grupo.includes(' - ') ? c.grupo.split(' - ')[1] : c.grupo) : 'sem grupo'} · {fmt(c.tempoRoteiro)} → {fmt(c.tempoUsado)} min · {c.pecas.toLocaleString('pt-BR')} pç
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+        {/* A ocupação por família agora fica na visão macro da matriz (redesenho 19/11/2026). */}
+
+        {erroPlanoVG && <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Plano da Visão Geral não carregou ({erroPlanoVG}): as tabelas usam o plano da matriz + lote.</div>}
+
+        {/* GUARDADO (PCP, 19/11/2026): plano x capacidade, setup ideal e registro saíram da aba.
+            Para voltar, troque MOSTRAR_CAPITULOS_GUARDADOS para true no topo do arquivo. */}
+        {MOSTRAR_CAPITULOS_GUARDADOS && (<>
+        <Capitulo n={3} titulo="O plano contra a capacidade" texto="O plano da Visão Geral (com a Liebe Move) contra a capacidade da fábrica, em peças, acumulado — o total, antes de olhar onde aperta." />
+        {capUnica && planoVG ? (
+          <CapacidadePlano capacidade={capUnica.periodos} plano={planoVG.meses} minPeca={capUnica.minPeca} />
+        ) : (
+          <div className="mb-4 rounded border border-gray-200 bg-white px-4 py-6 text-center text-sm text-gray-500">Montando a capacidade e o plano da Visão Geral…</div>
+        )}
+
+        <Capitulo n={4} titulo="O que precisa mudar" texto="Se a fábrica fosse montada para este plano: quantos grupos de cada perfil, e onde a configuração de hoje sobra ou falta." />
+        {erroPlanoGrupo && <div className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Execução ideal: {erroPlanoGrupo}</div>}
+        {planoGrupo && <SetupIdeal dados={planoGrupo} />}
+
+        <Capitulo n={5} titulo="Registro da investigação" texto="As conclusões, com data e o que é fato, hipótese e pendência." />
         <section className="rounded-lg border border-gray-200 bg-white px-5 py-4">
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="font-semibold text-gray-900">Registro da investigação</h2>
@@ -609,6 +719,16 @@ export default function LaboratorioCapacidadePage() {
           </div>
           {conclusoes?.texto ? <Markdown texto={conclusoes.texto} /> : <p className="text-sm text-gray-500">Nenhuma conclusão registrada ainda.</p>}
         </section>
+        </>)}
+
+        <Capitulo n={MOSTRAR_CAPITULOS_GUARDADOS ? 6 : 3} id="lista" titulo="A lista: referência → grupo" texto="Para onde cada referência vai: grupo A (quem mais produziu), e B, C, D quando o A enche. É a regra que a fábrica obedece — e a única que a aba usa." />
+        <div className="mb-3">
+          <button type="button" onClick={() => setMostrarLista((v) => !v)} className="rounded border border-indigo-200 bg-white px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-50">
+            {mostrarLista ? '▾ Esconder a lista' : `▸ Mostrar a lista (${distrib ? (distrib.referencias || []).length : '…'} referências)`}
+          </button>
+        </div>
+        {mostrarLista && distrib && <DistribuicaoConteudo dadosExternos={distrib} embutido />}
+        <div className="mb-6" />
       </div>
     </div>
   );
