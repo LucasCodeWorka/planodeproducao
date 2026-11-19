@@ -7,6 +7,9 @@ import Sidebar from '../components/Sidebar';
 import PainelCapacidade, { type ResumoDiasCapacidade } from '../components/PainelCapacidade';
 import CapacidadeVsVenda, { MesCapacidadeVenda } from '../components/CapacidadeVsVenda';
 import OcupacaoPorGrupo, { type GrupoOcupacao } from '../components/OcupacaoPorGrupo';
+import PlanoPelaLista from '../laboratorio-capacidade/PlanoPelaLista';
+import type { LeituraListaMes } from '../laboratorio-capacidade/ProducaoDistribuida';
+import { calendario } from '../laboratorio-capacidade/matriz';
 import ProjetadoVsRealizado, { type MesFechado } from '../components/ProjetadoVsRealizado';
 import CenariosSalvos, { type CenarioSalvo } from '../components/CenariosSalvos';
 import ResumoMudancas from '../components/ResumoMudancas';
@@ -43,6 +46,9 @@ const PERIODOS_CAPACIDADE = ['MA', 'PX', 'UL', 'QT'] as const;
 const MOSTRAR_PAINEL_CAPACIDADE = false;
 // Idem para a tabela da Visao Geral, que hoje duplica o que o relatorio ja mostra.
 const MOSTRAR_TABELA_VISAO_GERAL = false;
+// Ocupação por grupo de produto: substituída pelo Plano 2027 pela lista (19/11/2026). true
+// volta a buscá-la (a tela só a mostra no modo foto de cenários antigos).
+const MOSTRAR_OCUPACAO_POR_GRUPO = false;
 // Idem para a faixa de cobertura-alvo: o estado continua valendo nos defaults.
 const MOSTRAR_COBERTURA_ALVO = false;
 // Idem para a previsao de termino do plano corrente (MA).
@@ -245,6 +251,9 @@ export default function VisaoGeral2Page() {
   const [ocupPlanoDaTela, setOcupPlanoDaTela] = useState<(number | null)[]>([]);
   // Plano desenhado no gráfico, mês a mês (MA, PX, UL...), para o Laboratório de capacidade.
   const [planoDaTela, setPlanoDaTela] = useState<number[]>([]);
+  // PLANO 2027 PELA LISTA (PCP, 19/11/2026): a análise principal da execução do plano. A
+  // linha Σ Fábrica dela (ocupação e o que empurra) é o que o gráfico mostra embaixo do plano.
+  const [leituraLista, setLeituraLista] = useState<LeituraListaMes[] | null>(null);
   const [marcarMudancas, setMarcarMudancas] = useState(true);
   // Trocar a parada refaz duas rotas (dias-resumo e gap-mensal) e leva alguns segundos. Sem
   // sinal, o clique parece nao ter funcionado e o PCP clica de novo — e aí ve o numero
@@ -1050,7 +1059,6 @@ export default function VisaoGeral2Page() {
     Promise.all([
       carregarCapacidade(comFerias),
       carregarGapParada(comFerias),
-      carregarOcupacaoPorGrupo(rawData?.loteId || undefined, alocacaoOcup, comFerias),
     ])
       .finally(() => { if (vivo) setRecalculandoParada(false); });
     return () => { vivo = false; };
@@ -1143,6 +1151,8 @@ export default function VisaoGeral2Page() {
         // futura olhar mes a mes em vez de so o total.
         meses: relatorioCapacidade.linhas,
         ocupacaoPorGrupo: ocupacaoGrupo?.dados ?? null,
+        // Linha Σ Fábrica do plano pela lista (ocupação, empurra e ociosa por mês).
+        ocupacaoPelaLista: leituraLista,
         fechamento,
       };
       const r = await fetchNoCache(`${API_URL}/api/capacidade/cenarios`, {
@@ -1341,6 +1351,8 @@ export default function VisaoGeral2Page() {
     // `cargaExtraParam` entra como DEPENDENCIA, nao por ref: ele so fica pronto depois do
     // min/peca medido e do relatorio, e sem isto a tabela carregava uma vez sem a carga
     // extra e nunca mais — o grafico mostrava 112% e ela 124% no mesmo mes.
+    // Substituída pelo Plano 2027 pela lista (19/11/2026): a rota não é mais chamada ao vivo.
+    if (!MOSTRAR_OCUPACAO_POR_GRUPO) return;
     carregarOcupacaoPorGrupo(rawData?.loteId || undefined, alocacaoOcup, comFerias, extraParaRotas);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [rawData?.loteId, alocacaoOcup, extraParaRotas]);
@@ -2119,6 +2131,18 @@ export default function VisaoGeral2Page() {
     return partes.join(',');
   }, [relatorioCapacidade, minPecaMedido]);
   const cargaExtraSemMove = useMemo(() => subtrairCarga(cargaExtraParam, cargaMoveParam), [cargaExtraParam, cargaMoveParam]);
+  // Plano pela lista com o plano DESTA tela: lote, edição limitada/previsto rateados, Move na
+  // LIDERANÇA e a parada de fevereiro. Só calcula depois que o relatório e o min/peça
+  // medido chegaram — antes disso a carga extra ainda está incompleta.
+  const parametrosLista = useMemo(() => (relatorioCapacidade && Number(minPecaMedido || 0) > 0
+    ? { lote: data?.loteId || '', extra: cargaExtraSemMove, extraMove: cargaMoveParam, ferias: comFerias }
+    : null), [relatorioCapacidade, minPecaMedido, data?.loteId, cargaExtraSemMove, cargaMoveParam, comFerias]);
+  // Plano do gráfico por 'YYYY-MM', para a linha "Plano da Visão Geral" da matriz.
+  const planoTelaLista = useMemo(() => {
+    if (!planoDaTela.length) return null;
+    const { chaves } = calendario();
+    return Object.fromEntries(planoDaTela.map((v, i) => [chaves[i], v]).filter(([k]) => k));
+  }, [planoDaTela]);
   cargaMoveRef.current = cargaMoveParam;
 
   // O ref precisa estar atualizado ANTES do efeito da ocupacao rodar — por isso sincroniza
@@ -2584,6 +2608,7 @@ export default function VisaoGeral2Page() {
           cargaExtraMin={cargaExtraParam.split(',').reduce((t, x) => t + (Number(x.split(':')[1]) || 0), 0)}
           onOcupacaoPlano={setOcupPlanoDaTela}
           onPlanoMes={setPlanoDaTela}
+          leituraLista={modoFoto ? undefined : leituraLista || undefined}
           estoqueForaDoPlano={estoqueFora}
           estoqueFisicoHoje={estoqueFisicoHoje}
           indiceCarregado={Boolean(indiceMensal && Object.keys(indiceMensal.data || {}).length)}
@@ -2711,7 +2736,15 @@ export default function VisaoGeral2Page() {
 
       {/* Abertura da tabela acima, por grupo de produto. O total dela tem que reproduzir a
           ocupacao do conjunto — e a reconciliacao fica visivel no rodape de proposito. */}
-      {ocupacaoEfetiva && ocupacaoEfetiva.dados.length > 0 && (
+      {/* PLANO 2027 PELA LISTA — a análise principal da execução do plano (PCP, 19/11/2026).
+          Substitui a Ocupação por grupo de produto, que juntava a capacidade da família num
+          balde só. No modo foto, a foto antiga continua com a ocupação que tinha. */}
+      {!modoFoto && (
+        <div className="mb-6">
+          <PlanoPelaLista parametros={parametrosLista} planoTela={planoTelaLista} minPecaMove={minPecaMove} onLeitura={setLeituraLista} />
+        </div>
+      )}
+      {modoFoto && ocupacaoEfetiva && ocupacaoEfetiva.dados.length > 0 && (
         <div>
         <OcupacaoPorGrupo
           dados={ocupacaoEfetiva.dados}
@@ -2722,10 +2755,6 @@ export default function VisaoGeral2Page() {
           onUnidade={setUnidadeOcup}
           carregando={carregandoOcup}
         />
-        {!modoFoto && <div className="mb-6 rounded-b-lg border border-t-0 border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-          A distribuição deste cenário pelos grupos de costura — referência por referência, o que cada grupo faz, o que empurra e o que falta —
-          está na aba <a className="font-semibold underline" href="/laboratorio-capacidade">Capacidade x Plano →</a>
-        </div>}
         </div>
       )}
       </div>

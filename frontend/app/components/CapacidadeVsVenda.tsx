@@ -202,6 +202,10 @@ type Props = {
   onPlanoMes?: (v: number[]) => void;
   /** Como chamar o outro lado na tela ("hoje", "a foto de 05/11"). */
   rotuloComparacao?: string;
+  /** PLANO PELA LISTA (19/11/2026): a linha Σ Fábrica da análise principal, mês a mês, na
+   *  ordem das colunas. Quando vem, o rótulo do plano passa a ser o dela — ocupação dos
+   *  grupos e os dias que o plano empurra — em vez da conta em peças contra a capacidade. */
+  leituraLista?: { ocupacao: number | null; empurraPc: number; empurraDias: number; ociosaDias: number }[];
 };
 
 // Cobertura PADRAO da carteira, em dias de venda. O medido na carteira de hoje da ~40
@@ -248,6 +252,7 @@ export default function CapacidadeVsVenda({
   onOcupacaoPlano,
   onPlanoMes,
   rotuloComparacao = 'hoje',
+  leituraLista,
 }: Props) {
   // Tres leituras, nao duas: o plano como esta, o nivelado com teto no MES e o nivelado com
   // teto no ACUMULADO. Os dois nivelamentos respondem a perguntas diferentes — "nenhum mes
@@ -1482,6 +1487,27 @@ export default function CapacidadeVsVenda({
                       // mesmo rotulo, sem o leitor saber qual esta vendo, e pior do que nao
                       // mostrar — e a leitura da faixa de Capacidade logo abaixo ja responde
                       // isso para os meses projetados.
+                      // PELA LISTA: ocupação dos grupos e os dias que o plano empurra para o
+                      // mês seguinte (+) ou, sem empurra, a capacidade parada (−). Os mesmos
+                      // números da linha Σ Fábrica do Plano 2027 pela lista, logo abaixo.
+                      const ll = leituraLista?.[i];
+                      if (ll) {
+                        const empurra = ll.empurraPc >= 0.5;
+                        const d = empurra ? ll.empurraDias : -ll.ociosaDias;
+                        const o = ll.ocupacao;
+                        return (
+                          <text x={xr} y={yr} textAnchor={anchor} fontSize="9" fontWeight="700" fontFamily="ui-monospace, monospace">
+                            <title>{`${l.mes}, pela lista: ocupação dos grupos ${o === null ? '—' : pct(o)}; ${empurra ? `empurra ${fmt(ll.empurraPc)} peças (${ll.empurraDias.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias) para o mês seguinte` : 'nada empurrado'}${ll.ociosaDias >= 0.05 ? `; ${ll.ociosaDias.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias de capacidade parada em grupos que a lista não usa` : ''}.`}</title>
+                            {o !== null && <tspan fill={empurra ? '#dc2626' : o >= 0.85 ? '#059669' : '#d97706'}>{pct(o)}</tspan>}
+                            {o !== null && Math.abs(d) >= 0.05 && <tspan fill="#d1d5db"> · </tspan>}
+                            {Math.abs(d) >= 0.05 && (
+                              <tspan fill={d > 0 ? '#dc2626' : '#059669'}>
+                                {d > 0 ? '+' : ''}{d.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}d
+                              </tspan>
+                            )}
+                          </text>
+                        );
+                      }
                       const ocup = ocupPlanoAcum(i) ?? undefined;
                       const gap = gapPlanoDias(i) ?? undefined;
                       if (ocup === undefined && gap === undefined) return null;
@@ -1759,6 +1785,33 @@ export default function CapacidadeVsVenda({
                     // (`planoCompletoDias`, `planoDiasAcum`, `planoDispAcum`) seguem
                     // calculados, so nao sao exibidos.
                     const i = linhas.indexOf(l);
+                    const ll = leituraLista?.[i];
+                    if (ll) {
+                      const empurra = ll.empurraPc >= 0.5;
+                      const d = empurra ? ll.empurraDias : -ll.ociosaDias;
+                      return (
+                        <>
+                          <span
+                            className={l.planoSimulado ? 'font-semibold text-red-600' : 'font-semibold text-violet-700'}
+                            title={l.planoSimulado ? 'SIMULAÇÃO — plano sugerido e salvo na Sugestão de Plano, ainda não aprovado nem implantado no ERP.' : undefined}
+                          >
+                            {fmt(total)}{l.planoSimulado && <span className="ml-1 text-[9px] font-bold align-top">SIM</span>}
+                          </span>
+                          <div
+                            title={`Pela lista (Plano 2027 pela lista, linha Σ Fábrica): ocupação dos grupos e ${empurra ? `${fmt(ll.empurraPc)} peças empurradas para o mês seguinte` : 'capacidade parada'}, em dias.`}
+                            className="font-mono text-[10px] font-bold tabular-nums"
+                          >
+                            {ll.ocupacao !== null && <span className={empurra ? 'text-red-600' : ll.ocupacao >= 0.85 ? 'text-emerald-600' : 'text-amber-600'}>{pct(ll.ocupacao)}</span>}
+                            {ll.ocupacao !== null && Math.abs(d) >= 0.05 && <span className="text-gray-300"> · </span>}
+                            {Math.abs(d) >= 0.05 && (
+                              <span className={d > 0 ? 'text-red-600' : 'text-emerald-600'}>
+                                {d > 0 ? '+' : ''}{d.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}d
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      );
+                    }
                     const gap = gapPlanoDias(i) ?? undefined;
                     const ocup = ocupPlanoAcum(i) ?? undefined;
                     return (

@@ -746,15 +746,10 @@ function Indicador({ rotulo, sub, valor, nota, dica, tom }: { rotulo: string; su
 //   ociosa  = Σ por GRUPO de (capacidade − alocado − extra), em dias da família
 // Grupo convertido (a ESPERANÇA) conta na família nova a partir do mês da conversão.
 type FamiliaMes = { cap: number; uso: number; ociosoMin: number; atrasoMin: number; atrasoPc: number; ociosos: { grupo: string; min: number }[] };
-function FaixaFamilias({ dados, familias, blocos, familiasOcupacao, meses, anoAlvo, colSel }: {
-  dados: DistribuicaoDados;
-  familias: FamiliaPorGrupo;
-  blocos: { familia: string; empurra: number[] }[];
-  familiasOcupacao: FamiliaOcupacao[];
-  meses: string[];
-  anoAlvo: number;
-  colSel: number | null;
-}) {
+
+// A conta da faixa, sem desenho: a Visão Geral lê a linha Σ Fábrica daqui para o gráfico,
+// então gráfico e faixa saem do MESMO número.
+export function contaFaixa(dados: DistribuicaoDados, familias: FamiliaPorGrupo, blocos: { familia: string; empurra: number[] }[], familiasOcupacao: FamiliaOcupacao[]) {
   const n = PERIODOS.length;
   // Dias de cada mês: o backend manda os dias ACUMULADOS; a diferença dá os do mês.
   const diasAcum = (familiasOcupacao[0]?.meses || []).map((m) => Number(m.diasDisponiveis || 0));
@@ -799,6 +794,38 @@ function FaixaFamilias({ dados, familias, blocos, familiasOcupacao, meses, anoAl
     const x = tab.get(f)![i];
     return { cap: acc.cap + x.cap, uso: acc.uso + x.uso, ociosoMin: acc.ociosoMin + x.ociosoMin, atrasoMin: acc.atrasoMin + x.atrasoMin, atrasoPc: acc.atrasoPc + x.atrasoPc, ociosos: acc.ociosos.concat(x.ociosos) };
   }, { cap: 0, uso: 0, ociosoMin: 0, atrasoMin: 0, atrasoPc: 0, ociosos: [] } as FamiliaMes));
+  return { dias, tab, lista, fabrica, base };
+}
+
+// LEITURA DA FÁBRICA PELA LISTA, mês a mês (índice = PERIODOS: 0 = MA). É a linha Σ Fábrica
+// da faixa por família, para quem precisa do número sem a tabela (o gráfico da Visão Geral).
+export type LeituraListaMes = { periodo: string; ocupacao: number | null; empurraPc: number; empurraDias: number; ociosaDias: number };
+export function leituraFabricaPelaLista(dados: DistribuicaoDados, familias: FamiliaPorGrupo, familiasOcupacao: FamiliaOcupacao[], minPecaMove: number): LeituraListaMes[] {
+  const { cols } = calendario();
+  const { blocos } = montarMatriz(dados, familias, minPecaMove, cols);
+  const { dias, fabrica } = contaFaixa(dados, familias, blocos, familiasOcupacao);
+  return fabrica.map((x, i) => {
+    const capDia = dias[i] > 0 ? x.cap / dias[i] : 0;
+    return {
+      periodo: PERIODOS[i],
+      ocupacao: x.cap > 0 ? x.uso / x.cap : null,
+      empurraPc: x.atrasoPc,
+      empurraDias: capDia > 0 ? x.atrasoMin / capDia : 0,
+      ociosaDias: capDia > 0 ? x.ociosoMin / capDia : 0,
+    };
+  });
+}
+
+function FaixaFamilias({ dados, familias, blocos, familiasOcupacao, meses, anoAlvo, colSel }: {
+  dados: DistribuicaoDados;
+  familias: FamiliaPorGrupo;
+  blocos: { familia: string; empurra: number[] }[];
+  familiasOcupacao: FamiliaOcupacao[];
+  meses: string[];
+  anoAlvo: number;
+  colSel: number | null;
+}) {
+  const { dias, tab, lista, fabrica, base } = contaFaixa(dados, familias, blocos, familiasOcupacao);
   const capDiaFam = (f: string) => {
     const xs = tab.get(f)!;
     const i = xs.findIndex((x, k) => x.cap > 0 && dias[k] > 0 && k >= 2);

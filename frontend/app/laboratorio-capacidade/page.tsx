@@ -20,10 +20,10 @@ import Sidebar from '../components/Sidebar';
 import { authHeaders, getToken } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
 import SetupIdeal, { type SetupIdealDados } from './SetupIdeal';
-import ProducaoDistribuida, { LISTA_APONTAMENTO, MODOS_ESPERANCA, resumoCenario, type DistribuicaoDados, type FamiliaPorGrupo, type ModoEsperanca, type RegraCenario, type ResumoCenario } from './ProducaoDistribuida';
-import { carregarPlanoVisaoGeral, GRUPO_MOVE, type PlanoVisaoGeral } from './planoVisaoGeral';
+import type { DistribuicaoDados } from './ProducaoDistribuida';
+import PlanoPelaLista from './PlanoPelaLista';
+import { carregarPlanoVisaoGeral, type PlanoVisaoGeral } from './planoVisaoGeral';
 import CapacidadePlano, { type PeriodoCapacidade } from './CapacidadePlano';
-import type { FamiliaOcupacao } from './OcupacaoFamilias';
 import DistribuicaoConteudo from './DistribuicaoConteudo';
 
 // Capítulos "plano contra a capacidade", "o que precisa mudar" e "registro da investigação":
@@ -45,13 +45,8 @@ function Capitulo({ n, titulo, texto, id }: { n: number; titulo: string; texto: 
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const CORINGA = { grupo: '08 - ESPERANCA CA BASICO', modelo: '05 - POSITIVO SU BASICO' };
-// As 3 referências que mais travam o sutiã básico (P25, 18/11/2026): o que vai para jan/28 +
-// o que transborda para outro básico lotado. A 341001 sozinha enche 79% da ESPERANÇA.
-const REFS_ESPERANCA = ['341001', '103102', '123019'];
-// Equipe da ESPERANÇA (PCP, 19/11/2026): 6 pessoas hoje, 10 quando vira sutiã. A capacidade
-// medida reflete as 6; na conversão ela é multiplicada por 10/6 a partir de dez/26 (PX).
-const ESPERANCA_PESSOAS = { hoje: 6, sutia: 10 };
+// Cenário da ESPERANÇA, lista da SUPERAÇÃO e a carga da distribuição: PlanoPelaLista.tsx
+// (o mesmo componente da Visão Geral 2).
 
 type RefFinalizada = {
   referencia: string;
@@ -150,26 +145,12 @@ export default function LaboratorioCapacidadePage() {
   const [planoGrupo, setPlanoGrupo] = useState<SetupIdealDados | null>(null);
   const [erroPlanoGrupo, setErroPlanoGrupo] = useState<string | null>(null);
   const [distrib, setDistrib] = useState<DistribuicaoDados | null>(null);
-  const [familiasGrupo, setFamiliasGrupo] = useState<FamiliaPorGrupo>({});
-  const [cenarioDist, setCenarioDist] = useState('');
-  // As regras do cenário CARREGADO (não do que está sendo escolhido), para a barra da matriz.
-  const [regrasDist, setRegrasDist] = useState<RegraCenario[]>([]);
-  const [erroDist, setErroDist] = useState<string | null>(null);
-  const [carregandoDist, setCarregandoDist] = useState(false);
-  // ESPERANÇA (simulação, nada gravado). Padrão desde 18/11/2026 (decisão do PCP, P25): ela
-  // VIRA sutiã em dez/26 copiando a POSITIVO — larga as calcinhas e entra logo depois da
-  // POSITIVO. O seletor compara com as outras opções.
-  const [modoEsperanca, setModoEsperanca] = useState<ModoEsperanca>('vira-positivo');
-  // Lista de 10 referências apontadas para a SUPERAÇÃO (P26): desligada por padrão, o PCP
-  // marca para ver o quanto melhora.
-  const [comLista, setComLista] = useState(false);
   // A lista referência → grupo é grande: fica por último e só abre quando o PCP pede.
   const [mostrarLista, setMostrarLista] = useState(false);
   // Quem chega pelo link antigo da Distribuição sugerida (/laboratorio-capacidade#lista) quer a lista.
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.hash === '#lista') setMostrarLista(true);
   }, []);
-  const [comparativo, setComparativo] = useState<Record<string, ResumoCenario>>({});
   const [conclusoes, setConclusoes] = useState<{ texto: string; atualizadoEm: string | null } | null>(null);
   const [abertas, setAbertas] = useState<Record<string, boolean>>({});
   const [busca, setBusca] = useState('');
@@ -200,60 +181,6 @@ export default function LaboratorioCapacidadePage() {
       setErro(e instanceof Error ? e.message : 'Erro ao carregar');
     } finally {
       setLoading(false);
-    }
-  }, []);
-
-  // FATO 2 — o plano do próximo ano, em peças, por mês do calendário. Vem do plano da
-  // matriz com o lote de simulação mais recente (o mesmo da Visão Geral).
-  // PRODUÇÃO COM O RELACIONAMENTO DE HOJE — a Distribuição sugerida, no cenário da Visão
-  // Geral montado aqui (planoVisaoGeral.ts): lote mais recente + carga extra da Liebe Move e
-  // da edição limitada, em minutos. Padrão, sem depender de link (pedido do PCP).
-  const carregarDistribuicao = useCallback(async (lote: string, extra: string, modo: ModoEsperanca, extraMove: string, comLista: boolean) => {
-    setCarregandoDist(true);
-    try {
-      const ferias = false;
-      const qs = new URLSearchParams({ meses: '6' });
-      if (comLista) qs.set('apontar', `${LISTA_APONTAMENTO.grupo}>${LISTA_APONTAMENTO.refs.map((r) => r.ref).join(',')}`);
-      if (modo === 'coringa' || modo === 'vira-positivo') qs.set('coringa', `${CORINGA.grupo}>${CORINGA.modelo}`);
-      if (modo === 'vira-3refs') qs.set('coringa_refs', `${CORINGA.grupo}>${REFS_ESPERANCA.join(',')}`);
-      // Conversão: a partir de dez/26 (PX) ela larga as calcinhas próprias.
-      if (modo === 'vira-positivo' || modo === 'vira-3refs') {
-        qs.set('coringa_desde', 'PX');
-        qs.set('reforco', `${CORINGA.grupo}>${(ESPERANCA_PESSOAS.sutia / ESPERANCA_PESSOAS.hoje).toFixed(4)}@PX`);
-      }
-      // Liebe Move direcionada ao grupo do anatomic, pelo mix dela no ERP.
-      if (extraMove) qs.set('extra_grupo', `${GRUPO_MOVE}>${extraMove}`);
-      if (lote) qs.set('lote_id', lote);
-      if (extra) qs.set('extra', extra);
-      if (ferias) qs.set('ferias', '1');
-      const rDist = await fetchNoCache(`${API_URL}/api/capacidade/distribuicao-sugerida?${qs}`, { headers: authHeaders() }, 300000);
-      const jDist = await rDist.json();
-      if (!jDist?.success) throw new Error(jDist?.error || 'Falha ao carregar a distribuição');
-      // Família de cada grupo: a que a PRÓPRIA distribuição calcula (perfil que ele mais
-      // costurou) — a mesma que a Ocupação por grupo da Visão Geral usa.
-      const mapa: FamiliaPorGrupo = {};
-      for (const g of (jDist?.grupos || []) as { grupo: string; familia?: string; perfil?: string | null; viraFamilia?: string | null }[]) {
-        // viraFamilia: grupo convertido na simulação (a ESPERANÇA vira Sutiã) — a matriz o põe no bloco novo.
-        mapa[g.grupo] = { familia: g.familia || 'Outros', perfil: g.perfil || null, vira: g.viraFamilia || null };
-      }
-      setFamiliasGrupo(mapa);
-      setDistrib(jDist);
-      // Guarda o resultado de cada cenário para comparar com/sem a lista.
-      const r = resumoCenario(jDist);
-      setComparativo((c) => ({ ...c, [`${modo}|${comLista ? 1 : 0}`]: r }));
-      setRegrasDist([
-        { rotulo: `lote ${lote || '—'}`, simulacao: false },
-        ...(extra ? [{ rotulo: 'edição limitada rateada', simulacao: false }] : []),
-        ...(extraMove ? [{ rotulo: 'Liebe Move → LIDERANÇA', simulacao: false }] : []),
-        ...(modo !== 'calcinha' ? [{ rotulo: `ESPERANÇA: ${MODOS_ESPERANCA[modo].selo}`, simulacao: true }] : []),
-        ...(comLista ? [{ rotulo: `SUPERAÇÃO: + lista ${LISTA_APONTAMENTO.refs.length} refs`, simulacao: true }] : []),
-      ]);
-      setCenarioDist(`lote ${lote || '—'}${extra ? ', edição limitada como carga extra rateada' : ''}${extraMove ? ', Liebe Move na LIDERANÇA (mix anatomic)' : ''}${MODOS_ESPERANCA[modo].cenario}${comLista ? `, lista de ${LISTA_APONTAMENTO.refs.length} refs apontada para a SUPERAÇÃO` : ''}`);
-      setErroDist(null);
-    } catch (e) {
-      setErroDist(e instanceof Error ? e.message : 'Falha ao carregar a distribuição');
-    } finally {
-      setCarregandoDist(false);
     }
   }, []);
 
@@ -330,15 +257,11 @@ export default function LaboratorioCapacidadePage() {
     }
   }, [carregar, carregarConclusoes, carregarPlano, carregarPlanoGrupo, carregarPlanoVG, carregarCapUnica, router]);
 
-  // A distribuição espera o plano da Visão Geral: é dele que saem o lote e a carga extra.
-  // Se ele falhar, a tabela não fica presa: carrega com o lote mais recente, sem carga extra,
-  // e o aviso amarelo diz por quê.
-  const loteFallback = planoGrupo?.loteId ?? null;
-  useEffect(() => {
-    if (!getToken()) return;
-    if (planoVG) carregarDistribuicao(planoVG.loteId || '', planoVG.extraParam, modoEsperanca, planoVG.extraMoveParam, comLista);
-    else if (planoVGFalhou && loteFallback !== null) carregarDistribuicao(loteFallback, '', modoEsperanca, '', comLista);
-  }, [planoVG, planoVGFalhou, loteFallback, carregarDistribuicao, modoEsperanca, comLista]);
+  // O plano 2027 pela lista espera o plano da Visão Geral (lote e carga extra). Se ele
+  // falhar, roda com o lote mais recente, sem carga extra, e o aviso amarelo diz por quê.
+  const parametrosLista = planoVG
+    ? { lote: planoVG.loteId || '', extra: planoVG.extraParam, extraMove: planoVG.extraMoveParam }
+    : planoVGFalhou ? { lote: '', extra: '', extraMove: '' } : null;
 
   // Busca por referência ou descrição: mostra só os grupos que a produziram, já abertos
   // e só com as referências que casam.
@@ -661,36 +584,7 @@ export default function LaboratorioCapacidadePage() {
         )}
 
         <Capitulo n={2} titulo="Como o plano 2027 roda pela lista" texto="Obedecendo a lista: em cima, o cenário e o resumo do ano (plano, atendimento, o que vai para o ano seguinte, ocupação por família); embaixo, grupo a grupo. Clique em qualquer número para ver como a simulação chegou nele." />
-        {erroDist && <div className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">Distribuição: {erroDist}</div>}
-        {!distrib && !erroDist && (
-          <div className="mb-4 rounded border border-gray-200 bg-white px-4 py-6 text-center text-sm text-gray-500">
-            {carregandoDist
-              ? 'Calculando a distribuição do plano pelos grupos… a primeira leitura pode levar alguns minutos.'
-              : 'Montando o plano da Visão Geral (lote, Liebe Move e edição limitada)…'}
-          </div>
-        )}
-        {distrib && <ProducaoDistribuida dados={distrib} familias={familiasGrupo} regras={regrasDist}
-          familiasOcupacao={(distrib as unknown as { familias?: FamiliaOcupacao[] }).familias || null} cenario={cenarioDist} planoTela={planoTela} minPecaMove={planoVG?.minPecaMove || 0} coringa={modoEsperanca === 'calcinha' ? null : CORINGA} modo={modoEsperanca} onModo={setModoEsperanca} recalculando={carregandoDist}
-          comLista={comLista} onComLista={setComLista} semListaResumo={comparativo[`${modoEsperanca}|0`] || null} comListaResumo={comparativo[`${modoEsperanca}|1`] || null} />}
-
-        {(() => {
-          const corr = (distrib as unknown as { temposCorrigidos?: { referencia: string; grupo: string | null; tempoRoteiro: number; tempoUsado: number; pecas: number }[] } | null)?.temposCorrigidos || [];
-          if (!corr.length) return null;
-          const fmt = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
-          return (
-            <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
-              <strong>{corr.length} referências sem roteiro de costura no ERP</strong> (só "SETOR DE ALÇA", ou tempo zero) entram com o <strong>min/peça medido do grupo A</strong> —
-              senão contariam quase sem carga e o grupo pareceria vago. O conserto definitivo é cadastrar o roteiro.
-              <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5">
-                {corr.map((c) => (
-                  <span key={c.referencia} className="whitespace-nowrap tabular-nums">
-                    <strong>{c.referencia}</strong> · {c.grupo ? (c.grupo.includes(' - ') ? c.grupo.split(' - ')[1] : c.grupo) : 'sem grupo'} · {fmt(c.tempoRoteiro)} → {fmt(c.tempoUsado)} min · {c.pecas.toLocaleString('pt-BR')} pç
-                  </span>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+        <PlanoPelaLista parametros={parametrosLista} planoTela={planoTela} minPecaMove={planoVG?.minPecaMove || 0} onDistribuicao={setDistrib} />
         {/* A ocupação por família agora fica na visão macro da matriz (redesenho 19/11/2026). */}
 
         {erroPlanoVG && <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Plano da Visão Geral não carregou ({erroPlanoVG}): as tabelas usam o plano da matriz + lote.</div>}
