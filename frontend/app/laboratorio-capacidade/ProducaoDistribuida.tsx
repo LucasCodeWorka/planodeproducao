@@ -111,6 +111,7 @@ const HL_LINHA = '[&>td]:shadow-[inset_0_0_0_9999px_rgba(79,70,229,0.09)]';
 export default function ProducaoDistribuida({
   dados, familias, familiasOcupacao, regras, cenario, planoTela, minPecaMove, coringa, modo, onModo, recalculando,
   comLista, onComLista, semListaResumo, comListaResumo,
+  antecipar = 0, onAntecipar, semPuxarResumo = null, comPuxarResumo = null,
 }: {
   dados: DistribuicaoDados;
   familias: FamiliaPorGrupo;
@@ -127,6 +128,11 @@ export default function ProducaoDistribuida({
   onComLista: (v: boolean) => void;
   semListaResumo: ResumoCenario | null;
   comListaResumo: ResumoCenario | null;
+  /** Puxar da frente: quantos meses à frente a capacidade parada pode adiantar (0 = não). */
+  antecipar?: number;
+  onAntecipar?: (n: number) => void;
+  semPuxarResumo?: ResumoCenario | null;
+  comPuxarResumo?: ResumoCenario | null;
 }) {
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
   const [familiasFechadas, setFamiliasFechadas] = useState<Record<string, boolean>>({});
@@ -214,6 +220,9 @@ export default function ProducaoDistribuida({
     return [
       `${meses[i]} · plano do mês ${num(t.plano[i])}`,
       `veio ${num(t.veio[i])} + plano ${num(t.plano[i])} − produzido ${num(pr.feito)} = empurra ${num(t.empurra[i])}`,
+      (t.adianta?.[i] || 0) >= 0.5 || (i > 0 && (t.adianta?.[i - 1] || 0) >= 0.5)
+        ? `puxar da frente: entrou adiantado de antes ${num(i > 0 ? t.adianta[i - 1] : 0)}, ficou adiantado no fim do mês ${num(t.adianta[i])} (já no produzido)`
+        : '',
       at !== null ? `atendimento = produzido ÷ (veio + plano) = ${pct(at)}` : '',
       ocup !== undefined && ocup !== null ? `ocupação do grupo = (alocado + extra) ÷ capacidade = ${pct(ocup)}` : '',
     ].filter(Boolean).join('\n');
@@ -230,6 +239,7 @@ export default function ProducaoDistribuida({
         <div className="flex items-baseline justify-between gap-1 whitespace-nowrap">
           <span className={`${o.forte ? 'font-bold' : 'font-medium'} ${at === null ? 'text-gray-300' : at >= 0.995 ? 'text-gray-700' : 'text-gray-900'}`}>{at === null ? '·' : pct(at)}</span>
           {emp >= 0.5 && <span className={`text-[10px] text-red-700 ${o.forte ? 'font-bold' : 'font-semibold'}`}>↪{num(emp)}</span>}
+          {emp < 0.5 && (t.adianta?.[i] || 0) >= 0.5 && <span className={`text-[10px] text-violet-700 ${o.forte ? 'font-bold' : 'font-semibold'}`} title="adiantado: feito agora para os meses seguintes">+{num(t.adianta[i])}</span>}
         </div>
         {o.ocup !== undefined && o.ocup !== null && (
           <div className="mt-0.5 h-1 w-full rounded-full bg-gray-100" aria-hidden>
@@ -266,8 +276,9 @@ export default function ProducaoDistribuida({
           <div className={o.forte ? 'font-bold' : 'font-medium'}>{pr.feito >= 0.5 ? num(pr.feito) : '·'}</div>
           {o.ocup !== undefined && o.ocup !== null && <div className={`text-[10px] ${corOcupacao(o.ocup)}`}>{pct(o.ocup)}</div>}
         </td>
-        <td className={`border-r border-gray-200 px-2 py-1.5 text-right tabular-nums ${t.empurra[i] >= 0.5 ? `bg-red-50/60 text-red-700 ${o.forte ? 'font-bold' : 'font-semibold'}` : 'text-gray-300'} ${hl}`}>
-          {t.empurra[i] >= 0.5 ? `↪${num(t.empurra[i])}` : '·'}
+        <td className={`border-r border-gray-200 px-2 py-1.5 text-right tabular-nums ${t.empurra[i] >= 0.5 ? `bg-red-50/60 text-red-700 ${o.forte ? 'font-bold' : 'font-semibold'}` : (t.adianta?.[i] || 0) >= 0.5 ? `bg-violet-50/70 text-violet-700 ${o.forte ? 'font-bold' : 'font-semibold'}` : 'text-gray-300'} ${hl}`}
+          title={(t.adianta?.[i] || 0) >= 0.5 ? 'Adiantado: feito neste mês com capacidade que sobrou, para os meses seguintes (puxar da frente).' : undefined}>
+          {t.empurra[i] >= 0.5 ? `↪${num(t.empurra[i])}` : (t.adianta?.[i] || 0) >= 0.5 ? `+${num(t.adianta[i])}` : '·'}
         </td>
       </Fragment>
     );
@@ -355,7 +366,7 @@ export default function ProducaoDistribuida({
           </p>
         )}
         {configAberta && (
-          <div className="mt-2 grid gap-2 lg:grid-cols-2">
+          <div className="mt-2 grid gap-2 lg:grid-cols-3">
             <label className="flex flex-col gap-1 rounded border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs text-sky-900">
               <span className="flex flex-wrap items-center gap-2">
                 <strong>ESPERANÇA</strong>
@@ -419,6 +430,56 @@ export default function ProducaoDistribuida({
                 </table>
               )}
             </div>
+            {onAntecipar && (
+              <div className="rounded border border-violet-200 bg-violet-50 px-2 py-1.5 text-xs text-violet-900">
+                <span className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2">
+                    <input type="checkbox" checked={antecipar > 0} onChange={(e) => onAntecipar(e.target.checked ? 2 : 0)} disabled={recalculando} />
+                    <strong>Puxar da frente</strong>
+                  </label>
+                  {antecipar > 0 && (
+                    <select value={antecipar} onChange={(e) => onAntecipar(Number(e.target.value))} disabled={recalculando} className="rounded border border-violet-300 bg-white px-1 py-0.5 text-xs">
+                      {[1, 2, 3].map((k) => <option key={k} value={k}>até {k} {k === 1 ? 'mês' : 'meses'} à frente</option>)}
+                    </select>
+                  )}
+                </span>
+                <div className="text-violet-800">
+                  Depois que o mês está resolvido — o plano dele, o atraso e a ajuda aos grupos lotados pela lista —, a capacidade que ainda sobrou parada adianta o plano dos
+                  meses seguintes, só de referências que estão na lista daquele grupo. O adiantado aparece em <span className="font-semibold text-violet-700">+roxo</span>; o plano não muda. Só simulação.
+                </div>
+                {(semPuxarResumo || comPuxarResumo) && (
+                  <table className="mt-1.5 text-[11px]">
+                    <thead>
+                      <tr className="text-violet-700">
+                        <th className="pr-3 text-left font-normal" />
+                        <th className="px-2 text-right font-normal">Fábrica vai p/ {rotuloProximo}</th>
+                        <th className="px-2 text-right font-normal" title="Peças paradas esperando, somadas de jan a dez">Fábrica: atraso somado no ano</th>
+                      </tr>
+                    </thead>
+                    <tbody className="tabular-nums">
+                      {([['Sem puxar', semPuxarResumo], ['Puxando', comPuxarResumo]] as const).map(([rot, r]) => (
+                        <tr key={rot} className={(rot === 'Puxando') === (antecipar > 0) ? 'font-semibold' : ''}>
+                          <td className="pr-3">{rot}</td>
+                          {r ? (
+                            <>
+                              <td className="px-2 text-right">{num(r.vaiFabrica)}</td>
+                              <td className="px-2 text-right">{num(r.atrasoFabricaAno)}</td>
+                            </>
+                          ) : <td colSpan={2} className="px-2 text-violet-600">calculando…</td>}
+                        </tr>
+                      ))}
+                      {semPuxarResumo && comPuxarResumo && (
+                        <tr className="text-violet-700">
+                          <td className="pr-3">Melhora</td>
+                          <td className="px-2 text-right">{num(semPuxarResumo.vaiFabrica - comPuxarResumo.vaiFabrica)}</td>
+                          <td className="px-2 text-right">{num(semPuxarResumo.atrasoFabricaAno - comPuxarResumo.atrasoFabricaAno)}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -745,11 +806,11 @@ function Indicador({ rotulo, sub, valor, nota, dica, tom }: { rotulo: string; su
 //             em dias = minutos pendentes ÷ capacidade diária da família
 //   ociosa  = Σ por GRUPO de (capacidade − alocado − extra), em dias da família
 // Grupo convertido (a ESPERANÇA) conta na família nova a partir do mês da conversão.
-type FamiliaMes = { cap: number; uso: number; ociosoMin: number; atrasoMin: number; atrasoPc: number; ociosos: { grupo: string; min: number }[] };
+type FamiliaMes = { cap: number; uso: number; ociosoMin: number; atrasoMin: number; atrasoPc: number; adiantPc: number; ociosos: { grupo: string; min: number }[] };
 
 // A conta da faixa, sem desenho: a Visão Geral lê a linha Σ Fábrica daqui para o gráfico,
 // então gráfico e faixa saem do MESMO número.
-export function contaFaixa(dados: DistribuicaoDados, familias: FamiliaPorGrupo, blocos: { familia: string; empurra: number[] }[], familiasOcupacao: FamiliaOcupacao[]) {
+export function contaFaixa(dados: DistribuicaoDados, familias: FamiliaPorGrupo, blocos: { familia: string; empurra: number[]; adianta?: number[] }[], familiasOcupacao: FamiliaOcupacao[]) {
   const n = PERIODOS.length;
   // Dias de cada mês: o backend manda os dias ACUMULADOS; a diferença dá os do mês.
   const diasAcum = (familiasOcupacao[0]?.meses || []).map((m) => Number(m.diasDisponiveis || 0));
@@ -757,7 +818,7 @@ export function contaFaixa(dados: DistribuicaoDados, familias: FamiliaPorGrupo, 
   const base = (g: string) => familias[g]?.familia || 'Outros';
   const tab = new Map<string, FamiliaMes[]>();
   const de = (f: string) => {
-    if (!tab.has(f)) tab.set(f, Array.from({ length: n }, () => ({ cap: 0, uso: 0, ociosoMin: 0, atrasoMin: 0, atrasoPc: 0, ociosos: [] })));
+    if (!tab.has(f)) tab.set(f, Array.from({ length: n }, () => ({ cap: 0, uso: 0, ociosoMin: 0, atrasoMin: 0, atrasoPc: 0, adiantPc: 0, ociosos: [] })));
     return tab.get(f)!;
   };
   for (const g of dados.grupos as (GrupoDist & { viraFamilia?: string | null; viraDesde?: string | null })[]) {
@@ -788,12 +849,16 @@ export function contaFaixa(dados: DistribuicaoDados, familias: FamiliaPorGrupo, 
     }
   }
   // Peças empurradas: as mesmas da matriz (inclui a Move em peças).
-  for (const b of blocos) { const linha = de(b.familia); b.empurra.forEach((v, i) => { linha[i].atrasoPc = v; }); }
+  for (const b of blocos) {
+    const linha = de(b.familia);
+    b.empurra.forEach((v, i) => { linha[i].atrasoPc = v; });
+    (b.adianta || []).forEach((v, i) => { linha[i].adiantPc = v; });
+  }
   const lista = FAMILIAS.filter((f) => tab.has(f) && tab.get(f)!.some((x) => x.cap > 0));
   const fabrica: FamiliaMes[] = PERIODOS.map((_, i) => lista.reduce((acc, f) => {
     const x = tab.get(f)![i];
-    return { cap: acc.cap + x.cap, uso: acc.uso + x.uso, ociosoMin: acc.ociosoMin + x.ociosoMin, atrasoMin: acc.atrasoMin + x.atrasoMin, atrasoPc: acc.atrasoPc + x.atrasoPc, ociosos: acc.ociosos.concat(x.ociosos) };
-  }, { cap: 0, uso: 0, ociosoMin: 0, atrasoMin: 0, atrasoPc: 0, ociosos: [] } as FamiliaMes));
+    return { cap: acc.cap + x.cap, uso: acc.uso + x.uso, ociosoMin: acc.ociosoMin + x.ociosoMin, atrasoMin: acc.atrasoMin + x.atrasoMin, atrasoPc: acc.atrasoPc + x.atrasoPc, adiantPc: acc.adiantPc + x.adiantPc, ociosos: acc.ociosos.concat(x.ociosos) };
+  }, { cap: 0, uso: 0, ociosoMin: 0, atrasoMin: 0, atrasoPc: 0, adiantPc: 0, ociosos: [] } as FamiliaMes));
   return { dias, tab, lista, fabrica, base };
 }
 
@@ -819,7 +884,7 @@ export function leituraFabricaPelaLista(dados: DistribuicaoDados, familias: Fami
 function FaixaFamilias({ dados, familias, blocos, familiasOcupacao, meses, anoAlvo, colSel }: {
   dados: DistribuicaoDados;
   familias: FamiliaPorGrupo;
-  blocos: { familia: string; empurra: number[] }[];
+  blocos: { familia: string; empurra: number[]; adianta?: number[] }[];
   familiasOcupacao: FamiliaOcupacao[];
   meses: string[];
   anoAlvo: number;
@@ -845,12 +910,14 @@ function FaixaFamilias({ dados, familias, blocos, familiasOcupacao, meses, anoAl
         title={[
           `${meses[i]} · ocupação ${pct(o)} = (alocado + extra) ÷ capacidade dos grupos`,
           x.atrasoPc >= 0.5 ? `↪ ${num(x.atrasoPc)} peças empurradas para o mês seguinte (${fmtD(dAtraso)} dias de capacidade da família)` : 'nada empurrado',
+          x.adiantPc >= 0.5 ? `+ ${num(x.adiantPc)} peças adiantadas no fim do mês (feitas antes, para os meses seguintes)` : '',
           dOcioso >= 0.05 ? `ociosa ${fmtD(dOcioso)} dias: ${[...x.ociosos].sort((a, b) => b.min - a.min).map((g) => `${curto(g.grupo)} ${num(g.min / 1000)} mil min`).join(', ')}` : 'sem capacidade parada',
           x.atrasoPc >= 0.5 && dOcioso >= 0.05 ? 'Atraso e ociosidade ao mesmo tempo: os grupos parados não estão na lista das referências que atrasam.' : '',
         ].filter(Boolean).join('\n')}>
         <div className={`text-base leading-tight ${forte ? 'font-extrabold' : 'font-bold'} ${o !== null && o > 1.005 ? 'text-red-800' : 'text-gray-800'}`}>{o !== null && o > 1.005 ? '▲' : ''}{pct(o)}</div>
         <div className={`mt-1 text-[13px] leading-tight ${x.atrasoPc >= 0.5 ? 'font-semibold text-red-700' : 'text-gray-300'}`}>{x.atrasoPc >= 0.5 ? `↪ ${num(x.atrasoPc)}` : '·'}</div>
         {x.atrasoPc >= 0.5 && <div className="text-xs leading-tight text-red-600">{fmtD(dAtraso)} dias</div>}
+        {x.adiantPc >= 0.5 && <div className="mt-1 text-xs font-semibold leading-tight text-violet-700">+ {num(x.adiantPc)} adiant.</div>}
         <div className={`mt-1 text-xs leading-tight ${dOcioso >= 0.05 ? 'font-semibold text-emerald-700' : 'text-gray-300'}`}>{dOcioso >= 0.05 ? `ociosa ${fmtD(dOcioso)} d` : ''}</div>
       </td>
     );

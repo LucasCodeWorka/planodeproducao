@@ -3524,7 +3524,12 @@ const handlerDistribuicao = async (req, res) => {
       const desdeIdx = m[3] ? PERIODOS_PLANO.indexOf(m[3].toUpperCase()) : 0;
       reforcos.set(m[1].trim().toUpperCase(), { fator, desdeIdx: Math.max(0, desdeIdx) });
     }
-    const chave = `v2|${meses}|${comParada}|${req.query.extra || ''}|${loteId}|${coringas.map((c) => `${c.grupo}>${c.modelo}`).join(';')}|${coringaTopo ? 'topo' : ''}|${coringaDesdeIdx}|${req.query.coringa_refs || ''}|${req.query.extra_grupo || ''}|${req.query.reforco || ''}|${req.query.apontar || ''}`;
+    // PUXAR DA FRENTE (PCP, 23/11/2026): `antecipar=N`. Depois que o mes esta resolvido — o
+    // plano dele, o atraso e a ajuda aos grupos lotados pela lista —, a capacidade que ainda
+    // sobrou parada puxa o plano dos N meses seguintes, so de referencias que estao na lista
+    // daquele grupo. A peca puxada fica ADIANTADA: o mes dela ja a recebe pronta. 0 = desligado.
+    const anteciparMeses = Math.max(0, Math.min(13, Math.floor(Number(req.query.antecipar) || 0)));
+    const chave = `v3|${anteciparMeses}|${meses}|${comParada}|${req.query.extra || ''}|${loteId}|${coringas.map((c) => `${c.grupo}>${c.modelo}`).join(';')}|${coringaTopo ? 'topo' : ''}|${coringaDesdeIdx}|${req.query.coringa_refs || ''}|${req.query.extra_grupo || ''}|${req.query.reforco || ''}|${req.query.apontar || ''}`;
     const cache = distribuicaoCache;
     if (req.query.refresh !== "true" && cache.data && cache.chave === chave
         && Date.now() - cache.timestamp < DISTRIBUICAO_TTL) {
@@ -3842,6 +3847,7 @@ const handlerDistribuicao = async (req, res) => {
     const refsPorCelula = new Map();
     const porRefCelula = new Map();   // ref -> Map(celula -> minutos)
     const atrasado = new Map();       // ref -> minutos que nao couberam e vao para o mes seguinte
+    const credito = new Map();        // ref -> minutos ja produzidos ADIANTADOS para os meses seguintes
     let naoCoubeTotal = 0;
 
     // O ATRASO E O NUMERO QUE IMPORTA.
@@ -3910,15 +3916,22 @@ const handlerDistribuicao = async (req, res) => {
       let pedidoNoMes = 0;
       let vindoDeTras = 0;
       let coubeNoMes = 0;
+      let antecipadoNoMes = 0;
+      const pressaoDoMes = new Map(); // ref -> entrada do grupo A neste mes (para o adiantado)
 
       for (const r of ordem) {
         // O que nao coube no mes passado volta na frente da fila deste: e o transbordo que
         // a fabrica de fato faz, e o mesmo comportamento acumulado do resto do sistema.
         const doMes = Number(r.porPeriodo[per] || 0) * r.tempo;
         const herdado = Number(atrasado.get(r.ref) || 0);
-        const daVez = doMes + herdado;
+        // O que ja foi feito adiantado abate o pedido do mes antes de ocupar capacidade.
+        const creditoAntes = Number(credito.get(r.ref) || 0);
+        const usaCredito = Math.min(creditoAntes, doMes + herdado);
+        if (usaCredito > 0) credito.set(r.ref, creditoAntes - usaCredito);
+        const daVezBruto = doMes + herdado;
+        const daVez = daVezBruto - usaCredito;
         if (!fluxoPorReferencia.has(r.ref)) fluxoPorReferencia.set(r.ref, {});
-        const fluxoRef = { periodo: per, pecas: Number(r.porPeriodo[per] || 0), pedidoMin: doMes, herdadoMin: herdado, alocadoMin: 0, pendenteMin: 0, destinos: [], tentativas: [] };
+        const fluxoRef = { periodo: per, pecas: Number(r.porPeriodo[per] || 0), pedidoMin: doMes, herdadoMin: herdado, alocadoMin: 0, pendenteMin: 0, usouAdiantadoMin: usaCredito, antecipadoMin: 0, adiantadoMin: 0, destinos: [], tentativas: [] };
         fluxoPorReferencia.get(r.ref)[per] = fluxoRef;
         const mixDaRef = mixPorRef.get(r.ref) || 'SEM MIX';
         pedidoNoMes += doMes;
@@ -3928,7 +3941,7 @@ const handlerDistribuicao = async (req, res) => {
         if (!fmix[mixDaRef]) fmix[mixDaRef] = { pedido: 0, deTras: 0, coube: 0, empurrado: 0 };
         fmix[mixDaRef].pedido += doMes;
         fmix[mixDaRef].deTras += herdado;
-        if (daVez <= 0.0001) { atrasado.set(r.ref, 0); continue; }
+        if (daVezBruto <= 0.0001 && !(credito.get(r.ref) > 0)) { atrasado.set(r.ref, 0); continue; }
         const preferida = r.candidatas[0]?.grupo;
         let pressao = null;
         if (preferida) {
@@ -3991,7 +4004,9 @@ const handlerDistribuicao = async (req, res) => {
         fluxoRef.pendenteMin = resta;
         if (pressao) {
           pressao.pendente += resta;
-          pressao.referencias.push({ referencia: r.ref, pedidoMin: Math.round(doMes), herdadoMin: Math.round(herdado), remanejadoMin: Math.round(remanejadoRef), pendenteMin: Math.round(resta), destinosAlternativos });
+          const entrada = { referencia: r.ref, pedidoMin: Math.round(doMes), herdadoMin: Math.round(herdado), remanejadoMin: Math.round(remanejadoRef), pendenteMin: Math.round(resta), adiantadoMin: 0, destinosAlternativos };
+          pressao.referencias.push(entrada);
+          pressaoDoMes.set(r.ref, entrada);
         }
         coubeNoMes += alocadoAgora;
         fmix[mixDaRef].coube += alocadoAgora;
@@ -4006,6 +4021,63 @@ const handlerDistribuicao = async (req, res) => {
         atrasado.set(r.ref, resta);
       }
 
+      // ── PUXAR DA FRENTE: so com o que sobrou depois do mes resolvido ──────────
+      const idxMes = PERIODOS_PLANO.indexOf(per);
+      if (anteciparMeses > 0 && idxMes < PERIODOS_PLANO.length - 1) {
+        const ate = Math.min(PERIODOS_PLANO.length - 1, idxMes + anteciparMeses);
+        for (const r of ordem) {
+          // Referencia com pendencia: todas as candidatas dela ja estao cheias.
+          if ((atrasado.get(r.ref) || 0) > 0.0001) continue;
+          let frente = 0;
+          for (let j = idxMes + 1; j <= ate; j += 1) frente += Number(r.porPeriodo[PERIODOS_PLANO[j]] || 0) * r.tempo;
+          let quer = frente - Number(credito.get(r.ref) || 0);
+          if (quer <= 0.0001) continue;
+          const fluxoRef = fluxoPorReferencia.get(r.ref)?.[per];
+          if (!fluxoRef) continue;
+          const mixDaRef = mixPorRef.get(r.ref) || 'SEM MIX';
+          for (let i = 0; i < r.candidatas.length && quer > 0.0001; i += 1) {
+            const celula = r.candidatas[i].grupo;
+            if (coringaDesdeIdx >= 0 && gruposCoringa.has(celula)) {
+              const comoCoringa = r.candidatas[i].origem === 'coringa';
+              if (comoCoringa ? idxMes < coringaDesdeIdx : idxMes >= coringaDesdeIdx) continue;
+            }
+            const disponivel = Math.max(0, Number(livre.get(celula) || 0));
+            if (disponivel <= 0.0001) continue;
+            const cabe = Math.min(quer, disponivel);
+            quer -= cabe;
+            livre.set(celula, disponivel - cabe);
+            credito.set(r.ref, (credito.get(r.ref) || 0) + cabe);
+            fluxoRef.antecipadoMin += cabe;
+            fluxoRef.destinos.push({ grupo: celula, minutos: Math.round(cabe), antecipado: true });
+            antecipadoNoMes += cabe;
+            alocadoPorCelula.set(celula, (alocadoPorCelula.get(celula) || 0) + cabe);
+            if (!alocadoCelulaPeriodo.has(celula)) alocadoCelulaPeriodo.set(celula, {});
+            alocadoCelulaPeriodo.get(celula)[per] = (alocadoCelulaPeriodo.get(celula)[per] || 0) + cabe;
+            if (!alocadoCelulaPeriodoMix.has(celula)) alocadoCelulaPeriodoMix.set(celula, {});
+            const porPerMix = alocadoCelulaPeriodoMix.get(celula);
+            if (!porPerMix[per]) porPerMix[per] = {};
+            porPerMix[per][mixDaRef] = (porPerMix[per][mixDaRef] || 0) + cabe;
+            if (!alocadoCelulaPeriodoRef.has(celula)) alocadoCelulaPeriodoRef.set(celula, {});
+            const porPerRef = alocadoCelulaPeriodoRef.get(celula);
+            if (!porPerRef[per]) porPerRef[per] = {};
+            porPerRef[per][r.ref] = (porPerRef[per][r.ref] || 0) + cabe;
+            if (!porRefCelula.has(r.ref)) porRefCelula.set(r.ref, new Map());
+            const m = porRefCelula.get(r.ref);
+            m.set(celula, (m.get(celula) || 0) + cabe);
+            if (!refsPorCelula.has(celula)) refsPorCelula.set(celula, new Set());
+            refsPorCelula.get(celula).add(r.ref);
+          }
+        }
+      }
+      // Saldo adiantado no fim do mes, por referencia (e na linha do grupo A dela).
+      for (const r of ordem) {
+        const saldo = Number(credito.get(r.ref) || 0);
+        const f = fluxoPorReferencia.get(r.ref)?.[per];
+        if (f) f.adiantadoMin = saldo;
+        const e = pressaoDoMes.get(r.ref);
+        if (e) e.adiantadoMin = Math.round(saldo);
+      }
+
       const empurrado = [...atrasado.values()].reduce((a, b) => a + Math.max(0, b), 0);
       porPeriodo.push({
         porMix: fluxoPeriodoMix.get(per) || {},
@@ -4018,6 +4090,8 @@ const handlerDistribuicao = async (req, res) => {
         vindoDeTrasMin: Math.round(vindoDeTras),
         coubeMin: Math.round(coubeNoMes),
         empurradoMin: Math.round(empurrado),
+        antecipadoMin: Math.round(antecipadoNoMes),
+        adiantadoMin: Math.round([...credito.values()].reduce((x, y) => x + y, 0)),
       });
     }
 
@@ -4060,7 +4134,7 @@ const handlerDistribuicao = async (req, res) => {
         grupos,
         periodos: PERIODOS_PLANO.map((per) => {
           const f = fluxoPorReferencia.get(r.ref)?.[per];
-          return { periodo: per, pecas: Math.round(f?.pecas || 0), pedidoMin: Math.round(f?.pedidoMin || 0), herdadoMin: Math.round(f?.herdadoMin || 0), alocadoMin: Math.round(f?.alocadoMin || 0), pendenteMin: Math.round(f?.pendenteMin || 0), herdadoPecas: r.tempo > 0 ? (f?.herdadoMin || 0) / r.tempo : 0, pendentePecas: r.tempo > 0 ? (f?.pendenteMin || 0) / r.tempo : 0, destinos: f?.destinos || [], tentativas: f?.tentativas || [] };
+          return { periodo: per, pecas: Math.round(f?.pecas || 0), pedidoMin: Math.round(f?.pedidoMin || 0), herdadoMin: Math.round(f?.herdadoMin || 0), alocadoMin: Math.round(f?.alocadoMin || 0), pendenteMin: Math.round(f?.pendenteMin || 0), herdadoPecas: r.tempo > 0 ? (f?.herdadoMin || 0) / r.tempo : 0, pendentePecas: r.tempo > 0 ? (f?.pendenteMin || 0) / r.tempo : 0, antecipadoMin: Math.round(f?.antecipadoMin || 0), adiantadoMin: Math.round(f?.adiantadoMin || 0), usouAdiantadoMin: Math.round(f?.usouAdiantadoMin || 0), destinos: f?.destinos || [], tentativas: f?.tentativas || [] };
         }),
         // Fracao do trabalho desta referencia que so foi alocada DEPOIS do mes em que foi
         // pedida. 0 = tudo no mes certo; 1 = tudo empurrado pelo menos uma vez.
@@ -4250,6 +4324,7 @@ const handlerDistribuicao = async (req, res) => {
       meses,
       loteId: loteId || null,
       comFerias: comParada,
+      antecipar: anteciparMeses,
       coringas,
       diasHorizonte,
       capacidadeDiariaTotal: Number(capacidadeDiariaTotal.toFixed(1)),

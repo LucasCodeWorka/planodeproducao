@@ -29,6 +29,7 @@ const ESPERANCA_PESSOAS = { hoje: 6, sutia: 10 };
 
 const CHAVE_MODO = 'planoLista.esperanca';
 const CHAVE_LISTA = 'planoLista.comLista';
+const CHAVE_ANTECIPAR = 'planoLista.antecipar';
 
 // Respostas já recebidas nesta aba do navegador, por cenário (a URL sem o fura-cache). Vale
 // entre a Visão Geral e a Capacidade x Plano e ao voltar a um cenário: aparece na hora. Mais
@@ -36,8 +37,10 @@ const CHAVE_LISTA = 'planoLista.comLista';
 const cacheCliente = new Map<string, { dados: DistribuicaoDados; em: number }>();
 const VIDA_CLIENTE = 10 * 60 * 1000;
 
-function urlDoCenario(p: ParametrosPlano, modo: ModoEsperanca, comLista: boolean) {
+function urlDoCenario(p: ParametrosPlano, modo: ModoEsperanca, comLista: boolean, antecipar: number) {
   const qs = new URLSearchParams({ meses: '6' });
+  // Puxar da frente: capacidade parada adianta o plano dos N meses seguintes (0 = não).
+  if (antecipar > 0) qs.set('antecipar', String(antecipar));
   if (comLista) qs.set('apontar', `${LISTA_APONTAMENTO.grupo}>${LISTA_APONTAMENTO.refs.map((r) => r.ref).join(',')}`);
   if (modo === 'coringa' || modo === 'vira-positivo') qs.set('coringa', `${CORINGA.grupo}>${CORINGA.modelo}`);
   if (modo === 'vira-3refs') qs.set('coringa_refs', `${CORINGA.grupo}>${REFS_ESPERANCA.join(',')}`);
@@ -83,6 +86,7 @@ function PlanoPelaLista({
   // Padrão (P25): a ESPERANÇA vira sutiã em dez/26 copiando a POSITIVO; lista desligada.
   const [modo, setModoEstado] = useState<ModoEsperanca>('vira-positivo');
   const [comLista, setComListaEstado] = useState(false);
+  const [antecipar, setAnteciparEstado] = useState(0);
   const [distrib, setDistrib] = useState<DistribuicaoDados | null>(null);
   const [familias, setFamilias] = useState<FamiliaPorGrupo>({});
   const [regras, setRegras] = useState<RegraCenario[]>([]);
@@ -98,6 +102,8 @@ function PlanoPelaLista({
       const m = window.localStorage.getItem(CHAVE_MODO);
       if (m && m in MODOS_ESPERANCA) setModoEstado(m as ModoEsperanca);
       if (window.localStorage.getItem(CHAVE_LISTA) === '1') setComListaEstado(true);
+      const a = Number(window.localStorage.getItem(CHAVE_ANTECIPAR) || 0);
+      if (a >= 1 && a <= 3) setAnteciparEstado(a);
     } catch { /* sem storage: fica o padrão */ }
   }, []);
   const setModo = (m: ModoEsperanca) => {
@@ -108,8 +114,14 @@ function PlanoPelaLista({
     setComListaEstado(v);
     try { window.localStorage.setItem(CHAVE_LISTA, v ? '1' : '0'); } catch { /* sem storage */ }
   };
+  const setAntecipar = (n: number) => {
+    setAnteciparEstado(n);
+    try { window.localStorage.setItem(CHAVE_ANTECIPAR, String(n)); } catch { /* sem storage */ }
+  };
+  // Chave do quadro comparativo: ESPERANÇA | lista | puxar.
+  const k = (m: ModoEsperanca, l: boolean, a: number) => `${m}|${l ? 1 : 0}|${a}`;
 
-  const chave = parametros ? `${parametros.lote}|${parametros.extra}|${parametros.extraMove}|${parametros.ferias ? 1 : 0}|${modo}|${comLista ? 1 : 0}` : '';
+  const chave = parametros ? `${parametros.lote}|${parametros.extra}|${parametros.extraMove}|${parametros.ferias ? 1 : 0}|${modo}|${comLista ? 1 : 0}|${antecipar}` : '';
   // Aplica uma resposta na tela.
   const aplicar = (j: DistribuicaoDados) => {
     if (!parametros) return;
@@ -120,7 +132,7 @@ function PlanoPelaLista({
     }
     setFamilias(mapa);
     setDistrib(j);
-    setComparativo((c) => ({ ...c, [`${modo}|${comLista ? 1 : 0}`]: resumoCenario(j) }));
+    setComparativo((c) => ({ ...c, [k(modo, comLista, antecipar)]: resumoCenario(j) }));
     setRegras([
       { rotulo: `lote ${lote || '—'}`, simulacao: false },
       ...(extra ? [{ rotulo: 'edição limitada rateada', simulacao: false }] : []),
@@ -128,26 +140,33 @@ function PlanoPelaLista({
       ...(ferias ? [{ rotulo: 'férias de fevereiro', simulacao: false }] : []),
       ...(modo !== 'calcinha' ? [{ rotulo: `ESPERANÇA: ${MODOS_ESPERANCA[modo].selo}`, simulacao: true }] : []),
       ...(comLista ? [{ rotulo: `SUPERAÇÃO: + lista ${LISTA_APONTAMENTO.refs.length} refs`, simulacao: true }] : []),
+      ...(antecipar > 0 ? [{ rotulo: `puxa da frente: até ${antecipar} ${antecipar === 1 ? 'mês' : 'meses'}`, simulacao: true }] : []),
     ]);
-    setCenario(`lote ${lote || '—'}${extra ? ', edição limitada como carga extra rateada' : ''}${extraMove ? ', Liebe Move na LIDERANÇA (mix anatomic)' : ''}${ferias ? ', com as férias de fevereiro' : ''}${MODOS_ESPERANCA[modo].cenario}${comLista ? `, lista de ${LISTA_APONTAMENTO.refs.length} refs apontada para a SUPERAÇÃO` : ''}`);
+    setCenario(`lote ${lote || '—'}${extra ? ', edição limitada como carga extra rateada' : ''}${extraMove ? ', Liebe Move na LIDERANÇA (mix anatomic)' : ''}${ferias ? ', com as férias de fevereiro' : ''}${MODOS_ESPERANCA[modo].cenario}${comLista ? `, lista de ${LISTA_APONTAMENTO.refs.length} refs apontada para a SUPERAÇÃO` : ''}${antecipar > 0 ? `, capacidade parada puxando o plano de até ${antecipar} ${antecipar === 1 ? 'mês' : 'meses'} à frente` : ''}`);
     setErro(null);
   };
   useEffect(() => {
     if (!parametros) return;
     const meu = ++seq.current;
-    const url = urlDoCenario(parametros, modo, comLista);
-    // A outra posição da lista da SUPERAÇÃO, buscada por trás: marcar/desmarcar fica
-    // instantâneo e o quadro "sem x com a lista" se preenche sozinho.
-    const outra = urlDoCenario(parametros, modo, !comLista);
+    const url = urlDoCenario(parametros, modo, comLista, antecipar);
+    // As variações vizinhas, buscadas por trás: a outra posição da lista da SUPERAÇÃO e o
+    // puxar da frente ligado/desligado. Marcar/desmarcar fica instantâneo e os quadros
+    // comparativos se preenchem sozinhos.
+    const vizinhas: [string, string][] = [
+      [urlDoCenario(parametros, modo, !comLista, antecipar), k(modo, !comLista, antecipar)],
+      [urlDoCenario(parametros, modo, comLista, antecipar > 0 ? 0 : 2), k(modo, comLista, antecipar > 0 ? 0 : 2)],
+    ];
     const preCarregar = () => {
-      const c = cacheCliente.get(outra);
-      if (c && Date.now() - c.em < VIDA_CLIENTE) {
-        setComparativo((x) => ({ ...x, [`${modo}|${comLista ? 0 : 1}`]: resumoCenario(c.dados) }));
-        return;
+      for (const [u, chaveComp] of vizinhas) {
+        const c = cacheCliente.get(u);
+        if (c && Date.now() - c.em < VIDA_CLIENTE) {
+          setComparativo((x) => ({ ...x, [chaveComp]: resumoCenario(c.dados) }));
+          continue;
+        }
+        buscarCenario(u)
+          .then((j) => setComparativo((x) => ({ ...x, [chaveComp]: resumoCenario(j) })))
+          .catch(() => { /* só pré-carga */ });
       }
-      buscarCenario(outra)
-        .then((j) => setComparativo((x) => ({ ...x, [`${modo}|${comLista ? 0 : 1}`]: resumoCenario(j) })))
-        .catch(() => { /* só pré-carga */ });
     };
     const guardado = cacheCliente.get(url);
     if (guardado) {
@@ -200,7 +219,9 @@ function PlanoPelaLista({
           familiasOcupacao={familiasOcupacao} cenario={cenario} planoTela={planoTela} minPecaMove={minPecaMove}
           coringa={modo === 'calcinha' ? null : CORINGA} modo={modo} onModo={setModo} recalculando={carregando}
           comLista={comLista} onComLista={setComLista}
-          semListaResumo={comparativo[`${modo}|0`] || null} comListaResumo={comparativo[`${modo}|1`] || null} />
+          semListaResumo={comparativo[k(modo, false, antecipar)] || null} comListaResumo={comparativo[k(modo, true, antecipar)] || null}
+          antecipar={antecipar} onAntecipar={setAntecipar}
+          semPuxarResumo={comparativo[k(modo, comLista, 0)] || null} comPuxarResumo={comparativo[k(modo, comLista, antecipar || 2)] || null} />
       )}
       {corr.length > 0 && (
         <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">

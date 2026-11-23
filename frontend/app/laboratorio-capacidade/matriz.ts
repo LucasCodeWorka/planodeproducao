@@ -11,6 +11,9 @@
 //   plano    = o plano do mês
 //   empurra  = o que vai para o mês seguinte
 //   produzido = veio + plano − empurra (feito pelo próprio grupo ou por um alternativo)
+//   adianta  = saldo produzido ADIANTADO no fim do mês (opção "puxar da frente", 23/11/2026):
+//              peça de mês seguinte feita agora com capacidade que sobrou. Com ele,
+//              produzido = veio + plano − empurra + adianta(mês) − adianta(mês anterior).
 
 export const PERIODOS = ['MA', 'PX', 'UL', 'QT', 'QU', 'SX', 'ST', 'OT', 'NV', 'DZ', 'ON', 'DO', 'DT', 'QZ'];
 export const MESES_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -37,6 +40,10 @@ export type PeriodoRef = {
   pendenteMin: number;
   herdadoPecas?: number;
   pendentePecas: number;
+  /** Puxar da frente: minutos feitos neste mês para os seguintes, e o saldo adiantado no fim do mês. */
+  antecipadoMin?: number;
+  adiantadoMin?: number;
+  usouAdiantadoMin?: number;
   destinos: Destino[];
   tentativas?: Tentativa[];
 };
@@ -52,7 +59,7 @@ export type RefDist = {
   candidatas?: number;
   opcoes?: OpcaoRef[];
 };
-export type RefPreferencial = { referencia: string; pedidoMin: number; herdadoMin: number; remanejadoMin: number; pendenteMin: number };
+export type RefPreferencial = { referencia: string; pedidoMin: number; herdadoMin: number; remanejadoMin: number; pendenteMin: number; adiantadoMin?: number };
 export type MesGrupo = {
   periodo: string;
   capacidadeMin: number;
@@ -78,13 +85,15 @@ export type DistribuicaoDados = {
 // `vira`: família para a qual o grupo foi convertido na simulação (a ESPERANÇA vira Sutiã).
 export type FamiliaPorGrupo = Record<string, { familia: string; perfil: string | null; vira?: string | null }>;
 
-export type Quadra = { veio: number[]; plano: number[]; empurra: number[] };
+export type Quadra = { veio: number[]; plano: number[]; empurra: number[]; adianta: number[] };
 export const zeros = (n: number) => Array(n).fill(0) as number[];
-export const quadraVazia = (n: number): Quadra => ({ veio: zeros(n), plano: zeros(n), empurra: zeros(n) });
+export const quadraVazia = (n: number): Quadra => ({ veio: zeros(n), plano: zeros(n), empurra: zeros(n), adianta: zeros(n) });
 
 // Produção de um mês com a reprimida em primeiro lugar, sobre os totais da linha.
 export function producao(t: Quadra, i: number) {
-  const feito = Math.max(0, t.veio[i] + t.plano[i] - t.empurra[i]);
+  // O adiantado entra como produção do mês em que foi feito e sai do mês a que pertencia.
+  const adiantou = (t.adianta?.[i] || 0) - (i > 0 ? t.adianta?.[i - 1] || 0 : 0);
+  const feito = Math.max(0, t.veio[i] + t.plano[i] - t.empurra[i] + adiantou);
   const reprimida = Math.min(t.veio[i], feito);
   const plano = Math.max(0, feito - reprimida);
   return { feito, reprimida, plano, pctPlano: t.plano[i] > 0.5 ? plano / t.plano[i] : null };
@@ -97,10 +106,11 @@ export function atendimento(t: Quadra, i: number): number | null {
   return fila > 0.5 ? producao(t, i).feito / fila : null;
 }
 
-const somar = (q: Quadra, i: number, veio: number, plano: number, empurra: number) => {
+const somar = (q: Quadra, i: number, veio: number, plano: number, empurra: number, adianta = 0) => {
   q.veio[i] += veio;
   q.plano[i] += plano;
   q.empurra[i] += empurra;
+  q.adianta[i] += adianta;
 };
 
 export type RefLinha = Quadra & { referencia: string };
@@ -150,7 +160,7 @@ export function montarMatriz(dados: DistribuicaoDados, familias: FamiliaPorGrupo
       if (i < 0) continue;
       planoSku[i] += Number(p.pecas || 0);
       pendente[i] += Number(p.pendentePecas || 0);
-      if (t > 0) somar(fabrica, i, Number(p.herdadoMin || 0) / t, Number(p.pedidoMin || 0) / t, Number(p.pendenteMin || 0) / t);
+      if (t > 0) somar(fabrica, i, Number(p.herdadoMin || 0) / t, Number(p.pedidoMin || 0) / t, Number(p.pendenteMin || 0) / t, Number(p.adiantadoMin || 0) / t);
       for (const d of p.destinos || []) {
         const v = t > 0 ? Number(d.minutos || 0) / t : 0;
         alocado[i] += v;
@@ -177,9 +187,10 @@ export function montarMatriz(dados: DistribuicaoDados, familias: FamiliaPorGrupo
         const veio = pc(r.herdadoMin, r.referencia);
         const plano = pc(r.pedidoMin, r.referencia);
         const emp = pc(r.pendenteMin, r.referencia);
-        somar(t, i, veio, plano, emp);
+        const adi = pc(r.adiantadoMin || 0, r.referencia);
+        somar(t, i, veio, plano, emp, adi);
         if (!porRef.has(r.referencia)) porRef.set(r.referencia, quadraVazia(n));
-        somar(porRef.get(r.referencia)!, i, veio, plano, emp);
+        somar(porRef.get(r.referencia)!, i, veio, plano, emp, adi);
       }
       // LIEBE MOVE: não tem SKU, mas tem dono (o grupo do anatomic). Entra como uma linha
       // própria do grupo, em peças pelo min/peça dela, para aparecer na conta dele.
@@ -236,7 +247,7 @@ export function montarMatriz(dados: DistribuicaoDados, familias: FamiliaPorGrupo
   const blocos: Bloco[] = FAMILIAS.map((familia) => {
     const gs = linhasOrdenadas.filter((l) => l.familia === familia && (l.papel === 'largou' ? somaCols(l.plano) : somaCols(l.plano) + somaCols(l.costurado)) >= 0.5);
     const soma = (k: keyof Quadra) => Array.from({ length: n }, (_, i) => gs.reduce((s, g) => s + g[k][i], 0));
-    return { familia, grupos: gs, veio: soma('veio'), plano: soma('plano'), empurra: soma('empurra') };
+    return { familia, grupos: gs, veio: soma('veio'), plano: soma('plano'), empurra: soma('empurra'), adianta: soma('adianta') };
   }).filter((b) => b.grupos.length > 0);
 
   // Referências sem grupo candidato: a quadra delas, pelas próprias minutos (para o filtro).
@@ -247,7 +258,7 @@ export function montarMatriz(dados: DistribuicaoDados, familias: FamiliaPorGrupo
       const t = Number(r.tempoMin);
       for (const p of r.periodos || []) {
         const i = PERIODOS.indexOf(p.periodo);
-        if (i >= 0) somar(q, i, Number(p.herdadoMin || 0) / t, Number(p.pedidoMin || 0) / t, Number(p.pendenteMin || 0) / t);
+        if (i >= 0) somar(q, i, Number(p.herdadoMin || 0) / t, Number(p.pedidoMin || 0) / t, Number(p.pendenteMin || 0) / t, Number(p.adiantadoMin || 0) / t);
       }
       return { referencia: r.referencia, ...q };
     });
