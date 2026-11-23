@@ -3435,6 +3435,21 @@ router.get("/lista-vs-producao", auth, async (req, res) => {
 const distribuicaoCache = { data: null, timestamp: 0, chave: '' };
 const DISTRIBUICAO_TTL = 30 * 60 * 1000;
 
+// LEITURAS DE BASE DA DISTRIBUICAO, guardadas (23/11/2026). Medido: a primeira leitura leva
+// ~29 s e a conta em si 0,2 s — o resto e banco (capacidade 8,9 s, tempos 5,9 s, mix 4,6 s,
+// matriz 4,6 s, producao 3,2 s). Nada disso depende do cenario (ESPERANCA, lista, Move,
+// ferias), entao trocar o cenario nao pode pagar de novo. Pedidos simultaneos esperam a
+// mesma consulta; `refresh=true` esvazia tudo.
+const baseDistribuicao = new Map(); // chave -> { em, ttl, promessa }
+function lerBase(chave, ttlMs, fn) {
+  const e = baseDistribuicao.get(chave);
+  if (e && Date.now() - e.em < e.ttl) return e.promessa;
+  const promessa = Promise.resolve().then(fn);
+  baseDistribuicao.set(chave, { em: Date.now(), ttl: ttlMs, promessa });
+  promessa.catch(() => { if (baseDistribuicao.get(chave)?.promessa === promessa) baseDistribuicao.delete(chave); });
+  return promessa;
+}
+
 const MAX_GRUPOS_POR_REF = 4;
 const ORDEM_GRUPO = ['A', 'B', 'C', 'D'];
 
@@ -3516,8 +3531,14 @@ const handlerDistribuicao = async (req, res) => {
       return res.json({ ...cache.data, fromCache: true });
     }
 
+    // Tempo de cada etapa, numa linha só no log: diz onde a primeira leitura gasta.
+    const t0 = Date.now(); let tAnt = t0; const tempos = [];
+    const marca = (nome) => { const t = Date.now(); tempos.push(`${nome} ${t - tAnt}ms`); tAnt = t; };
     const hoje = new Date();
     const ids = DEFAULT_REAL_GROUP_IDS.map(String);
+    if (req.query.refresh === 'true') baseDistribuicao.clear();
+    const dia = hoje.toISOString().slice(0, 10);
+    const MIN_BASE = 60 * 1000;
     const { readCache } = require('../cache/matrizCache');
 
     // ── 1. Celulas ativas e a capacidade medida de cada uma ────────────────────
@@ -3527,7 +3548,7 @@ const handlerDistribuicao = async (req, res) => {
     const grupos = await readGrupos(pool);
     const de = new Date(hoje.getFullYear(), hoje.getMonth() - 3, 1).toISOString().slice(0, 10);
     const ate = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
-    const { porGrupo: capacidadeReal } = await consultarCapacidadeRealPorGrupo(pool, de, ate, 'media');
+    const { porGrupo: capacidadeReal } = await lerBase(`capreal|${de}|${ate}`, 60 * MIN_BASE, () => consultarCapacidadeRealPorGrupo(pool, de, ate, 'media'));
     const temMedida = capacidadeReal.size > 0;
     const capDiaria = new Map();
     for (const g of grupos) {
@@ -3538,7 +3559,8 @@ const handlerDistribuicao = async (req, res) => {
     // CAPACIDADE UNICA (nivel x sazonalidade x dias, repartida pela fatia de cada grupo): a
     // mesma do grafico da Visao Geral. Sem ela a distribuicao media ~10% mais capacidade que o
     // grafico e as duas telas nunca batiam.
-    const capUnica = await capacidadeMensal(pool, { comParada });
+    const capUnica = await lerBase(`capunica|${comParada}|${dia}`, 30 * MIN_BASE, () => capacidadeMensal(pool, { comParada }));
+    marca('capacidade');
     const capMes = (celula, per) => {
       const v = capUnica.porGrupo.get(celula)?.[per];
       const base = v !== undefined ? v : Number(capDiaria.get(celula) || 0) * diasDisponiveisDaData(calcularPeriodosPlano(hoje).datas[per], hoje, comParada);
@@ -3556,7 +3578,7 @@ const handlerDistribuicao = async (req, res) => {
     // ── 3. Quem produziu o que, nos meses FECHADOS ─────────────────────────────
     // Mesma consulta da Lista x Producao: tp_historicomov 51 e a baixa de peca acabada, e
     // sem o filtro de locais `vr_cdf_movopi` traz movimento entre depositos (~10x).
-    const producao = await pool.query(`
+    const producao = await lerBase(`producao|${meses}|${dia}`, 6 * 60 * MIN_BASE, () => pool.query(`
       SELECT m.cd_localorigem::text AS cd_local,
              UPPER(TRIM(COALESCE(f_dic_prd_nivel(m.cd_produto, 'CD'::bpchar), '')))::text AS referencia,
              SUM(COALESCE(m.qt_movimento, 0))::float AS pecas
@@ -3567,11 +3589,12 @@ const handlerDistribuicao = async (req, res) => {
          AND m.dt_movimento >= DATE_TRUNC('month', CURRENT_DATE - ($2::int || ' months')::interval)::date
          AND m.dt_movimento <  DATE_TRUNC('month', CURRENT_DATE)::date
        GROUP BY 1, 2
-    `, [ids, meses]);
+    `, [ids, meses]));
+    marca('producao');
 
-    const locais = await pool.query(
+    const locais = await lerBase('locais', 6 * 60 * MIN_BASE, () => pool.query(
       `SELECT cd_local::text AS cd_local, UPPER(TRIM(ds_local::text)) AS ds_local
-         FROM pcp_cache_locais WHERE cd_local::text = ANY($1::text[])`, [ids]);
+         FROM pcp_cache_locais WHERE cd_local::text = ANY($1::text[])`, [ids]));
     const nomeDoLocal = new Map(locais.rows.map((r) => [r.cd_local, r.ds_local]));
 
     const produzidoPorRef = new Map();   // referencia -> Map(celula -> pecas), com capacidade para simular
@@ -3596,15 +3619,17 @@ const handlerDistribuicao = async (req, res) => {
 
     // ── 4. Mix de producao (classificacao 29), por SKU ─────────────────────────
     // A view indexada, nao a funcao: `f_dic_prd_classificacao` custa ~12ms por chamada.
-    const mixRows = await pool.query(
+    const mixRows = await lerBase('mix', 6 * 60 * MIN_BASE, () => pool.query(
       `SELECT cd_produto::TEXT AS id, UPPER(TRIM(ds_classificacao)) AS mix
          FROM public.vr_prd_produtoclas
         WHERE cd_tipoclas::int = $1 AND COALESCE(ds_classificacao, '') <> ''`,
-      [MIX_PRODUCAO_TIPOCLAS]);
+      [MIX_PRODUCAO_TIPOCLAS]));
     const mixPorSku = new Map(mixRows.rows.map((r) => [String(r.id), String(r.mix)]));
+    marca('mix');
 
     // ── 5. Tempo padrao e plano dos 14 periodos, da matriz ─────────────────────
-    const temposResult = await queryTempoBaseRows(pool, {});
+    const temposResult = await lerBase('tempos', 60 * MIN_BASE, () => queryTempoBaseRows(pool, {}));
+    marca('tempos');
     const tempoPorIdRef = new Map();
     // Roteiro COM costura: ao menos uma operacao de COSTURA (1) ou TRANS/MOLDADO (2) com
     // tempo. Medido em 18/11/2026: a linha KISS ME (503001, 503303, 503400, 503805, 703402),
@@ -3626,7 +3651,7 @@ const handlerDistribuicao = async (req, res) => {
     const minPecaMedidoGrupo = new Map();
     let minPecaMedidoFabrica = 0;
     try {
-      const med = await pool.query(`
+      const med = await lerBase(`minpecagrupo|${dia}`, 6 * 60 * MIN_BASE, () => pool.query(`
         SELECT UPPER(TRIM(l.ds_local::text)) AS grupo,
                SUM(COALESCE(e.tempo_produzido_min, 0))::float AS minutos,
                SUM(COALESCE(e.qt_movimento_total, 0))::float AS pecas
@@ -3635,7 +3660,7 @@ const handlerDistribuicao = async (req, res) => {
          WHERE e.cd_grupo::text = ANY($1::text[])
            AND e.dt_ref >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '12 months')::date
            AND e.dt_ref < DATE_TRUNC('month', CURRENT_DATE)::date
-         GROUP BY 1`, [DEFAULT_REAL_GROUP_IDS.map(String)]);
+         GROUP BY 1`, [DEFAULT_REAL_GROUP_IDS.map(String)]));
       let somaMin = 0; let somaPc = 0;
       for (const r of med.rows) {
         if (r.pecas > 0 && r.minutos > 0) minPecaMedidoGrupo.set(r.grupo, r.minutos / r.pecas);
@@ -3646,8 +3671,10 @@ const handlerDistribuicao = async (req, res) => {
       console.warn('[distribuicao-sugerida] min/peca medido por grupo indisponivel:', e.message);
     }
 
-    const matrizCache = await readCache();
+    marca('minpeca');
+    const matrizCache = await lerBase('matriz', 10 * MIN_BASE, () => readCache());
     const matrizRows = matrizCache?.data?.rows || matrizCache?.data?.data || matrizCache?.data || [];
+    marca('matriz');
     const linhasMatriz = Array.isArray(matrizRows) ? matrizRows : [];
 
     // EM PROCESSO tambem ocupa celula. A rota de ocupacao ja o soma; sem ele esta aqui
@@ -3655,13 +3682,14 @@ const handlerDistribuicao = async (req, res) => {
     // exatamente a OP aberta. Uma proposta que ignora o que ja esta na maquina reparte uma
     // fabrica mais vazia do que ela esta.
     const { mapa: processoPorRefPeriodo, ok: processoOk } =
-      await carregarProcessoPorRefPeriodo(pool, linhasMatriz, periodos, hoje);
+      await lerBase(`processo|${dia}`, 10 * MIN_BASE, () => carregarProcessoPorRefPeriodo(pool, linhasMatriz, periodos, hoje));
+    marca('processo');
 
     // ATENCAO A CHAVE: o tempo e indexado por `cd_seqgrupo`; producao e mix usam
     // `produto.referencia`. Sao espacos distintos, e o laco carrega os dois.
     const planosSimulados = new Map();
     if (loteId) {
-      for (const simulacao of await lerSimulacoesDoLote(pool, loteId)) {
+      for (const simulacao of await lerBase(`lote|${loteId}`, 10 * MIN_BASE, () => lerSimulacoesDoLote(pool, loteId))) {
         for (const plano of simulacao.parametros.planos) {
           const chavePlano = String(plano?.chave || '').trim();
           if (chavePlano) planosSimulados.set(chavePlano, plano);
@@ -3671,6 +3699,7 @@ const handlerDistribuicao = async (req, res) => {
         return res.status(404).json({ success: false, error: 'Não foi possível carregar os planos do lote de simulação informado.' });
       }
     }
+    marca('lote');
     const planoPorRef = new Map();     // referencia -> pecas por periodo
     const processoPorRef = new Map();  // referencia -> pecas em OP aberta
     const tempoPorRef = new Map();     // referencia -> min/peca
@@ -4256,6 +4285,8 @@ const handlerDistribuicao = async (req, res) => {
       },
     };
 
+    marca('alocacao');
+    console.log(`[distribuicao-sugerida] ${Date.now() - t0}ms: ${tempos.join(' · ')}`);
     distribuicaoCache.data = payload;
     distribuicaoCache.timestamp = Date.now();
     distribuicaoCache.chave = chave;

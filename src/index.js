@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
+const cacheRespostas = require("./services/cacheRespostas");
 const { Pool } = require("pg");
 require("dotenv").config();
 
@@ -41,6 +43,9 @@ app.use(cors({
   credentials: true
 }));
 
+// GZIP: a distribuição tem 1,5 MB de JSON e a Visão Geral pede ~20 rotas; comprimido cai a
+// uma fração e a tela no Render abre bem mais rápido.
+app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.text({ type: 'text/plain', limit: '10mb' }));
 
@@ -97,6 +102,15 @@ app.get("/health", async (_req, res) => {
       error: error.message
     });
   }
+});
+
+// Cache das rotas lentas da Visão Geral 2 e da Capacidade x Plano: serve o guardado na hora
+// e refaz por trás (src/services/cacheRespostas.js).
+app.use(cacheRespostas.middleware);
+app.get("/api/cache-respostas", (req, res) => {
+  const token = String(req.headers.authorization || "").replace("Bearer ", "").trim();
+  if (!process.env.ADMIN_PASSWORD || token !== String(process.env.ADMIN_PASSWORD).trim()) return res.status(401).json({ success: false, error: "Não autorizado" });
+  return res.json({ success: true, ...cacheRespostas.estado() });
 });
 
 // Rotas
@@ -171,6 +185,34 @@ ensureAnalisesIndexes().then(() => initCache(pool)).then(() => {
   // Classificacao atual do ERP de quem vendeu no 2o semestre: cara (~80s), entao aquece em
   // segundo plano para a primeira abertura da Visao Geral nao estourar o timeout.
   aquecerClassificacaoErp(pool, `${new Date().getFullYear()}-07-01`);
+  // Rotas mais caras da Visão Geral 2 e da Capacidade x Plano, com as mesmas URLs das telas:
+  // a primeira abertura depois de um deploy não paga a conta fria (~2 min de banco).
+  cacheRespostas.iniciar(listenPort);
+  setTimeout(() => {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const ini = new Date(ano, hoje.getMonth() - 12, 1);
+    const de = `${ini.getFullYear()}-${String(ini.getMonth() + 1).padStart(2, "0")}-01`;
+    const esperanca = new URLSearchParams({ meses: "6", coringa: "08 - ESPERANCA CA BASICO>05 - POSITIVO SU BASICO", coringa_desde: "PX", reforco: "08 - ESPERANCA CA BASICO>1.6667@PX" });
+    cacheRespostas.aquecer([
+      "/api/capacidade/min-peca-move",
+      "/api/capacidade/min-peca-medido",
+      "/api/producao/plano-por-mes-real",
+      `/api/analise-capacidade/plano-ano?ano=${ano + 1}`,
+      `/api/projecao-edicao-limitada?anoDestino=${ano + 1}&detalhe=1&crescimentoFabrica=0`,
+      `/api/projecao-edicao-limitada?anoDestino=${ano}&detalhe=1&crescimentoFabrica=0`,
+      "/api/capacidade/capacidade-mensal",
+      "/api/capacidade/indice-mensal",
+      "/api/capacidade/dias-resumo",
+      "/api/capacidade/gap-mensal",
+      "/api/capacidade/tempos-por-grupo",
+      `/api/analise-capacidade/finalizado?de=${de}`,
+      `/api/analises/projetado-vs-realizado?ano=${ano}`,
+      // Só para encher as leituras de base da distribuição (servem a qualquer cenário).
+      `/api/capacidade/distribuicao-sugerida?${esperanca}`,
+      "/api/capacidade/estoque-liebe",
+    ]).catch((e) => console.warn("[cache-respostas] aquecimento falhou:", e.message));
+  }, 5000);
   console.log(`\nEndpoints disponiveis:`);
   console.log(`\n  Sistema:`);
   console.log(`    GET  /health`);

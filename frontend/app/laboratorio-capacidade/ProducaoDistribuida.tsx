@@ -825,7 +825,8 @@ function FaixaFamilias({ dados, familias, blocos, familiasOcupacao, meses, anoAl
   anoAlvo: number;
   colSel: number | null;
 }) {
-  const { dias, tab, lista, fabrica, base } = contaFaixa(dados, familias, blocos, familiasOcupacao);
+  // Só refaz quando o cenário muda — clicar numa célula não recalcula a faixa.
+  const { dias, tab, lista, fabrica, base } = useMemo(() => contaFaixa(dados, familias, blocos, familiasOcupacao), [dados, familias, blocos, familiasOcupacao]);
   const capDiaFam = (f: string) => {
     const xs = tab.get(f)!;
     const i = xs.findIndex((x, k) => x.cap > 0 && dias[k] > 0 && k >= 2);

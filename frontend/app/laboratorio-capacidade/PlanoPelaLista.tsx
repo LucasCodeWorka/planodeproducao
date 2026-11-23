@@ -9,7 +9,7 @@
 // neste navegador e vale nas duas telas, para as duas contarem a mesma história.
 // Nada aqui grava dados.
 
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { authHeaders } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
 import ProducaoDistribuida, {
@@ -30,6 +30,37 @@ const ESPERANCA_PESSOAS = { hoje: 6, sutia: 10 };
 const CHAVE_MODO = 'planoLista.esperanca';
 const CHAVE_LISTA = 'planoLista.comLista';
 
+// Respostas já recebidas nesta aba do navegador, por cenário (a URL sem o fura-cache). Vale
+// entre a Visão Geral e a Capacidade x Plano e ao voltar a um cenário: aparece na hora. Mais
+// velha que VIDA_CLIENTE, aparece na hora e é buscada de novo por trás.
+const cacheCliente = new Map<string, { dados: DistribuicaoDados; em: number }>();
+const VIDA_CLIENTE = 10 * 60 * 1000;
+
+function urlDoCenario(p: ParametrosPlano, modo: ModoEsperanca, comLista: boolean) {
+  const qs = new URLSearchParams({ meses: '6' });
+  if (comLista) qs.set('apontar', `${LISTA_APONTAMENTO.grupo}>${LISTA_APONTAMENTO.refs.map((r) => r.ref).join(',')}`);
+  if (modo === 'coringa' || modo === 'vira-positivo') qs.set('coringa', `${CORINGA.grupo}>${CORINGA.modelo}`);
+  if (modo === 'vira-3refs') qs.set('coringa_refs', `${CORINGA.grupo}>${REFS_ESPERANCA.join(',')}`);
+  // Conversão: a partir de dez/26 (PX) ela larga as calcinhas próprias, com 10 pessoas.
+  if (modo === 'vira-positivo' || modo === 'vira-3refs') {
+    qs.set('coringa_desde', 'PX');
+    qs.set('reforco', `${CORINGA.grupo}>${(ESPERANCA_PESSOAS.sutia / ESPERANCA_PESSOAS.hoje).toFixed(4)}@PX`);
+  }
+  if (p.extraMove) qs.set('extra_grupo', `${GRUPO_MOVE}>${p.extraMove}`);
+  if (p.lote) qs.set('lote_id', p.lote);
+  if (p.extra) qs.set('extra', p.extra);
+  if (p.ferias) qs.set('ferias', '1');
+  return `${API_URL}/api/capacidade/distribuicao-sugerida?${qs}`;
+}
+
+async function buscarCenario(url: string): Promise<DistribuicaoDados> {
+  const r = await fetchNoCache(url, { headers: authHeaders() }, 300000);
+  const j = await r.json();
+  if (!j?.success) throw new Error(j?.error || 'Falha ao carregar a distribuição');
+  cacheCliente.set(url, { dados: j, em: Date.now() });
+  return j;
+}
+
 export type ParametrosPlano = {
   lote: string;
   /** Edição limitada (e previsto) em minutos por período, rateada pela fábrica. */
@@ -39,7 +70,7 @@ export type ParametrosPlano = {
   ferias?: boolean;
 };
 
-export default function PlanoPelaLista({
+function PlanoPelaLista({
   parametros, planoTela, minPecaMove, onDistribuicao, onLeitura,
 }: {
   /** null enquanto o plano de quem chama não está pronto: nada é calculado antes. */
@@ -79,55 +110,64 @@ export default function PlanoPelaLista({
   };
 
   const chave = parametros ? `${parametros.lote}|${parametros.extra}|${parametros.extraMove}|${parametros.ferias ? 1 : 0}|${modo}|${comLista ? 1 : 0}` : '';
+  // Aplica uma resposta na tela.
+  const aplicar = (j: DistribuicaoDados) => {
+    if (!parametros) return;
+    const { lote, extra, extraMove, ferias } = parametros;
+    const mapa: FamiliaPorGrupo = {};
+    for (const g of (j?.grupos || []) as { grupo: string; familia?: string; perfil?: string | null; viraFamilia?: string | null }[]) {
+      mapa[g.grupo] = { familia: g.familia || 'Outros', perfil: g.perfil || null, vira: g.viraFamilia || null };
+    }
+    setFamilias(mapa);
+    setDistrib(j);
+    setComparativo((c) => ({ ...c, [`${modo}|${comLista ? 1 : 0}`]: resumoCenario(j) }));
+    setRegras([
+      { rotulo: `lote ${lote || '—'}`, simulacao: false },
+      ...(extra ? [{ rotulo: 'edição limitada rateada', simulacao: false }] : []),
+      ...(extraMove ? [{ rotulo: 'Liebe Move → LIDERANÇA', simulacao: false }] : []),
+      ...(ferias ? [{ rotulo: 'férias de fevereiro', simulacao: false }] : []),
+      ...(modo !== 'calcinha' ? [{ rotulo: `ESPERANÇA: ${MODOS_ESPERANCA[modo].selo}`, simulacao: true }] : []),
+      ...(comLista ? [{ rotulo: `SUPERAÇÃO: + lista ${LISTA_APONTAMENTO.refs.length} refs`, simulacao: true }] : []),
+    ]);
+    setCenario(`lote ${lote || '—'}${extra ? ', edição limitada como carga extra rateada' : ''}${extraMove ? ', Liebe Move na LIDERANÇA (mix anatomic)' : ''}${ferias ? ', com as férias de fevereiro' : ''}${MODOS_ESPERANCA[modo].cenario}${comLista ? `, lista de ${LISTA_APONTAMENTO.refs.length} refs apontada para a SUPERAÇÃO` : ''}`);
+    setErro(null);
+  };
   useEffect(() => {
     if (!parametros) return;
-    // Espera os parâmetros assentarem: a Visão Geral monta a carga extra aos poucos, e cada
-    // versão intermediária custaria uma distribuição inteira no servidor.
     const meu = ++seq.current;
+    const url = urlDoCenario(parametros, modo, comLista);
+    // A outra posição da lista da SUPERAÇÃO, buscada por trás: marcar/desmarcar fica
+    // instantâneo e o quadro "sem x com a lista" se preenche sozinho.
+    const outra = urlDoCenario(parametros, modo, !comLista);
+    const preCarregar = () => {
+      const c = cacheCliente.get(outra);
+      if (c && Date.now() - c.em < VIDA_CLIENTE) {
+        setComparativo((x) => ({ ...x, [`${modo}|${comLista ? 0 : 1}`]: resumoCenario(c.dados) }));
+        return;
+      }
+      buscarCenario(outra)
+        .then((j) => setComparativo((x) => ({ ...x, [`${modo}|${comLista ? 0 : 1}`]: resumoCenario(j) })))
+        .catch(() => { /* só pré-carga */ });
+    };
+    const guardado = cacheCliente.get(url);
+    if (guardado) {
+      aplicar(guardado.dados);
+      if (Date.now() - guardado.em < VIDA_CLIENTE) { setCarregando(false); preCarregar(); return undefined; }
+    }
+    // Espera os parâmetros assentarem: a Visão Geral monta a carga extra aos poucos.
     const t = window.setTimeout(async () => {
       setCarregando(true);
       try {
-        const { lote, extra, extraMove, ferias } = parametros;
-        const qs = new URLSearchParams({ meses: '6' });
-        if (comLista) qs.set('apontar', `${LISTA_APONTAMENTO.grupo}>${LISTA_APONTAMENTO.refs.map((r) => r.ref).join(',')}`);
-        if (modo === 'coringa' || modo === 'vira-positivo') qs.set('coringa', `${CORINGA.grupo}>${CORINGA.modelo}`);
-        if (modo === 'vira-3refs') qs.set('coringa_refs', `${CORINGA.grupo}>${REFS_ESPERANCA.join(',')}`);
-        // Conversão: a partir de dez/26 (PX) ela larga as calcinhas próprias, com 10 pessoas.
-        if (modo === 'vira-positivo' || modo === 'vira-3refs') {
-          qs.set('coringa_desde', 'PX');
-          qs.set('reforco', `${CORINGA.grupo}>${(ESPERANCA_PESSOAS.sutia / ESPERANCA_PESSOAS.hoje).toFixed(4)}@PX`);
-        }
-        if (extraMove) qs.set('extra_grupo', `${GRUPO_MOVE}>${extraMove}`);
-        if (lote) qs.set('lote_id', lote);
-        if (extra) qs.set('extra', extra);
-        if (ferias) qs.set('ferias', '1');
-        const r = await fetchNoCache(`${API_URL}/api/capacidade/distribuicao-sugerida?${qs}`, { headers: authHeaders() }, 300000);
-        const j = await r.json();
-        if (!j?.success) throw new Error(j?.error || 'Falha ao carregar a distribuição');
+        const j = await buscarCenario(url);
         if (meu !== seq.current) return; // chegou depois de outro pedido: descarta
-        const mapa: FamiliaPorGrupo = {};
-        for (const g of (j?.grupos || []) as { grupo: string; familia?: string; perfil?: string | null; viraFamilia?: string | null }[]) {
-          mapa[g.grupo] = { familia: g.familia || 'Outros', perfil: g.perfil || null, vira: g.viraFamilia || null };
-        }
-        setFamilias(mapa);
-        setDistrib(j);
-        setComparativo((c) => ({ ...c, [`${modo}|${comLista ? 1 : 0}`]: resumoCenario(j) }));
-        setRegras([
-          { rotulo: `lote ${lote || '—'}`, simulacao: false },
-          ...(extra ? [{ rotulo: 'edição limitada rateada', simulacao: false }] : []),
-          ...(extraMove ? [{ rotulo: 'Liebe Move → LIDERANÇA', simulacao: false }] : []),
-          ...(ferias ? [{ rotulo: 'férias de fevereiro', simulacao: false }] : []),
-          ...(modo !== 'calcinha' ? [{ rotulo: `ESPERANÇA: ${MODOS_ESPERANCA[modo].selo}`, simulacao: true }] : []),
-          ...(comLista ? [{ rotulo: `SUPERAÇÃO: + lista ${LISTA_APONTAMENTO.refs.length} refs`, simulacao: true }] : []),
-        ]);
-        setCenario(`lote ${lote || '—'}${extra ? ', edição limitada como carga extra rateada' : ''}${extraMove ? ', Liebe Move na LIDERANÇA (mix anatomic)' : ''}${ferias ? ', com as férias de fevereiro' : ''}${MODOS_ESPERANCA[modo].cenario}${comLista ? `, lista de ${LISTA_APONTAMENTO.refs.length} refs apontada para a SUPERAÇÃO` : ''}`);
-        setErro(null);
+        aplicar(j);
+        preCarregar();
       } catch (e) {
         if (meu === seq.current) setErro(e instanceof Error ? e.message : 'Falha ao carregar a distribuição');
       } finally {
         if (meu === seq.current) setCarregando(false);
       }
-    }, 800);
+    }, guardado ? 0 : 400);
     return () => window.clearTimeout(t);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [chave]);
@@ -178,3 +218,6 @@ export default function PlanoPelaLista({
     </>
   );
 }
+
+// memo: a Visão Geral redesenha muito; este bloco só redesenha quando as props dele mudam.
+export default memo(PlanoPelaLista);
