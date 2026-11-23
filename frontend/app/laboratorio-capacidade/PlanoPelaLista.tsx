@@ -29,7 +29,9 @@ const ESPERANCA_PESSOAS = { hoje: 6, sutia: 10 };
 
 const CHAVE_MODO = 'planoLista.esperanca';
 const CHAVE_LISTA = 'planoLista.comLista';
-const CHAVE_ANTECIPAR = 'planoLista.antecipar';
+// v2 (23/11/2026): o puxar da frente passou a vir ligado; a chave nova esquece o "0" antigo.
+const CHAVE_ANTECIPAR = 'planoLista.antecipar.v2';
+const ANTECIPAR_PADRAO = 2;
 
 // Respostas já recebidas nesta aba do navegador, por cenário (a URL sem o fura-cache). Vale
 // entre a Visão Geral e a Capacidade x Plano e ao voltar a um cenário: aparece na hora. Mais
@@ -86,7 +88,8 @@ function PlanoPelaLista({
   // Padrão (P25): a ESPERANÇA vira sutiã em dez/26 copiando a POSITIVO; lista desligada.
   const [modo, setModoEstado] = useState<ModoEsperanca>('vira-positivo');
   const [comLista, setComListaEstado] = useState(false);
-  const [antecipar, setAnteciparEstado] = useState(0);
+  // Padrão (PCP, 23/11/2026): capacidade parada puxa o plano de até 2 meses à frente.
+  const [antecipar, setAnteciparEstado] = useState(ANTECIPAR_PADRAO);
   const [distrib, setDistrib] = useState<DistribuicaoDados | null>(null);
   const [familias, setFamilias] = useState<FamiliaPorGrupo>({});
   const [regras, setRegras] = useState<RegraCenario[]>([]);
@@ -102,8 +105,9 @@ function PlanoPelaLista({
       const m = window.localStorage.getItem(CHAVE_MODO);
       if (m && m in MODOS_ESPERANCA) setModoEstado(m as ModoEsperanca);
       if (window.localStorage.getItem(CHAVE_LISTA) === '1') setComListaEstado(true);
-      const a = Number(window.localStorage.getItem(CHAVE_ANTECIPAR) || 0);
-      if (a >= 1 && a <= 3) setAnteciparEstado(a);
+      const salvo = window.localStorage.getItem(CHAVE_ANTECIPAR);
+      const a = Number(salvo);
+      if (salvo !== null && a >= 0 && a <= 3) setAnteciparEstado(a);
     } catch { /* sem storage: fica o padrão */ }
   }, []);
   const setModo = (m: ModoEsperanca) => {
