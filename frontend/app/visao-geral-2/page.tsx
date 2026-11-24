@@ -2383,7 +2383,7 @@ export default function VisaoGeral2Page() {
   };
 
   return <div className="min-h-screen bg-gray-100"><Sidebar onCollapse={setCollapsed} /><main className={`${collapsed ? 'ml-20' : 'ml-64'} p-6 transition-all`}>
-    <div className="flex items-start justify-between mb-6"><div><p className="text-xs uppercase tracking-widest text-gray-500">Planejamento agregado</p><h1 className="text-2xl font-bold text-gray-900">Visão Geral 2 (teste)</h1><p className="text-sm text-gray-500 mt-1">Projeção {data?.anoDestino || new Date().getFullYear() + 1}.1 usando permanentes com venda em 6m ou 3m.</p></div>
+    <div className="flex items-start justify-between mb-6"><div><p className="text-xs uppercase tracking-widest text-gray-500">Planejamento agregado</p><h1 className="text-2xl font-bold text-gray-900">Projeção x Capacidade</h1><p className="text-sm text-gray-500 mt-1">Projeção {data?.anoDestino || new Date().getFullYear() + 1}.1 usando permanentes com venda em 6m ou 3m.</p></div>
       <div className="flex items-center gap-3">
         <button onClick={() => { carregar(true); carregarCapacidade(); carregarEdicaoLimitada(true); carregarIndiceMensal(); carregarMinPecaMedido(); carregarMinPecaMove(); carregarEstoqueLiebe(); }} title="Busca tudo de novo, inclusive o que fica em cache entre os cenarios" className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={16} /> Atualizar</button>
       </div>

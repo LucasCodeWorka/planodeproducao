@@ -398,8 +398,8 @@ export default function DistribuicaoConteudo({ dadosExternos, embutido = false }
         </div>
         {!embutido && <div className={`mb-5 rounded-lg border px-4 py-3 text-sm ${cenario?.conectado ? 'border-indigo-200 bg-indigo-50 text-indigo-900' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
           {cenario?.conectado
-            ? <>Cenário recebido da Visão Geral 2: {cenario.lote ? 'com lote de simulação' : 'plano da matriz'}, {comFerias ? 'com férias' : 'sem férias'} e {cenario.extra ? 'com carga adicional' : 'sem carga adicional informada'}. A carga adicional é estimada por capacidade de cada grupo. Alterações posteriores na visão geral exigem abrir o link novamente.</>
-            : <>Leitura independente: plano da matriz, sem lote de simulação e sem carga adicional da Visão Geral 2. Para comparar o mesmo cenário, abra esta página pelo link na visão geral.</>}
+            ? <>Cenário recebido da Projeção x Capacidade: {cenario.lote ? 'com lote de simulação' : 'plano da matriz'}, {comFerias ? 'com férias' : 'sem férias'} e {cenario.extra ? 'com carga adicional' : 'sem carga adicional informada'}. A carga adicional é estimada por capacidade de cada grupo. Alterações posteriores na Projeção x Capacidade exigem abrir o link novamente.</>
+            : <>Leitura independente: plano da matriz, sem lote de simulação e sem carga adicional da Projeção x Capacidade. Para comparar o mesmo cenário, abra esta página pelo link na Projeção x Capacidade.</>}
         </div>}
         {dados?.resumo.extraExcedeCapacidade && <div className="mb-5 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">Em pelo menos um mês a carga adicional estimada excede toda a capacidade. O excedente dessa carga agregada não é transferido para o mês seguinte; a proposta de atraso está incompleta nesses períodos.</div>}
 
@@ -469,14 +469,14 @@ export default function DistribuicaoConteudo({ dadosExternos, embutido = false }
                     </li>
                   </ul>
                   <div className="mt-4 rounded border border-amber-200 bg-amber-50/60 p-3 text-xs leading-relaxed text-gray-700">
-                    <p className="mb-1 font-semibold text-gray-800">Por que esta ocupação é menor que a da Visão Geral 2</p>
+                    <p className="mb-1 font-semibold text-gray-800">Por que esta ocupação é menor que a da Projeção x Capacidade</p>
                     <p>
                       Esta lista distribui o <strong>plano lançado mais o que está em processo</strong>:{' '}
                       {num(dados.resumo.cargaTotalMin)} min, {pct(dados.resumo.cargaTotalMin / dados.resumo.capacidadeHorizonteMin)}{' '}
                       da capacidade do horizonte. A Ocupação por grupo, chamada da mesma forma, dá o mesmo número.
                     </p>
                     <p className="mt-1.5">
-                      A Visão Geral 2 termina perto de 100% porque soma <strong>Liebe Move, edição limitada e o
+                      A Projeção x Capacidade termina perto de 100% porque soma <strong>Liebe Move, edição limitada e o
                       plano previsto</strong> dos meses sem lote — cerca de 7 milhões de minutos a mais. Essa carga
                       vem em minutos por período, <strong>sem abertura por referência</strong>, então não há como
                       distribuí-la numa lista como esta. Quando ela é informada, entra descontando a capacidade
@@ -662,7 +662,7 @@ export default function DistribuicaoConteudo({ dadosExternos, embutido = false }
               </div>
               <p className="mt-3 text-xs leading-relaxed text-gray-500">
                 “Veio de trás” é o que não coube no mês anterior e entra na fila deste. A carga adicional é reservada na capacidade dos grupos e não aparece nas colunas de pedido e atraso desta tabela. Com filtro de perfil, o extra não é atribuído ao perfil por falta de detalhe.
-                A ocupação aqui é do MÊS, não acumulada — por isso difere da Visão Geral 2, que acumula.
+                A ocupação aqui é do MÊS, não acumulada — por isso difere da Projeção x Capacidade, que acumula.
                 Meses sem plano lançado não representam necessariamente capacidade livre para novos pedidos.
               </p>
 

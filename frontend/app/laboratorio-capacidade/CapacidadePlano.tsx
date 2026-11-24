@@ -41,8 +41,8 @@ export default function CapacidadePlano({ capacidade, plano, minPeca }: { capaci
       <div className="border-b border-gray-100 px-4 py-3">
         <h3 className="font-semibold text-gray-900">O plano de {linhas[0]?.mes.slice(0, 4)} contra a capacidade, em peças</h3>
         <p className="mt-1 text-xs text-gray-500">
-          <strong>Capacidade</strong> = a do gráfico da Visão Geral e da distribuição (nível × sazonalidade × dias), em peças a {minPeca.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} min/peça
-          medidos. <strong>Plano</strong> = o do gráfico da Visão Geral, com a Liebe Move. Lido <strong>acumulado</strong>: o que sobra num mês adianta o seguinte,
+          <strong>Capacidade</strong> = a do gráfico da Projeção x Capacidade e da distribuição (nível × sazonalidade × dias), em peças a {minPeca.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} min/peça
+          medidos. <strong>Plano</strong> = o do gráfico da Projeção x Capacidade, com a Liebe Move. Lido <strong>acumulado</strong>: o que sobra num mês adianta o seguinte,
           o que falta transborda — os dias são quanto de produção sobra ou falta no acumulado, no ritmo do mês.
         </p>
       </div>
@@ -66,7 +66,7 @@ export default function CapacidadePlano({ capacidade, plano, minPeca }: { capaci
               <td className="px-3 py-1.5 text-right tabular-nums font-semibold">{num(totalCap)}</td>
             </tr>
             <tr className="border-t border-gray-100">
-              <td className="sticky left-0 z-10 bg-white px-3 py-1.5 font-semibold text-violet-800">Plano (Visão Geral + Move)</td>
+              <td className="sticky left-0 z-10 bg-white px-3 py-1.5 font-semibold text-violet-800">Plano (Projeção x Capacidade + Move)</td>
               {linhas.map((l) => (
                 <td key={l.mes} className="px-2 py-1.5 text-right tabular-nums text-violet-800"
                   title={`${l.origem === 'lançado' ? 'Lote lançado no ERP' : 'Simulação + edição limitada projetada'}${l.move ? ` · Liebe Move ${num(l.move)}` : ''}${l.el ? ` · edição limitada ${num(l.el)}` : ''}`}>

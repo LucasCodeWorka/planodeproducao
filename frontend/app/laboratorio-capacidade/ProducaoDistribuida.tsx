@@ -487,8 +487,8 @@ export default function ProducaoDistribuida({
       {/* ── B. Visão macro ──────────────────────────────────────────────────── */}
       <div className="border-b border-gray-200 px-4 py-3">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-          <Indicador rotulo={`Plano ${anoAlvo}`} valor={num(somaCols(fabrica.plano))} nota={planoVg ? `Visão Geral: ${num(planoVg.reduce((x: number, v) => x + (v || 0), 0))}` : 'plano por SKU'}
-            dica="Plano das referências (SKU) nos 12 meses. A Visão Geral soma ainda edição limitada, Move e previsto, que entram como carga em minutos, sem peça." />
+          <Indicador rotulo={`Plano ${anoAlvo}`} valor={num(somaCols(fabrica.plano))} nota={planoVg ? `Projeção x Capacidade: ${num(planoVg.reduce((x: number, v) => x + (v || 0), 0))}` : 'plano por SKU'}
+            dica="Plano das referências (SKU) nos 12 meses. A Projeção x Capacidade soma ainda edição limitada, Move e previsto, que entram como carga em minutos, sem peça." />
           <Indicador rotulo="Vem de" sub={rotuloAnterior} valor={num(herdadoJan)} tom={herdadoJan >= 0.5 ? 'atencao' : undefined}
             dica={`Atraso que entra em ${meses[cols[0]]}, vindo de ${rotuloAnterior}.`} />
           <Indicador rotulo="Produzido" valor={num(feitoAno(fabrica))} nota="do veio + plano"
@@ -712,7 +712,7 @@ export default function ProducaoDistribuida({
           <tfoot>
             {planoVg && (
               <tr className="bg-amber-50 font-bold text-amber-900">
-                <td className={`${STICKY_NOME} border-t-2 border-gray-300 bg-amber-50 px-3 py-2`} title="O plano que o gráfico da Visão Geral desenha: lote + edição limitada + Liebe Move">Plano da Visão Geral</td>
+                <td className={`${STICKY_NOME} border-t-2 border-gray-300 bg-amber-50 px-3 py-2`} title="O plano que o gráfico da Projeção x Capacidade desenha: lote + edição limitada + Liebe Move">Plano da Projeção x Capacidade</td>
                 <td className="border-t-2 border-gray-300 bg-amber-50" />
                 {planoVg.map((v, k) => <td key={k} colSpan={vista === 'completo' ? 3 : 1} className="border-r border-t-2 border-gray-300 border-r-amber-100 px-2 py-2 text-right tabular-nums">{v === null ? '—' : num(v)}</td>)}
                 <td className="border-t-2 border-gray-300 bg-amber-50" />

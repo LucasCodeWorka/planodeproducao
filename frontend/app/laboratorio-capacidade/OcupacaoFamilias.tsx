@@ -1,6 +1,6 @@
 'use client';
 
-// OCUPAÇÃO POR FAMÍLIA PELA LISTA — a mesma conta da Ocupação por grupo da Visão Geral 2
+// OCUPAÇÃO POR FAMÍLIA PELA LISTA — a mesma conta da Ocupação por grupo da Projeção x Capacidade
 // (rota ocupacao-por-grupo-produto, modo lista), lida da distribuição que a aba já calculou.
 // Família = o perfil que cada grupo de costura mais faz; demanda = o plano das referências
 // cujo grupo A é da família + a carga extra que cai nos grupos dela; capacidade = a única.
@@ -62,7 +62,7 @@ export default function OcupacaoFamilias({ familias }: { familias: FamiliaOcupac
       <div className="border-b border-gray-100 px-4 py-3">
         <h3 className="font-semibold text-gray-900">Ocupação por família, pela lista</h3>
         <p className="mt-1 text-xs text-gray-500">
-          A mesma tabela da Visão Geral 2. Ocupação <strong>acumulada</strong> de cada família: o plano das referências cujo grupo A é dela, mais a carga extra que
+          A mesma tabela da Projeção x Capacidade. Ocupação <strong>acumulada</strong> de cada família: o plano das referências cujo grupo A é dela, mais a carga extra que
           cai nos grupos dela (Liebe Move na LIDERANÇA, edição limitada rateada), contra a capacidade dos grupos dela. Embaixo, os <strong>dias</strong>: positivo = falta
           produção para tantos dias; negativo = sobra.
         </p>

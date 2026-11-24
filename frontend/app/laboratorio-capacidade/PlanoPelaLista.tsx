@@ -2,7 +2,7 @@
 
 // PLANO 2027 PELA LISTA — a análise principal da execução do plano (PCP, 19/11/2026).
 //
-// Um componente só, usado na Visão Geral 2 e na aba Capacidade x Plano: carrega a
+// Um componente só, usado na Projeção x Capacidade e na aba Capacidade x Plano: carrega a
 // Distribuição sugerida com o cenário escolhido (ESPERANÇA, lista da SUPERAÇÃO) e desenha
 // a barra do cenário, o resumo, a ocupação por família e a matriz (ProducaoDistribuida).
 // Quem usa passa o plano (lote + carga extra em minutos); o cenário escolhido fica lembrado

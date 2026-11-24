@@ -1,4 +1,4 @@
-// PLANO DA VISÃO GERAL 2, MONTADO AQUI — padrão do Laboratório de capacidade.
+// PLANO DA PROJEÇÃO x CAPACIDADE (rota /visao-geral-2), MONTADO AQUI — padrão do Laboratório de capacidade.
 //
 // O PCP pediu (17/11/2026) que o laboratório fale SEMPRE do mesmo plano que o gráfico da
 // Visão Geral desenha, com a Liebe Move aplicada, sem depender de link. A regra é a mesma de

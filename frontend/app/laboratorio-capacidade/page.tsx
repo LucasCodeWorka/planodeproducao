@@ -3,7 +3,7 @@
 // CAPACIDADE x PLANO — a aba única (18/11/2026).
 //
 // Junta o Laboratório de capacidade e a Distribuição sugerida numa história só, com UM plano
-// (o do gráfico da Visão Geral 2, com a Liebe Move), UMA capacidade (nível × sazonalidade ×
+// (o do gráfico da Projeção x Capacidade, com a Liebe Move), UMA capacidade (nível × sazonalidade ×
 // dias, a mesma do gráfico) e UMA alocação (a lista referência → grupo). Capítulos:
 //   1. O que a fábrica faz — o finalizado dos últimos 12 meses, por grupo e referência.
 //   2. O plano contra a capacidade — em peças, acumulado.
@@ -46,7 +46,7 @@ function Capitulo({ n, titulo, texto, id }: { n: number; titulo: string; texto: 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 // Cenário da ESPERANÇA, lista da SUPERAÇÃO e a carga da distribuição: PlanoPelaLista.tsx
-// (o mesmo componente da Visão Geral 2).
+// (o mesmo componente da Projeção x Capacidade).
 
 type RefFinalizada = {
   referencia: string;
@@ -236,7 +236,7 @@ export default function LaboratorioCapacidadePage() {
       setPlanoTela(pvg.porMes);
       setErroPlanoVG(null);
     } catch (e) {
-      setErroPlanoVG(e instanceof Error ? e.message : 'Falha ao montar o plano da Visão Geral');
+      setErroPlanoVG(e instanceof Error ? e.message : 'Falha ao montar o plano da Projeção x Capacidade');
     }
   }, []);
   const planoVGFalhou = erroPlanoVG !== null;
@@ -336,7 +336,7 @@ export default function LaboratorioCapacidadePage() {
           <div>
             <h1 className="text-2xl font-bold text-brand-dark">Capacidade x Plano</h1>
             <p className="mt-1 max-w-3xl text-sm text-gray-600">
-              Um plano (o do gráfico da Visão Geral, com a Liebe Move), uma capacidade (nível × sazonalidade × dias) e uma alocação: a <strong>lista referência → grupo</strong>.
+              Um plano (o do gráfico da Projeção x Capacidade, com a Liebe Move), uma capacidade (nível × sazonalidade × dias) e uma alocação: a <strong>lista referência → grupo</strong>.
               Do que a fábrica faz até o que precisa mudar. Nada aqui grava dados.
             </p>
           </div>
@@ -525,9 +525,9 @@ export default function LaboratorioCapacidadePage() {
                   {plano && (
                     <>
                       <tr className="border-t border-gray-200 bg-amber-50/50 font-semibold text-amber-900">
-                        <td className="sticky left-0 z-10 bg-amber-50 px-3 py-2" title={planoTela ? 'Plano da Visão Geral: o mesmo do gráfico — lote lançado no ERP, ou simulação + edição limitada projetada — com a Liebe Move somada.' : `Plano da matriz com o lote ${plano.loteId || '—'}, enquanto o plano da Visão Geral carrega.`}>
+                        <td className="sticky left-0 z-10 bg-amber-50 px-3 py-2" title={planoTela ? 'Plano da Projeção x Capacidade: o mesmo do gráfico — lote lançado no ERP, ou simulação + edição limitada projetada — com a Liebe Move somada.' : `Plano da matriz com o lote ${plano.loteId || '—'}, enquanto o plano da Projeção x Capacidade carrega.`}>
                           Plano {plano.ano}
-                          <div className="text-[10px] font-normal">{planoTela ? 'Visão Geral + Liebe Move' : 'matriz + lote'}</div>
+                          <div className="text-[10px] font-normal">{planoTela ? 'Projeção x Capacidade + Liebe Move' : 'matriz + lote'}</div>
                         </td>
                         {colunas.map((m) => {
                           const v = planoDaColuna(m);
@@ -587,16 +587,16 @@ export default function LaboratorioCapacidadePage() {
         <PlanoPelaLista parametros={parametrosLista} planoTela={planoTela} minPecaMove={planoVG?.minPecaMove || 0} onDistribuicao={setDistrib} />
         {/* A ocupação por família agora fica na visão macro da matriz (redesenho 19/11/2026). */}
 
-        {erroPlanoVG && <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Plano da Visão Geral não carregou ({erroPlanoVG}): as tabelas usam o plano da matriz + lote.</div>}
+        {erroPlanoVG && <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Plano da Projeção x Capacidade não carregou ({erroPlanoVG}): as tabelas usam o plano da matriz + lote.</div>}
 
         {/* GUARDADO (PCP, 19/11/2026): plano x capacidade, setup ideal e registro saíram da aba.
             Para voltar, troque MOSTRAR_CAPITULOS_GUARDADOS para true no topo do arquivo. */}
         {MOSTRAR_CAPITULOS_GUARDADOS && (<>
-        <Capitulo n={3} titulo="O plano contra a capacidade" texto="O plano da Visão Geral (com a Liebe Move) contra a capacidade da fábrica, em peças, acumulado — o total, antes de olhar onde aperta." />
+        <Capitulo n={3} titulo="O plano contra a capacidade" texto="O plano da Projeção x Capacidade (com a Liebe Move) contra a capacidade da fábrica, em peças, acumulado — o total, antes de olhar onde aperta." />
         {capUnica && planoVG ? (
           <CapacidadePlano capacidade={capUnica.periodos} plano={planoVG.meses} minPeca={capUnica.minPeca} />
         ) : (
-          <div className="mb-4 rounded border border-gray-200 bg-white px-4 py-6 text-center text-sm text-gray-500">Montando a capacidade e o plano da Visão Geral…</div>
+          <div className="mb-4 rounded border border-gray-200 bg-white px-4 py-6 text-center text-sm text-gray-500">Montando a capacidade e o plano da Projeção x Capacidade…</div>
         )}
 
         <Capitulo n={4} titulo="O que precisa mudar" texto="Se a fábrica fosse montada para este plano: quantos grupos de cada perfil, e onde a configuração de hoje sobra ou falta." />

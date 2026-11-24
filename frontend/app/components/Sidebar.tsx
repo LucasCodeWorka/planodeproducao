@@ -17,8 +17,9 @@ const GRUPOS_NAV = [
     itens: [
       { href: '/projecoes', label: 'Projeções', Icon: TrendingDown },
       { href: '/projecao-permanentes', label: 'Proj. Permanentes', Icon: CalendarRange },
-      { href: '/projecao-macro', label: 'Visão Macro', Icon: LineChart },
-      { href: '/visao-geral-2', label: 'Visão Geral 2 (teste)', Icon: LineChart },
+      // Visão Macro saiu do menu a pedido do Celso (24/11/2026). A página /projecao-macro
+      // continua no ar; para voltar: { href: '/projecao-macro', label: 'Visão Macro', Icon: LineChart },
+      { href: '/visao-geral-2', label: 'Projeção x Capacidade', Icon: LineChart },
     ],
   },
   {

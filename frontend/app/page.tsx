@@ -1807,12 +1807,8 @@ export default function Home() {
             >
               {fonteGrande ? 'Fonte compacta' : 'Fonte maior'}
             </button>
-            <button
-              onClick={() => router.push('/projecao-macro')}
-              className="px-3 py-1.5 text-xs font-semibold text-white border border-white/50 rounded hover:bg-white/10 transition-colors"
-            >
-              Visão Macro
-            </button>
+            {/* Botão "Visão Macro" (router.push('/projecao-macro')) retirado a pedido do Celso
+                (24/11/2026). A página continua em /projecao-macro. */}
             <button
               onClick={handleRefresh}
               disabled={refreshing}
