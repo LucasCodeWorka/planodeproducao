@@ -202,8 +202,9 @@ function DetalheGrupo({ sel, dados, matriz, meses, cols, onSel }: {
         <h3 className="text-base font-bold text-gray-900">{g.grupo}</h3>
         <div className="mt-1 flex flex-wrap gap-x-4 text-gray-700">
           <span>Capacidade medida <strong>{num(g.capacidadeDiaria)} min/dia</strong></span>
-          {comRefs && <span>Família <strong>{comRefs.familia}</strong></span>}
-          {costura?.papel === 'convertido' && <span className="text-sky-700">convertido para {costura.familia}</span>}
+          {(comRefs || costura) && <span>Família <strong>{(comRefs || costura)!.familia}</strong></span>}
+          {/* "convertido" só quando houve conversão de fato (existe a linha das refs que largou). */}
+          {comRefs?.papel === 'largou' && costura?.papel === 'convertido' && <span className="text-sky-700">convertido para {costura.familia}</span>}
         </div>
         <p className="mt-1.5 rounded bg-gray-50 p-1.5 text-[11px] text-gray-600">
           <strong>Costurou</strong> = o que passou pelas máquinas deste grupo, de qualquer referência.{' '}
@@ -255,7 +256,7 @@ function DetalheGrupo({ sel, dados, matriz, meses, cols, onSel }: {
               </li>
             ))}
           </ul>
-        ) : <p className="text-gray-500">Nenhuma referência tem este grupo como A{costura?.papel === 'convertido' ? ' depois da conversão' : ''}.</p>}
+        ) : <p className="text-gray-500">Nenhuma referência tem este grupo como A{comRefs?.papel === 'largou' ? ' depois da conversão' : ': ele costura o que os grupos A não dão conta (lista abaixo)'}.</p>}
       </section>
 
       <section>

@@ -13,7 +13,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { authHeaders } from '../lib/auth';
 import { fetchNoCache } from '../lib/api';
 import ProducaoDistribuida, {
-  LISTA_APONTAMENTO, MODOS_ESPERANCA, leituraFabricaPelaLista, resumoCenario,
+  LISTA_APONTAMENTO, MODOS_ESPERANCA, MOSTRAR_CONFIG_ESPERANCA, leituraFabricaPelaLista, resumoCenario,
   type DistribuicaoDados, type FamiliaPorGrupo, type LeituraListaMes, type ModoEsperanca, type RegraCenario, type ResumoCenario,
 } from './ProducaoDistribuida';
 import { GRUPO_MOVE } from './planoVisaoGeral';
@@ -26,9 +26,10 @@ export const CORINGA = { grupo: '08 - ESPERANCA SO BASICO', modelo: '05 - POSITI
 const REFS_ESPERANCA = ['341001', '103102', '123019'];
 // Equipe da ESPERANÇA (PCP, 19/11/2026): 6 pessoas hoje, 10 quando vira sutiã. A capacidade
 // medida reflete as 6; na conversão ela é multiplicada por 10/6 a partir de VIRA_DESDE.
-// PCP, 24/11/2026: a conversão é real desde o ERP (23/11), então vale já em nov/26 (MA),
-// não mais em dez/26 (PX).
-const VIRA_DESDE = 'MA';
+// PCP, 24/11/2026: a conversão é real desde o ERP (23/11). 'JA' = desde o 1º mês do
+// horizonte, qualquer que seja — e a conversão é total: as calcinhas dela passam a ser dos
+// grupos de calcinha que as assumem, e ela é do Sutiã desde o início.
+const VIRA_DESDE = 'JA';
 const ESPERANCA_PESSOAS = { hoje: 6, sutia: 10 };
 
 // v2 (24/11/2026): a ESPERANÇA virou sutiã básico no ERP; a chave nova esquece o "fica na
@@ -109,7 +110,8 @@ function PlanoPelaLista({
   useEffect(() => {
     try {
       const m = window.localStorage.getItem(CHAVE_MODO);
-      if (m && m in MODOS_ESPERANCA) setModoEstado(m as ModoEsperanca);
+      // Sem o seletor na tela, a regra é sempre a real: escolha antiga guardada não vale.
+      if (MOSTRAR_CONFIG_ESPERANCA && m && m in MODOS_ESPERANCA) setModoEstado(m as ModoEsperanca);
       if (window.localStorage.getItem(CHAVE_LISTA) === '1') setComListaEstado(true);
       const salvo = window.localStorage.getItem(CHAVE_ANTECIPAR);
       const a = Number(salvo);
@@ -148,8 +150,8 @@ function PlanoPelaLista({
       ...(extra ? [{ rotulo: 'edição limitada rateada', simulacao: false }] : []),
       ...(extraMove ? [{ rotulo: 'Liebe Move → LIDERANÇA', simulacao: false }] : []),
       ...(ferias ? [{ rotulo: 'férias de fevereiro', simulacao: false }] : []),
-      // A regra real (ERP) aparece como fato; as de comparação, como simulação.
-      ...(modo !== 'calcinha' ? [{ rotulo: `ESPERANÇA: ${MODOS_ESPERANCA[modo].selo}`, simulacao: !MODOS_ESPERANCA[modo].real }] : [{ rotulo: 'ESPERANÇA na calcinha (como era)', simulacao: true }]),
+      // A regra real (ERP) não ganha etiqueta: é como a fábrica é. Só as de comparação aparecem.
+      ...(MODOS_ESPERANCA[modo].real ? [] : modo !== 'calcinha' ? [{ rotulo: `ESPERANÇA: ${MODOS_ESPERANCA[modo].selo}`, simulacao: true }] : [{ rotulo: 'ESPERANÇA na calcinha (como era)', simulacao: true }]),
       ...(comLista ? [{ rotulo: `SUPERAÇÃO: + lista ${LISTA_APONTAMENTO.refs.length} refs`, simulacao: true }] : []),
       ...(antecipar > 0 ? [{ rotulo: `puxa da frente: até ${antecipar} ${antecipar === 1 ? 'mês' : 'meses'}`, simulacao: true }] : []),
     ]);

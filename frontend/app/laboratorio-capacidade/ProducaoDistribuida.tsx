@@ -56,8 +56,12 @@ type Coringa = { grupo: string; modelo: string };
 // como sutiã básico (08 - ESPERANCA SO BASICO, 23/11/2026). É a regra real; as outras ficam
 // só para comparar. Medido no P28: entre as regras testadas, é a que deixa menos peça parada.
 export type ModoEsperanca = 'calcinha' | 'coringa' | 'vira-positivo' | 'vira-3refs';
+// PCP, 24/11/2026: com a regra real fixa, o seletor da ESPERANÇA saiu do "Configurar
+// simulação" e a tela usa sempre 'vira-positivo'. Para trazer o seletor de volta (e as
+// comparações), troque para true — PlanoPelaLista.tsx lê esta mesma chave.
+export const MOSTRAR_CONFIG_ESPERANCA = false;
 export const MODOS_ESPERANCA: Record<ModoEsperanca, { rotulo: string; cenario: string; selo: string; real?: boolean }> = {
-  'vira-positivo': { rotulo: 'Sutiã básico, como no ERP (padrão)', cenario: ', ESPERANÇA como sutiã básico (ERP) desde nov/26, com 10 pessoas', selo: 'sutiã básico (ERP) · desde nov/26 · 10 pessoas', real: true },
+  'vira-positivo': { rotulo: 'Sutiã básico, como no ERP (padrão)', cenario: ', ESPERANÇA no sutiã básico (ERP), com 10 pessoas', selo: 'sutiã básico (ERP) · 10 pessoas', real: true },
   'vira-3refs': { rotulo: 'Comparar: sutiã só em 341001 · 103102 · 123019', cenario: ', ESPERANÇA no sutiã só com 341001, 103102 e 123019, com 10 pessoas', selo: 'sutiã · 3 refs · 10 pessoas' },
   coringa: { rotulo: 'Comparar: sutiã sem largar a calcinha', cenario: ', ESPERANÇA como coringa de sutiã básico', selo: 'coringa · positivo' },
   calcinha: { rotulo: 'Comparar: como era, na calcinha', cenario: ', ESPERANÇA ainda na calcinha (antes do ERP)', selo: '' },
@@ -369,7 +373,8 @@ export default function ProducaoDistribuida({
           </p>
         )}
         {configAberta && (
-          <div className="mt-2 grid gap-2 lg:grid-cols-3">
+          <div className={`mt-2 grid gap-2 ${MOSTRAR_CONFIG_ESPERANCA ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
+            {MOSTRAR_CONFIG_ESPERANCA && (
             <label className="flex flex-col gap-1 rounded border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs text-sky-900">
               <span className="flex flex-wrap items-center gap-2">
                 <strong>ESPERANÇA</strong>
@@ -385,6 +390,7 @@ export default function ProducaoDistribuida({
                 {' '}Nada é gravado.
               </span>
             </label>
+            )}
             <div className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs text-emerald-900">
               <label className="inline-flex cursor-pointer items-center gap-2">
                 <input type="checkbox" checked={comLista} onChange={(e) => onComLista(e.target.checked)} disabled={recalculando} />
@@ -661,7 +667,7 @@ export default function ProducaoDistribuida({
                             <button type="button" onClick={() => abrirGrupo(g.grupo)} className="font-semibold hover:text-indigo-700 hover:underline" title="Ver detalhes do grupo">
                               {g.papel === 'largou' ? <span className="italic font-normal">{curto(g.grupo)} · referências que largou</span> : curto(g.grupo)}
                             </button>
-                            {coringa && g.grupo === coringa.grupo && g.papel !== 'largou' && MODOS_ESPERANCA[modo].selo && (
+                            {coringa && g.grupo === coringa.grupo && g.papel !== 'largou' && MODOS_ESPERANCA[modo].selo && !MODOS_ESPERANCA[modo].real && (
                               <span className="ml-1.5 rounded bg-sky-100 px-1 py-0.5 text-[10px] font-semibold text-sky-800" title={MODOS_ESPERANCA[modo].rotulo}>{MODOS_ESPERANCA[modo].selo}</span>
                             )}
                             {comLista && g.grupo === LISTA_APONTAMENTO.grupo && (

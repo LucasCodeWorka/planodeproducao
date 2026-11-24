@@ -217,6 +217,14 @@ export function montarMatriz(dados: DistribuicaoDados, familias: FamiliaPorGrupo
       papel: 'normal',
       refsCosturadas: [],
     };
+    const costuraDeOutros = () => Array.from((costuradoPorRef.get(g.grupo) || new Map<string, number[]>()).entries())
+      .map(([referencia, pecas]) => ({ referencia, pecas }));
+    // Grupo SEM referência própria que costura as de outros (a ESPERANÇA no sutiã básico desde
+    // o ERP, 24/11/2026: entra logo depois da POSITIVO e não é grupo A de nada). A linha mostra
+    // o que ele costura, como a do grupo convertido, mas sem "virou" nem "largou".
+    if ((!vira || vira === familia) && porRef.size === 0 && (costurado.get(g.grupo) || []).some((v) => v >= 0.5)) {
+      return [{ ...base, ...quadraVazia(n), refs: [], papel: 'convertido' as const, refsCosturadas: costuraDeOutros() }];
+    }
     if (!vira || vira === familia) return [base];
     // CONVERSÃO (a ESPERANÇA vira sutiã em dez/26): duas linhas.
     // Na família nova, o que ela COSTURA (de referências cujo grupo A é outro — já contadas no
@@ -229,8 +237,7 @@ export function montarMatriz(dados: DistribuicaoDados, familias: FamiliaPorGrupo
         ...quadraVazia(n),
         refs: [],
         papel: 'convertido' as const,
-        refsCosturadas: Array.from((costuradoPorRef.get(g.grupo) || new Map<string, number[]>()).entries())
-          .map(([referencia, pecas]) => ({ referencia, pecas })),
+        refsCosturadas: costuraDeOutros(),
       },
       { ...base, chave: `${g.grupo}|largou`, ocupacao: Array(n).fill(null) as (number | null)[], costurado: zeros(n), papel: 'largou' as const },
     ];

@@ -3487,7 +3487,14 @@ const handlerDistribuicao = async (req, res) => {
     // CONVERSAO: `coringa_desde=PER` — a partir desse periodo o grupo VIRA o perfil do modelo:
     // deixa de fazer as referencias proprias (a ESPERANCA larga a calcinha em dez/26) e so
     // entra como coringa dali em diante. Antes dele, segue so com as proprias.
-    const coringaDesdeIdx = PERIODOS_PLANO.indexOf(String(req.query.coringa_desde || '').trim().toUpperCase());
+    // `coringa_desde=JA` (24/11/2026): conversao REAL, ja feita — vale desde o 1o periodo do
+    // horizonte, qualquer que seja o mes (com um codigo fixo, quando o mes vira o codigo sai do
+    // horizonte e a conversao sumiria sem aviso). Nesse caso ela e TOTAL: o grupo sai das
+    // referencias proprias (elas passam a ter como grupo A o seguinte da lista — os grupos que
+    // assumem) e entra na familia nova desde o inicio, sem "virou" nem "largou" na tela.
+    const desdeBruto = String(req.query.coringa_desde || '').trim().toUpperCase();
+    const coringaDesdeIdx = desdeBruto === 'JA' ? 0 : PERIODOS_PLANO.indexOf(desdeBruto);
+    const conversaoTotal = coringaDesdeIdx === 0;
     // CORINGA POR REFERENCIA: `coringa_refs=GRUPO>REF,REF,...` poe GRUPO logo depois do grupo A
     // so nessas referencias. Para grupo que nunca costurou o perfil (a ESPERANCA no sutia), o
     // criterio e necessidade, nao semelhanca: ele recebe o que mais trava os grupos lotados.
@@ -3526,7 +3533,8 @@ const handlerDistribuicao = async (req, res) => {
       if (!m) continue;
       const fator = Number(m[2]);
       if (!(fator > 0)) continue;
-      const desdeIdx = m[3] ? PERIODOS_PLANO.indexOf(m[3].toUpperCase()) : 0;
+      // `@JA` = desde ja (1o periodo do horizonte), como em coringa_desde.
+      const desdeIdx = m[3] && m[3].toUpperCase() !== 'JA' ? PERIODOS_PLANO.indexOf(m[3].toUpperCase()) : 0;
       reforcos.set(m[1].trim().toUpperCase(), { fator, desdeIdx: Math.max(0, desdeIdx) });
     }
     // PUXAR DA FRENTE (PCP, 23/11/2026): `antecipar=N`. Depois que o mes esta resolvido — o
@@ -3797,7 +3805,9 @@ const handlerDistribuicao = async (req, res) => {
     const refs = [...planoPorRef.keys()].map((ref) => {
       const porPeriodo = planoPorRef.get(ref);
       const pecas = PERIODOS_PLANO.reduce((s, per) => s + Number(porPeriodo[per] || 0), 0);
-      const opcoes = opcoesDaRef(ref);
+      // Conversao total: o grupo convertido sai das referencias que eram dele; o seguinte da
+      // lista vira o grupo A (quem assume a referencia).
+      const opcoes = conversaoTotal ? opcoesDaRef(ref).filter((o) => !gruposCoringa.has(o.grupo)) : opcoesDaRef(ref);
       // Tempo: o do roteiro; se ele for zero ou nao tiver costura, o min/peca MEDIDO do grupo A
       // (ou da fabrica, se a referencia nao tem grupo). Fica registrado para a tela mostrar.
       const tempoRoteiro = Number(tempoPorRef.get(ref) || 0);
@@ -4252,14 +4262,25 @@ const handlerDistribuicao = async (req, res) => {
     const familiaDoGrupoSaida = new Map(gruposSaida.map((g) => [g.grupo, g.familia]));
     const familiaNova = new Map();
     if (coringaDesdeIdx >= 0) {
-      for (const c of coringas) if (!familiaNova.has(c.grupo) && familiaDoGrupoSaida.has(c.modelo)) familiaNova.set(c.grupo, familiaDoGrupoSaida.get(c.modelo));      for (const c of coringaRefs) {
+      for (const c of coringas) if (!familiaNova.has(c.grupo) && familiaDoGrupoSaida.has(c.modelo)) familiaNova.set(c.grupo, familiaDoGrupoSaida.get(c.modelo));
+      for (const c of coringaRefs) {
         if (familiaNova.has(c.grupo)) continue;
         const ref = [...c.refs].find((x) => resultado.get(x)?.opcoes?.[0]?.grupo);
         const A = ref ? resultado.get(ref).opcoes[0].grupo : null;
         if (A && familiaDoGrupoSaida.has(A)) familiaNova.set(c.grupo, familiaDoGrupoSaida.get(A));
       }
     }
-    for (const g of gruposSaida) if (familiaNova.has(g.grupo)) { g.viraFamilia = familiaNova.get(g.grupo); g.viraDesde = PERIODOS_PLANO[coringaDesdeIdx]; }
+    for (const g of gruposSaida) {
+      if (!familiaNova.has(g.grupo)) continue;
+      if (conversaoTotal) {
+        // Conversao ja feita: o grupo E da familia nova, desde o inicio. Nada de "vira".
+        g.familia = familiaNova.get(g.grupo);
+        familiaNova.delete(g.grupo);
+      } else {
+        g.viraFamilia = familiaNova.get(g.grupo);
+        g.viraDesde = PERIODOS_PLANO[coringaDesdeIdx];
+      }
+    }
     const familiasOcupacao = (() => {
       const mapa = new Map();
       const familiaDe = (nome) => {
