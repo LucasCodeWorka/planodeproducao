@@ -51,13 +51,16 @@ function corBarra(o: number) {
 
 type Coringa = { grupo: string; modelo: string };
 
-// O que a ESPERANÇA faz na simulação (P25, 18/11/2026). Nada é gravado.
+// O que a ESPERANÇA faz (P25, 18/11/2026). Nada é gravado.
+// 24/11/2026: 'vira-positivo' deixou de ser simulação — o PCP relacionou a ESPERANÇA no ERP
+// como sutiã básico (08 - ESPERANCA SO BASICO, 23/11/2026). É a regra real; as outras ficam
+// só para comparar. Medido no P28: entre as regras testadas, é a que deixa menos peça parada.
 export type ModoEsperanca = 'calcinha' | 'coringa' | 'vira-positivo' | 'vira-3refs';
-export const MODOS_ESPERANCA: Record<ModoEsperanca, { rotulo: string; cenario: string; selo: string }> = {
-  'vira-positivo': { rotulo: 'Vira sutiã em dez/26, copiando a POSITIVO (padrão)', cenario: ', ESPERANÇA vira sutiã em dez/26 copiando a POSITIVO, com 10 pessoas', selo: 'vira sutiã dez/26 · copia positivo · 10 pessoas' },
-  'vira-3refs': { rotulo: 'Vira sutiã em dez/26, só 341001 · 103102 · 123019', cenario: ', ESPERANÇA vira sutiã em dez/26 só com 341001, 103102 e 123019, com 10 pessoas', selo: 'vira sutiã dez/26 · 3 refs · 10 pessoas' },
-  coringa: { rotulo: 'Coringa: copia a POSITIVO sem largar a calcinha', cenario: ', ESPERANÇA como coringa de sutiã básico', selo: 'coringa · positivo' },
-  calcinha: { rotulo: 'Fica na calcinha (sem simulação)', cenario: '', selo: '' },
+export const MODOS_ESPERANCA: Record<ModoEsperanca, { rotulo: string; cenario: string; selo: string; real?: boolean }> = {
+  'vira-positivo': { rotulo: 'Sutiã básico, como no ERP (padrão)', cenario: ', ESPERANÇA como sutiã básico (ERP) desde nov/26, com 10 pessoas', selo: 'sutiã básico (ERP) · desde nov/26 · 10 pessoas', real: true },
+  'vira-3refs': { rotulo: 'Comparar: sutiã só em 341001 · 103102 · 123019', cenario: ', ESPERANÇA no sutiã só com 341001, 103102 e 123019, com 10 pessoas', selo: 'sutiã · 3 refs · 10 pessoas' },
+  coringa: { rotulo: 'Comparar: sutiã sem largar a calcinha', cenario: ', ESPERANÇA como coringa de sutiã básico', selo: 'coringa · positivo' },
+  calcinha: { rotulo: 'Comparar: como era, na calcinha', cenario: ', ESPERANÇA ainda na calcinha (antes do ERP)', selo: '' },
 };
 // LISTA DE REBALANCEAMENTO (P26, 19/11/2026, cenário ESPERANÇA vira sutiã com 10 pessoas):
 // 10 referências dos sutiãs básicos lotados que a SUPERAÇÃO pode fazer (já fez ou tem
@@ -375,11 +378,11 @@ export default function ProducaoDistribuida({
                 </select>
               </span>
               <span className="text-sky-800">
-                {modo === 'vira-positivo' && 'A partir de dez/26 ela passa de 6 para 10 pessoas (capacidade × 10/6), larga as calcinhas e entra logo depois da POSITIVO em toda referência dela; as calcinhas dela vão para os outros grupos de calcinha.'}
-                {modo === 'vira-3refs' && 'A partir de dez/26 ela passa de 6 para 10 pessoas (capacidade × 10/6), larga as calcinhas e entra logo depois do grupo A só nas 3 referências que mais travam o sutiã básico.'}
-                {modo === 'coringa' && 'Copia a POSITIVO mas continua com as calcinhas dela.'}
-                {modo === 'calcinha' && 'Sem simulação: a ESPERANÇA segue como grupo de calcinha.'}
-                {' '}Só simulação, nada é gravado.
+                {modo === 'vira-positivo' && 'Real: relacionada no ERP como sutiã básico em 23/11/2026. Já em nov/26 ela tem 10 pessoas (capacidade × 10/6), larga as calcinhas (que vão para os outros grupos de calcinha) e, sem histórico de sutiã, entra logo depois da POSITIVO nas referências de sutiã básico — pega o que a POSITIVO não dá conta.'}
+                {modo === 'vira-3refs' && 'Comparação: a partir de nov/26, 10 pessoas, só nas 3 referências que mais travavam o sutiã básico em 18/11.'}
+                {modo === 'coringa' && 'Comparação: copia a POSITIVO mas continua com as calcinhas dela.'}
+                {modo === 'calcinha' && 'Comparação: como era antes do ERP, a ESPERANÇA como grupo de calcinha.'}
+                {' '}Nada é gravado.
               </span>
             </label>
             <div className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs text-emerald-900">

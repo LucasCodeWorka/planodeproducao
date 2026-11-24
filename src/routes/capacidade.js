@@ -54,8 +54,13 @@ const NOMES_DESATIVADOS = new Set(GRUPOS_DESATIVADOS.map((g) => g.grupo));
 // Entra aqui, no fonte, pelo mesmo motivo das desativadas: sobrevive ao "salvar" da tela e
 // ao disco efemero do Render. O `capacidade_diaria` abaixo e so fallback — havendo medicao
 // do ERP, e ela que vale.
+//
+// 23/11/2026: o PCP (Fagner) trocou a descricao do local 101 no ERP de "CA BASICO" para
+// "08 - ESPERANCA SO BASICO" — ela passa a ser grupo de sutia basico. A medicao vem pelo
+// codigo (cdGrupo 101), entao o historico inteiro ja chega com o nome novo; com o nome antigo
+// aqui ela sumia da capacidade e da distribuicao (15 grupos em vez de 16).
 const GRUPOS_EXTRA = [
-  { grupo: "08 - ESPERANCA CA BASICO", tipo: "", capacidade_diaria: 2252 },
+  { grupo: "08 - ESPERANCA SO BASICO", tipo: "", capacidade_diaria: 2252 },
 ];
 const realCapacityCache = { data: null, timestamp: 0 };
 
@@ -4247,8 +4252,7 @@ const handlerDistribuicao = async (req, res) => {
     const familiaDoGrupoSaida = new Map(gruposSaida.map((g) => [g.grupo, g.familia]));
     const familiaNova = new Map();
     if (coringaDesdeIdx >= 0) {
-      for (const c of coringas) if (!familiaNova.has(c.grupo) && familiaDoGrupoSaida.has(c.modelo)) familiaNova.set(c.grupo, familiaDoGrupoSaida.get(c.modelo));
-      for (const c of coringaRefs) {
+      for (const c of coringas) if (!familiaNova.has(c.grupo) && familiaDoGrupoSaida.has(c.modelo)) familiaNova.set(c.grupo, familiaDoGrupoSaida.get(c.modelo));      for (const c of coringaRefs) {
         if (familiaNova.has(c.grupo)) continue;
         const ref = [...c.refs].find((x) => resultado.get(x)?.opcoes?.[0]?.grupo);
         const A = ref ? resultado.get(ref).opcoes[0].grupo : null;

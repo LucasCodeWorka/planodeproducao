@@ -193,7 +193,7 @@ ensureAnalisesIndexes().then(() => initCache(pool)).then(() => {
     const ano = hoje.getFullYear();
     const ini = new Date(ano, hoje.getMonth() - 12, 1);
     const de = `${ini.getFullYear()}-${String(ini.getMonth() + 1).padStart(2, "0")}-01`;
-    const esperanca = new URLSearchParams({ meses: "6", coringa: "08 - ESPERANCA CA BASICO>05 - POSITIVO SU BASICO", coringa_desde: "PX", reforco: "08 - ESPERANCA CA BASICO>1.6667@PX" });
+    const esperanca = new URLSearchParams({ meses: "6", coringa: "08 - ESPERANCA SO BASICO>05 - POSITIVO SU BASICO", coringa_desde: "MA", reforco: "08 - ESPERANCA SO BASICO>1.6667@MA" });
     cacheRespostas.aquecer([
       "/api/capacidade/min-peca-move",
       "/api/capacidade/min-peca-medido",

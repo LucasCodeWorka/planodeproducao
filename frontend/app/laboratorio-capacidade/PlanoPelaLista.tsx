@@ -20,14 +20,20 @@ import { GRUPO_MOVE } from './planoVisaoGeral';
 import type { FamiliaOcupacao } from './OcupacaoFamilias';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-export const CORINGA = { grupo: '08 - ESPERANCA CA BASICO', modelo: '05 - POSITIVO SU BASICO' };
+// Nome do ERP desde 23/11/2026 (antes "08 - ESPERANCA CA BASICO"): o local 101 virou sutiã básico.
+export const CORINGA = { grupo: '08 - ESPERANCA SO BASICO', modelo: '05 - POSITIVO SU BASICO' };
 // As 3 referências que mais travam o sutiã básico (P25, 18/11/2026).
 const REFS_ESPERANCA = ['341001', '103102', '123019'];
 // Equipe da ESPERANÇA (PCP, 19/11/2026): 6 pessoas hoje, 10 quando vira sutiã. A capacidade
-// medida reflete as 6; na conversão ela é multiplicada por 10/6 a partir de dez/26 (PX).
+// medida reflete as 6; na conversão ela é multiplicada por 10/6 a partir de VIRA_DESDE.
+// PCP, 24/11/2026: a conversão é real desde o ERP (23/11), então vale já em nov/26 (MA),
+// não mais em dez/26 (PX).
+const VIRA_DESDE = 'MA';
 const ESPERANCA_PESSOAS = { hoje: 6, sutia: 10 };
 
-const CHAVE_MODO = 'planoLista.esperanca';
+// v2 (24/11/2026): a ESPERANÇA virou sutiã básico no ERP; a chave nova esquece o "fica na
+// calcinha" que algum navegador tenha guardado e abre na regra real.
+const CHAVE_MODO = 'planoLista.esperanca.v2';
 const CHAVE_LISTA = 'planoLista.comLista';
 // v2 (23/11/2026): o puxar da frente passou a vir ligado; a chave nova esquece o "0" antigo.
 const CHAVE_ANTECIPAR = 'planoLista.antecipar.v2';
@@ -46,10 +52,10 @@ function urlDoCenario(p: ParametrosPlano, modo: ModoEsperanca, comLista: boolean
   if (comLista) qs.set('apontar', `${LISTA_APONTAMENTO.grupo}>${LISTA_APONTAMENTO.refs.map((r) => r.ref).join(',')}`);
   if (modo === 'coringa' || modo === 'vira-positivo') qs.set('coringa', `${CORINGA.grupo}>${CORINGA.modelo}`);
   if (modo === 'vira-3refs') qs.set('coringa_refs', `${CORINGA.grupo}>${REFS_ESPERANCA.join(',')}`);
-  // Conversão: a partir de dez/26 (PX) ela larga as calcinhas próprias, com 10 pessoas.
+  // Conversão: a partir de VIRA_DESDE ela larga as calcinhas próprias, com 10 pessoas.
   if (modo === 'vira-positivo' || modo === 'vira-3refs') {
-    qs.set('coringa_desde', 'PX');
-    qs.set('reforco', `${CORINGA.grupo}>${(ESPERANCA_PESSOAS.sutia / ESPERANCA_PESSOAS.hoje).toFixed(4)}@PX`);
+    qs.set('coringa_desde', VIRA_DESDE);
+    qs.set('reforco', `${CORINGA.grupo}>${(ESPERANCA_PESSOAS.sutia / ESPERANCA_PESSOAS.hoje).toFixed(4)}@${VIRA_DESDE}`);
   }
   if (p.extraMove) qs.set('extra_grupo', `${GRUPO_MOVE}>${p.extraMove}`);
   if (p.lote) qs.set('lote_id', p.lote);
@@ -85,7 +91,7 @@ function PlanoPelaLista({
   onDistribuicao?: (d: DistribuicaoDados | null) => void;
   onLeitura?: (l: LeituraListaMes[] | null) => void;
 }) {
-  // Padrão (P25): a ESPERANÇA vira sutiã em dez/26 copiando a POSITIVO; lista desligada.
+  // Padrão: a ESPERANÇA como sutiã básico, real desde o ERP (23/11/2026); lista desligada.
   const [modo, setModoEstado] = useState<ModoEsperanca>('vira-positivo');
   const [comLista, setComListaEstado] = useState(false);
   // Padrão (PCP, 23/11/2026): capacidade parada puxa o plano de até 2 meses à frente.
@@ -142,7 +148,8 @@ function PlanoPelaLista({
       ...(extra ? [{ rotulo: 'edição limitada rateada', simulacao: false }] : []),
       ...(extraMove ? [{ rotulo: 'Liebe Move → LIDERANÇA', simulacao: false }] : []),
       ...(ferias ? [{ rotulo: 'férias de fevereiro', simulacao: false }] : []),
-      ...(modo !== 'calcinha' ? [{ rotulo: `ESPERANÇA: ${MODOS_ESPERANCA[modo].selo}`, simulacao: true }] : []),
+      // A regra real (ERP) aparece como fato; as de comparação, como simulação.
+      ...(modo !== 'calcinha' ? [{ rotulo: `ESPERANÇA: ${MODOS_ESPERANCA[modo].selo}`, simulacao: !MODOS_ESPERANCA[modo].real }] : [{ rotulo: 'ESPERANÇA na calcinha (como era)', simulacao: true }]),
       ...(comLista ? [{ rotulo: `SUPERAÇÃO: + lista ${LISTA_APONTAMENTO.refs.length} refs`, simulacao: true }] : []),
       ...(antecipar > 0 ? [{ rotulo: `puxa da frente: até ${antecipar} ${antecipar === 1 ? 'mês' : 'meses'}`, simulacao: true }] : []),
     ]);
