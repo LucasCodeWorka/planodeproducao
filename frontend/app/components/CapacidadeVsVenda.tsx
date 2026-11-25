@@ -1137,10 +1137,7 @@ export default function CapacidadeVsVenda({
       )}
       {nivelar && (
         <div className="px-5 py-2 bg-indigo-50 border-b border-indigo-200 text-xs text-indigo-900 flex flex-wrap gap-x-6 gap-y-1">
-          <span>
-            Produção no horizonte: <strong>{fmt(totalAtual)}</strong> → <strong>{fmt(totalNivelado)}</strong>
-            {' '}({totalNivelado >= totalAtual ? '+' : ''}{fmt(totalNivelado - totalAtual)})
-          </span>
+          {/* "Produção no horizonte" e "Carga extra enviada" saíram a pedido do PCP (25/11/2026). */}
           {/* PLANO DO HORIZONTE: o que ja foi emitido mais o que ainda falta emitir. E o
               numero que a diretoria pede — "quanto vamos ter de plano no ano" — e ele so
               existe se a parte prevista entrar, porque hoje o plano real acaba no meio do
@@ -1157,13 +1154,6 @@ export default function CapacidadeVsVenda({
               </span>
             );
           })()}
-          <span
-            title="Carga de Liebe Move, edição limitada e plano previsto que esta tela enviou às rotas de capacidade. Sem ela, esta tabela e a Ocupação por grupo medem planos diferentes e não fecham."
-            className={Number(cargaExtraMin || 0) > 0 ? '' : 'text-red-700'}
-          >
-            Carga extra enviada: <strong>{fmt(Number(cargaExtraMin || 0))}</strong> min
-            {!(Number(cargaExtraMin || 0) > 0) && ' — NÃO chegou'}
-          </span>
           {Number(estoqueFisicoHoje || 0) > 0 && (
             <span title="Estoque físico de hoje, marca LIEBE inteira, lido do ERP a cada carregamento — inclui o que está fora do recorte planejável (EM LINHA NÃO COMPRAR MP, OPORTUNIDADE, TERCEIROS…). A linha do físico começa aqui e caminha com os degraus da projeção.">
               Estoque físico hoje: <strong>{fmt(estoqueFisicoHoje!)}</strong> peças

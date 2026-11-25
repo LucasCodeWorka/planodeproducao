@@ -41,7 +41,7 @@ export default function CapacidadePlano({ capacidade, plano, minPeca }: { capaci
       <div className="border-b border-gray-100 px-4 py-3">
         <h3 className="font-semibold text-gray-900">O plano de {linhas[0]?.mes.slice(0, 4)} contra a capacidade, em peças</h3>
         <p className="mt-1 text-xs text-gray-500">
-          <strong>Capacidade</strong> = a do gráfico da Projeção x Capacidade e da distribuição (nível × sazonalidade × dias), em peças a {minPeca.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} min/peça
+          <strong>Capacidade</strong> = a do gráfico da Projeção x Capacidade e da distribuição (nível × sazonalidade × jornada × dias; 42 h/semana a partir de 16/12/2026), em peças a {minPeca.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} min/peça
           medidos. <strong>Plano</strong> = o do gráfico da Projeção x Capacidade, com a Liebe Move. Lido <strong>acumulado</strong>: o que sobra num mês adianta o seguinte,
           o que falta transborda — os dias são quanto de produção sobra ou falta no acumulado, no ritmo do mês.
         </p>

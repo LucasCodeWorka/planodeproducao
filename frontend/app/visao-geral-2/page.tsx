@@ -1324,7 +1324,7 @@ export default function VisaoGeral2Page() {
   // min/peça medido (`/api/capacidade/capacidade-mensal`). Antes o gráfico tinha conta
   // própria (peças pelo mix do plano nos meses reais, simulação × 0,97 nos projetados) e
   // ficava ~10% abaixo do que a distribuição usava — por isso as telas não batiam.
-  const [capacidadeUnica, setCapacidadeUnica] = useState<{ periodo: string; mes: string; dias: number; minutos: number; pecas: number | null }[] | null>(null);
+  const [capacidadeUnica, setCapacidadeUnica] = useState<{ periodo: string; mes: string; dias: number; minutos: number; pecas: number | null; fatorJornada?: number; jornadaHoras?: number }[] | null>(null);
   async function carregarCapacidadeUnica(ferias = comFerias) {
     try {
       const r = await fetchNoCache(`${API_URL}/api/capacidade/capacidade-mensal${ferias ? '?ferias=1' : ''}`, { headers: authHeaders() }, 300000);
@@ -1383,14 +1383,19 @@ export default function VisaoGeral2Page() {
 
   // Fechamento dos meses que ja passaram. Independente do resto: o horizonte rola e leva o
   // mes fechado embora, e e justamente ele que diz se a projecao acertou.
+  // TENTA DE NOVO (25/11/2026): a tendência de venda depende dele. Uma busca que caiu (o
+  // backend reiniciando) deixava a queda só com o mês corrente — −1,2% no lugar de ~−10%.
   async function carregarFechamento() {
     try {
       const ano = new Date().getFullYear();
-      const r = await fetchNoCache(`${API_URL}/api/analises/projetado-vs-realizado?ano=${ano}`, { headers: authHeaders() }, 300000);
-      const p = await r.json();
-      if (r.ok && p?.success && Array.isArray(p.meses)) setFechamento({ ano: p.ano, meses: p.meses });
-    } catch {
-      setFechamento(null);
+      for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+        try {
+          const r = await fetchNoCache(`${API_URL}/api/analises/projetado-vs-realizado?ano=${ano}`, { headers: authHeaders() }, 300000);
+          const p = await r.json();
+          if (r.ok && p?.success && Array.isArray(p.meses)) { setFechamento({ ano: p.ano, meses: p.meses }); return; }
+        } catch { /* tenta de novo */ }
+        await new Promise((ok) => setTimeout(ok, 2000 * (tentativa + 1)));
+      }
     } finally {
       setCarregandoFechamento(false);
     }
@@ -2023,28 +2028,30 @@ export default function VisaoGeral2Page() {
 
     // ── TENDÊNCIA DE QUEDA NA VENDA ─────────────────────────────────────────────────
     // Antes da Move de proposito: a queda e da Liebe, e o desvio do mes em curso tem de ser
-    // o mesmo que o rodape do grafico mostra sem a Move. Dois desvios medidos:
-    //  - ano: realizado ÷ projetado nos meses FECHADOS (o "no ano, até out" do Projetado ×
-    //    realizado);
-    //  - mês em curso: (vendido + o que falta) ÷ projetado do mes cheio (o "fecha em ·
+    // o mesmo que o rodape do grafico mostra sem a Move. SEMPRE OS DOIS ULTIMOS MESES (PCP,
+    // 25/11/2026 — "so um mes e loucura"):
+    //  - o ultimo mes FECHADO: realizado ÷ projetado dele (o mes do Projetado × realizado);
+    //  - o mes em curso: (vendido + o que falta) ÷ projetado do mes cheio (o "fecha em ·
     //    projetado" do rodape do grafico).
-    // A queda e a media dos que existirem, so quando negativa. Vale do mes SEGUINTE ao
+    // A queda e a media dos dois, so quando negativa. Faltando um deles (fechamento ainda
+    // carregando, mes sem venda), NAO calcula: a faixa diz o que falta. Vale do mes SEGUINTE ao
     // corrente (o corrente ja tem venda real) por `quedaMeses` meses, sobre a venda da Liebe
     // do mes — permanentes e edicao limitada.
     //
     // NAO desconta a venda (PCP, 24/11/2026): a linha continua com o valor de HOJE e o
     // grafico desenha, embaixo de cada mes, a seta ate onde ela pode cair. A pergunta e
     // "quanto pode cair", lida ao lado do que esta projetado — nao trocar a projecao.
-    const somaProjFechado = (fechamento?.meses || []).reduce((s, m) => s + Number(m.projetado || 0), 0);
-    const somaRealFechado = (fechamento?.meses || []).reduce((s, m) => s + Number(m.realizado || 0), 0);
-    const desvioAno = somaProjFechado > 0 ? somaRealFechado / somaProjFechado - 1 : null;
+    const ultFechado = fechamento?.meses?.length ? fechamento.meses[fechamento.meses.length - 1] : null;
+    const desvioFechado = ultFechado && Number(ultFechado.projetado) > 0
+      ? Number(ultFechado.realizado || 0) / Number(ultFechado.projetado) - 1
+      : null;
     const l0 = linhas[0];
     const cheio0 = Number(l0?.demandaMesCheia || 0);
     const desvioMes = l0?.mesCorrente && cheio0 > 0 && Number(l0.vendaRealizada || 0) > 0
       ? (Number(l0.vendaRealizada) + Number(l0.demanda || 0) + Number(l0.demandaEl || 0)) / cheio0 - 1
       : null;
-    const desvios = [desvioAno, desvioMes].filter((v): v is number => v !== null && Number.isFinite(v));
-    const mediaDesvio = desvios.length ? desvios.reduce((a, b) => a + b, 0) / desvios.length : 0;
+    const desvios = [desvioFechado, desvioMes].filter((v): v is number => v !== null && Number.isFinite(v));
+    const mediaDesvio = desvios.length === 2 ? (desvios[0] + desvios[1]) / 2 : 0;
     const queda = Math.max(0, -mediaDesvio);
     const primeiroQueda = l0?.mesCorrente ? 1 : 0;
     const mesesComQueda: string[] = [];
@@ -2059,9 +2066,9 @@ export default function VisaoGeral2Page() {
     }
     const quedaVenda = {
       queda,
-      desvioAno,
+      desvioFechado,
       desvioMes,
-      ultimoFechado: fechamento?.meses?.length ? fechamento.meses[fechamento.meses.length - 1].mes : null,
+      ultimoFechado: ultFechado ? ultFechado.mes : null,
       mesCorrente: l0?.mesCorrente ? l0.mes : null,
       meses: mesesComQueda,
       pecas: pecasQueda,
@@ -2769,7 +2776,7 @@ export default function VisaoGeral2Page() {
               const q = relatorioCapacidade.quedaVenda;
               const pctQ = (v: number | null) => (v === null ? '—' : `${v > 0 ? '+' : ''}${(v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
               const partes = [
-                q.desvioAno !== null ? `${pctQ(q.desvioAno)} no ano até ${q.ultimoFechado ? MES_ABREV[q.ultimoFechado - 1] : '—'}` : null,
+                q.desvioFechado !== null ? `${pctQ(q.desvioFechado)} em ${q.ultimoFechado ? MES_ABREV[q.ultimoFechado - 1] : '—'} (fechado)` : null,
                 q.desvioMes !== null ? `${pctQ(q.desvioMes)} em ${q.mesCorrente || 'mês corrente'} (fechando)` : null,
               ].filter(Boolean);
               return (
@@ -2791,14 +2798,34 @@ export default function VisaoGeral2Page() {
                           </button>
                         ))}
                       </span>
-                      <span className="text-xs text-red-800" title="A queda é a média dos dois desvios medidos: o do ano nos meses fechados (projetado × realizado) e o do mês em curso (vendido + o que falta, contra o projetado). Atualiza sozinha quando o mês fecha. Vale só para a venda da Liebe; o plano não muda.">
+                      <span className="text-xs text-red-800" title="A queda é a média dos desvios dos dois últimos meses: o último mês fechado (realizado × projetado) e o mês em curso (vendido + o que falta, contra o projetado). Quando o mês fecha, os dois andam juntos. Vale só para a venda da Liebe; o plano não muda.">
                         média de {partes.join(' e ')}
                         {q.meses.length > 0 && <> · em {q.meses[0]}–{q.meses[q.meses.length - 1]} a venda pode cair <strong>{Math.round(q.pecas).toLocaleString('pt-BR')} peças</strong> (setas no gráfico)</>}
                       </span>
                     </>
                   ) : (
-                    <span className="text-xs text-red-800">sem queda medida ({partes.join(' e ') || 'desvios ainda carregando'})</span>
+                    <span className="text-xs text-red-800">
+                      {q.desvioFechado === null || q.desvioMes === null
+                        ? `aguardando ${q.desvioFechado === null ? 'o último mês fechado' : 'a venda do mês em curso'} — a queda usa sempre os dois últimos meses${partes.length ? ` (${partes.join(' e ')})` : ''}`
+                        : `sem queda medida (${partes.join(' e ')})`}
+                    </span>
                   )}
+                </div>
+              );
+            })()}
+            {/* JORNADA 44 h -> 42 h (lei, a partir de 16/12/2026). Já está na capacidade do
+                gráfico (backend, `fatorJornadaNoMes`); a faixa só diz quanto ela custou. */}
+            {!modoFoto && capacidadeUnica && (() => {
+              const reduzidos = capacidadeUnica.filter((c) => Number(c.fatorJornada ?? 1) < 1 && Number(c.pecas) > 0);
+              if (!reduzidos.length) return null;
+              const perda = reduzidos.reduce((s, c) => s + Number(c.pecas) / Number(c.fatorJornada) - Number(c.pecas), 0);
+              const horas = Math.min(...reduzidos.map((c) => Number(c.jornadaHoras ?? 44)));
+              return (
+                <div className="mb-2 flex w-full max-w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm">
+                  <span className="font-semibold text-amber-900">Jornada {horas.toLocaleString('pt-BR')} h/semana</span>
+                  <span className="text-xs text-amber-900" title="A capacidade medida no ERP é de uma jornada de 44 h. Pela lei nova, a partir de 16/12/2026 a jornada passa a 42 h: cada dia de fábrica rende 42/44 do que rendia. Dezembro entra pela média (metade dos dias úteis antes, metade depois). Os dias necessários dos meses com plano lançado também sobem na mesma proporção.">
+                    a partir de 16/12/2026 (lei): cada dia rende 42/44 (−4,5%) · {reduzidos[0].mes.split('-').reverse().join('/')} em diante a capacidade perde <strong>{Math.round(perda).toLocaleString('pt-BR')} peças</strong> no horizonte (já no gráfico)
+                  </span>
                 </div>
               );
             })()}

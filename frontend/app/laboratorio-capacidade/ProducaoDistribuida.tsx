@@ -915,7 +915,7 @@ function FaixaFamilias({ dados, familias, blocos, familiasOcupacao, meses, anoAl
     const dOcioso = capDia > 0 ? x.ociosoMin / capDia : 0;
     const fundo = x.atrasoPc >= 0.5 && dOcioso >= 0.05 ? 'bg-amber-50' : x.atrasoPc >= 0.5 ? 'bg-red-50' : dOcioso >= 0.05 ? 'bg-emerald-50' : '';
     return (
-      <td key={i} className={`min-w-[7.5rem] px-2.5 py-2 text-right tabular-nums ${fundo} ${anoDe(i) < anoAlvo ? 'opacity-50' : ''} ${colSel === i ? HL : ''}`}
+      <td key={i} className={`min-w-[8.75rem] rounded-md px-3 py-3 text-right align-top tabular-nums ${fundo} ${anoDe(i) < anoAlvo ? 'opacity-50' : ''} ${colSel === i ? HL : ''}`}
         title={[
           `${meses[i]} · ocupação ${pct(o)} = (alocado + extra) ÷ capacidade dos grupos`,
           x.atrasoPc >= 0.5 ? `↪ ${num(x.atrasoPc)} peças empurradas para o mês seguinte (${fmtD(dAtraso)} dias de capacidade da família)` : 'nada empurrado',
@@ -923,11 +923,23 @@ function FaixaFamilias({ dados, familias, blocos, familiasOcupacao, meses, anoAl
           dOcioso >= 0.05 ? `ociosa ${fmtD(dOcioso)} dias: ${[...x.ociosos].sort((a, b) => b.min - a.min).map((g) => `${curto(g.grupo)} ${num(g.min / 1000)} mil min`).join(', ')}` : 'sem capacidade parada',
           x.atrasoPc >= 0.5 && dOcioso >= 0.05 ? 'Atraso e ociosidade ao mesmo tempo: os grupos parados não estão na lista das referências que atrasam.' : '',
         ].filter(Boolean).join('\n')}>
-        <div className={`text-base leading-tight ${forte ? 'font-extrabold' : 'font-bold'} ${o !== null && o > 1.005 ? 'text-red-800' : 'text-gray-800'}`}>{o !== null && o > 1.005 ? '▲' : ''}{pct(o)}</div>
-        <div className={`mt-1 text-[13px] leading-tight ${x.atrasoPc >= 0.5 ? 'font-semibold text-red-700' : 'text-gray-300'}`}>{x.atrasoPc >= 0.5 ? `↪ ${num(x.atrasoPc)}` : '·'}</div>
-        {x.atrasoPc >= 0.5 && <div className="text-xs leading-tight text-red-600">{fmtD(dAtraso)} dias</div>}
-        {x.adiantPc >= 0.5 && <div className="mt-1 text-xs font-semibold leading-tight text-violet-700">+ {num(x.adiantPc)} adiant.</div>}
-        <div className={`mt-1 text-xs leading-tight ${dOcioso >= 0.05 ? 'font-semibold text-emerald-700' : 'text-gray-300'}`}>{dOcioso >= 0.05 ? `ociosa ${fmtD(dOcioso)} d` : ''}</div>
+        {/* Célula em FAIXAS FIXAS, sem rótulo (PCP, 25/11/2026): a ocupação em destaque e,
+            abaixo do divisor, três espaços de altura fixa — empurra (peças e dias),
+            adiantado e ociosa —, cada um na mesma altura em toda célula, para a leitura
+            correr na horizontal. Vazio fica em branco, mas ocupa o lugar. */}
+        <div className={`text-lg leading-none ${forte ? 'font-extrabold' : 'font-bold'} ${o !== null && o > 1.005 ? 'text-red-800' : 'text-gray-800'}`}>{o !== null && o > 1.005 ? '▲' : ''}{pct(o)}</div>
+        <div className="mt-3 border-t border-black/10 pt-2.5 text-xs leading-tight">
+          <div className="h-11">
+            {x.atrasoPc >= 0.5 && (
+              <>
+                <div className="text-base font-semibold text-red-700">↪ {num(x.atrasoPc)}</div>
+                <div className="mt-1 text-sm text-red-600">{fmtD(dAtraso)} dias</div>
+              </>
+            )}
+          </div>
+          <div className="mt-2 h-4 font-semibold text-violet-700">{x.adiantPc >= 0.5 ? `+ ${num(x.adiantPc)} adiant.` : ''}</div>
+          <div className="mt-2 h-4 font-semibold text-emerald-700">{dOcioso >= 0.05 ? `ociosa ${fmtD(dOcioso)} d` : ''}</div>
+        </div>
       </td>
     );
   };
@@ -939,28 +951,28 @@ function FaixaFamilias({ dados, familias, blocos, familiasOcupacao, meses, anoAl
         juntos (fundo amarelo): um grupo parado não faz referência que a lista não manda para ele — passe o mouse para ver quais grupos ficaram parados.
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full border-separate border-spacing-0 text-sm">
+        <table className="min-w-full border-separate border-spacing-1 text-sm">
           <thead className="text-gray-500">
             <tr>
               <th className="sticky left-0 z-10 bg-white px-3 py-1.5 text-left text-xs font-semibold uppercase tracking-wide">Família</th>
-              {PERIODOS.map((_, i) => <th key={i} className={`px-2.5 py-1.5 text-right text-sm font-semibold whitespace-nowrap ${anoDe(i) < anoAlvo ? 'text-gray-400' : 'text-gray-600'}`}>{meses[i]}</th>)}
+              {PERIODOS.map((_, i) => <th key={i} className={`px-4 py-2 text-right text-sm font-semibold whitespace-nowrap ${anoDe(i) < anoAlvo ? 'text-gray-400' : 'text-gray-600'}`}>{meses[i]}</th>)}
             </tr>
           </thead>
           <tbody>
             {lista.map((f) => {
               const nGrupos = new Set(dados.grupos.filter((g) => base(g.grupo) === f || (g as { viraFamilia?: string | null }).viraFamilia === f).map((g) => g.grupo)).size;
               return (
-                <tr key={f} className="[&>td]:border-t [&>td]:border-white">
-                  <td className={`sticky left-0 z-10 whitespace-nowrap border-l-4 px-3 py-2 ${(COR_FAMILIA[f] || COR_FAMILIA.Outros).borda} ${(COR_FAMILIA[f] || COR_FAMILIA.Outros).faixa}`}>
+                <tr key={f}>
+                  <td className={`sticky left-0 z-10 whitespace-nowrap rounded-md border-l-4 px-4 py-3.5 ${(COR_FAMILIA[f] || COR_FAMILIA.Outros).borda} ${(COR_FAMILIA[f] || COR_FAMILIA.Outros).faixa}`}>
                     <div className="text-base font-bold">{f}</div>
-                    <div className="text-xs text-gray-500">{nGrupos} grupo{nGrupos === 1 ? '' : 's'} · {num(capDiaFam(f))} min/dia</div>
+                    <div className="mt-1 text-xs text-gray-500">{nGrupos} grupo{nGrupos === 1 ? '' : 's'} · {num(capDiaFam(f))} min/dia</div>
                   </td>
                   {tab.get(f)!.map((x, i) => cel(x, i))}
                 </tr>
               );
             })}
             <tr className="[&>td]:border-t-2 [&>td]:border-gray-400">
-              <td className="sticky left-0 z-10 bg-slate-100 px-3 py-2 text-base font-extrabold uppercase tracking-wide">Σ Fábrica</td>
+              <td className="sticky left-0 z-10 rounded-md bg-slate-100 px-4 py-3.5 text-base font-extrabold uppercase tracking-wide">Σ Fábrica</td>
               {fabrica.map((x, i) => cel(x, i, true))}
             </tr>
           </tbody>

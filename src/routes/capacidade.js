@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const { calcularPeriodosPlano, PERIODOS_PLANO } = require("../services/periodoPlanoService");
 const { montarOpcoesCostura } = require('../services/preferenciasCostura');
-const { diasDeFabricaRestantes, diasDisponiveisDoPeriodo, diasDisponiveisDaData } = require("../lib/diasUteis");
+const { diasDeFabricaRestantes, diasDisponiveisDoPeriodo, diasDisponiveisDaData, jornadaMediaNoMes, fatorJornadaNoMes, JORNADA_BASE } = require("../lib/diasUteis");
 
 const router = express.Router();
 
@@ -1937,8 +1937,19 @@ router.get("/dias-resumo", async (req, res) => {
       const diasNecessarios = {};
       const diasAcumulado = {};
       let acum = 0;
+      // Jornada: depois de 16/12/2026 o dia tem 42 h/semana e rende 42/44 — a mesma carga
+      // pede mais dias. Mes corrente pelo que falta dele, como na capacidade unica.
+      const agora = new Date();
+      const datasPer = calcularPeriodosPlano(agora).datas;
+      const fatorDoPer = (p) => {
+        const dt = datasPer[p];
+        if (!dt) return 1;
+        const corrente = dt.getFullYear() === agora.getFullYear() && dt.getMonth() === agora.getMonth();
+        return fatorJornadaNoMes(dt.getFullYear(), dt.getMonth() + 1, corrente ? agora.getDate() : 1);
+      };
       for (const p of PERIODOS_PLANO) {
-        const d = capacidadeDiaria > 0 ? ((proc[p] || 0) + (cargaTotal[p] || 0)) / capacidadeDiaria : 0;
+        const capDia = capacidadeDiaria * fatorDoPer(p);
+        const d = capDia > 0 ? ((proc[p] || 0) + (cargaTotal[p] || 0)) / capDia : 0;
         diasNecessarios[p] = d;
         acum += d;
         diasAcumulado[p] = acum;
@@ -2264,13 +2275,20 @@ router.get('/gap-mensal', auth, async (req, res) => {
     // Cada periodo leva a carga do SEU em-processo, em vez de tudo cair no inicio.
     let tempoAcumulado = 0;
     let diasAcumulados = 0;
+    let diasNecessariosAcum = 0;
     const meses = [];
     for (const chave of PERIODOS_PLANO) {
-      tempoAcumulado += carga[chave.toLowerCase()] + (cargaProcesso[chave] || 0) + (cargaExtra[chave] || 0);
+      const cargaPer = carga[chave.toLowerCase()] + (cargaProcesso[chave] || 0) + (cargaExtra[chave] || 0);
+      tempoAcumulado += cargaPer;
       // Dias do calendario, nao da config: o mes em curso entra so com o que falta, e os
       // feriados de cada mes sao descontados no ano certo.
-      diasAcumulados += diasDisponiveisDaData(calcularPeriodosPlano(hoje).datas[chave], hoje, comParada);
-      const diasNecessarios = capacidadeDiariaTotal > 0 ? tempoAcumulado / capacidadeDiariaTotal : 0;
+      const dataPer = calcularPeriodosPlano(hoje).datas[chave];
+      diasAcumulados += diasDisponiveisDaData(dataPer, hoje, comParada);
+      // Jornada: depois de 16/12/2026 o dia rende 42/44, a carga do mes pede mais dias.
+      const correntePer = dataPer.getFullYear() === hoje.getFullYear() && dataPer.getMonth() === hoje.getMonth();
+      const capDiaPer = capacidadeDiariaTotal * fatorJornadaNoMes(dataPer.getFullYear(), dataPer.getMonth() + 1, correntePer ? hoje.getDate() : 1);
+      diasNecessariosAcum += capDiaPer > 0 ? cargaPer / capDiaPer : 0;
+      const diasNecessarios = diasNecessariosAcum;
       // PERIODO SEM PLANO EMITIDO, marcado na FONTE.
       //
       // Esta rota so conhece o plano lancado. Num periodo que ninguem emitiu, a carga nao
@@ -2977,10 +2995,16 @@ async function calcularIndiceMensal(pool, { desde: desdePedido, anterior = false
        ORDER BY 1
     `, [desde, DEFAULT_REAL_GROUP_IDS.map(String), gruposAtivos]);
 
+    // JORNADA (25/11/2026): o min/dia de cada mes e levado para a jornada de 44 h antes de
+    // virar nivel e sazonalidade. Mes rodado com 42 h rende menos por ser mais curto, nao por
+    // sazonalidade — sem isto dez/26 em diante puxaria o indice para baixo e a reducao seria
+    // cobrada duas vezes (aqui e no fator da capacidade). Antes de 16/12/2026 o fator e 1.
     const obs = rows
       .map((r) => ({ competencia: r.competencia, ano: Number(r.ano), mes: Number(r.mes),
                      minutos: Number(r.minutos), dias: Number(r.dias),
-                     porDia: Number(r.dias) > 0 ? Number(r.minutos) / Number(r.dias) : 0 }))
+                     porDia: Number(r.dias) > 0
+                       ? (Number(r.minutos) / Number(r.dias)) * (JORNADA_BASE / jornadaMediaNoMes(Number(r.ano), Number(r.mes)))
+                       : 0 }))
       .filter((o) => o.porDia > 0);
     if (!obs.length) return { success: true, desde, nivel: 0, data: {} };
 
@@ -3038,7 +3062,8 @@ router.get('/indice-mensal', auth, async (req, res) => {
  * Distribuicao e o Laboratorio (decisao do PCP em 18/11/2026: "tem que fazer sentido junto").
  *
  * Fabrica, por periodo: NIVEL (`indice-mensal`: media dos 3 ultimos meses fechados, min/dia
- * seg-sex) x SAZONALIDADE amortecida em 50% (a mesma `idx` da Visao Geral) x DIAS do periodo.
+ * seg-sex, em jornada de 44 h) x SAZONALIDADE amortecida em 50% (a mesma `idx` da Visao Geral)
+ * x JORNADA (42/44 a partir de 16/12/2026, `fatorJornadaNoMes`) x DIAS do periodo.
  * Grupo: a fatia dele na fabrica pelo min/dia medido de cada um (`consultarCapacidadeRealPorGrupo`,
  * janela dos 3 ultimos meses fechados) — a soma dos grupos e a fabrica, mes a mes.
  * Pecas: minutos / min/peca MEDIDO (memoria "capacidade em pecas vem do medido").
@@ -3080,13 +3105,19 @@ async function capacidadeMensal(pool, { comParada = false, refresh = false } = {
     const dias = diasDisponiveisDaData(data, hoje, comParada);
     const bruto = Number(indice.data?.[String(mes)] ?? 1) || 1;
     const idx = 1 + (bruto - 1) * AMORTECIMENTO_INDICE;
-    const minDia = nivel * idx;
+    // Jornada: o nivel e de 44 h; dias depois de 16/12/2026 rendem 42/44. No mes corrente
+    // conta so o que falta dele, como os dias.
+    const ehCorrente = data.getFullYear() === hoje.getFullYear() && mes === hoje.getMonth() + 1;
+    const fatorJornada = fatorJornadaNoMes(data.getFullYear(), mes, ehCorrente ? hoje.getDate() : 1);
+    const minDia = nivel * idx * fatorJornada;
     const minutos = minDia * dias;
     return {
       periodo: per,
       mes: `${data.getFullYear()}-${String(mes).padStart(2, '0')}`,
       dias,
       indice: Number(idx.toFixed(4)),
+      jornadaHoras: Number((fatorJornada * JORNADA_BASE).toFixed(2)),
+      fatorJornada: Number(fatorJornada.toFixed(4)),
       minDia: Math.round(minDia),
       minutos: Math.round(minutos),
       pecas: minPeca > 0 ? Math.round(minutos / minPeca) : null,
@@ -3581,7 +3612,9 @@ const handlerDistribuicao = async (req, res) => {
     marca('capacidade');
     const capMes = (celula, per) => {
       const v = capUnica.porGrupo.get(celula)?.[per];
-      const base = v !== undefined ? v : Number(capDiaria.get(celula) || 0) * diasDisponiveisDaData(calcularPeriodosPlano(hoje).datas[per], hoje, comParada);
+      const dataPer = calcularPeriodosPlano(hoje).datas[per];
+      const base = v !== undefined ? v : Number(capDiaria.get(celula) || 0) * diasDisponiveisDaData(dataPer, hoje, comParada)
+        * fatorJornadaNoMes(dataPer.getFullYear(), dataPer.getMonth() + 1);
       const ref = reforcos.get(celula);
       return ref && PERIODOS_PLANO.indexOf(per) >= ref.desdeIdx ? base * ref.fator : base;
     };

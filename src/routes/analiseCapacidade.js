@@ -1258,7 +1258,8 @@ async function calcularPlanoPorGrupo(pool, query = {}) {
     // SAZONALIDADE da capacidade unica (18/11/2026): a entrega de cada grupo sobe e desce no
     // ano como a da fabrica, com o mesmo indice que o grafico da Visao Geral usa.
     const capUnica = await capacidadeMensal(pool, {});
-    const idxPorMes = new Map(capUnica.periodos.map((p) => [p.mes, Number(p.indice || 1)]));
+    // x jornada (42/44 a partir de 16/12/2026), a mesma da capacidade unica.
+    const idxPorMes = new Map(capUnica.periodos.map((p) => [p.mes, Number(p.indice || 1) * Number(p.fatorJornada || 1)]));
     const idxMes = mesesAno.map((m) => idxPorMes.get(m) || 1);
     const lista = [...linhas.entries()].map(([grupo, l]) => {
       const entrega = entregaMes.get(grupo) || 0;

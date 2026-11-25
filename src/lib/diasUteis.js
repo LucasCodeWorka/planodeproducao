@@ -198,7 +198,59 @@ function diasDisponiveisDaData(data, hoje = new Date(), comParada = false) {
   return diasDeFabricaNoMes(ano, mes, comParada);
 }
 
+/**
+ * JORNADA SEMANAL (horas). A capacidade medida no ERP (`tempo_produzido_min`) saiu de uma
+ * fabrica de 44 h; a lei nova reduz para 42 h a partir de 16/12/2026 (informado pelo PCP em
+ * 25/11/2026). Cada dia depois da data rende 42/44 do que rendia — o dia continua existindo,
+ * o que encolhe sao as horas dele. Para uma nova mudanca, acrescente a data aqui.
+ */
+const JORNADA_BASE = 44;
+const JORNADAS = [
+  { desde: [2026, 12, 16], horas: 42 },
+];
+
+/** Horas semanais em vigor numa data. */
+function jornadaNaData(ano, mes, dia) {
+  const t = Date.UTC(ano, mes - 1, dia);
+  let horas = JORNADA_BASE;
+  for (const j of JORNADAS) if (t >= Date.UTC(j.desde[0], j.desde[1] - 1, j.desde[2])) horas = j.horas;
+  return horas;
+}
+
+/**
+ * Jornada media (h/semana) dos dias uteis do mes, de `desdeDia` em diante, pesada por dia
+ * util do calendario. Dez/2026: 11 dias uteis antes de 16/12 e 11 depois -> 43 h. A coletiva
+ * (18 dias de fabrica em dezembro) nao tem data aqui, entao o peso e o do calendario.
+ */
+function jornadaMediaNoMes(ano, mes, desdeDia = 1) {
+  const feriados = new Set(
+    feriadosDoAno(ano).filter((f) => f.getUTCMonth() === mes - 1).map((f) => f.getUTCDate())
+  );
+  let n = 0;
+  let soma = 0;
+  const d = new Date(Date.UTC(ano, mes - 1, desdeDia));
+  while (d.getUTCMonth() === mes - 1) {
+    const w = d.getUTCDay();
+    if (w >= 1 && w <= 5 && !feriados.has(d.getUTCDate())) {
+      n += 1;
+      soma += jornadaNaData(ano, mes, d.getUTCDate());
+    }
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return n > 0 ? soma / n : jornadaNaData(ano, mes, desdeDia);
+}
+
+/** Quanto um dia do mes rende frente a jornada da medicao (44 h): 42/44 = 0,9545. */
+function fatorJornadaNoMes(ano, mes, desdeDia = 1) {
+  return jornadaMediaNoMes(ano, mes, desdeDia) / JORNADA_BASE;
+}
+
 module.exports = {
+  JORNADA_BASE,
+  JORNADAS,
+  jornadaNaData,
+  jornadaMediaNoMes,
+  fatorJornadaNoMes,
   PARADAS,
   diasDisponiveisDaData,
   diasDeParadaNoMes,
