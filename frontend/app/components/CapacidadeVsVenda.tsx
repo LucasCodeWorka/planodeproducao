@@ -89,6 +89,10 @@ export type MesCapacidadeVenda = {
    * fábrica nesse mês, ao `moveMinPeca` escolhido na tela. */
   movePecas?: number;
   moveDias?: number;
+  /** Tendência de queda da venda da Liebe neste mês (0,11 = −11%). NÃO descontada: a
+   *  venda segue com o valor de hoje e o gráfico desenha a seta até onde ela pode cair
+   *  ((demanda + demandaEl) × queda). Ausente = mês sem queda. */
+  quedaVenda?: number;
   moveMinPeca?: number;
   /** Os mesmos necessários/gap/ocupação ACUMULADOS, agora COM a Move somada. Indefinidos
    * nos meses sem período de plano, onde não há leitura acumulada a que somar. */
@@ -726,6 +730,25 @@ export default function CapacidadeVsVenda({
   const fisicoPrevisto = linhas.map((l, i) => (ancora > 0
     ? ancora + (disponivelTabela[i] - disponivelTabela[0])
     : Number(l.estoque || 0) + Number(estoqueForaDoPlano || 0)));
+  // TENDENCIA DE QUEDA (PCP, 24/11/2026): se a venda cair e o plano ficar igual, o que nao
+  // vendeu fica no estoque. A diferenca ACUMULA mes a mes e continua depois que a queda
+  // acaba — o disponivel e o fisico sobem pelo mesmo valor (a carteira nao muda). Premissa:
+  // producao igual; o plano nao reage a queda.
+  const quedaAcum = linhas.reduce<number[]>((acc, l, i) => {
+    const q = Number(l.quedaVenda || 0);
+    const cai = i > 0 && q > 0 ? (Number(l.demanda || 0) + Number(l.demandaEl || 0)) * q : 0;
+    acc.push((i > 0 ? acc[i - 1] : 0) + cai);
+    return acc;
+  }, []);
+  const temQueda = quedaAcum.some((v) => v >= 1);
+  const pctQueda = Number(linhas.find((l) => Number(l.quedaVenda || 0) > 0)?.quedaVenda || 0);
+  const rotuloQueda = `com a queda de −${(pctQueda * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% na venda`;
+  const celulaQueda = (base: number, i: number) => (quedaAcum[i] >= 1 ? (
+    <span className="tabular-nums" title={`${fmt(base)} hoje + ${fmt(quedaAcum[i])} que deixam de ser vendidas até aqui = ${fmt(base + quedaAcum[i])}. Plano igual: o que não vende fica no estoque.`}>
+      <span className="font-semibold text-red-700">{fmt(base + quedaAcum[i])}</span>
+      <div className="text-[10px] text-red-500">+{fmt(quedaAcum[i])}</div>
+    </span>
+  ) : <span className="text-gray-300">·</span>);
 
   // Publica a leitura para a tabela de baixo. Em efeito, nao no render, para nao avisar o
   // pai no meio da renderizacao dele.
@@ -1358,6 +1381,29 @@ export default function CapacidadeVsVenda({
               </circle>
             </g>
           )}
+
+          {/* TENDENCIA DE QUEDA (PCP, 24/11/2026): embaixo de cada mes marcado, uma seta para
+              baixo e o quanto a venda pode cair. A curva fica com o valor de HOJE — o rotulo
+              de cima — e a seta diz a queda. Tamanho FIXO, nao em escala: 11% de 177 mil na
+              escala da faixa dava ~7px, uma seta que ninguem ve; o numero carrega a medida. */}
+          {modoGrafico === 'isolado' && linhas.map((l, i) => {
+            const q = Number(l.quedaVenda || 0);
+            if (!(q > 0)) return null;
+            const vHoje = demandaTotal(l);
+            const cai = (Number(l.demanda || 0) + Number(l.demandaEl || 0)) * q;
+            if (!(cai >= 1)) return null;
+            const y0 = ySerie(iVenda, vHoje) + 6;
+            const y1 = y0 + 18;
+            return (
+              <g key={`queda-${i}`}>
+                <title>{`${l.mes} · venda projetada hoje ${fmt(vHoje)}; com a tendência de −${(q * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% pode cair ${fmt(cai)} peças, para ${fmt(vHoje - cai)}.`}</title>
+                <line x1={x(i)} x2={x(i)} y1={y0} y2={y1 - 3} stroke="#dc2626" strokeWidth="2" />
+                <path d={`M ${x(i) - 4} ${y1 - 5} L ${x(i)} ${y1} L ${x(i) + 4} ${y1 - 5}`} fill="none" stroke="#dc2626" strokeWidth="2" strokeLinejoin="round" />
+                <line x1={x(i) - 12} x2={x(i) + 12} y1={y1 + 2} y2={y1 + 2} stroke="#dc2626" strokeWidth="2" />
+                <text x={x(i) + 15} y={y1 + 5} fontSize="9.5" fontWeight="700" fill="#dc2626" fontFamily="ui-monospace, monospace">−{fmt(cai)}</text>
+              </g>
+            );
+          })}
 
           {/* MES EM CURSO, no rodape da faixa de Venda.
               Separada da curva laranja de proposito: as duas nao precisam conversar. A
@@ -2010,6 +2056,13 @@ export default function CapacidadeVsVenda({
                     </span>
                   ),
                 },
+                ...(temQueda ? [{
+                  id: 'disponivel-queda',
+                  rotulo: rotuloQueda,
+                  pai: 'disponivel',
+                  dica: 'Como ficaria o Disponível se a venda cair pela tendência (faixa vermelha acima do gráfico) e o plano continuar o mesmo: o que deixa de ser vendido fica no estoque. Embaixo, quanto sobe — acumulado, continua depois que a queda acaba.',
+                  celula: (l: typeof linhas[number]) => celulaQueda(disponivelTabela[linhas.indexOf(l)], linhas.indexOf(l)),
+                }] : []),
                 ...(totalCurvaHoje > 0 ? CURVAS.map((c) => ({
                   id: `disponivel-${c}`,
                   rotulo: `curva ${c}`,
@@ -2086,6 +2139,13 @@ export default function CapacidadeVsVenda({
                     </span>
                   ),
                 },
+                ...(temQueda ? [{
+                  id: 'fisico-queda',
+                  rotulo: `Estoque físico ${rotuloQueda}`,
+                  pai: 'info',
+                  dica: 'Como ficaria o estoque físico se a venda cair pela tendência e o plano continuar o mesmo. Sobe pelo mesmo valor do Disponível: a carteira não muda, só o que deixa de ser vendido.',
+                  celula: (l: typeof linhas[number]) => celulaQueda(fisicoPrevisto[linhas.indexOf(l)], linhas.indexOf(l)),
+                }] : []),
                 {
                   id: 'pendente',
                   rotulo: 'Carteira pendente',
@@ -2117,7 +2177,7 @@ export default function CapacidadeVsVenda({
               // Parentesco derivado da propria lista: evita manter um mapa em paralelo que
               // sai de sincronia na primeira linha nova.
               const paiDe: Record<string, string> = {};
-              defs.forEach((d) => { if ('pai' in d) paiDe[d.id] = d.pai; });
+              defs.forEach((d) => { if ('pai' in d && d.pai) paiDe[d.id] = d.pai; });
               // As tres linhas da Move so existem com a simulacao LIGADA. Desligada, a
               // pagina nem calcula os campos, e deixar as linhas na tabela so acrescentaria
               // tres fileiras de travessao.
@@ -2138,7 +2198,7 @@ export default function CapacidadeVsVenda({
               .map((linha, idx) => {
                 // Profundidade pela cadeia de pais, para o recuo acompanhar o nivel.
                 let nivel = 0;
-                let ancestral: string | null = 'pai' in linha ? linha.pai : null;
+                let ancestral: string | null = 'pai' in linha ? (linha.pai ?? null) : null;
                 while (ancestral) {
                   nivel += 1;
                   ancestral = paiDe[ancestral] || null;

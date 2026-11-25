@@ -53,6 +53,16 @@ const MOSTRAR_OCUPACAO_POR_GRUPO = false;
 const MOSTRAR_COBERTURA_ALVO = false;
 // Idem para a previsao de termino do plano corrente (MA).
 const MOSTRAR_PREVISAO_TERMINO = false;
+// TENDÊNCIA DE QUEDA NA VENDA (PCP e diretoria, 24/11/2026). Out e nov venderam abaixo do
+// projetado e a leitura é que a tendência continua. Padrão da tela, sem clique: a projeção
+// de venda dos próximos N meses (a partir do mês seguinte ao corrente) cai pela MÉDIA de
+// dois desvios medidos — o do ano nos meses fechados (projetado × realizado) e o do mês em
+// curso (vendido + o que falta, contra o projetado do mês cheio). Em 24/11: −16,5% e −5,4%,
+// média −11%. Só a Liebe: a Liebe Move é marca nova, com estudo próprio. A projeção NÃO é
+// trocada: o gráfico de Venda mostra o valor de hoje e uma seta até onde ele pode cair.
+const OPCOES_QUEDA_MESES = [4, 6, 8, 0] as const;
+const QUEDA_MESES_PADRAO = 4;
+const CHAVE_QUEDA_MESES = 'vg2.quedaVendaMeses';
 const CORES_MES = [
   { th: 'text-blue-700',    td: 'bg-blue-50/60' },
   { th: 'text-violet-700',  td: 'bg-violet-50/60' },
@@ -166,6 +176,18 @@ export default function VisaoGeral2Page() {
   // leitura padrao da tela tem que continuar sendo a da Liebe — a Move e uma pergunta que
   // o PCP liga quando quer fazer, nao um numero que muda a tela sozinho.
   const [incluirMove, setIncluirMove] = useState(false);
+  // Tendência de queda na venda: quantos meses à frente ela vale (0 = sem queda).
+  const [quedaMeses, setQuedaMesesEstado] = useState<number>(QUEDA_MESES_PADRAO);
+  useEffect(() => {
+    try {
+      const salvo = window.localStorage.getItem(CHAVE_QUEDA_MESES);
+      if (salvo !== null && (OPCOES_QUEDA_MESES as readonly number[]).includes(Number(salvo))) setQuedaMesesEstado(Number(salvo));
+    } catch { /* sem storage: fica o padrão */ }
+  }, []);
+  const setQuedaMeses = (n: number) => {
+    setQuedaMesesEstado(n);
+    try { window.localStorage.setItem(CHAVE_QUEDA_MESES, String(n)); } catch { /* sem storage */ }
+  };
   // Tempos MEDIDOS por grupo de produto, da `/api/capacidade/tempos-por-grupo`. A Move nao
   // tem tempo proprio, entao cada familia dela aponta para um grupo que a fabrica ja produz
   // e herda o minuto dele — premissa conferivel no lugar de um numero digitado no olho.
@@ -1136,6 +1158,8 @@ export default function VisaoGeral2Page() {
         minPecaMedido,
         cenarioFabrica,
         comFerias,
+        // Tendência de queda na venda: a % aplicada e em quais meses.
+        quedaVenda: relatorioCapacidade.quedaVenda ? { ...relatorioCapacidade.quedaVenda, horizonteMeses: quedaMeses } : null,
         modoCobertura,
         multiplicadorCobertura,
         anoBase: data?.anoDestino ? data.anoDestino - 1 : null,
@@ -1997,6 +2021,52 @@ export default function VisaoGeral2Page() {
       });
     }
 
+    // ── TENDÊNCIA DE QUEDA NA VENDA ─────────────────────────────────────────────────
+    // Antes da Move de proposito: a queda e da Liebe, e o desvio do mes em curso tem de ser
+    // o mesmo que o rodape do grafico mostra sem a Move. Dois desvios medidos:
+    //  - ano: realizado ÷ projetado nos meses FECHADOS (o "no ano, até out" do Projetado ×
+    //    realizado);
+    //  - mês em curso: (vendido + o que falta) ÷ projetado do mes cheio (o "fecha em ·
+    //    projetado" do rodape do grafico).
+    // A queda e a media dos que existirem, so quando negativa. Vale do mes SEGUINTE ao
+    // corrente (o corrente ja tem venda real) por `quedaMeses` meses, sobre a venda da Liebe
+    // do mes — permanentes e edicao limitada.
+    //
+    // NAO desconta a venda (PCP, 24/11/2026): a linha continua com o valor de HOJE e o
+    // grafico desenha, embaixo de cada mes, a seta ate onde ela pode cair. A pergunta e
+    // "quanto pode cair", lida ao lado do que esta projetado — nao trocar a projecao.
+    const somaProjFechado = (fechamento?.meses || []).reduce((s, m) => s + Number(m.projetado || 0), 0);
+    const somaRealFechado = (fechamento?.meses || []).reduce((s, m) => s + Number(m.realizado || 0), 0);
+    const desvioAno = somaProjFechado > 0 ? somaRealFechado / somaProjFechado - 1 : null;
+    const l0 = linhas[0];
+    const cheio0 = Number(l0?.demandaMesCheia || 0);
+    const desvioMes = l0?.mesCorrente && cheio0 > 0 && Number(l0.vendaRealizada || 0) > 0
+      ? (Number(l0.vendaRealizada) + Number(l0.demanda || 0) + Number(l0.demandaEl || 0)) / cheio0 - 1
+      : null;
+    const desvios = [desvioAno, desvioMes].filter((v): v is number => v !== null && Number.isFinite(v));
+    const mediaDesvio = desvios.length ? desvios.reduce((a, b) => a + b, 0) / desvios.length : 0;
+    const queda = Math.max(0, -mediaDesvio);
+    const primeiroQueda = l0?.mesCorrente ? 1 : 0;
+    const mesesComQueda: string[] = [];
+    let pecasQueda = 0;
+    if (queda > 0 && quedaMeses > 0) {
+      for (let i = primeiroQueda; i < Math.min(linhas.length, primeiroQueda + quedaMeses); i += 1) {
+        const l = linhas[i];
+        l.quedaVenda = queda;
+        pecasQueda += (Number(l.demanda || 0) + Number(l.demandaEl || 0)) * queda;
+        mesesComQueda.push(l.mes);
+      }
+    }
+    const quedaVenda = {
+      queda,
+      desvioAno,
+      desvioMes,
+      ultimoFechado: fechamento?.meses?.length ? fechamento.meses[fechamento.meses.length - 1].mes : null,
+      mesCorrente: l0?.mesCorrente ? l0.mes : null,
+      meses: mesesComQueda,
+      pecas: pecasQueda,
+    };
+
     // ── LIEBE MOVE ────────────────────────────────────────────────────────────────────
     // A marca nova entra como carga POR CIMA do plano que ja existe. Ela nao tem plano, nao
     // esta na matriz e nao tem tempo de costura cadastrado, entao nao chega por nenhuma
@@ -2052,8 +2122,9 @@ export default function VisaoGeral2Page() {
       linhas,
       abertura: Number(data.estoqueBaseReal || 0) + Number(data.elEstoque || 0),
       pedidosPendentes: Number(data.pedidosPendentes || 0) + Number(data.elPendentes || 0),
+      quedaVenda,
     };
-  }, [resumoDiasEfetivo, data, projEdicaoLimitada, elDetalhe, elDetalheBase, indiceMensal, cenarioFabrica, incluirMove, minPecaMove, capacidadeUnica]);
+  }, [resumoDiasEfetivo, data, projEdicaoLimitada, elDetalhe, elDetalheBase, indiceMensal, cenarioFabrica, incluirMove, minPecaMove, capacidadeUnica, fechamento, quedaMeses]);
 
   // MODO FOTO. Com um cenario salvo aberto e o modo ligado, a tela inteira passa a ler a
   // foto em vez de hoje: as mesmas linhas, a mesma abertura, a mesma ocupacao por grupo.
@@ -2692,6 +2763,45 @@ export default function VisaoGeral2Page() {
             </>
           )}
           controles={(
+            <>
+            {/* TENDÊNCIA DE QUEDA NA VENDA — padrão da tela; só o horizonte se escolhe. */}
+            {!modoFoto && relatorioCapacidade?.quedaVenda && (() => {
+              const q = relatorioCapacidade.quedaVenda;
+              const pctQ = (v: number | null) => (v === null ? '—' : `${v > 0 ? '+' : ''}${(v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
+              const partes = [
+                q.desvioAno !== null ? `${pctQ(q.desvioAno)} no ano até ${q.ultimoFechado ? MES_ABREV[q.ultimoFechado - 1] : '—'}` : null,
+                q.desvioMes !== null ? `${pctQ(q.desvioMes)} em ${q.mesCorrente || 'mês corrente'} (fechando)` : null,
+              ].filter(Boolean);
+              return (
+                <div className="mb-2 flex w-full max-w-full flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm">
+                  <span className="font-semibold text-red-900">Tendência de venda</span>
+                  {q.queda > 0 ? (
+                    <>
+                      <span className="font-mono font-bold text-red-700">−{(q.queda * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
+                      <span className="text-xs text-red-900">nos próximos</span>
+                      <span className="inline-flex overflow-hidden rounded border border-red-300">
+                        {OPCOES_QUEDA_MESES.map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setQuedaMeses(n)}
+                            className={`px-2 py-0.5 text-xs font-semibold ${quedaMeses === n ? 'bg-red-600 text-white' : 'bg-white text-red-800 hover:bg-red-100'}`}
+                          >
+                            {n === 0 ? 'sem queda' : `${n} meses`}
+                          </button>
+                        ))}
+                      </span>
+                      <span className="text-xs text-red-800" title="A queda é a média dos dois desvios medidos: o do ano nos meses fechados (projetado × realizado) e o do mês em curso (vendido + o que falta, contra o projetado). Atualiza sozinha quando o mês fecha. Vale só para a venda da Liebe; o plano não muda.">
+                        média de {partes.join(' e ')}
+                        {q.meses.length > 0 && <> · em {q.meses[0]}–{q.meses[q.meses.length - 1]} a venda pode cair <strong>{Math.round(q.pecas).toLocaleString('pt-BR')} peças</strong> (setas no gráfico)</>}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-red-800">sem queda medida ({partes.join(' e ') || 'desvios ainda carregando'})</span>
+                  )}
+                </div>
+              );
+            })()}
             <div className="flex w-full max-w-full flex-wrap items-center gap-x-3 gap-y-2 overflow-hidden rounded-lg border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm">
               <label className="flex items-center gap-2 font-semibold text-sky-900">
                 <input
@@ -2728,8 +2838,9 @@ export default function VisaoGeral2Page() {
               {/* Mapeamento familia -> grupo. Fica aberto, nao escondido atras de um
                   "avancado": e a premissa que decide a resposta, e quem le a tela precisa
                   ver de onde o minuto veio sem ter que procurar. */}
-              
+
             </div>
+            </>
           )}
         />
       )}
