@@ -50,9 +50,17 @@ def consultar(hwnd, ano: int, despesa: int, modelos) -> Image.Image:
     # Pode haver aviso de consulta (quando a tela tem manutencao pendente) ou
     # a consulta pode carregar diretamente. Nos dois casos, so aceitar a tela
     # quando ano e codigo da despesa forem os esperados.
-    prazo = time.monotonic() + 25
+    inicio = time.monotonic()
+    prazo = inicio + 40
+    # 25/11/2026: com o TOTVS lento o F4 se perdeu e a grade ficou na despesa anterior.
+    # Sem aviso e sem a grade mudar, o F4 é repetido (consultar de novo não grava nada).
+    reenvios = [inicio + 10, inicio + 20, inicio + 30]
     correspondencia_desde = None
     while time.monotonic() < prazo:
+        if correspondencia_desde is None and reenvios and time.monotonic() >= reenvios[0]:
+            reenvios.pop(0)
+            inp.key(hwnd, "f4")
+            time.sleep(1)
         img = tirar(hwnd)
         if modal_confirmacao(img):
             correspondencia_desde = None
@@ -112,8 +120,25 @@ def formatar_centavos(centavos: int) -> str:
     return f"{centavos // 100:,}".replace(",", ".") + f",{centavos % 100:02d}"
 
 
+def fechar_aviso_nao_salvos(hwnd) -> None:
+    """Fecha "Existem dados na tela que podem não ter sido salvos. Continuar?" com Sim.
+
+    Só é chamado ANTES de digitar o filtro de um item novo: o item anterior já foi
+    relido depois do F4 (VERIFICADO), então não há nada pendente a perder.
+    25/11/2026: o aviso surgiu entre 11070 e 11072 e travou a digitação do filtro.
+    """
+    for _ in range(12):
+        if not modal_confirmacao(tirar(hwnd)):
+            return
+        inp.click(hwnd, 633, 441)
+        time.sleep(0.6)
+    printar(tirar(hwnd), "ERRO_aviso_nao_salvos_nao_fechou.png")
+    raise RuntimeError("Aviso de dados não salvos não fechou")
+
+
 def configurar_filtro(hwnd, ano: int, despesa: int, modelos) -> None:
     for tentativa in range(1, 4):
+        fechar_aviso_nao_salvos(hwnd)
         inp.set_field(hwnd, 136, 182, str(ano))
         inp.key(hwnd, "tab")
         inp.set_field(hwnd, 138, 246, str(despesa))

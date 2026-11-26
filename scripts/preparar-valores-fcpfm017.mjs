@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import pg from 'pg';
 import { createRequire } from 'node:module';
+import { calcularOrcamentoMp, PERIODOS_ORCAMENTO } from '../frontend/app/lib/orcamentoMp.ts';
 
 const require = createRequire(import.meta.url);
 const { calcularPeriodosPlano } = require('../src/services/periodoPlanoService');
@@ -22,7 +23,7 @@ const pool = new pg.Pool({
     : undefined,
 });
 
-const periodos = ['MA', 'PX', 'UL', 'QT', 'QU'];
+const periodos = [...PERIODOS_ORCAMENTO];
 const hoje = new Date();
 const mesesPlano = calcularPeriodosPlano(hoje).datas;
 const numero = (v) => Number(v || 0);
@@ -37,56 +38,22 @@ async function requisitar(base, endpoint, options = {}, timeout = 600000) {
   return payload;
 }
 
-function ultimaCompra(row) {
-  const compras = (Array.isArray(row.finalizados_detalhe) ? row.finalizados_detalhe : [])
-    .filter((item) => numero(item.quantidade) > 0 && numero(item.valor) > 0)
-    .sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')));
-  return compras[0] ? numero(compras[0].valor) / numero(compras[0].quantidade) : 0;
-}
-
+// A conta por MP e a mesma da tela /orcamento-mp (25/11/2026): uma copia so, em
+// frontend/app/lib/orcamentoMp.ts. Antes este script tinha a dele, e ja divergia no fator de
+// conversao. O formato de saida continua o mesmo que o resto da cadeia le.
 function calcular(row, opcoes) {
-  const id = String(row.idmateriaprima || '').trim();
-  const artigo = String(row.artigo || '').trim().toUpperCase();
-  const semCusto = artigo === 'ALCA' || artigo === 'ALÇA';
-  const ultima = ultimaCompra(row);
-  const custoTotvs = numero(opcoes[id]?.[0]?.value);
-  const fator = numero(row.fator_conversao) || 1;
-  const preco = semCusto ? 0 : (ultima || custoTotvs) / fator;
-  const consumo = periodos.map((p) => numero(row[`consumo_${p.toLowerCase()}`]));
-  const compras = periodos.map((p) => numero(row[`entrada_${p.toLowerCase()}`]));
-  const comprasTotal = numero(row.entrada_andamento);
-  const estoque = numero(row.estoquetotal);
-  const necessidade = Math.max(0, consumo.reduce((a, b) => a + b, 0) - estoque - comprasTotal);
-  const valorNecessidade = necessidade * preco;
-  const folga = valorNecessidade <= 0 ? 0 : Math.max(valorNecessidade * 0.05, 250);
-  const valorFuturo = valorNecessidade + folga;
-  const valorComprado = comprasTotal * preco;
-  let consumoAcumulado = 0;
-  let necessidadeAnterior = 0;
-  const porPeriodo = {};
-  for (let i = 0; i < periodos.length; i++) {
-    consumoAcumulado += consumo[i];
-    const necessidadeAcumulada = Math.max(0, consumoAcumulado - estoque - comprasTotal);
-    const necessidadeIndividual = Math.max(0, necessidadeAcumulada - necessidadeAnterior);
-    const valorIndividual = necessidadeIndividual * preco;
-    const folgaIndividual = valorNecessidade > 0 ? valorIndividual / valorNecessidade * folga : 0;
-    porPeriodo[periodos[i]] = {
-      comprado: compras[i] * preco,
-      futuro: valorIndividual + folgaIndividual,
-    };
-    necessidadeAnterior = necessidadeAcumulada;
-  }
+  const orc = calcularOrcamentoMp(row, opcoes, 'QU');
   return {
-    mp: id,
+    mp: String(row.idmateriaprima || '').trim(),
     descricao: row.nome_materiaprima || '',
-    artigo,
-    preco,
-    origemPreco: semCusto ? 'ALCA_SEM_CUSTO' : ultima > 0 ? 'ULTIMA_COMPRA' : custoTotvs > 0 ? 'CUSTO_TOTVS' : 'SEM_PRECO',
-    necessidade,
-    valorFuturo,
-    valorComprado,
-    valorOrcamento: valorFuturo + valorComprado,
-    porPeriodo,
+    artigo: String(row.artigo || '').trim().toUpperCase(),
+    preco: orc.preco,
+    origemPreco: orc.fontePreco,
+    necessidade: orc.necessidadeTotal,
+    valorFuturo: orc.valorOrcamentoTotal,
+    valorComprado: orc.valorComprasTotal,
+    valorOrcamento: orc.valorComComprado,
+    porPeriodo: orc.porPeriodo,
   };
 }
 

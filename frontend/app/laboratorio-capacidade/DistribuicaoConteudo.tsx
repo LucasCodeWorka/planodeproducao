@@ -98,6 +98,8 @@ type Resumo = {
   capacidadeHorizonteMin: number;
   cargaExtraMin: number;
   emProcessoOk: boolean;
+  /** Processo (OP aberta hoje) em peças; entra inteiro no primeiro período. */
+  processoPecas?: number;
   atrasadoMin: number;
   periodosEstourados: number;
   extraExcedeCapacidade: boolean;

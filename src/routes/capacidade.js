@@ -2,6 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const { calcularPeriodosPlano, PERIODOS_PLANO } = require("../services/periodoPlanoService");
+const { entradaSimulada, planoEfetivo, lancadosDe } = require("../lib/planoEfetivo");
 const { montarOpcoesCostura } = require('../services/preferenciasCostura');
 const { diasDeFabricaRestantes, diasDisponiveisDoPeriodo, diasDisponiveisDaData, jornadaMediaNoMes, fatorJornadaNoMes, JORNADA_BASE } = require("../lib/diasUteis");
 
@@ -2153,7 +2154,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
       for (const a of aprovadas.sort((x, y) => Number(x.createdAt || 0) - Number(y.createdAt || 0))) {
         for (const p of a.parametros.planos) {
           const k = String(p?.chave || '').trim();
-          if (k) planosAprovados.set(k, p);
+          if (k) planosAprovados.set(k, entradaSimulada(p, a.parametros));
         }
       }
     }
@@ -2162,7 +2163,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
       for (const a of await lerSimulacoesDoLote(pool, loteId)) {
         for (const p of a.parametros.planos) {
           const k = String(p?.chave || '').trim();
-          if (k) planosAprovados.set(k, p);
+          if (k) planosAprovados.set(k, entradaSimulada(p, a.parametros));
         }
       }
     }
@@ -2182,7 +2183,7 @@ router.get('/gap-mensal', auth, async (req, res) => {
       if (descricao.includes('MEIA DE SEDA')) continue;
 
       const aprovado = planosAprovados.get(chaveDaLinha(item));
-      const fonte = aprovado || item?.plano || {};
+      const fonte = planoEfetivo(item, aprovado, lancadosDe(matrizRows)).plano;
       const plano = Object.fromEntries(PERIODOS_PLANO.map((per) => {
         const campo = per.toLowerCase();
         return [campo, Number(fonte[campo] || 0)];
@@ -2532,7 +2533,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
       for (const a of aprovadas.sort((x, y) => Number(x.createdAt || 0) - Number(y.createdAt || 0))) {
         for (const p of a.parametros.planos) {
           const k = String(p?.chave || '').trim();
-          if (k) planosAprovados.set(k, p);
+          if (k) planosAprovados.set(k, entradaSimulada(p, a.parametros));
         }
       }
     }
@@ -2540,7 +2541,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
       for (const a of await lerSimulacoesDoLote(pool, loteId)) {
         for (const p of a.parametros.planos) {
           const k = String(p?.chave || '').trim();
-          if (k) planosAprovados.set(k, p);
+          if (k) planosAprovados.set(k, entradaSimulada(p, a.parametros));
         }
       }
     }
@@ -2726,7 +2727,7 @@ router.get('/ocupacao-por-grupo-produto', auth, async (req, res) => {
       const tempo = Number(tempoPorRef.get(idreferencia) || 0);
 
       const aprovado = planosAprovados.get(chaveDaLinha(item));
-      const fonte = aprovado || item?.plano || {};
+      const fonte = planoEfetivo(item, aprovado, lancadosDe(matrizRows)).plano;
 
       const alvo = doGrupo(grupoProduto);
       const celulas = celulasDaRef(refPadrao);
@@ -3743,7 +3744,7 @@ const handlerDistribuicao = async (req, res) => {
       for (const simulacao of await lerBase(`lote|${loteId}`, 10 * MIN_BASE, () => lerSimulacoesDoLote(pool, loteId))) {
         for (const plano of simulacao.parametros.planos) {
           const chavePlano = String(plano?.chave || '').trim();
-          if (chavePlano) planosSimulados.set(chavePlano, plano);
+          if (chavePlano) planosSimulados.set(chavePlano, entradaSimulada(plano, simulacao.parametros));
         }
       }
       if (!planosSimulados.size) {
@@ -3776,7 +3777,7 @@ const handlerDistribuicao = async (req, res) => {
       // tela de ocupacao mostra SUTIA a 234% em novembro.
       const atual = planoPorRef.get(ref) || Object.fromEntries(PERIODOS_PLANO.map((x) => [x, 0]));
       let pecas = 0;
-      const fontePlano = planosSimulados.get(chaveDaLinha(item)) || item?.plano || {};
+      const fontePlano = planoEfetivo(item, planosSimulados.get(chaveDaLinha(item)), lancadosDe(linhasMatriz)).plano;
       PERIODOS_PLANO.forEach((per, i) => {
         const v = Number(fontePlano[campos[i]] || 0);
         atual[per] += v;
@@ -3798,18 +3799,18 @@ const handlerDistribuicao = async (req, res) => {
       }
     }
 
-    // EM PROCESSO, uma vez por referencia. A rota de ocupacao soma a OP aberta a carga, e
-    // sem ela esta rota mediria 5.682.425 min contra os 6.300.104 de la. Sem a abertura por
-    // periodo carregada, tudo cai em MA — conservador e igual ao resto do sistema.
+    // EM PROCESSO, uma vez por referencia, TODO no primeiro periodo (PCP, 25/11/2026): a
+    // conta parte do processo — o que ja virou OP e feito primeiro, antes de janeiro
+    // comecar — e depois vem o plano pendente de cada mes. Espalhar pelo mes do lote fazia
+    // janeiro carregar 15 mil pecas de OP aberta alem do pendente dele (122.200).
+    let processoTotalPecas = 0;
     processoPorRef.forEach((pecas, ref) => {
       if (!(pecas > 0)) return;
       const base = planoPorRef.get(ref) || Object.fromEntries(PERIODOS_PLANO.map((x) => [x, 0]));
       const abertura = processoOk ? processoPorRefPeriodo.get(ref) : null;
-      if (abertura) {
-        PERIODOS_PLANO.forEach((per) => { base[per] += Number(abertura[per] || 0); });
-      } else {
-        base.MA += pecas;
-      }
+      const total = abertura ? PERIODOS_PLANO.reduce((t, per) => t + Number(abertura[per] || 0), 0) : pecas;
+      base.MA += total;
+      processoTotalPecas += total;
       planoPorRef.set(ref, base);
     });
 
@@ -4410,6 +4411,8 @@ const handlerDistribuicao = async (req, res) => {
         cargaExtraMin: Math.round(PERIODOS_PLANO.reduce((acc, per) => acc + Math.max(0, Number(cargaExtra[per] || 0)), 0)
           + [...extraDirecionado.values()].reduce((acc, m) => acc + Object.values(m).reduce((a, b) => a + Number(b || 0), 0), 0)),
         emProcessoOk: processoOk,
+        // Processo (OP aberta hoje) em peças: entra inteiro no primeiro período (MA).
+        processoPecas: Math.round(processoTotalPecas),
         // Quanto do trabalho so foi alocado depois do mes em que foi pedido. E o numero que
         // diz se o plano cabe de verdade ou se esta sendo empurrado para 2027.
         atrasadoMin: Math.round([...atrasoPorRef.values()].reduce((a, b) => a + b, 0)),

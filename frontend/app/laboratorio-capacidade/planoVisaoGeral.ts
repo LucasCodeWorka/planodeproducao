@@ -14,6 +14,11 @@
 //
 //   plano do mês = simulado > lançado ? simulado + Move + EL : lançado + Move
 //
+// CARGA (PCP, 25/11/2026): nos meses com lote, o "lançado" é o PENDENTE — lote menos o que
+// já virou OP, que é o que a plano-ano devolve para mês com lote. O PROCESSO não entra aqui:
+// ele é consumido primeiro, antes de janeiro começar (coluna própria no início do
+// horizonte). O lote cheio contava duas vezes a parte que já virou OP.
+//
 // Conferido em 17/11/2026 contra o gráfico, mês a mês de jan a dez/27: 145.637 · 135.401 ·
 // 164.223 · 89.826 · 101.323 · 83.669 · 182.233 · 184.748 · 186.110 · 152.565 · 123.270 ·
 // 81.401 — todos batem.
@@ -90,8 +95,10 @@ export async function carregarPlanoVisaoGeral(): Promise<PlanoVisaoGeral> {
   const meses: MesPlanoVG[] = (planoAno.meses as { mes: string; periodo: string | null; pecas: number | null }[]).map((m) => {
     const numMes = Number(m.mes.slice(5, 7));
     const r = realPorMes[m.mes];
-    const lancado = Number(r?.qtdLoteNoFiltro ?? r?.qtdLote ?? 0);
-    const simulado = Number(m.pecas || 0);
+    const temLote = Number(r?.qtdLoteNoFiltro ?? r?.qtdLote ?? 0) > 0;
+    // Com lote: o pendente (plano-ano). Sem lote: a simulação.
+    const lancado = temLote ? Number(m.pecas || 0) : 0;
+    const simulado = temLote ? 0 : Number(m.pecas || 0);
     const pecasDaMove = pecasMove(Number(m.mes.slice(0, 4)), numMes);
     const ehSimulado = simulado > 0 && simulado > lancado;
     const elDoMes = ehSimulado ? Number(elPorMes.get(numMes) || 0) : 0;

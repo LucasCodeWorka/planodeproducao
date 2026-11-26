@@ -7,6 +7,17 @@ import Sidebar from '../components/Sidebar';
 import { Planejamento } from '../types';
 import { authHeaders, getToken } from '../lib/auth';
 import { apiErrorMessage, fetchNoCache } from '../lib/api';
+// A conta do orçamento por MP vive em `lib/orcamentoMp.ts` — a mesma que o agente usa para
+// preparar o FCPFM017. Aqui só se monta a tela em volta dela.
+import {
+  PERIODOS_ORCAMENTO,
+  artigoSemCusto,
+  calcularOrcamentoMp,
+  periodosAte,
+  somaAte,
+  valorPeriodo,
+  valorUnitario as valorUnitarioMp,
+} from '../lib/orcamentoMp';
 
 const API_URL = (() => {
   const raw = String(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
@@ -19,10 +30,8 @@ const API_URL = (() => {
 
 const MARCA_FIXA = 'LIEBE';
 const STATUS_FIXO = 'EM LINHA,NOVA COLECAO';
-const PERIODOS = ['MA', 'PX', 'UL', 'QT', 'QU'] as const;
+const PERIODOS = PERIODOS_ORCAMENTO;
 const CACHE_VERSION = 4;
-const FOLGA_ORCAMENTO_PERCENTUAL = 0.05;
-const FOLGA_ORCAMENTO_MINIMA = 250;
 
 type Periodo = typeof PERIODOS[number];
 
@@ -240,17 +249,6 @@ function money(v: number) {
   });
 }
 
-function calcularFolgaOrcamento(valorNecessidade: number) {
-  const valor = Number(valorNecessidade || 0);
-  if (valor <= 0) return { folga: 0, porPiso: false };
-  const folgaPercentual = valor * FOLGA_ORCAMENTO_PERCENTUAL;
-  const porPiso = FOLGA_ORCAMENTO_MINIMA >= folgaPercentual;
-  return {
-    folga: Math.max(folgaPercentual, FOLGA_ORCAMENTO_MINIMA),
-    porPiso,
-  };
-}
-
 function dateBR(value?: string) {
   if (!value) return '-';
   const [datePart] = String(value).split('T');
@@ -259,46 +257,9 @@ function dateBR(value?: string) {
   return String(value);
 }
 
-function periodosAte(periodo: Periodo) {
-  return PERIODOS.slice(0, PERIODOS.indexOf(periodo) + 1);
-}
-
-function valorPeriodo(row: MpRow, prefixo: 'consumo' | 'entrada' | 'saldo', periodo: Periodo) {
-  const key = `${prefixo}_${periodo.toLowerCase()}` as keyof MpRow;
-  return Number(row[key] || 0);
-}
-
-function somaAte(row: MpRow, prefixo: 'consumo' | 'entrada', periodo: Periodo) {
-  return periodosAte(periodo).reduce((acc, p) => acc + valorPeriodo(row, prefixo, p), 0);
-}
-
 function saldoAte(row: MpRow, periodo: Periodo) {
   const key = `saldo_${periodo.toLowerCase()}` as keyof MpRow;
   return Number(row[key] || 0);
-}
-
-// Artigos cujo CUSTO nao entra no orcamento de MP. A alca e produzida na propria fabrica:
-// o valor dela ja aparece no elastico e nas demais materias-primas que a compoem, entao
-// contar o custo da alca de novo seria somar a mesma peca duas vezes. Sai so o dinheiro —
-// quantidades, contagem de MPs e cobertura seguem valendo normalmente.
-// Mesmo criterio de identificacao usado na cobertura por categoria de artigo.
-// Comparacao EXATA de proposito, e nao includes(). A categorizacao por artigo usa includes,
-// mas ali um falso positivo so troca a categoria; aqui ele apagaria dinheiro do orcamento
-// sem ninguem ver. Um artigo novo como "ALCANTARA" casaria com includes('ALCA'). Com
-// igualdade exata, o erro possivel e o oposto e preferivel: a alca aparece com custo, o que
-// se enxerga na hora, em vez de sumir calada.
-const ARTIGOS_SEM_CUSTO = new Set(['ALCA', 'ALÇA']);
-function artigoSemCusto(artigo: string | null | undefined) {
-  return ARTIGOS_SEM_CUSTO.has(String(artigo || '').trim().toUpperCase());
-}
-
-function ultimaCompra(row: MpRow) {
-  const compras = (Array.isArray(row.finalizados_detalhe) ? row.finalizados_detalhe : [])
-    .filter((item) => Number(item.quantidade || 0) > 0 && Number(item.valor || 0) > 0)
-    .sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')));
-  const item = compras[0];
-  if (!item) return 0;
-  return Number(item.valor || 0) / Number(item.quantidade || 1);
 }
 
 function compareValues(a: unknown, b: unknown, dir: SortDir) {
@@ -1117,24 +1078,7 @@ export default function OrcamentoMpPage() {
   }
 
   function valorUnitario(row: MpRow) {
-    // Fator de conversão (ex: milheiro = 1000)
-    const fatorConv = Number(row.fator_conversao || 1);
-    const unidCompra = String(row.unidade_compra || 'UND');
-
-    const ultima = ultimaCompra(row);
-    if (ultima > 0) {
-      // Se tiver fator de conversão, dividir o preço por ele
-      const valorConvertido = fatorConv > 1 ? ultima / fatorConv : ultima;
-      const origem = fatorConv > 1 ? `Ultima compra (${unidCompra}/${fatorConv})` : 'Ultima compra';
-      return { valor: valorConvertido, origem };
-    }
-    const preco = Number(priceOptionsByMp[String(row.idmateriaprima || '').trim()]?.[0]?.value || 0);
-    if (preco > 0) {
-      const valorConvertido = fatorConv > 1 ? preco / fatorConv : preco;
-      const origem = fatorConv > 1 ? `TOTVS (${unidCompra}/${fatorConv})` : 'Preco TOTVS';
-      return { valor: valorConvertido, origem };
-    }
-    return { valor: 0, origem: 'Sem valor' };
+    return valorUnitarioMp(row, priceOptionsByMp);
   }
 
   const artigosDisponiveis = useMemo(() => {
@@ -1144,37 +1088,30 @@ export default function OrcamentoMpPage() {
 
   const rowsComValores = useMemo<MpCalculada[]>(() => {
     return rowsBase.map((row) => {
-        // Zerar aqui, e nao em cada soma, e o que garante que a alca desapareca do custo em
-        // TODA a tela de uma vez: totais, cards, extrato por periodo e detalhe por MP.
-        const precoBruto = valorUnitario(row);
-        const preco = artigoSemCusto(row.artigo)
-          ? { valor: 0, origem: 'Alca: custo ja contado nas MPs que a compoem' }
-          : precoBruto;
-        const consumoAte = somaAte(row, 'consumo', planoAte);
+        // A conta por MP (preço com a alça zerada, necessidade, folga) vem de
+        // `calcularOrcamentoMp`. Zerar a alça lá, e não em cada soma, é o que garante que ela
+        // desapareça do custo em TODA a tela de uma vez.
+        const orc = calcularOrcamentoMp(row, priceOptionsByMp, planoAte);
         const comprasRegra = somaAte(row, 'entrada', planoAte);
-        const comprasTotal = Number(row.entrada_andamento || 0);
         const necessidadeRegra = Math.max(0, -saldoAte(row, planoAte));
-        const necessidadeTotal = Math.max(0, consumoAte - Number(row.estoquetotal || 0) - comprasTotal);
-        const valorNecessidadeTotal = necessidadeTotal * preco.valor;
-        const folgaOrcamento = calcularFolgaOrcamento(valorNecessidadeTotal);
         return {
           ...row,
-          valorUnitario: preco.valor,
-          origemValor: preco.origem,
-          valorEstoque: Number(row.estoquetotal || 0) * preco.valor,
-          consumoAte,
-          valorConsumo: consumoAte * preco.valor,
+          valorUnitario: orc.preco,
+          origemValor: orc.origemValor,
+          valorEstoque: Number(row.estoquetotal || 0) * orc.preco,
+          consumoAte: orc.consumoAte,
+          valorConsumo: orc.consumoAte * orc.preco,
           comprasRegra,
-          comprasTotal,
-          valorComprasRegra: comprasRegra * preco.valor,
-          valorComprasTotal: comprasTotal * preco.valor,
+          comprasTotal: orc.comprasTotal,
+          valorComprasRegra: comprasRegra * orc.preco,
+          valorComprasTotal: orc.valorComprasTotal,
           necessidadeRegra,
-          necessidadeTotal,
-          valorNecessidadeRegra: necessidadeRegra * preco.valor,
-          valorNecessidadeTotal,
-          valorFolgaOrcamentoTotal: folgaOrcamento.folga,
-          valorOrcamentoTotal: valorNecessidadeTotal + folgaOrcamento.folga,
-          folgaOrcamentoPorPiso: folgaOrcamento.porPiso,
+          necessidadeTotal: orc.necessidadeTotal,
+          valorNecessidadeRegra: necessidadeRegra * orc.preco,
+          valorNecessidadeTotal: orc.valorNecessidadeTotal,
+          valorFolgaOrcamentoTotal: orc.valorFolga,
+          valorOrcamentoTotal: orc.valorOrcamentoTotal,
+          folgaOrcamentoPorPiso: orc.folgaPorPiso,
         };
       });
   }, [rowsBase, priceOptionsByMp, planoAte]);

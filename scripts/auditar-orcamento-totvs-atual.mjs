@@ -9,7 +9,13 @@ const destino = process.argv[3];
 if (!origem || !destino) throw new Error('Uso: node scripts/auditar-orcamento-totvs-atual.mjs CONFERENCIA_JSON AUDITORIA_JSON');
 const conferencia = JSON.parse(fs.readFileSync(origem, 'utf8'));
 const meses = new Set(conferencia.resumo.meses);
-const lote = new Map(conferencia.lotesPorCompetencia.map((item) => [item.id, item.valorCentavos]));
+// Os lotes vêm com o histórico inteiro (outubro incluído), mas o espelho do ERP é filtrado
+// pela janela: comparar sem filtrar os lotes gerava divergências falsas (22 em 25/11/2026,
+// todas de outubro) e fazia o script sair com erro.
+const dentroDaJanela = (id) => meses.has(String(id).split('|')[1]);
+const lote = new Map(conferencia.lotesPorCompetencia
+  .filter((item) => dentroDaJanela(item.id))
+  .map((item) => [item.id, item.valorCentavos]));
 const necessidade = new Map(conferencia.necessidadePorCompetencia.map((item) => [item.id, item.valorCentavos]));
 
 const pool = new pg.Pool({

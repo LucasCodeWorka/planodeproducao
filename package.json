@@ -6,7 +6,9 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "node --test tests/ src/",
+    "test:paridade-orcamento": "node scripts/conferir-paridade-orcamento-mp.mjs"
   },
   "dependencies": {
     "compression": "^1.7.5",

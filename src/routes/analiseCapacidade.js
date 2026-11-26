@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const { calcularPeriodosPlano, PERIODOS_PLANO } = require('../services/periodoPlanoService');
 const { diasDisponiveisDaData } = require('../lib/diasUteis');
+const { entradaSimulada, planoEfetivo, lancadosDe } = require('../lib/planoEfetivo');
 const capacidade = require('./capacidade');
 
 const {
@@ -154,7 +155,7 @@ router.get('/especializacao', auth, async (req, res) => {
       for (const s of await lerSimulacoesDoLote(pool, loteId)) {
         for (const p of s.parametros.planos) {
           const k = String(p?.chave || '').trim();
-          if (k) planosSimulados.set(k, p);
+          if (k) planosSimulados.set(k, entradaSimulada(p, s.parametros));
         }
       }
     }
@@ -191,7 +192,7 @@ router.get('/especializacao', auth, async (req, res) => {
       if (!ref) continue;
       const familia = familiaDoProduto(produto);
       const tempo = tempoDaRef(ref);
-      const fonte = planosSimulados.get(chaveDaLinha(item)) || item?.plano || {};
+      const fonte = planoEfetivo(item, planosSimulados.get(chaveDaLinha(item)), lancadosDe(matrizRows)).plano;
       if (!planoPorFamilia.has(familia)) planoPorFamilia.set(familia, zeroPeriodos());
       const alvo = planoPorFamilia.get(familia);
       for (const per of PERIODOS_PLANO) {
@@ -550,7 +551,7 @@ router.get('/plano-ano', auth, async (req, res) => {
       for (const s of await lerSimulacoesDoLote(pool, loteId)) {
         for (const p of s.parametros.planos) {
           const k = String(p?.chave || '').trim();
-          if (k) planosSimulados.set(k, p);
+          if (k) planosSimulados.set(k, entradaSimulada(p, s.parametros));
         }
       }
     }
@@ -571,12 +572,12 @@ router.get('/plano-ano', auth, async (req, res) => {
       if (String(produto.marca || '').trim().toUpperCase() !== 'LIEBE') continue;
       if (!['EM LINHA', 'NOVA COLECAO'].includes(String(produto.status || '').trim().toUpperCase())) continue;
       if (String(produto.produto || '').toUpperCase().includes('MEIA DE SEDA')) continue;
-      const simulado = planosSimulados.get(chaveDaLinha(item));
-      const fonte = simulado || item?.plano || {};
+      const efetivo = planoEfetivo(item, planosSimulados.get(chaveDaLinha(item)), lancadosDe(matrizRows));
+      const fonte = efetivo.plano;
       for (const per of PERIODOS_PLANO) {
         const v = Number(fonte[per.toLowerCase()] || 0);
         pecasPorPeriodo[per] += v;
-        if (simulado) doLotePorPeriodo[per] += v;
+        if (efetivo.simulados.includes(per)) doLotePorPeriodo[per] += v;
       }
     }
 
@@ -702,7 +703,7 @@ router.get('/por-mix', auth, async (req, res) => {
       for (const s of await lerSimulacoesDoLote(pool, loteId)) {
         for (const p of s.parametros.planos) {
           const k = String(p?.chave || '').trim();
-          if (k) planosSimulados.set(k, p);
+          if (k) planosSimulados.set(k, entradaSimulada(p, s.parametros));
         }
       }
     }
@@ -718,7 +719,7 @@ router.get('/por-mix', auth, async (req, res) => {
       if (!['EM LINHA', 'NOVA COLECAO'].includes(String(produto.status || '').trim().toUpperCase())) continue;
       if (String(produto.produto || '').toUpperCase().includes('MEIA DE SEDA')) continue;
       const mix = mixPorSku.get(String(produto.idproduto || '')) || 'SEM MIX';
-      const fonte = planosSimulados.get(chaveDaLinha(item)) || item?.plano || {};
+      const fonte = planoEfetivo(item, planosSimulados.get(chaveDaLinha(item)), lancadosDe(matrizRows)).plano;
       for (const mes of mesesAno) {
         const per = periodoDoMes[mes];
         if (!per) continue;
@@ -919,7 +920,7 @@ router.get('/setup-mix', auth, async (req, res) => {
       for (const s of await lerSimulacoesDoLote(pool, loteId)) {
         for (const p of s.parametros.planos) {
           const k = String(p?.chave || '').trim();
-          if (k) planosSimulados.set(k, p);
+          if (k) planosSimulados.set(k, entradaSimulada(p, s.parametros));
         }
       }
     }
@@ -942,7 +943,7 @@ router.get('/setup-mix', auth, async (req, res) => {
       const mix = mixPorSku.get(String(produto.idproduto || '')) || 'SEM MIX';
       const ref = String(produto.referencia || '').trim().toUpperCase();
       const t = tempoDaRef(ref);
-      const fonte = planosSimulados.get(chaveDaLinha(item)) || item?.plano || {};
+      const fonte = planoEfetivo(item, planosSimulados.get(chaveDaLinha(item)), lancadosDe(matrizRows)).plano;
       mesesAno.forEach((mes, i) => {
         const per = periodoDoMes[mes];
         if (!per) return;
@@ -1151,7 +1152,7 @@ async function calcularPlanoPorGrupo(pool, query = {}) {
       for (const s of await lerSimulacoesDoLote(pool, loteId)) {
         for (const p of s.parametros.planos) {
           const k = String(p?.chave || '').trim();
-          if (k) planosSimulados.set(k, p);
+          if (k) planosSimulados.set(k, entradaSimulada(p, s.parametros));
         }
       }
     }
@@ -1170,7 +1171,7 @@ async function calcularPlanoPorGrupo(pool, query = {}) {
       if (String(produto.produto || '').toUpperCase().includes('MEIA DE SEDA')) continue;
       const ref = String(produto.referencia || '').trim().toUpperCase();
       if (!ref) continue;
-      const fonte = planosSimulados.get(chaveDaLinha(item)) || item?.plano || {};
+      const fonte = planoEfetivo(item, planosSimulados.get(chaveDaLinha(item)), lancadosDe(matrizRows)).plano;
       if (!planoRef.has(ref)) {
         planoRef.set(ref, {
           descricao: String(produto.produto || '').trim(),

@@ -602,6 +602,13 @@ export default function CapacidadeVsVenda({
     const base = emitido > 0 ? emitido : Number(l.planoPrevisto || 0);
     return base + Number(l.planoEl || 0);
   };
+  // CARGA (PCP, 25/11/2026): a conta PARTE DO PROCESSO — o que ja virou OP, todo ele, numa
+  // coluna propria no inicio, consumido primeiro (vai ser executado antes de janeiro
+  // comecar) — e depois o plano PENDENTE de cada mes (lote menos o que ja virou OP). Jan/27
+  // carrega so o pendente dele, 122.200. A linha do grafico, a ocupacao e os dias medem ISTO.
+  const processoTotal = linhas.reduce((t, l) => t + Number(l.emProcessoMes || 0), 0);
+  const cargaDoMes = (l: Pick<MesCapacidadeVenda, 'planoCompleto' | 'planoPrevisto' | 'planoEl' | 'planoSimulado'>, i: number) =>
+    planoDoMes(l) + (i === 0 ? processoTotal : 0);
   // OCUPACAO DO PLANO, acumulada, na MESMA base que o grafico desenha.
   //
   // Antes isto vinha da `gap-mensal`, que conhece apenas o plano LANCADO. Depois que a tela
@@ -633,7 +640,7 @@ export default function CapacidadeVsVenda({
   // totais estao desenhados ao lado das faixas — 1.807.519 de plano sobre 2.018.304 de
   // capacidade da 89,6%. Precisao em minutos com tempo por SKU e melhor na teoria e inutil
   // se o numero nao se explica para quem le.
-  const planoAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + planoDoMes(l), 0);
+  const planoAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l, k) => t + cargaDoMes(l, k), 0);
   const capacidadeAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + Number(l.capacidadePecas || 0), 0);
   const diasAcumAte = (i: number) => linhas.slice(0, i + 1).reduce((t, l) => t + Number(l.diasDisponiveis || 0), 0);
   const ocupPlanoAcum = (i: number) => {
@@ -758,7 +765,7 @@ export default function CapacidadeVsVenda({
     onOcupacaoPlano?.(ocupPlanoSerie);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [ocupPlanoChave]);
-  const planoSerie = linhas.map((l) => Math.round(planoDoMes(l)));
+  const planoSerie = linhas.map((l, i) => Math.round(cargaDoMes(l, i)));
   const planoChave = planoSerie.join('|');
   useEffect(() => {
     onPlanoMes?.(planoSerie);
@@ -800,12 +807,12 @@ export default function CapacidadeVsVenda({
   // A ordem aqui e a ordem das FAIXAS, de cima para baixo. O plano fica entre a venda e a
   // capacidade de proposito: a leitura e "quanto vai sair, quanto esta lancado, quanto a
   // fabrica aguenta" — o plano e a ponte entre os dois, e ler isso exige os tres juntos.
-  const SERIE_NOMES = ['Venda', 'Plano', 'Capacidade', 'Disponível'];
+  const SERIE_NOMES = ['Venda', 'Plano', 'Capacidade', 'Disponível']; // 'Plano' = carga: processo + pendente
   const SERIE_COR = ['#f59e0b', '#7c3aed', '#94a3b8', '#4f46e5'];
   const SERIE_COR_TEXTO = ['#b45309', '#6d28d9', '#64748b', '#4f46e5'];
   const serie = (l: typeof linhas[number], i: number): (number | null)[] => [
     demandaTotal(l),
-    planoDoMes(l) > 0 ? planoDoMes(l) : null,
+    cargaDoMes(l, i) > 0 ? cargaDoMes(l, i) : null,
     l.capacidadePecas,
     disponivelTabela[i],
   ];
@@ -1785,19 +1792,32 @@ export default function CapacidadeVsVenda({
                   celula: (l: typeof linhas[number]) => <span className="text-gray-600">{fmt(l.capacidadePecas)}</span>,
                 },
                 {
+                  // PROCESSO numa linha propria (PCP, 25/11/2026): tudo o que ja virou OP e
+                  // esta em producao hoje, consumido primeiro. Entra inteiro no primeiro mes.
+                  valor: (l: MesCapacidadeVenda) => (linhas.indexOf(l as typeof linhas[number]) === 0 ? processoTotal : 0),
+                  id: 'processoOp',
+                  rotulo: 'Processo (OP aberta hoje)',
+                  dica: 'Tudo o que já virou OP e está em produção hoje, de todos os lotes. É a primeira coisa que a costura faz — vai ser executado antes de janeiro começar —, então entra inteiro no primeiro mês da carga, e os meses seguintes carregam só o plano pendente deles.',
+                  celula: (l: typeof linhas[number]) => (linhas.indexOf(l) === 0
+                    ? <span className="font-semibold tabular-nums text-violet-600">{fmt(processoTotal)}</span>
+                    : <span className="text-gray-300">—</span>),
+                },
+                {
                   valor: (l: MesCapacidadeVenda) => Number(l.planoCompleto || 0),
                   id: 'plano',
-                  rotulo: 'Plano (completo)',
+                  rotulo: 'Carga (processo + pendente)',
                   forte: true,
                   expansivel: true,
-                  dica: 'Plano como foi lançado: o que já virou OP mais o lote que falta, pelo mês do próprio lote. Embaixo, a ocupação ACUMULADA e o gap em dias — os mesmos números da Cobertura do Plano na tela principal, vindos da mesma conta: dias necessários somados desde o primeiro mês contra os dias de fábrica somados. 207% em outubro é a carga que resta contra os dias que restam; janeiro em 92% é o conjunto, já carregando o atraso de outubro. Em VERMELHO com o marcador SIM é SIMULAÇÃO: plano sugerido e salvo na Sugestão de Plano, ainda não aprovado nem implantado no ERP — a ocupação e o gap ao lado já consideram ela.',
+                  dica: 'Carga do mês = o plano PENDENTE do mês (lote menos o que já virou OP), com a Liebe Move quando ligada. O PROCESSO (o que já virou OP) entra uma vez só, inteiro, no primeiro mês — é feito antes de janeiro começar — e aparece na linha de cima. Embaixo, a ocupação ACUMULADA e o gap em dias — os mesmos números da Cobertura do Plano na tela principal, vindos da mesma conta: dias necessários somados desde o primeiro mês contra os dias de fábrica somados. 207% em outubro é a carga que resta contra os dias que restam; janeiro em 92% é o conjunto, já carregando o atraso de outubro. Em VERMELHO com o marcador SIM é SIMULAÇÃO: plano sugerido e salvo na Sugestão de Plano, ainda não aprovado nem implantado no ERP — a ocupação e o gap ao lado já consideram ela.',
                   celula: (l: typeof linhas[number]) => {
                     // Sem plano lancado, mostra o PREVISTO — a necessidade calculada
                     // contra a projecao de venda, com edicao limitada dentro. Em cinza e
                     // italico, com o rotulo "prev", para ninguem confundir estimativa com
                     // lote emitido: o travessao de antes nao dizia se o mes estava vazio
                     // por decisao ou por ainda nao ter chegado a vez dele.
-                    const total = planoDoMes(l);
+                    const iCel = linhas.indexOf(l);
+                    const total = cargaDoMes(l, iCel);
+                    const processoCel = iCel === 0 ? processoTotal : 0;
                     const el = Number(l.planoEl || 0);
                     if (!l.planoCompleto) {
                       if (total <= 0) return <span className="text-gray-300">—</span>;
@@ -1829,7 +1849,7 @@ export default function CapacidadeVsVenda({
                         <>
                           <span
                             className={l.planoSimulado ? 'font-semibold text-red-600' : 'font-semibold text-violet-700'}
-                            title={l.planoSimulado ? 'SIMULAÇÃO — plano sugerido e salvo na Sugestão de Plano, ainda não aprovado nem implantado no ERP.' : undefined}
+                            title={`${l.planoSimulado ? 'SIMULAÇÃO — plano sugerido e salvo na Sugestão de Plano, ainda não aprovado nem implantado no ERP. ' : ''}Carga = ${processoCel > 0 ? `processo (OP aberta hoje) ${fmt(processoCel)} + ` : ''}plano pendente ${fmt(total - processoCel)}${Number(l.movePecas || 0) > 0 ? ` (com ${fmt(Number(l.movePecas))} da Liebe Move)` : ''}.`}
                           >
                             {fmt(total)}{l.planoSimulado && <span className="ml-1 text-[9px] font-bold align-top">SIM</span>}
                           </span>

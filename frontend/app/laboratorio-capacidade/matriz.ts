@@ -79,7 +79,7 @@ export type DistribuicaoDados = {
   capacidadeDiariaTotal: number;
   referencias: RefDist[];
   grupos: GrupoDist[];
-  resumo: { atrasadoMin: number; naoCoubeMin: number; cargaExtraMin: number; periodosEstourados: number };
+  resumo: { atrasadoMin: number; naoCoubeMin: number; cargaExtraMin: number; periodosEstourados: number; processoPecas?: number };
 };
 
 // `vira`: família para a qual o grupo foi convertido na simulação (a ESPERANÇA vira Sutiã).

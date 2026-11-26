@@ -86,37 +86,85 @@ def registrar(registro):
 def executar(item, modelo):
     codigo = int(item["codigo"])
     filtro = item["filtro"]
-    _selecionar_pcp_506(hwnd)
-    antes = imagem(hwnd)
-    if not pai_selecionado(antes):
-        # Em algumas atualizações da árvore a primeira despesa ocupa y=169
-        # antes de a cor do ícone estabilizar. Tentar o pai visível em y=153;
-        # se não for ele, nenhum botão de gravação será acionado.
-        inp.double_click(hwnd, 590, 153)
+    # NOITE DE 25/11/2026 (TOTVS lento): depois de cada gravação a árvore se atualiza com
+    # atraso e reseleciona o item recém-criado; o clique em "Despesa..." se perdia e a busca
+    # não abria. Agora: espera a árvore assentar, confere o pai (Sequência 26081 ou vazia +
+    # botão Despesa habilitado, duas leituras com 2 s), clica e espera a busca; se ela não
+    # abrir, refaz tudo até 3 vezes antes de desistir. Nada é gravado antes da busca.
+    def pai_ok() -> bool:
+        img = imagem(hwnd)
+        seq, dist = ler_valor(img, 198, modelo, 104, 172)
+        botao = sum(1 for x in range(170, 222) if sum(img.convert("RGB").getpixel((x, 653))) < 200)
+        # SÓ a sequência 26081 (PCP / CC 506). Aceitar vazio foi o erro de 25/11/2026: com nada
+        # selecionado o botão Despesa inclui na RAIZ do plano 500, sem CC (118 despesas assim).
+        sequencia_ok = seq == "26081" and not any(d > 3 for d in dist)
+        return sequencia_ok and botao >= 10
+
+    def achar_busca():
+        for _ in range(20):
+            try:
+                return _posicao_fcpfl020(hwnd)
+            except RuntimeError:
+                time.sleep(0.6)
+        return None
+
+    time.sleep(4.0)                  # a árvore assenta depois da gravação anterior
+    popup = None
+    for rodada in range(3):
+        for _ in range(8):
+            if pai_ok():
+                time.sleep(2.0)
+                if pai_ok():
+                    break
+            _selecionar_pcp_506(hwnd)
+            time.sleep(2.0)
+        else:
+            guardar(imagem(hwnd), codigo, "pai_nao_selecionado")
+            raise RuntimeError("PCP/506 não ficou selecionado (Sequência ≠ 26081 ou Despesa desabilitado)")
+        inp.click(hwnd, 195, 653)
         time.sleep(1.0)
-        antes = imagem(hwnd)
-        if not pai_selecionado(antes):
-            guardar(antes, codigo, "pai_inconclusivo")
-            raise RuntimeError("Pai PCP/506 não selecionado visualmente")
-    inp.click(hwnd, 195, 653)
-    time.sleep(1.0)
-    popup_x, popup_y = _posicao_fcpfl020(hwnd)
+        popup = achar_busca()
+        if popup:
+            break
+        guardar(imagem(hwnd), codigo, f"busca_nao_abriu_{rodada + 1}")
+    if not popup:
+        raise RuntimeError("botao fechar da janela FCPFL020 nao localizado (3 tentativas)")
+    popup_x, popup_y = popup
     if popup_x + 102 < 8:
         raise RuntimeError(f"Popup deslocado para fora da tela: {popup_x}, {popup_y}")
     inp.set_field(hwnd, popup_x + 102, popup_y + 92, filtro["texto"])
     time.sleep(0.6)
-    inp.key(hwnd, "f4")
-    time.sleep(1.5)
-    if _alerta_totvs_aberto(hwnd):
-        guardar(imagem(hwnd), codigo, "alerta_busca")
-        raise RuntimeError("Filtro retornou alerta antes da seleção")
-    busca = imagem(hwnd)
-    caminho_busca = guardar(busca, codigo, "busca")
     if filtro["resultados"] > 7:
         raise RuntimeError(f"Filtro amplo demais para a grade visível: {filtro}")
-    encontrados = [codigo_linha(busca, popup_x, popup_y, i, modelo)
-                   for i in range(max(4, filtro["resultados"]))]
-    encontrados = [x for x in encontrados if x is not None]
+    inp.key(hwnd, "f4")
+    time.sleep(1.5)
+    # A grade às vezes ainda mostra a lista sem filtro quando é lida (25/11/2026, 11125:
+    # texto certo no campo, lista de 89, 109, 111…). Reler algumas vezes e, se continuar sem
+    # filtro, mandar o F4 de novo uma única vez. Nada é clicado antes de a busca bater.
+    for tentativa in range(6):
+        if _alerta_totvs_aberto(hwnd):
+            # "Nenhuma despesa encontrada" aparece ANTES de qualquer confirmação: anotar,
+            # fechar o aviso e a busca, e seguir para a próxima (25/11/2026: 11123, 11049).
+            caminho_alerta = guardar(imagem(hwnd), codigo, "alerta_busca")
+            inp.click(hwnd, 1079, 331)
+            time.sleep(1.0)
+            if _alerta_totvs_aberto(hwnd):
+                raise RuntimeError(f"Aviso da busca não fechou: {caminho_alerta}")
+            inp.click(hwnd, popup_x + 499, popup_y + 469)  # Cancelar
+            time.sleep(1.2)
+            return {"codigo": codigo, "descricao": item["descricao"], "filtro": filtro,
+                    "status": "NAO_ENCONTRADO", "busca": caminho_alerta,
+                    "momento": datetime.now().isoformat()}
+        busca = imagem(hwnd)
+        encontrados = [codigo_linha(busca, popup_x, popup_y, i, modelo)
+                       for i in range(max(4, filtro["resultados"]))]
+        encontrados = [x for x in encontrados if x is not None]
+        if codigo in encontrados and len(encontrados) == filtro["resultados"]:
+            break
+        if tentativa == 2:
+            inp.key(hwnd, "f4")
+        time.sleep(1.0)
+    caminho_busca = guardar(busca, codigo, "busca")
     if codigo not in encontrados or len(encontrados) != filtro["resultados"]:
         raise RuntimeError(f"Busca divergente: alvo={codigo}, encontrados={encontrados}, filtro={filtro}, imagem={caminho_busca}")
     linha = encontrados.index(codigo)
@@ -127,8 +175,13 @@ def executar(item, modelo):
     registrar({"codigo": codigo, "status": "CONFIRMACAO_INICIADA",
                "busca": caminho_busca, "momento": datetime.now().isoformat()})
     inp.click(hwnd, popup_x + 373, popup_y + 471)
-    time.sleep(1.4)
-    depois = imagem(hwnd)
+    # O aviso de sucesso pode demorar (25/11/2026, noite: veio depois de ~2 s e o bot parou
+    # achando que não tinha gravado). Espera até 12 s antes de concluir.
+    for _ in range(24):
+        time.sleep(0.5)
+        depois = imagem(hwnd)
+        if alerta_sucesso(depois):
+            break
     caminho_depois = guardar(depois, codigo, "confirmacao")
     if not alerta_sucesso(depois):
         raise RuntimeError(f"Sem confirmação visual de sucesso: {caminho_depois}")
@@ -169,5 +222,5 @@ if __name__ == "__main__":
         print(f"[{i}/{len(pendentes)}] código {item['codigo']}, filtro {item['filtro']}", flush=True)
         registro = executar(item, modelo)
         registrar(registro)
-        print(f"CONFIRMADO {item['codigo']}", flush=True)
+        print(f"{registro['status']} {item['codigo']}", flush=True)
     print(f"Concluídos nesta execução: {len(pendentes)}", flush=True)

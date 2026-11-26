@@ -29,6 +29,24 @@ const {
 } = require("../services/deParaReferencias");
 
 const router = express.Router();
+
+// LOGIN (25/11/2026). Este roteador nao pedia login em nada: pela URL publica do Render
+// qualquer um podia apagar o cache do orcamento de MP, as fotos salvas ou a tabela de
+// exportacao. Agora pede o token em toda rota que GRAVA (POST/PUT/PATCH/DELETE) e em todo o
+// orcamento de MP, inclusive leitura (valores de compra). As leituras do plano seguem
+// abertas como antes. A tela ja mandava o token em todas essas chamadas (authHeaders).
+function exigirLogin(req, res, next) {
+  const token = String(req.headers.authorization || "").replace("Bearer ", "").trim();
+  const esperado = String(process.env.ADMIN_PASSWORD || "").trim();
+  if (!esperado) return res.status(500).json({ success: false, error: "ADMIN_PASSWORD não configurado" });
+  if (token !== esperado) return res.status(401).json({ success: false, error: "Não autorizado" });
+  return next();
+}
+router.use((req, res, next) => {
+  const grava = !["GET", "HEAD", "OPTIONS"].includes(req.method);
+  const orcamento = req.path.startsWith("/orcamento-mp");
+  return grava || orcamento ? exigirLogin(req, res, next) : next();
+});
 const catalogoCache = new Map();
 const CATALOGO_CACHE_TTL_MS = (Number(process.env.CATALOGO_CACHE_TTL_SECONDS) || 600) * 1000;
 const agendaEstoqueCache = { data: null, timestamp: 0 };
@@ -2433,6 +2451,18 @@ router.delete("/orcamento-mp-snapshot/:id", async (req, res) => {
 // tabela e um espelho unico e atual: cada exportacao substitui o conteudo anterior
 // inteiro, porque o sistema externo deve ler sempre o estado vigente, nao historico.
 
+// Conexao para transacao, sem deixar a falha escapar: um `await pool.connect()` fora do try
+// numa rota async do Express 4 vira rejeicao sem tratamento e derruba o processo (25/11/2026).
+async function conectarOu500(pool, res, rota) {
+  try {
+    return await pool.connect();
+  } catch (error) {
+    console.error(`[${rota}] Sem conexao com o banco:`, error.message);
+    res.status(500).json({ success: false, error: "Sem conexao com o banco", details: error.message });
+    return null;
+  }
+}
+
 async function ensureOrcamentoExportacaoTable(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS public.app_orcamento_mp_exportacao (
@@ -2451,7 +2481,8 @@ async function ensureOrcamentoExportacaoTable(pool) {
  */
 router.post("/orcamento-mp-exportacao", async (req, res) => {
   const pool = req.app.get("pool");
-  const client = await pool.connect();
+  const client = await conectarOu500(pool, res, "orcamento-mp-exportacao");
+  if (!client) return;
   try {
     const itens = Array.isArray(req.body?.itens) ? req.body.itens : [];
 
@@ -2480,7 +2511,7 @@ router.post("/orcamento-mp-exportacao", async (req, res) => {
 
     return res.status(200).json({ success: true, qtd: itens.length });
   } catch (error) {
-    await client.query("ROLLBACK");
+    await client.query("ROLLBACK").catch(() => {});
     console.error("[orcamento-mp-exportacao] Erro ao salvar:", error);
     return res.status(500).json({
       success: false,
@@ -2553,7 +2584,8 @@ async function ensureOrcamentoDespesasTable(pool) {
 
 router.post("/orcamento-mp-despesas/preparar", async (req, res) => {
   const pool = req.app.get("pool");
-  const client = await pool.connect();
+  const client = await conectarOu500(pool, res, "orcamento-mp-despesas/preparar");
+  if (!client) return;
   try {
     const marca = String(req.body?.marca || 'LIEBE').trim() || 'LIEBE';
     const periodoAte = String(req.body?.periodoAte || 'QU').trim() || 'QU';
@@ -2609,7 +2641,7 @@ router.post("/orcamento-mp-despesas/preparar", async (req, res) => {
     await client.query("COMMIT");
     return res.status(200).json({ success: true, qtd });
   } catch (error) {
-    await client.query("ROLLBACK");
+    await client.query("ROLLBACK").catch(() => {});
     console.error("[orcamento-mp-despesas/preparar] Erro:", error);
     return res.status(500).json({ success: false, error: "Erro ao preparar despesas do orcamento MP", details: error.message });
   } finally {

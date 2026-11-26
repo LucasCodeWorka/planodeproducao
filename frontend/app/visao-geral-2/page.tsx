@@ -1867,10 +1867,12 @@ export default function VisaoGeral2Page() {
         // matriz planejava 109.870, e mostrar so o lote faria dezembro parecer vazio.
         // Comparar com `planoPeriodos[p].qtdLote` nao serve — aquele e o balde do periodo,
         // justamente o que mistura os meses.
-        planoCompleto: Math.max(
-          loteDoMes(ano, mes),
-          Number(data.planoMatrizPorPeriodo?.[p] || 0),
-        ),
+        // PLANO PENDENTE (PCP, 25/11/2026 — "a conta parte do processo, depois o pendente de
+        // nov, de dez, de jan..."): o lote do mês MENOS o que já virou OP, que é o plano da
+        // matriz. O lote cheio contava duas vezes a parte que já está em processo (jan/27:
+        // lote 140.300, OP 18.100, pendente 122.200). O processo entra por `emProcessoMes`,
+        // no mês em que a OP termina, e a carga do gráfico é processo + pendente.
+        planoCompleto: Number(data.planoMatrizPorPeriodo?.[p] || 0) || loteDoMes(ano, mes) || undefined,
         diasDisponiveisMes: diasDeFabricaNoMes(ano, mes, comFerias),
         // Cobertura em DIAS, da mesma fonte do card da tela principal: necessarios e
         // disponiveis somados desde o primeiro mes, o gap entre eles e a ocupacao que a
@@ -1984,7 +1986,8 @@ export default function VisaoGeral2Page() {
         ...(() => {
           const per = periodoDoMes[mes];
           const simulado = per && data.lotePeriodos?.includes(per) ? Number(data.planoSimuladoPorPeriodo?.[per] || 0) : 0;
-          const lancado = loteDoMes(data.anoDestino, mes);
+          // Pendente (matriz) quando houver; o lote só se a matriz não tiver o período.
+          const lancado = (per && Number(data.planoMatrizPorPeriodo?.[per] || 0)) || loteDoMes(data.anoDestino, mes);
           if (simulado > 0 && simulado > lancado) return { planoCompleto: simulado, planoSimulado: true };
           return { planoCompleto: lancado || undefined };
         })(),

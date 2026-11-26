@@ -719,9 +719,22 @@ export default function ProducaoDistribuida({
           </tbody>
 
           <tfoot>
+            {Number(dados.resumo?.processoPecas || 0) > 0 && (
+              <tr className="bg-violet-50 font-semibold text-violet-900">
+                <td className={`${STICKY_NOME} border-t-2 border-gray-300 bg-violet-50 px-3 py-2`}
+                  title="Tudo o que já virou OP e está em produção hoje, de todos os lotes. É consumido primeiro — antes de janeiro começar —, junto com o pendente de nov/26; o que não couber chega em janeiro pelo 'Vem de'. Os meses carregam só o plano pendente deles.">
+                  Processo (OP aberta hoje)
+                </td>
+                <td className="border-t-2 border-gray-300 bg-violet-50 px-2 py-2 text-right tabular-nums">{num(Number(dados.resumo?.processoPecas || 0))}</td>
+                {cols.map((i) => <td key={i} colSpan={vista === 'completo' ? 3 : 1} className="border-r border-t-2 border-gray-300 border-r-violet-100 px-2 py-2 text-right text-gray-300">·</td>)}
+                <td className="border-t-2 border-gray-300 bg-violet-50" />
+                <td className="border-t-2 border-gray-300" />
+                <td colSpan={2} className="border-t-2 border-gray-300" />
+              </tr>
+            )}
             {planoVg && (
               <tr className="bg-amber-50 font-bold text-amber-900">
-                <td className={`${STICKY_NOME} border-t-2 border-gray-300 bg-amber-50 px-3 py-2`} title="O plano que o gráfico da Projeção x Capacidade desenha: lote + edição limitada + Liebe Move">Plano da Projeção x Capacidade</td>
+                <td className={`${STICKY_NOME} border-t-2 border-gray-300 bg-amber-50 px-3 py-2`} title="A carga que o gráfico da Projeção x Capacidade desenha: plano PENDENTE do mês (lote menos o que já virou OP) + edição limitada + Liebe Move. O processo está na linha de cima.">Plano da Projeção x Capacidade</td>
                 <td className="border-t-2 border-gray-300 bg-amber-50" />
                 {planoVg.map((v, k) => <td key={k} colSpan={vista === 'completo' ? 3 : 1} className="border-r border-t-2 border-gray-300 border-r-amber-100 px-2 py-2 text-right tabular-nums">{v === null ? '—' : num(v)}</td>)}
                 <td className="border-t-2 border-gray-300 bg-amber-50" />
@@ -731,7 +744,7 @@ export default function ProducaoDistribuida({
             )}
             <tr className="bg-gray-50 text-gray-600">
               <td className={`${STICKY_NOME} bg-gray-50 px-3 py-2`}
-                title="Peças por SKU que a distribuição reparte: plano do lote mais o em processo. Edição limitada, Move e previsto entram como carga extra em minutos, ocupando os grupos, mas sem peça.">
+                title="Peças por SKU que a distribuição reparte: o plano PENDENTE de cada mês; o processo entra inteiro no primeiro período (nov/26). Edição limitada, Move e previsto entram como carga extra em minutos, ocupando os grupos, mas sem peça.">
                 Plano por SKU que a distribuição reparte
               </td>
               <td className="bg-gray-50" />
